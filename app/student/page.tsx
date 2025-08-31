@@ -17,9 +17,12 @@ const mockData = {
     weeklyTotal: 5,
   },
   aiCoachMessage: {
-    message: "今日は算数の図形問題に挑戦してみよう！昨日の復習も忘れずに。君ならきっとできるよ！",
+    message:
+      "太郎さん、今日もStudySparkを開いてくれてありがとう！7日連続の学習、本当に素晴らしいです。君の頑張りをいつも見守っています。今日も一歩ずつ、自分のペースで進んでいきましょう。",
+    personalNote: "昨日の算数の図形問題、とてもよく考えて解けていましたね。その調子で今日も挑戦してみましょう！",
     mood: "encouraging",
-    tip: "図形問題は実際に描いてみると理解しやすくなります",
+    tip: "継続は力なり。毎日少しずつでも学習を続けることで、必ず成長できます",
+    timeBasedGreeting: getTimeBasedGreeting(),
   },
   todayAchievements: [
     { subject: "算数", mood: "good", problems: 15, correct: 12 },
@@ -52,6 +55,17 @@ const moodIcons = {
   good: "😊",
   normal: "😐",
   difficult: "😔",
+}
+
+function getTimeBasedGreeting() {
+  const hour = new Date().getHours()
+  if (hour < 10) {
+    return "おはようございます！今日も元気にスタートしましょう"
+  } else if (hour < 17) {
+    return "こんにちは！今日の学習はいかがですか？"
+  } else {
+    return "お疲れさまです！今日も一日よく頑張りましたね"
+  }
 }
 
 export default function StudentDashboard() {
@@ -121,14 +135,26 @@ export default function StudentDashboard() {
               <Sparkles className="h-5 w-5 text-accent animate-pulse" />
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
+            <div className="bg-accent/5 backdrop-blur-sm rounded-lg p-3 border border-accent/10">
+              <p className="text-sm text-accent font-medium">{mockData.aiCoachMessage.timeBasedGreeting}</p>
+            </div>
+
             <div className="bg-background/60 backdrop-blur-sm rounded-lg p-4 border border-primary/10">
               <p className="text-base leading-relaxed text-foreground font-medium">{mockData.aiCoachMessage.message}</p>
             </div>
+
+            <div className="bg-primary/5 backdrop-blur-sm rounded-lg p-3 border border-primary/10">
+              <p className="text-sm leading-relaxed text-foreground">
+                <span className="font-medium text-primary">✨ 個別フィードバック：</span>
+                {mockData.aiCoachMessage.personalNote}
+              </p>
+            </div>
+
             <div className="flex items-start gap-2 text-sm text-muted-foreground bg-accent/5 rounded-lg p-3">
               <Bot className="h-4 w-4 mt-0.5 text-accent flex-shrink-0" />
               <p className="leading-relaxed">
-                <span className="font-medium text-accent">今日のコツ：</span>
+                <span className="font-medium text-accent">今日の応援メッセージ：</span>
                 {mockData.aiCoachMessage.tip}
               </p>
             </div>
