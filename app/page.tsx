@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import Image from "next/image"
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -11,8 +12,39 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function LoginPage() {
   const [userId, setUserId] = useState("")
+  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [showCoachCode, setShowCoachCode] = useState(false)
+  const [coachCode, setCoachCode] = useState("")
+  const [codeValidation, setCodeValidation] = useState<{ isValid: boolean; message: string } | null>(null)
+
+  const validateCoachCode = (code: string) => {
+    if (code.length === 0) {
+      setCodeValidation(null)
+      return
+    }
+
+    if (code.length < 6) {
+      setCodeValidation({ isValid: false, message: "コードは6文字以上である必要があります" })
+      return
+    }
+
+    // 簡単な検証ロジック（実際のアプリでは API 呼び出しを行う）
+    const validCodes = ["COACH123", "TEACHER456", "MENTOR789"]
+    const isValid = validCodes.includes(code.toUpperCase())
+
+    setCodeValidation({
+      isValid,
+      message: isValid ? "有効なコードです" : "無効なコードです",
+    })
+  }
+
+  const handleCoachCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setCoachCode(value)
+    validateCoachCode(value)
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -51,11 +83,11 @@ export default function LoginPage() {
 
     // Simulate registration process
     setTimeout(() => {
-      if (userId.startsWith("student")) {
+      if (email.includes("student")) {
         window.location.href = "/setup/avatar"
-      } else if (userId.startsWith("parent")) {
+      } else if (email.includes("parent")) {
         window.location.href = "/setup/parent-avatar"
-      } else if (userId.startsWith("coach")) {
+      } else if (email.includes("coach")) {
         window.location.href = "/coach"
       } else {
         window.location.href = "/setup/avatar"
@@ -69,8 +101,14 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo and Title */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <span className="text-2xl font-bold text-primary-foreground">S</span>
+          <div className="w-24 h-24 flex items-center justify-center mx-auto mb-4">
+            <Image
+              src="/images/spark-logo.png"
+              alt="StudySpark Logo"
+              width={96}
+              height={96}
+              className="w-full h-full object-contain"
+            />
           </div>
           <h1 className="text-3xl font-bold text-foreground mb-2">StudySpark</h1>
           <p className="text-muted-foreground">毎日の学習を楽しく記録しよう</p>
@@ -123,13 +161,13 @@ export default function LoginPage() {
               <TabsContent value="register" className="space-y-4 mt-4">
                 <form onSubmit={handleNewRegistration} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="newUserId">ユーザーID</Label>
+                    <Label htmlFor="email">メールアドレス</Label>
                     <Input
-                      id="newUserId"
-                      type="text"
-                      placeholder="新しいユーザーIDを入力"
-                      value={userId}
-                      onChange={(e) => setUserId(e.target.value)}
+                      id="email"
+                      type="email"
+                      placeholder="メールアドレスを入力"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       required
                       className="h-12"
                     />
@@ -149,6 +187,39 @@ export default function LoginPage() {
                   <Button type="submit" className="w-full h-12 text-lg font-medium" disabled={isLoading}>
                     {isLoading ? "登録中..." : "新規登録"}
                   </Button>
+
+                  <div className="mt-4 pt-4 border-t border-border">
+                    <button
+                      type="button"
+                      onClick={() => setShowCoachCode(!showCoachCode)}
+                      className="text-primary hover:text-primary/80 underline text-sm transition-colors"
+                    >
+                      指導者コード/招待リンクをお持ちの方
+                    </button>
+
+                    <div
+                      className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                        showCoachCode ? "max-h-32 opacity-100 mt-3" : "max-h-0 opacity-0"
+                      }`}
+                    >
+                      <div className="space-y-2">
+                        <Label htmlFor="coachCode">指導者コード</Label>
+                        <Input
+                          id="coachCode"
+                          type="text"
+                          placeholder="指導者コードを入力"
+                          value={coachCode}
+                          onChange={handleCoachCodeChange}
+                          className="h-10"
+                        />
+                        {codeValidation && (
+                          <p className={`text-xs ${codeValidation.isValid ? "text-green-600" : "text-red-600"}`}>
+                            {codeValidation.message}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </form>
               </TabsContent>
             </Tabs>
@@ -161,6 +232,8 @@ export default function LoginPage() {
             <strong>デモ用:</strong>
             <br />
             student1 / parent1 / coach1 で始まるIDを入力してください
+            <br />
+            <span className="text-xs">指導者コード例: COACH123, TEACHER456, MENTOR789</span>
           </p>
         </div>
       </div>

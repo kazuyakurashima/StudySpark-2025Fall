@@ -10,7 +10,7 @@ import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { BottomNavigation } from "@/components/bottom-navigation"
-import { Calendar, Target, TrendingUp, BookOpen, Save } from "lucide-react"
+import { Calendar, Flag, TrendingUp, BookOpen, Save, Bot } from "lucide-react"
 
 const testSchedule = [
   { id: "test1", name: "第1回週テスト", date: "2024-08-30", dateDisplay: "8月30日(土)" },
@@ -46,6 +46,10 @@ const pastPerformance = [
   { date: "6月", math: 70, japanese: 75, science: 65, social: 80 },
   { date: "5月", math: 65, japanese: 70, science: 60, social: 75 },
 ]
+
+const avatarMap = {
+  ai_coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png",
+}
 
 export default function GoalSettingPage() {
   const [selectedTest, setSelectedTest] = useState("")
@@ -93,7 +97,7 @@ export default function GoalSettingPage() {
       <div className="bg-card/80 backdrop-blur-sm border-b border-border/50 p-4">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-            <Target className="h-6 w-6 text-primary" />
+            <Flag className="h-6 w-6 text-primary" />
             ゴールナビ
           </h1>
           <p className="text-sm text-muted-foreground">目標を設定して、合格に向けて頑張ろう！</p>
@@ -101,6 +105,30 @@ export default function GoalSettingPage() {
       </div>
 
       <div className="max-w-4xl mx-auto p-4 space-y-6">
+        <Card className="bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200">
+          <CardContent className="p-6">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0">
+                <img
+                  src={avatarMap.ai_coach || "/placeholder.svg"}
+                  alt="AIコーチ"
+                  className="w-12 h-12 rounded-full border-2 border-blue-200"
+                />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <Bot className="h-4 w-4 text-blue-600" />
+                  <span className="font-semibold text-blue-800">AIコーチからのアドバイス</span>
+                </div>
+                <p className="text-blue-700 leading-relaxed">
+                  今日も目標に向かって頑張ろう！まずは自分の現在の気持ちを正直に選んで、無理のない目標設定をしていこう。
+                  小さな積み重ねが大きな成果につながるよ。一緒に合格を目指そう！✨
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Goal Setting Section */}
           <div className="space-y-6">
@@ -163,10 +191,10 @@ export default function GoalSettingPage() {
 
                 {/* Class Number */}
                 <div className="space-y-2">
-                  <Label htmlFor="classNumber">クラス番号</Label>
+                  <Label htmlFor="classNumber">組選択</Label>
                   <Select value={classNumber} onValueChange={setClassNumber}>
                     <SelectTrigger>
-                      <SelectValue placeholder="クラス番号を選択" />
+                      <SelectValue placeholder="組を選択" />
                     </SelectTrigger>
                     <SelectContent>
                       {Array.from({ length: 40 }, (_, i) => i + 1).map((num) => (
@@ -196,6 +224,19 @@ export default function GoalSettingPage() {
                       <span className="text-sm font-medium">
                         目標習得率: {subjectGoals[subject.id]?.masteryRate || 80}%
                       </span>
+                    </div>
+
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Bot className="h-3 w-3 text-blue-600" />
+                        <span className="text-xs font-medium text-blue-800">AIコーチのアドバイス</span>
+                      </div>
+                      <p className="text-xs text-blue-700">
+                        {subject.id === "math" && "計算ミスを減らすために、見直しの時間を作ろう！"}
+                        {subject.id === "japanese" && "読解力向上のため、毎日少しずつ文章を読む習慣をつけよう！"}
+                        {subject.id === "science" && "実験や図表の問題を重点的に練習しよう！"}
+                        {subject.id === "social" && "地図や年表を使って、視覚的に覚えていこう！"}
+                      </p>
                     </div>
 
                     {/* Mood Selection */}

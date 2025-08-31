@@ -106,9 +106,24 @@ export default function ReflectPage() {
   const [showAIChat, setShowAIChat] = useState(false)
   const [activeTab, setActiveTab] = useState("history")
 
-  // Check if it's weekend (Saturday or Sunday)
-  const today = new Date()
-  const isWeekend = today.getDay() === 0 || today.getDay() === 6
+  // Check if AI coaching is available
+  const isAICoachingAvailable = () => {
+    const now = new Date()
+    const day = now.getDay() // 0: 日曜日, 1: 月曜日, ..., 6: 土曜日
+    const hour = now.getHours()
+    const minute = now.getMinutes()
+
+    // 土曜日12時以降
+    if (day === 6 && hour >= 12) return true
+
+    // 日曜日、月曜日、火曜日は終日
+    if (day === 0 || day === 1 || day === 2) return true
+
+    // 水曜日23時59分まで
+    if (day === 3 && (hour < 23 || (hour === 23 && minute <= 59))) return true
+
+    return false
+  }
 
   const getAvatarSrc = (avatarId: string) => {
     const avatarMap: { [key: string]: string } = {
@@ -143,7 +158,7 @@ export default function ReflectPage() {
 
       <div className="max-w-4xl mx-auto p-4">
         {/* AI Coach Button (Weekend Only) */}
-        {isWeekend && (
+        {isAICoachingAvailable() && (
           <Card className="mb-6 bg-gradient-to-r from-accent/10 via-primary/10 to-accent/10 border-accent/20 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-r from-accent/5 to-primary/5 animate-pulse" />
             <CardContent className="p-6 relative">
@@ -160,7 +175,9 @@ export default function ReflectPage() {
                   </div>
                   <div>
                     <h3 className="font-bold text-lg">AIコーチング</h3>
-                    <p className="text-sm text-muted-foreground">土日限定！1週間の学習を一緒に振り返ろう</p>
+                    <p className="text-sm text-muted-foreground">
+                      土曜日12時〜水曜日23時59分限定！1週間の学習を一緒に振り返ろう
+                    </p>
                   </div>
                 </div>
                 <Button

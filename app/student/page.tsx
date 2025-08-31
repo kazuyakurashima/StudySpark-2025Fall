@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { BottomNavigation } from "@/components/bottom-navigation"
-import { Flame, Calendar, BookOpen, Users, MessageCircle, Target } from "lucide-react"
+import { Flame, Calendar, BookOpen, Users, MessageCircle, Target, Bot, Sparkles } from "lucide-react"
 
 // Mock data for demo
 const mockData = {
@@ -15,6 +15,11 @@ const mockData = {
     avatar: "student1",
     streak: 7,
     weeklyTotal: 5,
+  },
+  aiCoachMessage: {
+    message: "今日は算数の図形問題に挑戦してみよう！昨日の復習も忘れずに。君ならきっとできるよ！",
+    mood: "encouraging",
+    tip: "図形問題は実際に描いてみると理解しやすくなります",
   },
   todayAchievements: [
     { subject: "算数", mood: "good", problems: 15, correct: 12 },
@@ -70,6 +75,7 @@ export default function StudentDashboard() {
       student5: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student5-kehwNSIKsgkTL6EkAPO2evB3qJWnRM.png",
       student6: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student6-dJrMk7uUxYSRMp5tMJ3t4KYDOEIuNl.png",
       coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/coach-LENT7C1nR9yWT7UBNTHgxnWakF66Pr.png",
+      ai_coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png",
       parent1: "/placeholder.svg?height=40&width=40",
     }
     return avatarMap[avatarId] || avatarMap["student1"]
@@ -86,14 +92,14 @@ export default function StudentDashboard() {
               <AvatarFallback>{userName.charAt(0)}</AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-lg font-bold text-foreground">おかえり、{userName}さん</h1>
+              <h1 className="text-xl font-bold text-foreground">おかえり、{userName}さん</h1>
               <p className="text-sm text-muted-foreground">今日も一緒にがんばろう！</p>
             </div>
           </div>
           <div className="text-right">
             <div className="flex items-center gap-1 text-accent">
               <Flame className="h-5 w-5" />
-              <span className="font-bold text-lg">{mockData.user.streak}</span>
+              <span className="font-bold text-xl">{mockData.user.streak}</span>
             </div>
             <p className="text-xs text-muted-foreground">連続日数</p>
           </div>
@@ -101,25 +107,53 @@ export default function StudentDashboard() {
       </div>
 
       <div className="max-w-4xl mx-auto p-4 space-y-6">
+        {/* AI Coach Daily Message Section */}
+        <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-accent/10 border-primary/20 shadow-lg">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg font-bold flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
+                  <AvatarFallback>AI</AvatarFallback>
+                </Avatar>
+                <span className="text-primary">AIコーチからのメッセージ</span>
+              </div>
+              <Sparkles className="h-5 w-5 text-accent animate-pulse" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="bg-background/60 backdrop-blur-sm rounded-lg p-4 border border-primary/10">
+              <p className="text-base leading-relaxed text-foreground font-medium">{mockData.aiCoachMessage.message}</p>
+            </div>
+            <div className="flex items-start gap-2 text-sm text-muted-foreground bg-accent/5 rounded-lg p-3">
+              <Bot className="h-4 w-4 mt-0.5 text-accent flex-shrink-0" />
+              <p className="leading-relaxed">
+                <span className="font-medium text-accent">今日のコツ：</span>
+                {mockData.aiCoachMessage.tip}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Learning Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Streak Counter */}
           <Card className="bg-gradient-to-br from-accent/10 to-accent/5 border-accent/20">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Flame className="h-4 w-4 text-accent" />
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Flame className="h-5 w-5 text-accent" />
                 学習継続
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-bold text-accent">{mockData.user.streak}</span>
-                  <span className="text-sm text-muted-foreground">日連続</span>
+              <div className="space-y-3">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-black text-accent">{mockData.user.streak}</span>
+                  <span className="text-base font-medium text-muted-foreground">日連続</span>
                 </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-lg font-semibold">{mockData.user.weeklyTotal}</span>
-                  <span className="text-xs text-muted-foreground">/ 7日間</span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xl font-bold text-foreground">{mockData.user.weeklyTotal}</span>
+                  <span className="text-sm text-muted-foreground">/ 7日間</span>
                 </div>
               </div>
             </CardContent>
@@ -128,18 +162,18 @@ export default function StudentDashboard() {
           {/* Next Test */}
           <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-primary" />
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-primary" />
                 次回テスト
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-1">
-                <p className="font-semibold text-sm">{mockData.nextTest.name}</p>
-                <p className="text-xs text-muted-foreground">{mockData.nextTest.date}</p>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-xl font-bold text-primary">{mockData.nextTest.daysLeft}</span>
-                  <span className="text-sm text-muted-foreground">日後</span>
+              <div className="space-y-2">
+                <p className="font-bold text-base text-foreground">{mockData.nextTest.name}</p>
+                <p className="text-sm font-medium text-muted-foreground">{mockData.nextTest.date}</p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-black text-primary">{mockData.nextTest.daysLeft}</span>
+                  <span className="text-base font-medium text-muted-foreground">日後</span>
                 </div>
               </div>
             </CardContent>
@@ -148,16 +182,16 @@ export default function StudentDashboard() {
           {/* Today's Goal */}
           <Card className="md:col-span-2 lg:col-span-1">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Target className="h-4 w-4 text-foreground" />
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Target className="h-5 w-5 text-foreground" />
                 今日の目標
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                <p className="text-sm">4科目の学習</p>
-                <Progress value={75} className="h-2" />
-                <p className="text-xs text-muted-foreground">3/4 科目完了</p>
+              <div className="space-y-3">
+                <p className="text-base font-medium text-foreground">4科目の学習</p>
+                <Progress value={75} className="h-3" />
+                <p className="text-sm font-medium text-muted-foreground">3/4 科目完了</p>
               </div>
             </CardContent>
           </Card>
@@ -166,7 +200,7 @@ export default function StudentDashboard() {
         {/* Today's Achievements */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
               <BookOpen className="h-5 w-5 text-primary" />
               今日の成果
             </CardTitle>
@@ -174,13 +208,15 @@ export default function StudentDashboard() {
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {mockData.todayAchievements.map((achievement, index) => (
-                <div key={index} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                <div key={index} className="flex items-center gap-3 p-4 rounded-lg bg-muted/50 border border-border/50">
                   <div className="text-2xl">{moodIcons[achievement.mood as keyof typeof moodIcons]}</div>
                   <div className="flex-1">
-                    <Badge className={`${subjectColors[achievement.subject as keyof typeof subjectColors]} mb-1`}>
+                    <Badge
+                      className={`${subjectColors[achievement.subject as keyof typeof subjectColors]} mb-2 font-medium`}
+                    >
                       {achievement.subject}
                     </Badge>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-base font-medium text-foreground">
                       {achievement.correct}/{achievement.problems}問正解
                     </p>
                   </div>
@@ -193,7 +229,7 @@ export default function StudentDashboard() {
         {/* Encouragement Messages */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
               <MessageCircle className="h-5 w-5 text-accent" />
               応援メッセージ
             </CardTitle>
@@ -201,17 +237,17 @@ export default function StudentDashboard() {
           <CardContent>
             <div className="space-y-3">
               {mockData.encouragementMessages.map((message, index) => (
-                <div key={index} className="flex items-start gap-3 p-3 rounded-lg bg-accent/5 border border-accent/10">
-                  <Avatar className="h-8 w-8">
+                <div key={index} className="flex items-start gap-3 p-4 rounded-lg bg-accent/5 border border-accent/10">
+                  <Avatar className="h-10 w-10">
                     <AvatarImage src={getAvatarSrc(message.avatar) || "/placeholder.svg"} alt={message.from} />
                     <AvatarFallback>{message.from.charAt(0)}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-medium">{message.from}</span>
-                      <span className="text-xs text-muted-foreground">{message.date}</span>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-base font-bold">{message.from}</span>
+                      <span className="text-sm text-muted-foreground">{message.date}</span>
                     </div>
-                    <p className="text-sm text-foreground">{message.message}</p>
+                    <p className="text-base leading-relaxed text-foreground">{message.message}</p>
                   </div>
                 </div>
               ))}
@@ -222,7 +258,7 @@ export default function StudentDashboard() {
         {/* Friends Activity */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
               友だちの様子
             </CardTitle>
@@ -232,20 +268,23 @@ export default function StudentDashboard() {
               {mockData.friends.map((friend, index) => (
                 <div
                   key={index}
-                  className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/10"
+                  className="flex items-center gap-3 p-4 rounded-lg bg-primary/5 border border-primary/10"
                 >
-                  <Avatar className="h-10 w-10">
+                  <Avatar className="h-12 w-12">
                     <AvatarImage src={getAvatarSrc(friend.avatar) || "/placeholder.svg"} alt={friend.name} />
                     <AvatarFallback>{friend.name.charAt(0)}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{friend.name}</span>
-                      <Badge variant={friend.status === "学習中" ? "default" : "secondary"} className="text-xs">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-base font-bold">{friend.name}</span>
+                      <Badge
+                        variant={friend.status === "学習中" ? "default" : "secondary"}
+                        className="text-sm font-medium"
+                      >
                         {friend.status}
                       </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-base text-muted-foreground">
                       {friend.status === "学習中"
                         ? `${friend.subject}を勉強中`
                         : `今日のスコア: ${friend.todayScore}点`}

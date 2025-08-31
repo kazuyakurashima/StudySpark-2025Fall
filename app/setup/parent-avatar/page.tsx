@@ -54,8 +54,14 @@ export default function ParentAvatarSelectionPage() {
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8 pt-8">
-          <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center mx-auto mb-4">
-            <span className="text-xl font-bold text-primary-foreground">S</span>
+          <div className="w-24 h-24 flex items-center justify-center mx-auto mb-4">
+            <Image
+              src="/images/spark-logo.png"
+              alt="StudySpark Logo"
+              width={96}
+              height={96}
+              className="object-contain"
+            />
           </div>
           <h1 className="text-2xl font-bold text-foreground mb-2">保護者アバターを選択</h1>
           <p className="text-muted-foreground">あなたのアバターを選んでください</p>
