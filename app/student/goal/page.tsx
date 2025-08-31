@@ -10,7 +10,7 @@ import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { BottomNavigation } from "@/components/bottom-navigation"
-import { Calendar, Flag, TrendingUp, BookOpen, Save, Bot } from "lucide-react"
+import { Calendar, Flag, TrendingUp, BookOpen, Save, Bot, Sparkles } from "lucide-react"
 
 const testSchedule = [
   { id: "test1", name: "第1回週テスト", date: "2024-08-30", dateDisplay: "8月30日(土)" },
@@ -54,7 +54,7 @@ const avatarMap = {
 export default function GoalSettingPage() {
   const [selectedTest, setSelectedTest] = useState("")
   const [selectedCourse, setSelectedCourse] = useState("")
-  const [classNumber, setClassNumber] = useState("")
+  const [classNumber, setClassNumber] = useState([20])
   const [subjectGoals, setSubjectGoals] = useState<{
     [key: string]: { mood: string; masteryRate: number }
   }>({
@@ -63,7 +63,8 @@ export default function GoalSettingPage() {
     science: { mood: "", masteryRate: 80 },
     social: { mood: "", masteryRate: 80 },
   })
-  const [motivation, setMotivation] = useState("")
+  const [currentThoughts, setCurrentThoughts] = useState("")
+  const [isGeneratingThoughts, setIsGeneratingThoughts] = useState(false)
 
   const handleSubjectMoodChange = (subjectId: string, mood: string) => {
     setSubjectGoals((prev) => ({
@@ -79,14 +80,26 @@ export default function GoalSettingPage() {
     }))
   }
 
+  const generateThoughts = async () => {
+    setIsGeneratingThoughts(true)
+
+    // AIコーチによる思い生成のシミュレーション
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+
+    const generatedThoughts = `今回の目標に向けて、特に${subjects.find((s) => subjectGoals[s.id]?.mood === "difficult")?.name || "算数"}を頑張りたいと思います。毎日コツコツと勉強を続けて、必ず目標を達成したいです。分からないところは先生に質問して、一つずつ理解を深めていきます。合格に向けて全力で取り組みます！`
+
+    setCurrentThoughts(generatedThoughts)
+    setIsGeneratingThoughts(false)
+  }
+
   const handleSaveGoals = () => {
     // Save goals logic here
     console.log("Goals saved:", {
       selectedTest,
       selectedCourse,
-      classNumber,
+      classNumber: classNumber[0],
       subjectGoals,
-      motivation,
+      currentThoughts,
     })
     alert("目標を保存しました！")
   }
@@ -167,7 +180,7 @@ export default function GoalSettingPage() {
               <CardHeader>
                 <CardTitle>コース・クラス設定</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
                 {/* Course Selection */}
                 <div className="space-y-2">
                   <Label>コース選択</Label>
@@ -189,21 +202,28 @@ export default function GoalSettingPage() {
                   </div>
                 </div>
 
-                {/* Class Number */}
-                <div className="space-y-2">
-                  <Label htmlFor="classNumber">組選択</Label>
-                  <Select value={classNumber} onValueChange={setClassNumber}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="組を選択" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: 40 }, (_, i) => i + 1).map((num) => (
-                        <SelectItem key={num} value={num.toString()}>
-                          {num}組
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-4">
+                  <Label className="text-base font-medium">組</Label>
+                  <div className="px-3 py-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border border-blue-200">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-medium text-blue-800">目標組</span>
+                      <div className="px-3 py-1 bg-blue-600 text-white rounded-full text-sm font-bold">
+                        {classNumber[0]}組
+                      </div>
+                    </div>
+                    <Slider
+                      value={classNumber}
+                      onValueChange={setClassNumber}
+                      max={40}
+                      min={1}
+                      step={1}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-blue-600 mt-2 font-medium">
+                      <span>1組</span>
+                      <span>40組</span>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -281,20 +301,37 @@ export default function GoalSettingPage() {
               </CardContent>
             </Card>
 
-            {/* Motivation Input */}
             <Card>
               <CardHeader>
-                <CardTitle>目標への思い</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  今回の思い
+                </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
+                <div className="flex gap-2">
+                  <Button
+                    onClick={generateThoughts}
+                    disabled={isGeneratingThoughts}
+                    variant="outline"
+                    className="flex items-center gap-2 bg-transparent"
+                  >
+                    <Bot className="h-4 w-4" />
+                    {isGeneratingThoughts ? "生成中..." : "AIコーチに相談"}
+                  </Button>
+                </div>
+
                 <Textarea
                   placeholder="この目標に向けてどんな気持ちですか？どうして頑張りたいですか？"
-                  value={motivation}
-                  onChange={(e) => setMotivation(e.target.value)}
-                  className="min-h-[100px]"
-                  maxLength={200}
+                  value={currentThoughts}
+                  onChange={(e) => setCurrentThoughts(e.target.value)}
+                  className="min-h-[120px] resize-none"
+                  maxLength={300}
                 />
-                <div className="text-right text-xs text-muted-foreground mt-1">{motivation.length}/200文字</div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground">AIコーチが生成した内容は編集できます</span>
+                  <span className="text-muted-foreground">{currentThoughts.length}/300文字</span>
+                </div>
               </CardContent>
             </Card>
 
@@ -360,12 +397,10 @@ export default function GoalSettingPage() {
                       <span className="text-sm font-medium">{courses.find((c) => c.id === selectedCourse)?.name}</span>
                     </div>
                   )}
-                  {classNumber && (
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">クラス:</span>
-                      <span className="text-sm font-medium">{classNumber}組</span>
-                    </div>
-                  )}
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">組:</span>
+                    <span className="text-sm font-medium">{classNumber[0]}組</span>
+                  </div>
                   <div className="pt-2 border-t border-border">
                     <div className="text-sm font-medium mb-2">科目別目標習得率:</div>
                     {subjects.map((subject) => (
