@@ -16,7 +16,7 @@ const subjects = [
   { id: "math", name: "算数", color: "bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200" },
   { id: "japanese", name: "国語", color: "bg-green-100 text-green-800 border-green-200 hover:bg-green-200" },
   { id: "science", name: "理科", color: "bg-purple-100 text-purple-800 border-purple-200 hover:bg-purple-200" },
-  { id: "social", name: "社会", color: "bg-orange-100 text-orange-800 border-orange-200 hover:bg-orange-200" },
+  { id: "social", name: "社会", color: "bg-sky-100 text-sky-800 border-sky-200 hover:bg-sky-200" },
 ]
 
 const moodOptions = [
@@ -65,7 +65,7 @@ const learningCategories = [
 ]
 
 const levels = {
-  spark: { name: "Spark", icon: Sparkles, description: "楽しくスタート", color: "text-orange-500" },
+  spark: { name: "Spark", icon: Sparkles, description: "楽しくスタート", color: "text-primary" },
   flame: { name: "Flame", icon: Flame, description: "成長ステップ", color: "text-red-500" },
   blaze: { name: "Blaze", icon: Crown, description: "最高にチャレンジ", color: "text-purple-500" },
 }
@@ -187,10 +187,7 @@ export default function SparkPage() {
 
   const isFormValid = () => {
     if (selectedSubjects.length === 0) return false
-    if (currentLevel === "spark") {
-      return selectedSubjects.every((id) => subjectDetails[id]?.mood)
-    }
-    return selectedSubjects.every((id) => subjectDetails[id]?.mood && subjectDetails[id]?.understanding)
+    return selectedSubjects.every((id) => subjectDetails[id]?.understanding)
   }
 
   const CurrentLevelIcon = levels[currentLevel].icon
@@ -243,10 +240,10 @@ export default function SparkPage() {
 
       <div className="max-w-4xl mx-auto p-4 space-y-6">
         {!canAccessFlame && (
-          <Card className="border-orange-200 bg-orange-50/50">
+          <Card className="border-primary/20 bg-primary/5">
             <CardContent className="p-4">
               <div className="flex items-center gap-3 mb-2">
-                <Flame className="h-5 w-5 text-orange-500" />
+                <Flame className="h-5 w-5 text-primary" />
                 <span className="font-medium">Flameレベル解放まで</span>
               </div>
               <Progress value={progressToFlame} className="mb-2" />
@@ -344,52 +341,81 @@ export default function SparkPage() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">今日の気持ち *</Label>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                        {moodOptions.map((mood) => (
+                      <Label className="text-sm font-medium">理解度 *</Label>
+                      <div
+                        className={`grid gap-2 ${
+                          currentLevel === "spark" ? "grid-cols-1 md:grid-cols-3" : "grid-cols-1 md:grid-cols-5"
+                        }`}
+                      >
+                        {(currentLevel === "spark"
+                          ? [
+                              {
+                                value: "perfect",
+                                label: "バッチリ理解",
+                                emoji: "😄",
+                                color: "border-green-600 bg-green-50 text-green-800",
+                              },
+                              {
+                                value: "normal",
+                                label: "ふつう",
+                                emoji: "😐",
+                                color: "border-yellow-500 bg-yellow-50 text-yellow-700",
+                              },
+                              {
+                                value: "difficult",
+                                label: "むずかしかった",
+                                emoji: "😥",
+                                color: "border-red-500 bg-red-50 text-red-700",
+                              },
+                            ]
+                          : [
+                              {
+                                value: "perfect",
+                                label: "バッチリ理解",
+                                emoji: "😄",
+                                color: "border-green-600 bg-green-50 text-green-800",
+                              },
+                              {
+                                value: "good",
+                                label: "できた",
+                                emoji: "😊",
+                                color: "border-green-400 bg-green-50 text-green-700",
+                              },
+                              {
+                                value: "normal",
+                                label: "ふつう",
+                                emoji: "😐",
+                                color: "border-yellow-500 bg-yellow-50 text-yellow-700",
+                              },
+                              {
+                                value: "slightly_anxious",
+                                label: "ちょっと不安",
+                                emoji: "😟",
+                                color: "border-sky-500 bg-sky-50 text-sky-700",
+                              },
+                              {
+                                value: "difficult",
+                                label: "むずかしかった",
+                                emoji: "😥",
+                                color: "border-red-500 bg-red-50 text-red-700",
+                              },
+                            ]
+                        ).map((understanding) => (
                           <button
-                            key={mood.value}
-                            onClick={() => handleSubjectDetailChange(subjectId, "mood", mood.value)}
+                            key={understanding.value}
+                            onClick={() => handleSubjectDetailChange(subjectId, "understanding", understanding.value)}
                             className={`p-3 rounded-lg border-2 text-center transition-all ${
-                              subjectDetails[subjectId]?.mood === mood.value
-                                ? `${mood.color} shadow-md`
+                              subjectDetails[subjectId]?.understanding === understanding.value
+                                ? `${understanding.color} shadow-md`
                                 : "border-border bg-background hover:border-primary/50"
                             }`}
                           >
-                            <div className="text-2xl mb-1">{mood.emoji}</div>
-                            <div className="text-sm font-medium">{mood.label}</div>
+                            <div className="text-2xl mb-1">{understanding.emoji}</div>
+                            <div className="text-xs font-medium leading-tight">{understanding.label}</div>
                           </button>
                         ))}
                       </div>
                     </div>
-
-                    {(currentLevel === "flame" || currentLevel === "blaze") && (
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium">理解度 *</Label>
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                          {[
-                            { value: "perfect", label: "バッチリ理解", emoji: "😄" },
-                            { value: "good", label: "できた", emoji: "😊" },
-                            { value: "normal", label: "ふつう", emoji: "😐" },
-                            { value: "worried", label: "ちょっと不安", emoji: "😟" },
-                            { value: "difficult", label: "むずかしかった", emoji: "😥" },
-                          ].map((understanding) => (
-                            <button
-                              key={understanding.value}
-                              onClick={() => handleSubjectDetailChange(subjectId, "understanding", understanding.value)}
-                              className={`p-2 rounded-lg border-2 text-center transition-all text-xs ${
-                                subjectDetails[subjectId]?.understanding === understanding.value
-                                  ? "border-primary bg-primary/10 shadow-md"
-                                  : "border-border bg-background hover:border-primary/50"
-                              }`}
-                            >
-                              <div className="text-lg mb-1">{understanding.emoji}</div>
-                              <div className="font-medium">{understanding.label}</div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
 
                     {(currentLevel === "flame" || currentLevel === "blaze") && (
                       <div className="space-y-2">
@@ -564,11 +590,7 @@ export default function SparkPage() {
         {/* Form Validation Message */}
         {selectedSubjects.length > 0 && !isFormValid() && (
           <div className="p-4 bg-accent/10 border border-accent/20 rounded-lg">
-            <p className="text-sm text-accent font-medium">
-              {currentLevel === "spark"
-                ? "選択した科目の気持ちを選んでください"
-                : "選択した科目の気持ちと理解度を選んでください"}
-            </p>
+            <p className="text-sm text-accent font-medium">選択した科目の理解度を選んでください</p>
           </div>
         )}
       </div>

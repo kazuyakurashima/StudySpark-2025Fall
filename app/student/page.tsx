@@ -48,7 +48,7 @@ const subjectColors = {
   算数: "bg-blue-100 text-blue-800 border-blue-200",
   国語: "bg-green-100 text-green-800 border-green-200",
   理科: "bg-purple-100 text-purple-800 border-purple-200",
-  社会: "bg-orange-100 text-orange-800 border-orange-200",
+  社会: "bg-sky-100 text-sky-800 border-sky-200",
 }
 
 const moodIcons = {

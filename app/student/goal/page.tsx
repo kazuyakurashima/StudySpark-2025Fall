@@ -7,10 +7,9 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
-import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { BottomNavigation } from "@/components/bottom-navigation"
-import { Calendar, Flag, TrendingUp, BookOpen, Save, Bot, Sparkles } from "lucide-react"
+import { Calendar, Flag, TrendingUp, Save, Bot, Sparkles, Send, Target, PartyPopper } from "lucide-react"
 
 const testSchedule = [
   { id: "test1", name: "第1回週テスト", date: "2024-08-30", dateDisplay: "8月30日(土)" },
@@ -34,12 +33,6 @@ const subjects = [
   { id: "social", name: "社会", color: "bg-orange-100 text-orange-800 border-orange-200" },
 ]
 
-const moodOptions = [
-  { value: "good", label: "よくできた", emoji: "😊", color: "text-green-600" },
-  { value: "normal", label: "ふつう", emoji: "😐", color: "text-yellow-600" },
-  { value: "difficult", label: "むずかしかった", emoji: "😔", color: "text-red-600" },
-]
-
 // Mock past performance data
 const pastPerformance = [
   { date: "7月", math: 75, japanese: 80, science: 70, social: 85 },
@@ -51,54 +44,134 @@ const avatarMap = {
   ai_coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png",
 }
 
+const coachQuestions = [
+  "今回のテストに向けて、どんな気持ちで取り組みたい？",
+  "前回のテストと比べて、今回特に頑張りたいことはある？",
+  "目標を達成したら、どんな気持ちになると思う？",
+  "今回のテストで一番大切にしたいことは何？",
+]
+
 export default function GoalSettingPage() {
   const [selectedTest, setSelectedTest] = useState("")
   const [selectedCourse, setSelectedCourse] = useState("")
   const [classNumber, setClassNumber] = useState([20])
-  const [subjectGoals, setSubjectGoals] = useState<{
-    [key: string]: { mood: string; masteryRate: number }
-  }>({
-    math: { mood: "", masteryRate: 80 },
-    japanese: { mood: "", masteryRate: 80 },
-    science: { mood: "", masteryRate: 80 },
-    social: { mood: "", masteryRate: 80 },
-  })
   const [currentThoughts, setCurrentThoughts] = useState("")
   const [isGeneratingThoughts, setIsGeneratingThoughts] = useState(false)
+  const [chatMessages, setChatMessages] = useState<Array<{ id: number; sender: "coach" | "student"; message: string }>>(
+    [],
+  )
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
+  const [studentResponse, setStudentResponse] = useState("")
+  const [isChatMode, setIsChatMode] = useState(false)
+  const [studentName] = useState("太郎") // デモ用の名前
+  const [isGoalSet, setIsGoalSet] = useState(false)
+  const [showCelebration, setShowCelebration] = useState(false)
+  const [isAiCoachActive, setIsAiCoachActive] = useState(false)
 
-  const handleSubjectMoodChange = (subjectId: string, mood: string) => {
-    setSubjectGoals((prev) => ({
-      ...prev,
-      [subjectId]: { ...prev[subjectId], mood },
-    }))
+  const handleGoalDecision = () => {
+    if (!selectedTest || !selectedCourse) {
+      alert("テストとコースを選択してください")
+      return
+    }
+
+    setIsGoalSet(true)
+    setShowCelebration(true)
+
+    setTimeout(() => {
+      setShowCelebration(false)
+      setIsAiCoachActive(true)
+      startDynamicCoachChat()
+    }, 3000)
   }
 
-  const handleMasteryRateChange = (subjectId: string, rate: number[]) => {
-    setSubjectGoals((prev) => ({
-      ...prev,
-      [subjectId]: { ...prev[subjectId], masteryRate: rate[0] },
-    }))
+  const startDynamicCoachChat = () => {
+    const selectedTestName = testSchedule.find((t) => t.id === selectedTest)?.name || ""
+    const selectedCourseName = courses.find((c) => c.id === selectedCourse)?.name || ""
+    const targetClass = classNumber[0]
+
+    setIsChatMode(true)
+    setCurrentQuestionIndex(0)
+    setChatMessages([
+      {
+        id: 1,
+        sender: "coach",
+        message: `${studentName}くん、目標設定お疲れさま！🎉\n\n「${selectedTestName}」で「${selectedCourseName}・${targetClass}組」を目指すんだね！\n\nこの目標に向けて、${studentName}くんの気持ちを聞かせて。${coachQuestions[0]}`,
+      },
+    ])
+  }
+
+  const startCoachChat = () => {
+    if (!isGoalSet) {
+      alert("まず目標を決定してください")
+      return
+    }
+    startDynamicCoachChat()
+  }
+
+  const sendStudentResponse = () => {
+    if (!studentResponse.trim()) return
+
+    const newMessages = [
+      ...chatMessages,
+      {
+        id: chatMessages.length + 1,
+        sender: "student" as const,
+        message: studentResponse,
+      },
+    ]
+
+    if (currentQuestionIndex < coachQuestions.length - 1) {
+      const nextIndex = currentQuestionIndex + 1
+      newMessages.push({
+        id: newMessages.length + 1,
+        sender: "coach",
+        message: coachQuestions[nextIndex],
+      })
+      setCurrentQuestionIndex(nextIndex)
+    } else {
+      const finalMessage = `じゃあ、${studentName}くんの今回のテストにかける想いは、こんな感じってことだよね！\n\n「${generateFinalThoughts()}」\n\nこの気持ちを大切に、一緒に頑張ろう！✨`
+      newMessages.push({
+        id: newMessages.length + 1,
+        sender: "coach",
+        message: finalMessage,
+      })
+
+      setTimeout(() => {
+        setCurrentThoughts(generateFinalThoughts())
+        setIsChatMode(false)
+      }, 2000)
+    }
+
+    setChatMessages(newMessages)
+    setStudentResponse("")
+  }
+
+  const generateFinalThoughts = () => {
+    const responses = chatMessages.filter((msg) => msg.sender === "student").map((msg) => msg.message)
+    return `今回の目標に向けて、${responses.join("、")}という気持ちで全力で取り組みます。必ず目標を達成して、成長した自分になりたいです！`
   }
 
   const generateThoughts = async () => {
     setIsGeneratingThoughts(true)
 
-    // AIコーチによる思い生成のシミュレーション
     await new Promise((resolve) => setTimeout(resolve, 2000))
 
-    const generatedThoughts = `今回の目標に向けて、特に${subjects.find((s) => subjectGoals[s.id]?.mood === "difficult")?.name || "算数"}を頑張りたいと思います。毎日コツコツと勉強を続けて、必ず目標を達成したいです。分からないところは先生に質問して、一つずつ理解を深めていきます。合格に向けて全力で取り組みます！`
+    const generatedThoughts = `今回の目標に向けて、毎日コツコツと勉強を続けて、必ず目標を達成したいです。分からないところは先生に質問して、一つずつ理解を深めていきます。合格に向けて全力で取り組みます！`
 
     setCurrentThoughts(generatedThoughts)
     setIsGeneratingThoughts(false)
   }
 
   const handleSaveGoals = () => {
-    // Save goals logic here
+    if (!isGoalSet) {
+      alert("まず目標を決定してください")
+      return
+    }
+
     console.log("Goals saved:", {
       selectedTest,
       selectedCourse,
       classNumber: classNumber[0],
-      subjectGoals,
       currentThoughts,
     })
     alert("目標を保存しました！")
@@ -106,7 +179,34 @@ export default function GoalSettingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-20">
-      {/* Header */}
+      {showCelebration && (
+        <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+          {[...Array(20)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute confetti"
+              style={{
+                left: `${Math.random() * 100}%`,
+                animationDelay: `${Math.random() * 2}s`,
+                backgroundColor: ["#0891b2", "#0284c7", "#0369a1", "#1e40af"][Math.floor(Math.random() * 4)],
+                width: "10px",
+                height: "10px",
+                borderRadius: "50%",
+              }}
+            />
+          ))}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-8 shadow-2xl pulse-celebration">
+              <div className="text-center">
+                <PartyPopper className="h-16 w-16 text-primary mx-auto mb-4" />
+                <h2 className="text-2xl font-bold text-primary mb-2">目標決定！</h2>
+                <p className="text-muted-foreground">素晴らしい目標が設定されました！</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-card/80 backdrop-blur-sm border-b border-border/50 p-4">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
@@ -118,35 +218,35 @@ export default function GoalSettingPage() {
       </div>
 
       <div className="max-w-4xl mx-auto p-4 space-y-6">
-        <Card className="bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200">
-          <CardContent className="p-6">
-            <div className="flex items-start gap-4">
-              <div className="flex-shrink-0">
-                <img
-                  src={avatarMap.ai_coach || "/placeholder.svg"}
-                  alt="AIコーチ"
-                  className="w-12 h-12 rounded-full border-2 border-blue-200"
-                />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <Bot className="h-4 w-4 text-blue-600" />
-                  <span className="font-semibold text-blue-800">AIコーチからのアドバイス</span>
+        {!isAiCoachActive && (
+          <Card className="bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200">
+            <CardContent className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0">
+                  <img
+                    src={avatarMap.ai_coach || "/placeholder.svg"}
+                    alt="AIコーチ"
+                    className="w-12 h-12 rounded-full border-2 border-blue-200"
+                  />
                 </div>
-                <p className="text-blue-700 leading-relaxed">
-                  今日も目標に向かって頑張ろう！まずは自分の現在の気持ちを正直に選んで、無理のない目標設定をしていこう。
-                  小さな積み重ねが大きな成果につながるよ。一緒に合格を目指そう！✨
-                </p>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Bot className="h-4 w-4 text-blue-600" />
+                    <span className="font-semibold text-blue-800">AIコーチからのアドバイス</span>
+                  </div>
+                  <p className="text-blue-700 leading-relaxed">
+                    今日も目標に向かって頑張ろう！まずは自分の現在の気持ちを正直に選んで、無理のない目標設定をしていこう。
+                    小さな積み重ねが大きな成果につながるよ。一緒に合格を目指そう！✨
+                  </p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Goal Setting Section */}
           <div className="space-y-6">
-            {/* Test Selection */}
-            <Card>
+            <Card className={isGoalSet ? "opacity-75" : ""}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="h-5 w-5 text-primary" />
@@ -156,7 +256,7 @@ export default function GoalSettingPage() {
               <CardContent className="space-y-3">
                 <div className="space-y-2">
                   <Label>目標テストを選択</Label>
-                  <Select value={selectedTest} onValueChange={setSelectedTest}>
+                  <Select value={selectedTest} onValueChange={setSelectedTest} disabled={isGoalSet}>
                     <SelectTrigger>
                       <SelectValue placeholder="テストを選択してください" />
                     </SelectTrigger>
@@ -175,25 +275,24 @@ export default function GoalSettingPage() {
               </CardContent>
             </Card>
 
-            {/* Course and Class Selection */}
-            <Card>
+            <Card className={isGoalSet ? "opacity-75" : ""}>
               <CardHeader>
-                <CardTitle>コース・クラス設定</CardTitle>
+                <CardTitle>目標の設定</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Course Selection */}
                 <div className="space-y-2">
-                  <Label>コース選択</Label>
+                  <Label>目標コースを決めよう</Label>
                   <div className="grid grid-cols-2 gap-2">
                     {courses.map((course) => (
                       <button
                         key={course.id}
-                        onClick={() => setSelectedCourse(course.id)}
+                        onClick={() => !isGoalSet && setSelectedCourse(course.id)}
+                        disabled={isGoalSet}
                         className={`p-3 rounded-lg border-2 text-center transition-all ${
                           selectedCourse === course.id
                             ? "border-primary bg-primary/10 shadow-md"
                             : "border-border bg-background hover:border-primary/50"
-                        }`}
+                        } ${isGoalSet ? "cursor-not-allowed" : ""}`}
                       >
                         <div className="font-bold text-lg">{course.name}</div>
                         <div className="text-xs text-muted-foreground">{course.description}</div>
@@ -203,10 +302,10 @@ export default function GoalSettingPage() {
                 </div>
 
                 <div className="space-y-4">
-                  <Label className="text-base font-medium">組</Label>
+                  <Label className="text-base font-medium">目標の組を決めよう</Label>
                   <div className="px-3 py-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border border-blue-200">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm font-medium text-blue-800">目標組</span>
+                      <span className="text-sm font-medium text-blue-800">目標の組</span>
                       <div className="px-3 py-1 bg-blue-600 text-white rounded-full text-sm font-bold">
                         {classNumber[0]}組
                       </div>
@@ -218,6 +317,7 @@ export default function GoalSettingPage() {
                       min={1}
                       step={1}
                       className="w-full"
+                      disabled={isGoalSet}
                     />
                     <div className="flex justify-between text-xs text-blue-600 mt-2 font-medium">
                       <span>1組</span>
@@ -228,121 +328,120 @@ export default function GoalSettingPage() {
               </CardContent>
             </Card>
 
-            {/* Subject Goals */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BookOpen className="h-5 w-5 text-primary" />
-                  科目別目標設定
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {subjects.map((subject) => (
-                  <div key={subject.id} className="p-4 rounded-lg bg-muted/30 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Badge className={subject.color}>{subject.name}</Badge>
-                      <span className="text-sm font-medium">
-                        目標習得率: {subjectGoals[subject.id]?.masteryRate || 80}%
-                      </span>
-                    </div>
+            {!isGoalSet && (
+              <Card className="bg-gradient-to-r from-primary/10 to-accent/10 border-primary/20">
+                <CardContent className="p-6 text-center">
+                  <Target className="h-12 w-12 text-primary mx-auto mb-4" />
+                  <h3 className="text-lg font-bold text-primary mb-2">目標を決定しよう！</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    テスト、コース、組を選択したら、目標を決定してください
+                  </p>
+                  <Button
+                    onClick={handleGoalDecision}
+                    disabled={!selectedTest || !selectedCourse}
+                    className="w-full h-12 text-lg font-bold bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 shadow-lg"
+                  >
+                    <Sparkles className="h-5 w-5 mr-2" />
+                    今回の目標はこれにする！
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
 
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Bot className="h-3 w-3 text-blue-600" />
-                        <span className="text-xs font-medium text-blue-800">AIコーチのアドバイス</span>
-                      </div>
-                      <p className="text-xs text-blue-700">
-                        {subject.id === "math" && "計算ミスを減らすために、見直しの時間を作ろう！"}
-                        {subject.id === "japanese" && "読解力向上のため、毎日少しずつ文章を読む習慣をつけよう！"}
-                        {subject.id === "science" && "実験や図表の問題を重点的に練習しよう！"}
-                        {subject.id === "social" && "地図や年表を使って、視覚的に覚えていこう！"}
-                      </p>
-                    </div>
-
-                    {/* Mood Selection */}
-                    <div className="space-y-2">
-                      <Label className="text-sm">現在の気持ち</Label>
+            {isAiCoachActive && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                    今回の思い
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {!isChatMode ? (
+                    <>
                       <div className="flex gap-2">
-                        {moodOptions.map((mood) => (
-                          <button
-                            key={mood.value}
-                            onClick={() => handleSubjectMoodChange(subject.id, mood.value)}
-                            className={`flex-1 p-2 rounded-lg border-2 text-center transition-all ${
-                              subjectGoals[subject.id]?.mood === mood.value
-                                ? "border-primary bg-primary/10"
-                                : "border-border bg-background hover:border-primary/50"
-                            }`}
+                        <Button
+                          onClick={startCoachChat}
+                          className="flex items-center gap-2 bg-gradient-to-r from-primary to-accent text-white"
+                        >
+                          <Bot className="h-4 w-4" />
+                          AIコーチと話してみる
+                        </Button>
+                      </div>
+
+                      <Textarea
+                        placeholder="この目標に向けてどんな気持ちですか？どうして頑張りたいですか？"
+                        value={currentThoughts}
+                        onChange={(e) => setCurrentThoughts(e.target.value)}
+                        className="min-h-[120px] resize-none"
+                        maxLength={300}
+                      />
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-muted-foreground">AIコーチが生成した内容は編集できます</span>
+                        <span className="text-muted-foreground">{currentThoughts.length}/300文字</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="bg-gray-50 rounded-lg p-4 max-h-80 overflow-y-auto space-y-3">
+                        {chatMessages.map((message) => (
+                          <div
+                            key={message.id}
+                            className={`flex ${message.sender === "student" ? "justify-end" : "justify-start"}`}
                           >
-                            <div className="text-lg">{mood.emoji}</div>
-                            <div className={`text-xs ${mood.color}`}>{mood.label}</div>
-                          </button>
+                            <div
+                              className={`flex items-start gap-2 max-w-[80%] ${message.sender === "student" ? "flex-row-reverse" : ""}`}
+                            >
+                              {message.sender === "coach" && (
+                                <img
+                                  src={avatarMap.ai_coach || "/placeholder.svg"}
+                                  alt="AIコーチ"
+                                  className="w-8 h-8 rounded-full flex-shrink-0"
+                                />
+                              )}
+                              <div
+                                className={`px-3 py-2 rounded-lg ${
+                                  message.sender === "student"
+                                    ? "bg-blue-500 text-white"
+                                    : "bg-white border border-gray-200"
+                                }`}
+                              >
+                                <p className="text-sm whitespace-pre-line">{message.message}</p>
+                              </div>
+                            </div>
+                          </div>
                         ))}
                       </div>
+
+                      {currentQuestionIndex < coachQuestions.length && (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={studentResponse}
+                            onChange={(e) => setStudentResponse(e.target.value)}
+                            placeholder="あなたの気持ちを教えて..."
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            onKeyPress={(e) => e.key === "Enter" && sendStudentResponse()}
+                          />
+                          <Button onClick={sendStudentResponse} disabled={!studentResponse.trim()} size="sm">
+                            <Send className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
-                    {/* Mastery Rate Slider */}
-                    <div className="space-y-2">
-                      <Label className="text-sm">習得率目標</Label>
-                      <Slider
-                        value={[subjectGoals[subject.id]?.masteryRate || 80]}
-                        onValueChange={(value) => handleMasteryRateChange(subject.id, value)}
-                        max={100}
-                        min={50}
-                        step={10}
-                        className="w-full"
-                      />
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>50%</span>
-                        <span>100%</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                  今回の思い
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex gap-2">
-                  <Button
-                    onClick={generateThoughts}
-                    disabled={isGeneratingThoughts}
-                    variant="outline"
-                    className="flex items-center gap-2 bg-transparent"
-                  >
-                    <Bot className="h-4 w-4" />
-                    {isGeneratingThoughts ? "生成中..." : "AIコーチに相談"}
-                  </Button>
-                </div>
-
-                <Textarea
-                  placeholder="この目標に向けてどんな気持ちですか？どうして頑張りたいですか？"
-                  value={currentThoughts}
-                  onChange={(e) => setCurrentThoughts(e.target.value)}
-                  className="min-h-[120px] resize-none"
-                  maxLength={300}
-                />
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">AIコーチが生成した内容は編集できます</span>
-                  <span className="text-muted-foreground">{currentThoughts.length}/300文字</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Save Button */}
-            <Button onClick={handleSaveGoals} className="w-full h-12 text-lg font-medium">
-              <Save className="h-5 w-5 mr-2" />
-              目標を保存する
-            </Button>
+            {isGoalSet && (
+              <Button onClick={handleSaveGoals} className="w-full h-12 text-lg font-medium">
+                <Save className="h-5 w-5 mr-2" />
+                目標を保存する
+              </Button>
+            )}
           </div>
 
-          {/* Past Performance Section */}
           <div className="space-y-6">
             <Card>
               <CardHeader>
@@ -376,7 +475,6 @@ export default function GoalSettingPage() {
               </CardContent>
             </Card>
 
-            {/* Current Goals Summary */}
             <Card>
               <CardHeader>
                 <CardTitle>現在の目標サマリー</CardTitle>
@@ -400,15 +498,6 @@ export default function GoalSettingPage() {
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">組:</span>
                     <span className="text-sm font-medium">{classNumber[0]}組</span>
-                  </div>
-                  <div className="pt-2 border-t border-border">
-                    <div className="text-sm font-medium mb-2">科目別目標習得率:</div>
-                    {subjects.map((subject) => (
-                      <div key={subject.id} className="flex justify-between text-sm">
-                        <span>{subject.name}:</span>
-                        <span className="font-medium">{subjectGoals[subject.id]?.masteryRate || 80}%</span>
-                      </div>
-                    ))}
                   </div>
                 </div>
               </CardContent>
