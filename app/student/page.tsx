@@ -122,39 +122,39 @@ export default function StudentDashboard() {
 
       <div className="max-w-4xl mx-auto p-4 space-y-6">
         {/* AI Coach Daily Message Section */}
-        <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-accent/10 border-primary/20 shadow-lg">
+        <Card className="ai-coach-gradient border-0 shadow-xl ai-coach-glow">
           <CardHeader className="pb-4">
             <CardTitle className="text-lg font-bold flex items-center gap-3">
               <div className="flex items-center gap-2">
-                <Avatar className="h-10 w-10">
+                <Avatar className="h-12 w-12 border-2 border-white/30 shadow-lg">
                   <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
-                  <AvatarFallback>AI</AvatarFallback>
+                  <AvatarFallback className="bg-white/20 text-white font-bold">AI</AvatarFallback>
                 </Avatar>
-                <span className="text-primary">AIコーチからのメッセージ</span>
+                <span className="text-white font-bold text-xl">AIコーチからのメッセージ</span>
               </div>
-              <Sparkles className="h-5 w-5 text-accent animate-pulse" />
+              <Sparkles className="h-6 w-6 text-white animate-pulse" />
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="bg-accent/5 backdrop-blur-sm rounded-lg p-3 border border-accent/10">
-              <p className="text-sm text-accent font-medium">{mockData.aiCoachMessage.timeBasedGreeting}</p>
+            <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 border border-white/30 shadow-inner">
+              <p className="text-white font-semibold text-base">{mockData.aiCoachMessage.timeBasedGreeting}</p>
             </div>
 
-            <div className="bg-background/60 backdrop-blur-sm rounded-lg p-4 border border-primary/10">
-              <p className="text-base leading-relaxed text-foreground font-medium">{mockData.aiCoachMessage.message}</p>
+            <div className="bg-white/90 backdrop-blur-sm rounded-xl p-5 border border-white/50 shadow-lg">
+              <p className="text-lg leading-relaxed text-slate-700 font-medium">{mockData.aiCoachMessage.message}</p>
             </div>
 
-            <div className="bg-primary/5 backdrop-blur-sm rounded-lg p-3 border border-primary/10">
-              <p className="text-sm leading-relaxed text-foreground">
-                <span className="font-medium text-primary">✨ 個別フィードバック：</span>
+            <div className="bg-white/25 backdrop-blur-sm rounded-xl p-4 border border-white/40">
+              <p className="text-base leading-relaxed text-white">
+                <span className="font-bold text-white">✨ 個別フィードバック：</span>
                 {mockData.aiCoachMessage.personalNote}
               </p>
             </div>
 
-            <div className="flex items-start gap-2 text-sm text-muted-foreground bg-accent/5 rounded-lg p-3">
-              <Bot className="h-4 w-4 mt-0.5 text-accent flex-shrink-0" />
-              <p className="leading-relaxed">
-                <span className="font-medium text-accent">今日の応援メッセージ：</span>
+            <div className="flex items-start gap-3 text-base bg-white/15 rounded-xl p-4 border border-white/25">
+              <Bot className="h-5 w-5 mt-0.5 text-white flex-shrink-0" />
+              <p className="leading-relaxed text-white">
+                <span className="font-semibold text-white">今日の応援メッセージ：</span>
                 {mockData.aiCoachMessage.tip}
               </p>
             </div>
