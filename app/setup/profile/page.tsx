@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -13,7 +13,24 @@ export default function ProfileSetup() {
   const [realName, setRealName] = useState("")
   const [nickname, setNickname] = useState("")
 
-  const selectedAvatar = typeof window !== "undefined" ? localStorage.getItem("selectedAvatar") : null
+  const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+
+  // Load avatar from profile on component mount
+  useEffect(() => {
+    async function loadProfile() {
+      try {
+        const response = await fetch('/api/setup/profile')
+        if (response.ok) {
+          const data = await response.json()
+          setSelectedAvatar(data.avatar)
+        }
+      } catch (error) {
+        console.error('Error loading profile:', error)
+      }
+    }
+    loadProfile()
+  }, [])
 
   const getAvatarSrc = (avatarId: string) => {
     const avatarMap: { [key: string]: string } = {
@@ -27,11 +44,29 @@ export default function ProfileSetup() {
     return avatarMap[avatarId] || avatarMap["student1"]
   }
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (realName.trim() && nickname.trim() && nickname.length <= 12) {
-      localStorage.setItem("realName", realName)
-      localStorage.setItem("nickname", nickname)
-      router.push("/setup/complete")
+      setIsLoading(true)
+      try {
+        const response = await fetch('/api/setup/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            realName: realName.trim(), 
+            nickname: nickname.trim() 
+          }),
+        })
+
+        if (response.ok) {
+          router.push("/setup/complete")
+        } else {
+          console.error('Failed to save profile')
+        }
+      } catch (error) {
+        console.error('Error saving profile:', error)
+      } finally {
+        setIsLoading(false)
+      }
     }
   }
 
@@ -83,10 +118,10 @@ export default function ProfileSetup() {
           <div className="flex justify-center pt-4">
             <Button
               onClick={handleNext}
-              disabled={!realName.trim() || !nickname.trim() || nickname.length > 12}
+              disabled={!realName.trim() || !nickname.trim() || nickname.length > 12 || isLoading}
               className="px-8 py-3 bg-cyan-600 hover:bg-cyan-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
-              次へ進む
+              {isLoading ? "保存中..." : "次へ進む"}
             </Button>
           </div>
         </CardContent>

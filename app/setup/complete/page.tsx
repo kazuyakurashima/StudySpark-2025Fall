@@ -9,8 +9,17 @@ export default function RegistrationComplete() {
   const router = useRouter()
 
   useEffect(() => {
-    // 登録完了フラグを設定
-    localStorage.setItem("registrationComplete", "true")
+    // Create default membership for student
+    async function completeSetup() {
+      try {
+        await fetch('/api/setup/complete', {
+          method: 'POST',
+        })
+      } catch (error) {
+        console.error('Error completing setup:', error)
+      }
+    }
+    completeSetup()
   }, [])
 
   const handleStart = () => {

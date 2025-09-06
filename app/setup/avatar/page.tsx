@@ -41,11 +41,23 @@ const studentAvatars = [
 export default function AvatarSelectionPage() {
   const [selectedAvatar, setSelectedAvatar] = useState<string>("")
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (selectedAvatar) {
-      // Store selected avatar in localStorage for demo
-      localStorage.setItem("selectedAvatar", selectedAvatar)
-      window.location.href = "/setup/profile" // Updated navigation to profile setup page
+      try {
+        const response = await fetch('/api/setup/avatar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ avatar: selectedAvatar }),
+        })
+
+        if (response.ok) {
+          window.location.href = "/setup/profile"
+        } else {
+          console.error('Failed to save avatar')
+        }
+      } catch (error) {
+        console.error('Error saving avatar:', error)
+      }
     }
   }
 
