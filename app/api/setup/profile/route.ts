@@ -8,7 +8,7 @@ const profileSchema = z.object({
 })
 
 export async function GET(request: NextRequest) {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   try {
     // Check authentication
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   try {
     // Check authentication

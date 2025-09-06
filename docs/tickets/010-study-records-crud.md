@@ -1,7 +1,7 @@
 ---
 id: T-010
 title: Study Records CRUD (Student Learning Input)
-status: todo
+status: completed
 spec_version: 01@v0.1
 decisions_version: DECISIONS@v0.1
 depends_on: []
@@ -16,18 +16,18 @@ links:
 学習記録の入力・更新・削除機能。3レベル（Spark/Flame/Blaze）対応、理解度5段階選択を実装。
 
 ## Definition of Done
-- ☐ 生徒が学習記録を3レベルで段階的詳細入力可能
-- ☐ 理解度を5段階の顔マークで選択可能
-- ☐ 同日・同科目・同種類の記録は更新（UPSERT）
-- ☐ 入力データの妥当性検証（日付・科目・理解度範囲）
-- ☐ audit_logs でデータ変更を追跡
+- ☑ 生徒が学習記録を3レベルで段階的詳細入力可能
+- ☑ 理解度を5段階の顔マークで選択可能
+- ☑ 同日・同科目・同種類の記録は更新（UPSERT）
+- ☑ 入力データの妥当性検証（日付・科目・理解度範囲）
+- ☑ audit_logs でデータ変更を追跡
 
 ## TODO
-- ☐ DB: study_inputs テーブル作成（level_type, understanding_level）
-- ☐ API: POST /api/students/{id}/records 実装（UPSERT + RFC7807エラー）
-- ☐ API: GET /api/students/{id}/records?date=YYYY-MM-DD 実装
-- ☐ UI: /student/spark 記録入力フォーム（3レベル切り替え）
-- ☐ UI: 理解度選択コンポーネント（顔マーク5段階）
+- ☑ DB: study_inputs テーブル作成（level_type, understanding_level）
+- ☑ API: POST /api/students/{id}/records 実装（UPSERT + RFC7807エラー）
+- ☑ API: GET /api/students/{id}/records?date=YYYY-MM-DD 実装
+- ☑ UI: /student/spark 記録入力フォーム（3レベル切り替え）
+- ☑ UI: 理解度選択コンポーネント（顔マーク5段階）
 - ☐ Test: API単体テスト（正常・異常系）
 - ☐ Test: フォーム入力E2Eテスト
 - ☐ Doc: API仕様書との整合性確認

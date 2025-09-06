@@ -16,7 +16,6 @@ extra_search_path = ["public", "extensions"]
 max_rows = 1000
 
 [db]
-enabled = true
 # Port to use for the local database URL.
 port = 54322
 # Port used by db diff command to initialize the shadow database.
@@ -78,7 +77,7 @@ additional_redirect_urls = ["https://studyspark.app"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604800 (1 week).
 jwt_expiry = 3600
 # If disabled, the refresh token will never expire.
-refresh_token_rotation_enabled = true
+# refresh_token_rotation_enabled = true
 # Allows refresh tokens to be reused after expiry, up to the specified interval in seconds.
 # Requires refresh_token_rotation_enabled to be false.
 refresh_token_reuse_interval = 10
@@ -96,7 +95,7 @@ enable_signup = true
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
-enable_confirmations = false
+enable_confirmations = true
 
 # Uncomment to customize email template
 # [auth.email.template.invite]

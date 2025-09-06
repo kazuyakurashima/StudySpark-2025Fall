@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { createClient } from '@/lib/supabase/client'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Image from "next/image"
@@ -40,12 +42,69 @@ const parentAvatars = [
 
 export default function ParentAvatarSelectionPage() {
   const [selectedAvatar, setSelectedAvatar] = useState<string>("")
+  const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter()
+  const supabase = createClient()
 
-  const handleContinue = () => {
-    if (selectedAvatar) {
-      // Store selected avatar in localStorage for demo
-      localStorage.setItem("selectedParentAvatar", selectedAvatar)
-      window.location.href = "/parent"
+  const handleContinue = async () => {
+    if (selectedAvatar && !isLoading) {
+      setIsLoading(true)
+      
+      try {
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) throw new Error('No user found')
+
+        // Update profile with avatar selection
+        const selectedAvatarData = parentAvatars.find(avatar => avatar.id === selectedAvatar)
+        
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({
+            user_id: user.id,
+            nickname: user.email?.split('@')[0] || 'Parent', // Temporary nickname
+            avatar: selectedAvatarData?.src || '',
+            updated_at: new Date().toISOString()
+          })
+
+        if (profileError) throw profileError
+
+        // Check if user already has membership
+        const { data: existingMembership } = await supabase
+          .from('memberships')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .single()
+
+        // Create membership if doesn't exist
+        if (!existingMembership) {
+          const { error: membershipError } = await supabase
+            .from('memberships')
+            .insert({
+              user_id: user.id,
+              role: 'parent',
+              family_id: `family_${user.id}`, // Create family group
+              organization_id: null,
+              status: 'active'
+            })
+
+          if (membershipError) throw membershipError
+        }
+
+        // Store selected avatar in localStorage for immediate use
+        localStorage.setItem("selectedParentAvatar", selectedAvatar)
+        
+        // Navigate to parent dashboard
+        router.push("/parent")
+      } catch (error) {
+        console.error('Error updating profile:', error)
+        // Fallback to localStorage-only approach
+        localStorage.setItem("selectedParentAvatar", selectedAvatar)
+        router.push("/parent")
+      } finally {
+        setIsLoading(false)
+      }
     }
   }
 
@@ -97,8 +156,8 @@ export default function ParentAvatarSelectionPage() {
               ))}
             </div>
 
-            <Button onClick={handleContinue} disabled={!selectedAvatar} className="w-full h-12 text-lg font-medium">
-              次へ進む
+            <Button onClick={handleContinue} disabled={!selectedAvatar || isLoading} className="w-full h-12 text-lg font-medium">
+              {isLoading ? "設定中..." : "次へ進む"}
             </Button>
           </CardContent>
         </Card>

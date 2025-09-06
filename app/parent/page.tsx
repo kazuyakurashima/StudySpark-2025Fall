@@ -755,6 +755,36 @@ export default function ParentDashboard() {
         <div>
           <LearningHistoryCalendar />
         </div>
+
+        {/* 子供を追加 */}
+        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 shadow-xl">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg sm:text-xl font-bold flex items-center gap-3 text-green-800">
+              <div className="flex items-center gap-3">
+                <svg className="h-6 w-6 sm:h-7 sm:w-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>お子様を追加</span>
+              </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-white/60 shadow-lg">
+              <p className="text-sm sm:text-base text-slate-700 mb-4 leading-relaxed">
+                お子様のアカウントを作成して、学習状況を管理しましょう。
+              </p>
+              <Button 
+                className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3"
+                onClick={() => {
+                  // TODO: Implement student addition flow
+                  alert('お子様追加機能を実装予定です')
+                }}
+              >
+                お子様を追加する
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <ParentBottomNavigation />

@@ -1,5 +1,5 @@
-// Client-side authentication actions
-import { supabase } from '@/lib/supabase/client'
+// Client-side authentication actions  
+import { createClient } from '@/lib/supabase/client'
 import { 
   studentLoginSchema, 
   parentCoachLoginSchema, 
@@ -10,6 +10,7 @@ import {
 } from '@/lib/schemas/auth'
 
 export async function studentLogin(data: StudentLoginInput) {
+  const supabase = createClient()
   
   try {
     // Validate input
@@ -52,6 +53,7 @@ export async function studentLogin(data: StudentLoginInput) {
 }
 
 export async function parentCoachLogin(data: ParentCoachLoginInput) {
+  const supabase = createClient()
   
   try {
     // Validate input
@@ -74,6 +76,7 @@ export async function parentCoachLogin(data: ParentCoachLoginInput) {
 }
 
 export async function registerUser(data: RegistrationInput) {
+  const supabase = createClient()
   
   try {
     // Validate input
@@ -108,6 +111,7 @@ export async function registerUser(data: RegistrationInput) {
       email: validatedData.email,
       password: validatedData.password,
       options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
         data: {
           role: role,
           invite_code: validatedData.inviteCode,
@@ -126,7 +130,9 @@ export async function registerUser(data: RegistrationInput) {
   }
 }
 
+
 export async function signOut() {
+  const supabase = createClient()
   await supabase.auth.signOut()
   window.location.href = '/'
 }

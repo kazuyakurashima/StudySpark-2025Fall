@@ -3,7 +3,8 @@
 import type React from "react"
 import Image from "next/image"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { studentLogin, parentCoachLogin, registerUser } from "@/lib/auth/actions"
 
 export default function LoginPage() {
+  const searchParams = useSearchParams()
   const [userId, setUserId] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -21,6 +23,23 @@ export default function LoginPage() {
   const [codeValidation, setCodeValidation] = useState<{ isValid: boolean; message: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isStudent, setIsStudent] = useState(false)
+
+  useEffect(() => {
+    // Check for auth errors in URL params
+    const errorParam = searchParams.get('error')
+    const errorCode = searchParams.get('error_code')
+    const errorDescription = searchParams.get('error_description')
+    
+    if (errorParam) {
+      if (errorCode === 'otp_expired') {
+        setError('メール認証リンクの有効期限が切れています。もう一度新規登録してください。')
+      } else if (errorParam === 'auth_callback_error') {
+        setError('認証に失敗しました。もう一度お試しください。')
+      } else {
+        setError(errorDescription || '認証エラーが発生しました。')
+      }
+    }
+  }, [searchParams])
 
   const validateCoachCode = (code: string) => {
     if (code.length === 0) {
@@ -277,7 +296,9 @@ export default function LoginPage() {
           <p className="text-sm text-muted-foreground text-center">
             <strong>デモ用:</strong>
             <br />
-            student1 / parent1 / coach1 で始まるIDを入力してください
+            保護者：メール+パスワードで新規登録
+            <br />
+            生徒：parent1/coach1などの既存IDでログイン
             <br />
             <span className="text-xs">指導者コード例: COACH123, TEACHER456, MENTOR789</span>
           </p>
