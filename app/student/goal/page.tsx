@@ -232,10 +232,38 @@ const courses = [
 ]
 
 const subjects = [
-  { id: "math", name: "算数", color: "bg-blue-100 text-blue-800 border-blue-200" },
-  { id: "japanese", name: "国語", color: "bg-green-100 text-green-800 border-green-200" },
-  { id: "science", name: "理科", color: "bg-purple-100 text-purple-800 border-purple-200" },
-  { id: "social", name: "社会", color: "bg-orange-100 text-orange-800 border-orange-200" },
+  {
+    id: "math",
+    name: "算数",
+    color: "bg-blue-50 text-blue-700 border-blue-200",
+    sliderColor: "data-[state=active]:bg-blue-500",
+    targetColor: "text-blue-700",
+    buttonColor: "border-blue-200 hover:bg-blue-50 hover:text-blue-700",
+  },
+  {
+    id: "japanese",
+    name: "国語",
+    color: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    sliderColor: "data-[state=active]:bg-emerald-500",
+    targetColor: "text-emerald-700",
+    buttonColor: "border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700",
+  },
+  {
+    id: "science",
+    name: "理科",
+    color: "bg-violet-50 text-violet-700 border-violet-200",
+    sliderColor: "data-[state=active]:bg-violet-500",
+    targetColor: "text-violet-700",
+    buttonColor: "border-violet-200 hover:bg-violet-50 hover:text-violet-700",
+  },
+  {
+    id: "social",
+    name: "社会",
+    color: "bg-amber-50 text-amber-700 border-amber-200",
+    sliderColor: "data-[state=active]:bg-amber-500",
+    targetColor: "text-amber-700",
+    buttonColor: "border-amber-200 hover:bg-amber-50 hover:text-amber-700",
+  },
 ]
 
 const mockPastResults = {
@@ -526,6 +554,41 @@ export default function GoalSettingPage() {
     ((getTestType(selectedTest) === "gohan" && selectedCourse) ||
       (getTestType(selectedTest) === "week" && goalSettingMode && (goalSettingMode === "manual" || autoSuggestionMode)))
 
+  const getSubjectColor = (subjectId: string) => {
+    switch (subjectId) {
+      case "math":
+        return {
+          badge: "bg-blue-50 text-blue-700 border-blue-200",
+          value: "text-blue-700",
+          background: "border-blue-200 bg-blue-50/30",
+        }
+      case "japanese":
+        return {
+          badge: "bg-emerald-50 text-emerald-700 border-emerald-200",
+          value: "text-emerald-700",
+          background: "border-emerald-200 bg-emerald-50/30",
+        }
+      case "science":
+        return {
+          badge: "bg-violet-50 text-violet-700 border-violet-200",
+          value: "text-violet-700",
+          background: "border-violet-200 bg-violet-50/30",
+        }
+      case "social":
+        return {
+          badge: "bg-amber-50 text-amber-700 border-amber-200",
+          value: "text-amber-700",
+          background: "border-amber-200 bg-amber-50/30",
+        }
+      default:
+        return {
+          badge: "bg-gray-50 text-gray-700 border-gray-200",
+          value: "text-gray-700",
+          background: "border-gray-200 bg-gray-50/30",
+        }
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-20">
       {showCelebration && (
@@ -790,43 +853,54 @@ export default function GoalSettingPage() {
                             {subjects.map((subject) => {
                               const pastResult = mockPastResults[subject.id as keyof typeof mockPastResults]
                               return (
-                                <div key={subject.id} className="space-y-2">
+                                <div
+                                  key={subject.id}
+                                  className="space-y-3 p-4 rounded-lg border border-slate-100 bg-slate-50/30"
+                                >
                                   <div className="flex items-center justify-between">
-                                    <Label className="text-sm font-medium">{subject.name}</Label>
-                                    <div className="flex items-center gap-2">
+                                    <div className={`px-3 py-1 rounded-full text-sm font-medium ${subject.color}`}>
+                                      {subject.name}
+                                    </div>
+                                    <div className="flex items-center gap-3">
                                       {goalSettingMode === "based" && (
-                                        <span className="text-xs text-muted-foreground">前回: {pastResult}</span>
+                                        <span className="text-xs text-slate-600 bg-slate-100 px-2 py-1 rounded">
+                                          前回: {pastResult}
+                                        </span>
                                       )}
-                                      <span className="text-sm font-bold text-primary">
+                                      <span
+                                        className={`text-sm font-bold ${subject.targetColor} bg-white px-2 py-1 rounded border`}
+                                      >
                                         目標: {subjectGoals[subject.id as keyof typeof subjectGoals][0]}
                                       </span>
                                     </div>
                                   </div>
-                                  <Slider
-                                    value={subjectGoals[subject.id as keyof typeof subjectGoals]}
-                                    onValueChange={(value) =>
-                                      setSubjectGoals((prev) => ({
-                                        ...prev,
-                                        [subject.id]: value,
-                                      }))
-                                    }
-                                    max={80}
-                                    min={20}
-                                    step={1}
-                                    className="w-full"
-                                    disabled={isGoalSet}
-                                  />
-                                  <div className="flex justify-between text-xs text-muted-foreground">
+                                  <div className="relative">
+                                    <Slider
+                                      value={subjectGoals[subject.id as keyof typeof subjectGoals]}
+                                      onValueChange={(value) =>
+                                        setSubjectGoals((prev) => ({
+                                          ...prev,
+                                          [subject.id]: value,
+                                        }))
+                                      }
+                                      max={80}
+                                      min={20}
+                                      step={1}
+                                      className={`w-full ${subject.sliderColor}`}
+                                      disabled={isGoalSet}
+                                    />
+                                  </div>
+                                  <div className="flex justify-between text-xs text-slate-500">
                                     <span>20</span>
                                     <span>80</span>
                                   </div>
-                                  <div className="flex gap-1 mt-2">
+                                  <div className="flex gap-2 mt-3">
                                     {[40, 50, 60, 70].map((value) => (
                                       <Button
                                         key={value}
                                         variant="outline"
                                         size="sm"
-                                        className="text-xs px-2 py-1 h-6 bg-transparent"
+                                        className={`text-xs px-3 py-1 h-7 bg-white transition-colors ${subject.buttonColor}`}
                                         onClick={() =>
                                           setSubjectGoals((prev) => ({
                                             ...prev,
@@ -1093,42 +1167,74 @@ export default function GoalSettingPage() {
                       </Card>
                     )}
 
-                    {resultTest && (
+                    {resultTest && getTestType(resultTest) === "week" && (
                       <Card>
                         <CardHeader>
-                          <CardTitle>
-                            {getTestType(resultTest) === "gohan" ? "科目別得点" : "科目別実績偏差値"}
-                          </CardTitle>
+                          <CardTitle>科目別実績偏差値</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                          {subjects.map((subject) => (
-                            <div key={subject.id} className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <Label className="text-sm font-medium">{subject.name}</Label>
-                                <span className="text-sm font-bold text-primary">
-                                  {subjectScores[subject.id as keyof typeof subjectScores][0]}
-                                  {getTestType(resultTest) === "gohan" ? "点" : ""}
-                                </span>
+                          {subjects.map((subject) => {
+                            const pastResult = mockPastResults[subject.id as keyof typeof mockPastResults]
+                            return (
+                              <div
+                                key={subject.id}
+                                className="space-y-3 p-4 rounded-lg border border-slate-100 bg-slate-50/30"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className={`px-3 py-1 rounded-full text-sm font-medium ${subject.color}`}>
+                                    {subject.name}
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-xs text-slate-600 bg-slate-100 px-2 py-1 rounded">
+                                      前回: {pastResult}
+                                    </span>
+                                    <span
+                                      className={`text-sm font-bold ${subject.targetColor} bg-white px-2 py-1 rounded border`}
+                                    >
+                                      実績: {subjectScores[subject.id as keyof typeof subjectScores][0]}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="relative">
+                                  <Slider
+                                    value={subjectScores[subject.id as keyof typeof subjectScores]}
+                                    onValueChange={(value) =>
+                                      setSubjectScores((prev) => ({
+                                        ...prev,
+                                        [subject.id]: value,
+                                      }))
+                                    }
+                                    max={80}
+                                    min={20}
+                                    step={1}
+                                    className={`w-full ${subject.sliderColor}`}
+                                  />
+                                </div>
+                                <div className="flex justify-between text-xs text-slate-500">
+                                  <span>20</span>
+                                  <span>80</span>
+                                </div>
+                                <div className="flex gap-2 mt-3">
+                                  {[40, 50, 60, 70].map((value) => (
+                                    <Button
+                                      key={value}
+                                      variant="outline"
+                                      size="sm"
+                                      className={`text-xs px-3 py-1 h-7 bg-white transition-colors ${subject.buttonColor}`}
+                                      onClick={() =>
+                                        setSubjectScores((prev) => ({
+                                          ...prev,
+                                          [subject.id]: [value],
+                                        }))
+                                      }
+                                    >
+                                      {value}
+                                    </Button>
+                                  ))}
+                                </div>
                               </div>
-                              <Slider
-                                value={subjectScores[subject.id as keyof typeof subjectScores]}
-                                onValueChange={(value) =>
-                                  setSubjectScores((prev) => ({
-                                    ...prev,
-                                    [subject.id]: value,
-                                  }))
-                                }
-                                max={getTestType(resultTest) === "gohan" ? 100 : 80}
-                                min={getTestType(resultTest) === "gohan" ? 0 : 20}
-                                step={1}
-                                className="w-full"
-                              />
-                              <div className="flex justify-between text-xs text-muted-foreground">
-                                <span>{getTestType(resultTest) === "gohan" ? "0点" : "20"}</span>
-                                <span>{getTestType(resultTest) === "gohan" ? "100点" : "80"}</span>
-                              </div>
-                            </div>
-                          ))}
+                            )
+                          })}
                         </CardContent>
                       </Card>
                     )}

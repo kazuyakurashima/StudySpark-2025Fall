@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { BottomNavigation } from "@/components/bottom-navigation"
-import { Calendar, BookOpen, MessageSquare, Save, Sparkles, Flame, Crown } from "lucide-react"
+import { Calendar, BookOpen, MessageSquare, Save, Sparkles, Flame, Crown, Info } from "lucide-react"
 
 const subjects = [
   { id: "math", name: "算数", color: "bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200" },
@@ -26,41 +26,37 @@ const moodOptions = [
 ]
 
 const learningCategories = [
-  { id: "class", name: "授業参加", priority: "最重要", color: "🔴", bgColor: "bg-red-50 border-red-200 text-red-800" },
   {
-    id: "homework",
-    name: "宿題実施",
+    id: "class",
+    name: "授業",
     priority: "最重要",
     color: "🔴",
     bgColor: "bg-red-50 border-red-200 text-red-800",
+    description: "授業で解いた問題・解き直しの復習を含む",
   },
   {
-    id: "class-review",
-    name: "授業復習",
-    priority: "重要",
-    color: "🟡",
-    bgColor: "bg-yellow-50 border-yellow-200 text-yellow-800",
+    id: "homework",
+    name: "宿題",
+    priority: "最重要",
+    color: "🔴",
+    bgColor: "bg-red-50 border-red-200 text-red-800",
+    description: "宿題で出された問題・解き直しの復習を含む",
   },
   {
-    id: "homework-review",
-    name: "宿題復習",
-    priority: "重要",
-    color: "🟡",
-    bgColor: "bg-yellow-50 border-yellow-200 text-yellow-800",
-  },
-  {
-    id: "weekly-test",
-    name: "週テスト対策",
+    id: "weekly-test-prep",
+    name: "週テスト対策・復習ナビ",
     priority: "標準",
     color: "🔵",
     bgColor: "bg-blue-50 border-blue-200 text-blue-800",
+    description: "週テスト範囲の演習や復習・復習ナビでの実施",
   },
   {
     id: "exam-prep",
-    name: "入試対策",
+    name: "入試対策・過去問",
     priority: "補充",
     color: "⚪",
     bgColor: "bg-gray-50 border-gray-200 text-gray-800",
+    description: "過去問・入試レベル問題など",
   },
 ]
 
@@ -75,9 +71,9 @@ export default function SparkPage() {
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
   const [subjectDetails, setSubjectDetails] = useState<{
     [key: string]: {
-      mood: string
-      understanding: string
-      categories: string[]
+      mood?: string // Sparkレベルのみ使用
+      categories: string[] // 選択された学習内容カテゴリー
+      categoryUnderstanding: { [categoryId: string]: string } // カテゴリーごとの理解度
     }
   }>({})
   const [reflection, setReflection] = useState("")
@@ -93,6 +89,9 @@ export default function SparkPage() {
   const [blazeReflectionType, setBlazeReflectionType] = useState<"generate" | "chat" | null>(null)
   const [aiResponse, setAiResponse] = useState("")
   const [isGeneratingResponse, setIsGeneratingResponse] = useState(false)
+
+  const [showUnderstandingGuide, setShowUnderstandingGuide] = useState<{ [key: string]: boolean }>({})
+  const [showCategoryGuide, setShowCategoryGuide] = useState<{ [key: string]: boolean }>({})
 
   const today = new Date().toISOString().split("T")[0]
 
@@ -112,11 +111,53 @@ export default function SparkPage() {
       } else {
         setSubjectDetails((prevDetails) => ({
           ...prevDetails,
-          [subjectId]: { mood: "", understanding: "", categories: [] },
+          [subjectId]: {
+            mood: currentLevel === "spark" ? "" : undefined,
+            categories: [],
+            categoryUnderstanding: {},
+          },
         }))
         return [...prev, subjectId]
       }
     })
+  }
+
+  const handleCategoryToggle = (subjectId: string, categoryId: string) => {
+    const currentCategories = subjectDetails[subjectId]?.categories || []
+    const newCategories = currentCategories.includes(categoryId)
+      ? currentCategories.filter((id) => id !== categoryId)
+      : [...currentCategories, categoryId]
+
+    setSubjectDetails((prev) => {
+      const newCategoryUnderstanding = { ...prev[subjectId]?.categoryUnderstanding }
+
+      // カテゴリーが削除された場合、対応する理解度も削除
+      if (currentCategories.includes(categoryId)) {
+        delete newCategoryUnderstanding[categoryId]
+      }
+
+      return {
+        ...prev,
+        [subjectId]: {
+          ...prev[subjectId],
+          categories: newCategories,
+          categoryUnderstanding: newCategoryUnderstanding,
+        },
+      }
+    })
+  }
+
+  const handleCategoryUnderstandingChange = (subjectId: string, categoryId: string, understanding: string) => {
+    setSubjectDetails((prev) => ({
+      ...prev,
+      [subjectId]: {
+        ...prev[subjectId],
+        categoryUnderstanding: {
+          ...prev[subjectId]?.categoryUnderstanding,
+          [categoryId]: understanding,
+        },
+      },
+    }))
   }
 
   const handleSubjectDetailChange = (subjectId: string, field: string, value: string | string[]) => {
@@ -129,22 +170,13 @@ export default function SparkPage() {
     }))
   }
 
-  const handleCategoryToggle = (subjectId: string, categoryId: string) => {
-    const currentCategories = subjectDetails[subjectId]?.categories || []
-    const newCategories = currentCategories.includes(categoryId)
-      ? currentCategories.filter((id) => id !== categoryId)
-      : [...currentCategories, categoryId]
-
-    handleSubjectDetailChange(subjectId, "categories", newCategories)
-  }
-
   const generateAIReflections = async () => {
     setIsGeneratingAI(true)
 
     setTimeout(() => {
       const studiedSubjects = selectedSubjects.map((id) => subjects.find((s) => s.id === id)?.name).join("、")
       const understandingLevels = selectedSubjects.map((id) => {
-        const understanding = subjectDetails[id]?.understanding
+        const understanding = subjectDetails[id]?.mood
         if (understanding === "perfect") return "バッチリ理解"
         if (understanding === "good") return "できた"
         if (understanding === "normal") return "ふつう"
@@ -222,10 +254,37 @@ export default function SparkPage() {
 
   const isFormValid = () => {
     if (selectedSubjects.length === 0) return false
-    return selectedSubjects.every((id) => subjectDetails[id]?.understanding)
+
+    return selectedSubjects.every((subjectId) => {
+      const details = subjectDetails[subjectId]
+      if (!details) return false
+
+      if (currentLevel === "spark") {
+        // Sparkレベルは従来通り理解度のみ必須
+        return details.mood
+      } else {
+        // Flame/Blazeレベルは学習内容必須、選択した学習内容ごとに理解度必須
+        if (details.categories.length === 0) return false
+        return details.categories.every((categoryId) => details.categoryUnderstanding[categoryId])
+      }
+    })
   }
 
   const CurrentLevelIcon = levels[currentLevel].icon
+
+  const toggleUnderstandingGuide = (subjectId: string) => {
+    setShowUnderstandingGuide((prev) => ({
+      ...prev,
+      [subjectId]: !prev[subjectId],
+    }))
+  }
+
+  const toggleCategoryGuide = (subjectId: string) => {
+    setShowCategoryGuide((prev) => ({
+      ...prev,
+      [subjectId]: !prev[subjectId],
+    }))
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-20">
@@ -375,107 +434,257 @@ export default function SparkPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">理解度 *</Label>
-                      <div
-                        className={`grid gap-2 ${
-                          currentLevel === "spark" ? "grid-cols-1 md:grid-cols-3" : "grid-cols-1 md:grid-cols-5"
-                        }`}
-                      >
-                        {(currentLevel === "spark"
-                          ? [
-                              {
-                                value: "perfect",
-                                label: "バッチリ理解",
-                                emoji: "😄",
-                                color: "border-green-600 bg-green-50 text-green-800",
-                              },
-                              {
-                                value: "normal",
-                                label: "ふつう",
-                                emoji: "😐",
-                                color: "border-yellow-500 bg-yellow-50 text-yellow-700",
-                              },
-                              {
-                                value: "difficult",
-                                label: "むずかしかった",
-                                emoji: "😥",
-                                color: "border-red-500 bg-red-50 text-red-700",
-                              },
-                            ]
-                          : [
-                              {
-                                value: "perfect",
-                                label: "バッチリ理解",
-                                emoji: "😄",
-                                color: "border-green-600 bg-green-50 text-green-800",
-                              },
-                              {
-                                value: "good",
-                                label: "できた",
-                                emoji: "😊",
-                                color: "border-green-400 bg-green-50 text-green-700",
-                              },
-                              {
-                                value: "normal",
-                                label: "ふつう",
-                                emoji: "😐",
-                                color: "border-yellow-500 bg-yellow-50 text-yellow-700",
-                              },
-                              {
-                                value: "slightly_anxious",
-                                label: "ちょっと不安",
-                                emoji: "😟",
-                                color: "border-sky-500 bg-sky-50 text-sky-700",
-                              },
-                              {
-                                value: "difficult",
-                                label: "むずかしかった",
-                                emoji: "😥",
-                                color: "border-red-500 bg-red-50 text-red-700",
-                              },
-                            ]
-                        ).map((understanding) => (
-                          <button
-                            key={understanding.value}
-                            onClick={() => handleSubjectDetailChange(subjectId, "understanding", understanding.value)}
-                            className={`p-3 rounded-lg border-2 text-center transition-all ${
-                              subjectDetails[subjectId]?.understanding === understanding.value
-                                ? `${understanding.color} shadow-md`
-                                : "border-border bg-background hover:border-primary/50"
-                            }`}
-                          >
-                            <div className="text-2xl mb-1">{understanding.emoji}</div>
-                            <div className="text-xs font-medium leading-tight">{understanding.label}</div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {(currentLevel === "flame" || currentLevel === "blaze") && (
+                    {currentLevel === "spark" && (
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium">学習内容（任意）</Label>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          {learningCategories.map((category) => (
+                        <div className="flex items-center gap-2">
+                          <Label className="text-sm font-medium">理解度 *</Label>
+                          <button
+                            onClick={() => toggleUnderstandingGuide(subjectId)}
+                            className="p-1 rounded-full hover:bg-muted/50 transition-colors"
+                            type="button"
+                          >
+                            <Info className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                          </button>
+                        </div>
+
+                        {showUnderstandingGuide[subjectId] && (
+                          <div className="mb-3 p-3 bg-gradient-to-r from-primary/5 to-accent/5 rounded-lg border border-primary/20 shadow-sm">
+                            <div className="font-medium mb-2 text-primary text-sm">理解度の目安</div>
+                            <div className="space-y-1 text-xs">
+                              <div className="flex items-center gap-2">
+                                <span>😄</span>
+                                <span>
+                                  <strong>バッチリ理解</strong>：正答率90%以上
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span>😐</span>
+                                <span>
+                                  <strong>ふつう</strong>：正答率70-79%
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span>😥</span>
+                                <span>
+                                  <strong>むずかしかった</strong>：正答率50%未満
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="grid gap-2 grid-cols-1 md:grid-cols-3">
+                          {[
+                            {
+                              value: "perfect",
+                              label: "バッチリ理解",
+                              emoji: "😄",
+                              color: "border-green-600 bg-green-50 text-green-800",
+                            },
+                            {
+                              value: "normal",
+                              label: "ふつう",
+                              emoji: "😐",
+                              color: "border-yellow-500 bg-yellow-50 text-yellow-700",
+                            },
+                            {
+                              value: "difficult",
+                              label: "むずかしかった",
+                              emoji: "😥",
+                              color: "border-red-500 bg-red-50 text-red-700",
+                            },
+                          ].map((understanding) => (
                             <button
-                              key={category.id}
-                              onClick={() => handleCategoryToggle(subjectId, category.id)}
-                              className={`p-3 rounded-lg border-2 text-left transition-all ${
-                                subjectDetails[subjectId]?.categories?.includes(category.id)
-                                  ? `${category.bgColor} shadow-md`
+                              key={understanding.value}
+                              onClick={() => handleSubjectDetailChange(subjectId, "mood", understanding.value)}
+                              className={`p-3 rounded-lg border-2 text-center transition-all ${
+                                subjectDetails[subjectId]?.mood === understanding.value
+                                  ? `${understanding.color} shadow-md`
                                   : "border-border bg-background hover:border-primary/50"
                               }`}
                             >
-                              <div className="flex items-center gap-2">
-                                <span className="text-lg">{category.color}</span>
-                                <div>
-                                  <div className="font-medium text-sm">{category.name}</div>
-                                  <div className="text-xs text-muted-foreground">{category.priority}</div>
-                                </div>
-                              </div>
+                              <div className="text-2xl mb-1">{understanding.emoji}</div>
+                              <div className="text-xs font-medium leading-tight">{understanding.label}</div>
                             </button>
                           ))}
                         </div>
+                      </div>
+                    )}
+
+                    {(currentLevel === "flame" || currentLevel === "blaze") && (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Label className="text-sm font-medium">学習内容 *</Label>
+                            <button
+                              onClick={() => toggleCategoryGuide(subjectId)}
+                              className="p-1 rounded-full hover:bg-muted/50 transition-colors"
+                              type="button"
+                            >
+                              <Info className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                            </button>
+                          </div>
+
+                          {showCategoryGuide[subjectId] && (
+                            <div className="mb-3 p-3 bg-gradient-to-r from-primary/5 to-accent/5 rounded-lg border border-primary/20 shadow-sm">
+                              <div className="font-medium mb-2 text-primary text-sm">学習内容カテゴリーの説明</div>
+                              <div className="space-y-2 text-xs">
+                                {learningCategories.map((category) => (
+                                  <div key={category.id} className="flex items-start gap-2">
+                                    <span className="text-sm">{category.color}</span>
+                                    <div>
+                                      <span className="font-medium">{category.name}</span>
+                                      <span className="text-muted-foreground ml-1">- {category.description}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="text-xs text-muted-foreground mb-2">
+                            今日取り組んだ学習内容を選択してください（複数選択可）
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            {learningCategories.map((category) => (
+                              <button
+                                key={category.id}
+                                onClick={() => handleCategoryToggle(subjectId, category.id)}
+                                className={`p-3 rounded-lg border-2 text-left transition-all ${
+                                  subjectDetails[subjectId]?.categories?.includes(category.id)
+                                    ? `${category.bgColor} shadow-md`
+                                    : "border-border bg-background hover:border-primary/50"
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="text-lg">{category.color}</span>
+                                  <div>
+                                    <div className="font-medium text-sm">{category.name}</div>
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {subjectDetails[subjectId]?.categories?.length > 0 && (
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-2">
+                              <Label className="text-sm font-medium">各学習内容の理解度 *</Label>
+                              <button
+                                onClick={() => toggleUnderstandingGuide(subjectId)}
+                                className="p-1 rounded-full hover:bg-muted/50 transition-colors"
+                                type="button"
+                              >
+                                <Info className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                              </button>
+                            </div>
+
+                            {showUnderstandingGuide[subjectId] && (
+                              <div className="mb-3 p-3 bg-gradient-to-r from-primary/5 to-accent/5 rounded-lg border border-primary/20 shadow-sm">
+                                <div className="font-medium mb-2 text-primary text-sm">理解度の目安</div>
+                                <div className="space-y-1 text-xs">
+                                  <div className="flex items-center gap-2">
+                                    <span>😄</span>
+                                    <span>
+                                      <strong>バッチリ理解</strong>：正答率90%以上
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span>😊</span>
+                                    <span>
+                                      <strong>できた</strong>：正答率80-89%
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span>😐</span>
+                                    <span>
+                                      <strong>ふつう</strong>：正答率70-79%
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span>😟</span>
+                                    <span>
+                                      <strong>ちょっと不安</strong>：正答率50-69%
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span>😥</span>
+                                    <span>
+                                      <strong>むずかしかった</strong>：正答率50%未満
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {subjectDetails[subjectId].categories.map((categoryId) => {
+                              const category = learningCategories.find((c) => c.id === categoryId)
+                              if (!category) return null
+
+                              return (
+                                <div key={categoryId} className="space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-lg">{category.color}</span>
+                                    <span className="font-medium text-sm">{category.name}</span>
+                                    <span className="text-red-500 text-sm">*</span>
+                                  </div>
+
+                                  <div className="grid gap-2 grid-cols-1 md:grid-cols-5">
+                                    {[
+                                      {
+                                        value: "perfect",
+                                        label: "バッチリ理解",
+                                        emoji: "😄",
+                                        color: "border-green-600 bg-green-50 text-green-800",
+                                      },
+                                      {
+                                        value: "good",
+                                        label: "できた",
+                                        emoji: "😊",
+                                        color: "border-green-400 bg-green-50 text-green-700",
+                                      },
+                                      {
+                                        value: "normal",
+                                        label: "ふつう",
+                                        emoji: "😐",
+                                        color: "border-yellow-500 bg-yellow-50 text-yellow-700",
+                                      },
+                                      {
+                                        value: "slightly_anxious",
+                                        label: "ちょっと不安",
+                                        emoji: "😟",
+                                        color: "border-sky-500 bg-sky-50 text-sky-700",
+                                      },
+                                      {
+                                        value: "difficult",
+                                        label: "むずかしかった",
+                                        emoji: "😥",
+                                        color: "border-red-500 bg-red-50 text-red-700",
+                                      },
+                                    ].map((understanding) => (
+                                      <button
+                                        key={understanding.value}
+                                        onClick={() =>
+                                          handleCategoryUnderstandingChange(subjectId, categoryId, understanding.value)
+                                        }
+                                        className={`p-3 rounded-lg border-2 text-center transition-all ${
+                                          subjectDetails[subjectId]?.categoryUnderstanding[categoryId] ===
+                                          understanding.value
+                                            ? `${understanding.color} shadow-md`
+                                            : "border-border bg-background hover:border-primary/50"
+                                        }`}
+                                      >
+                                        <div className="text-2xl mb-1">{understanding.emoji}</div>
+                                        <div className="text-xs font-medium leading-tight">{understanding.label}</div>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
                       </div>
                     )}
                   </CardContent>
@@ -772,7 +981,11 @@ export default function SparkPage() {
         {/* Form Validation Message */}
         {selectedSubjects.length > 0 && !isFormValid() && (
           <div className="p-4 bg-accent/10 border border-accent/20 rounded-lg">
-            <p className="text-sm text-accent font-medium">選択した科目の理解度を選んでください</p>
+            <p className="text-sm text-accent font-medium">
+              {currentLevel === "spark"
+                ? "選択した科目の理解度を選んでください"
+                : "選択した科目の学習内容と、各学習内容の理解度を選んでください"}
+            </p>
           </div>
         )}
       </div>
