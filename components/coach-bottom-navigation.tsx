@@ -31,6 +31,7 @@ const tabs = [
   },
 ]
 
+export { CoachBottomNavigation }
 export default function CoachBottomNavigation() {
   const pathname = usePathname()
 

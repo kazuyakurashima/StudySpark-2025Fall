@@ -3,10 +3,9 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { BottomNavigation } from "@/components/bottom-navigation"
-import { Flame, Calendar, BookOpen, Users, MessageCircle, Target, Bot, Sparkles } from "lucide-react"
+import { Flame, Calendar, BookOpen, Users, MessageCircle, Sparkles } from "lucide-react"
 
 // Mock data for demo
 const mockData = {
@@ -68,6 +67,173 @@ function getTimeBasedGreeting() {
   }
 }
 
+const generateLearningHistory = () => {
+  const history: { [key: string]: { subjects: string[]; understandingLevels: string[] } } = {}
+  const today = new Date()
+
+  // 過去30日分のサンプルデータを生成
+  for (let i = 0; i < 30; i++) {
+    const date = new Date(today)
+    date.setDate(date.getDate() - i)
+    const dateStr = date.toISOString().split("T")[0]
+
+    // ランダムに学習データを生成（一部の日は学習なし）
+    if (Math.random() > 0.3) {
+      // 70%の確率で学習あり
+      const subjectCount = Math.floor(Math.random() * 4) + 1 // 1-4科目
+      const subjects = ["算数", "国語", "理科", "社会"].slice(0, subjectCount)
+      const understandingLevels = subjects.map(() => {
+        const levels = ["😄バッチリ理解", "😊できた", "😐ふつう", "😟ちょっと不安", "😥むずかしかった"]
+        return levels[Math.floor(Math.random() * levels.length)]
+      })
+
+      history[dateStr] = { subjects, understandingLevels }
+    }
+  }
+
+  return history
+}
+
+const learningHistory = generateLearningHistory()
+
+const getLearningIntensity = (date: string) => {
+  const data = learningHistory[date]
+  if (!data || data.subjects.length === 0) return "none"
+
+  if (data.subjects.length === 1) return "light"
+
+  if (data.subjects.length >= 2) {
+    const goodLevels = ["😄バッチリ理解", "😊できた"]
+    const normalOrBetter = ["😄バッチリ理解", "😊できた", "😐ふつう"]
+
+    const allGoodOrBetter = data.understandingLevels.every((level) => goodLevels.includes(level))
+    const allNormalOrBetter = data.understandingLevels.every((level) => normalOrBetter.includes(level))
+
+    if (allGoodOrBetter) return "dark"
+    if (allNormalOrBetter) return "medium"
+  }
+
+  return "light"
+}
+
+const LearningHistoryCalendar = () => {
+  const today = new Date()
+  const monthsData: { [key: string]: any[][] } = {}
+
+  for (let monthOffset = 1; monthOffset >= 0; monthOffset--) {
+    const targetMonth = new Date(today.getFullYear(), today.getMonth() - monthOffset, 1)
+    const monthKey = `${targetMonth.getFullYear()}-${String(targetMonth.getMonth() + 1).padStart(2, "0")}`
+    const monthName = `${targetMonth.getMonth() + 1}月`
+
+    const weeks = []
+    const firstDay = new Date(targetMonth.getFullYear(), targetMonth.getMonth(), 1)
+    const lastDay = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0)
+
+    // 月の最初の週の開始日を計算（日曜日から開始）
+    const startDate = new Date(firstDay)
+    startDate.setDate(startDate.getDate() - firstDay.getDay())
+
+    // 月の最後の週の終了日を計算
+    const endDate = new Date(lastDay)
+    endDate.setDate(endDate.getDate() + (6 - lastDay.getDay()))
+
+    // 週ごとにデータを生成
+    const currentDate = new Date(startDate)
+    while (currentDate <= endDate) {
+      const week = []
+      for (let day = 0; day < 7; day++) {
+        const dateStr = currentDate.toISOString().split("T")[0]
+        const intensity = getLearningIntensity(dateStr)
+        const isCurrentMonth = currentDate.getMonth() === targetMonth.getMonth()
+
+        week.push({
+          date: dateStr,
+          day: currentDate.getDate(),
+          intensity: isCurrentMonth ? intensity : "none",
+          data: learningHistory[dateStr],
+          isCurrentMonth,
+        })
+
+        currentDate.setDate(currentDate.getDate() + 1)
+      }
+      weeks.push(week)
+    }
+
+    monthsData[monthKey] = { weeks, monthName }
+  }
+
+  const intensityColors = {
+    none: "bg-slate-100 border-slate-200",
+    light: "bg-sky-200 border-sky-300",
+    medium: "bg-sky-400 border-sky-500",
+    dark: "bg-sky-600 border-sky-700",
+  }
+
+  return (
+    <Card className="bg-gradient-to-br from-sky-50 to-cyan-50 border-sky-200">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base font-bold flex items-center gap-2">
+          <Calendar className="h-5 w-5 text-sky-600" />
+          学習カレンダー
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="px-3 sm:px-6">
+        <div className="space-y-3 sm:space-y-4">
+          <div className="grid grid-cols-7 gap-1 sm:gap-2">
+            {["月", "火", "水", "木", "金", "土", "日"].map((day) => (
+              <div
+                key={day}
+                className="text-xs font-medium text-center text-slate-600 py-1 w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center"
+              >
+                {day}
+              </div>
+            ))}
+          </div>
+
+          {Object.entries(monthsData).map(([monthKey, monthData]) => (
+            <div key={monthKey} className="space-y-2">
+              <div className="text-sm font-bold text-slate-700 text-left border-b border-slate-200 pb-1">
+                {monthData.monthName}
+              </div>
+
+              {monthData.weeks.map((week: any[], weekIndex: number) => (
+                <div key={weekIndex} className="grid grid-cols-7 gap-1 sm:gap-2">
+                  {week.map((day: any, dayIndex: number) => (
+                    <div
+                      key={dayIndex}
+                      className={`
+                        w-5 h-5 sm:w-6 sm:h-6 rounded-sm border transition-all duration-200 hover:scale-110 cursor-pointer
+                        ${intensityColors[day.intensity]}
+                        ${!day.isCurrentMonth ? "opacity-30" : ""}
+                      `}
+                      title={
+                        day.data && day.isCurrentMonth
+                          ? `${day.date}: ${day.data.subjects.join(", ")} (${day.data.understandingLevels.join(", ")})`
+                          : `${day.date}: 学習記録なし`
+                      }
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+          ))}
+
+          <div className="flex items-center justify-between text-xs text-slate-600 pt-2 border-t border-slate-200">
+            <span className="text-xs sm:text-sm">少ない</span>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-sm bg-slate-100 border border-slate-200"></div>
+              <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-sm bg-sky-200 border border-sky-300"></div>
+              <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-sm bg-sky-400 border border-sky-500"></div>
+              <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-sm bg-sky-600 border border-sky-700"></div>
+            </div>
+            <span className="text-xs sm:text-sm">多い</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function StudentDashboard() {
   const [userName, setUserName] = useState("")
   const [selectedAvatar, setSelectedAvatar] = useState("")
@@ -90,7 +256,12 @@ export default function StudentDashboard() {
       student6: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student6-dJrMk7uUxYSRMp5tMJ3t4KYDOEIuNl.png",
       coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/coach-LENT7C1nR9yWT7UBNTHgxnWakF66Pr.png",
       ai_coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png",
-      parent1: "/placeholder.svg?height=40&width=40",
+      parent1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent1-HbhESuJlC27LuGOGupullRXyEUzFLy.png",
+      parent2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent2-zluk4uVJLfzP8dBe0I7v5fVGSn5QfU.png",
+      parent3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent3-EzBDrjsFP5USAgnSPTXjcdNeq1bzSm.png",
+      parent4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent4-YHYTNRnNQ7bRb6aAfTNEFMozjGRlZq.png",
+      parent5: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent5-dGCLocpgcZw4lXWRiPmTHkXURBXXoH.png",
+      parent6: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent6-gKoeUywhHoKWJ4BPEk69iW6idztaLl.png",
     }
     return avatarMap[avatarId] || avatarMap["student1"]
   }
@@ -121,48 +292,59 @@ export default function StudentDashboard() {
       </div>
 
       <div className="max-w-4xl mx-auto p-4 space-y-6">
-        {/* AI Coach Daily Message Section */}
-        <Card className="ai-coach-gradient border-0 shadow-xl ai-coach-glow">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg font-bold flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <Avatar className="h-12 w-12 border-2 border-white/30 shadow-lg">
-                  <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
-                  <AvatarFallback className="bg-white/20 text-white font-bold">AI</AvatarFallback>
-                </Avatar>
-                <span className="text-white font-bold text-xl">AIコーチからのメッセージ</span>
-              </div>
-              <Sparkles className="h-6 w-6 text-white animate-pulse" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 border border-white/30 shadow-inner">
-              <p className="text-white font-semibold text-base">{mockData.aiCoachMessage.timeBasedGreeting}</p>
-            </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* AI Coach Daily Message Section */}
+          <div className="lg:col-span-2">
+            <Card className="ai-coach-gradient border-0 shadow-xl ai-coach-glow">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg font-bold flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-12 w-12 border-2 border-white/30 shadow-lg">
+                      <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
+                      <AvatarFallback className="bg-white/20 text-white font-bold">AI</AvatarFallback>
+                    </Avatar>
+                    <span className="text-white font-bold text-xl" style={{ textShadow: "0 2px 4px rgba(0,0,0,0.5)" }}>
+                      AIコーチからのメッセージ
+                    </span>
+                  </div>
+                  <Sparkles className="h-6 w-6 text-white animate-pulse" />
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 border border-white/50 shadow-lg">
+                  <div className="space-y-4">
+                    <p className="text-lg leading-relaxed text-slate-700 font-medium">
+                      {mockData.aiCoachMessage.timeBasedGreeting}
+                    </p>
+                    <p className="text-lg leading-relaxed text-slate-700 font-medium">
+                      {mockData.aiCoachMessage.message}
+                    </p>
+                    <div className="border-t border-slate-200 pt-4">
+                      <p className="text-base leading-relaxed text-slate-600">
+                        <span className="font-bold text-slate-700">✨ 個別フィードバック：</span>
+                        {mockData.aiCoachMessage.personalNote}
+                      </p>
+                    </div>
+                    <div className="border-t border-slate-200 pt-4">
+                      <p className="text-base leading-relaxed text-slate-600">
+                        <span className="font-bold text-slate-700">💪 今日の応援メッセージ：</span>
+                        {mockData.aiCoachMessage.tip}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-            <div className="bg-white/90 backdrop-blur-sm rounded-xl p-5 border border-white/50 shadow-lg">
-              <p className="text-lg leading-relaxed text-slate-700 font-medium">{mockData.aiCoachMessage.message}</p>
-            </div>
-
-            <div className="bg-white/25 backdrop-blur-sm rounded-xl p-4 border border-white/40">
-              <p className="text-base leading-relaxed text-white">
-                <span className="font-bold text-white">✨ 個別フィードバック：</span>
-                {mockData.aiCoachMessage.personalNote}
-              </p>
-            </div>
-
-            <div className="flex items-start gap-3 text-base bg-white/15 rounded-xl p-4 border border-white/25">
-              <Bot className="h-5 w-5 mt-0.5 text-white flex-shrink-0" />
-              <p className="leading-relaxed text-white">
-                <span className="font-semibold text-white">今日の応援メッセージ：</span>
-                {mockData.aiCoachMessage.tip}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+          {/* Learning History Calendar */}
+          <div className="lg:col-span-1">
+            <LearningHistoryCalendar />
+          </div>
+        </div>
 
         {/* Learning Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Streak Counter */}
           <Card className="bg-gradient-to-br from-accent/10 to-accent/5 border-accent/20">
             <CardHeader className="pb-3">
@@ -201,23 +383,6 @@ export default function StudentDashboard() {
                   <span className="text-3xl font-black text-primary">{mockData.nextTest.daysLeft}</span>
                   <span className="text-base font-medium text-muted-foreground">日後</span>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Today's Goal */}
-          <Card className="md:col-span-2 lg:col-span-1">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Target className="h-5 w-5 text-foreground" />
-                今日の目標
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <p className="text-base font-medium text-foreground">4科目の学習</p>
-                <Progress value={75} className="h-3" />
-                <p className="text-sm font-medium text-muted-foreground">3/4 科目完了</p>
               </div>
             </CardContent>
           </Card>

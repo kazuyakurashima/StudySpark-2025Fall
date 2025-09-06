@@ -90,6 +90,9 @@ export default function SparkPage() {
   const [aiReflections, setAiReflections] = useState<string[]>([])
   const [isGeneratingAI, setIsGeneratingAI] = useState(false)
   const [aiQuestion, setAiQuestion] = useState("")
+  const [blazeReflectionType, setBlazeReflectionType] = useState<"generate" | "chat" | null>(null)
+  const [aiResponse, setAiResponse] = useState("")
+  const [isGeneratingResponse, setIsGeneratingResponse] = useState(false)
 
   const today = new Date().toISOString().split("T")[0]
 
@@ -138,12 +141,22 @@ export default function SparkPage() {
   const generateAIReflections = async () => {
     setIsGeneratingAI(true)
 
-    // Mock AI generation
     setTimeout(() => {
+      const studiedSubjects = selectedSubjects.map((id) => subjects.find((s) => s.id === id)?.name).join("、")
+      const understandingLevels = selectedSubjects.map((id) => {
+        const understanding = subjectDetails[id]?.understanding
+        if (understanding === "perfect") return "バッチリ理解"
+        if (understanding === "good") return "できた"
+        if (understanding === "normal") return "ふつう"
+        if (understanding === "slightly_anxious") return "ちょっと不安"
+        if (understanding === "difficult") return "むずかしかった"
+        return "ふつう"
+      })
+
       const reflections = [
-        "今日も算数の問題に真剣に取り組んでいて素晴らしいです！この調子で続けていけば必ず力がつきますよ。", // Celebrate系
-        "分数の計算で新しいコツを発見できたのは大きな成長ですね。こうした気づきが学習を深めていきます。", // Insight系
-        "明日は今日間違えた問題をもう一度解いてみましょう。きっと今度はスムーズに解けるはずです。", // Next step系
+        `今日は${studiedSubjects}に取り組みました。特に${understandingLevels[0]}と感じた部分があり、自分なりに頑張れたと思います。この調子で続けていきたいです。`, // Celebrate系
+        `${studiedSubjects}の学習を通して、前回よりも理解が深まったように感じます。分からなかった部分も少しずつ見えてきて、成長を実感できました。`, // Insight系
+        `今日学んだ${studiedSubjects}の内容を明日もう一度復習して、理解を定着させたいと思います。継続することで必ず力がつくはずです。`, // Next step系
       ]
       setAiReflections(reflections)
       setIsGeneratingAI(false)
@@ -151,13 +164,33 @@ export default function SparkPage() {
   }
 
   const generateAIQuestion = () => {
+    const studiedSubjects = selectedSubjects.map((id) => subjects.find((s) => s.id === id)?.name).join("、")
     const questions = [
-      "今日の学習で一番印象に残ったことは何ですか？",
-      "難しいと感じた問題があったとき、どんな工夫をしましたか？",
-      "今日学んだことを友達に説明するとしたら、どう伝えますか？",
+      `今日の${studiedSubjects}の学習で一番印象に残ったことは何ですか？`,
+      `${studiedSubjects}で難しいと感じた問題があったとき、どんな工夫をしましたか？`,
+      `今日学んだ${studiedSubjects}の内容を友達に説明するとしたら、どう伝えますか？`,
+      `${studiedSubjects}の学習を通して、新しく発見したことはありますか？`,
+      `${studiedSubjects}の学習で、前回と比べて成長を感じた部分はありますか？`,
     ]
     const randomQuestion = questions[Math.floor(Math.random() * questions.length)]
     setAiQuestion(randomQuestion)
+  }
+
+  const generateAIResponse = async () => {
+    if (!reflection.trim()) return
+
+    setIsGeneratingResponse(true)
+
+    setTimeout(() => {
+      const responses = [
+        `素晴らしい振り返りですね！${reflection.length > 100 ? "詳しく" : "簡潔に"}書いてくれてありがとう。今日の学習への取り組み方から、あなたの成長への意欲が伝わってきます。この調子で続けていきたいですよ。`,
+        `今日の振り返りを読んで、あなたが学習に真剣に向き合っていることがよく分かります。${reflection.length > 150 ? "具体的に書いてくれた" : "率直に表現してくれた"}ことで、自分の学習を客観視できていますね。明日もこの調子で頑張りましょう！`,
+        `とても良い振り返りです！自分の学習を言葉にすることで、理解が深まったのではないでしょうか。${reflection.length > 80 ? "詳細な" : "シンプルな"}振り返りから、あなたの学習への姿勢が見えて嬉しいです。継続することが一番大切ですからね。`,
+      ]
+      const randomResponse = responses[Math.floor(Math.random() * responses.length)]
+      setAiResponse(randomResponse)
+      setIsGeneratingResponse(false)
+    }, 1500)
   }
 
   const handleSubmit = async () => {
@@ -179,6 +212,8 @@ export default function SparkPage() {
       setShowReflectionOptions(false)
       setAiReflections([])
       setAiQuestion("")
+      setAiResponse("")
+      setBlazeReflectionType(null)
       setIsSubmitting(false)
 
       alert("学習記録を保存しました！")
@@ -287,7 +322,7 @@ export default function SparkPage() {
                 className="w-auto"
               />
               {selectedDate === today && (
-                <Badge variant="secondary" className="bg-accent/10 text-accent">
+                <Badge variant="default" className="bg-primary text-primary-foreground">
                   今日
                 </Badge>
               )}
@@ -459,117 +494,264 @@ export default function SparkPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {!showReflectionOptions ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <Button
-                    onClick={() => {
-                      setShowReflectionOptions(true)
-                      generateAIReflections()
-                    }}
-                    variant="outline"
-                    className="h-auto p-4 text-left"
-                  >
-                    <div>
-                      <div className="font-medium">今日の振り返りを私（AIコーチ）に生成してもらいたい</div>
-                      <div className="text-sm text-muted-foreground mt-1">3つの選択肢から選べます</div>
-                    </div>
-                  </Button>
+              {currentLevel === "flame" && (
+                <>
+                  {!showReflectionOptions ? (
+                    <div className="grid grid-cols-1 gap-3">
+                      <Button
+                        onClick={() => {
+                          setShowReflectionOptions(true)
+                          setReflection("")
+                        }}
+                        variant="outline"
+                        className="h-auto p-4 text-left"
+                      >
+                        <div>
+                          <div className="font-medium">自由に振り返りを書く</div>
+                          <div className="text-sm text-muted-foreground mt-1">自分の言葉で今日の学習を振り返る</div>
+                        </div>
+                      </Button>
 
-                  {currentLevel === "blaze" && (
-                    <Button
-                      onClick={() => {
-                        setShowReflectionOptions(true)
-                        generateAIQuestion()
-                      }}
-                      variant="outline"
-                      className="h-auto p-4 text-left"
-                    >
-                      <div>
-                        <div className="font-medium">今日の振り返りを私としたい</div>
-                        <div className="text-sm text-muted-foreground mt-1">AIコーチと対話しながら振り返り</div>
-                      </div>
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {aiReflections.length > 0 && (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png" />
-                          <AvatarFallback>AI</AvatarFallback>
-                        </Avatar>
-                        <span className="font-medium text-sm">AIコーチからの振り返り提案</span>
-                      </div>
-
-                      {isGeneratingAI ? (
-                        <div className="p-4 bg-muted/50 rounded-lg">
-                          <div className="flex items-center gap-2">
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                            <span className="text-sm">振り返りを生成中...</span>
+                      <Button
+                        onClick={() => {
+                          setShowReflectionOptions(true)
+                          generateAIReflections()
+                        }}
+                        variant="outline"
+                        className="h-auto p-4 text-left"
+                      >
+                        <div>
+                          <div className="font-medium">AIコーチに振り返りを作ってもらう</div>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            学習記録に基づいた3つの選択肢から選ぶ
                           </div>
                         </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {aiReflections.map((reflection, index) => (
-                            <button
-                              key={index}
-                              onClick={() => setReflection(reflection)}
-                              className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
-                                reflection === reflection
-                                  ? "border-primary bg-primary/5"
-                                  : "border-border bg-background hover:border-primary/50"
-                              }`}
-                            >
-                              <div className="text-sm leading-relaxed">{reflection}</div>
-                            </button>
-                          ))}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {aiReflections.length === 0 && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <MessageSquare className="h-5 w-5 text-primary" />
+                            <span className="font-medium text-sm">自由に振り返りを書く</span>
+                          </div>
+
+                          <Textarea
+                            placeholder="今日の学習はどうでしたか？感じたことや気づいたことを自由に書いてみましょう。"
+                            value={reflection}
+                            onChange={(e) => setReflection(e.target.value)}
+                            className="min-h-[120px] text-base"
+                            maxLength={300}
+                          />
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-muted-foreground">自分の言葉で振り返ってみよう</span>
+                            <span className="text-xs text-muted-foreground">{reflection.length}/300文字</span>
+                          </div>
                         </div>
                       )}
+
+                      {aiReflections.length > 0 && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png" />
+                              <AvatarFallback>AI</AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium text-sm">あなたの学習記録に基づいた振り返り</span>
+                          </div>
+
+                          {isGeneratingAI ? (
+                            <div className="p-4 bg-muted/50 rounded-lg">
+                              <div className="flex items-center gap-2">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                                <span className="text-sm">あなたの学習内容を分析して振り返りを作成中...</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              {aiReflections.map((reflectionOption, index) => (
+                                <button
+                                  key={index}
+                                  onClick={() => setReflection(reflectionOption)}
+                                  className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
+                                    reflection === reflectionOption
+                                      ? "border-primary bg-primary/5"
+                                      : "border-border bg-background hover:border-primary/50"
+                                  }`}
+                                >
+                                  <div className="text-sm leading-relaxed">{reflectionOption}</div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <Button
+                        onClick={() => {
+                          setShowReflectionOptions(false)
+                          setAiReflections([])
+                        }}
+                        variant="ghost"
+                        size="sm"
+                      >
+                        選択に戻る
+                      </Button>
                     </div>
                   )}
+                </>
+              )}
 
-                  {aiQuestion && (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png" />
-                          <AvatarFallback>AI</AvatarFallback>
-                        </Avatar>
-                        <span className="font-medium text-sm">AIコーチからの質問</span>
-                      </div>
+              {currentLevel === "blaze" && (
+                <>
+                  {!blazeReflectionType ? (
+                    <div className="grid grid-cols-1 gap-3">
+                      <Button
+                        onClick={() => {
+                          setBlazeReflectionType("generate")
+                          generateAIReflections()
+                        }}
+                        variant="outline"
+                        className="h-auto p-4 text-left"
+                      >
+                        <div>
+                          <div className="font-medium">今日の振り返りを私（AIコーチ）に生成してもらいたい</div>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            学習記録に基づいた3つの選択肢から選ぶ
+                          </div>
+                        </div>
+                      </Button>
 
-                      <div className="p-3 bg-accent/10 rounded-lg">
-                        <p className="text-sm font-medium">{aiQuestion}</p>
-                      </div>
+                      <Button
+                        onClick={() => {
+                          setBlazeReflectionType("chat")
+                          generateAIQuestion()
+                        }}
+                        variant="outline"
+                        className="h-auto p-4 text-left"
+                      >
+                        <div>
+                          <div className="font-medium">今日の振り返りを私としたい</div>
+                          <div className="text-sm text-muted-foreground mt-1">AIコーチと一緒に振り返りを深める</div>
+                        </div>
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {blazeReflectionType === "generate" && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png" />
+                              <AvatarFallback>AI</AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium text-sm">あなたの学習記録に基づいた振り返り</span>
+                          </div>
 
-                      <Textarea
-                        placeholder="この質問とは関係なく自由に振り返りを書いてもいいからね！"
-                        value={reflection}
-                        onChange={(e) => setReflection(e.target.value)}
-                        className="min-h-[120px] text-base"
-                        maxLength={400}
-                      />
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-muted-foreground">目安80-120字</span>
-                        <span className="text-xs text-muted-foreground">{reflection.length}/400文字</span>
-                      </div>
+                          {isGeneratingAI ? (
+                            <div className="p-4 bg-muted/50 rounded-lg">
+                              <div className="flex items-center gap-2">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                                <span className="text-sm">あなたの学習内容を分析して振り返りを作成中...</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              {aiReflections.map((reflectionOption, index) => (
+                                <button
+                                  key={index}
+                                  onClick={() => setReflection(reflectionOption)}
+                                  className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
+                                    reflection === reflectionOption
+                                      ? "border-primary bg-primary/5"
+                                      : "border-border bg-background hover:border-primary/50"
+                                  }`}
+                                >
+                                  <div className="text-sm leading-relaxed">{reflectionOption}</div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {blazeReflectionType === "chat" && (
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png" />
+                              <AvatarFallback>AI</AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium text-sm">AIコーチからの質問</span>
+                          </div>
+
+                          <div className="p-4 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg border border-primary/20">
+                            <p className="text-sm font-medium text-primary">{aiQuestion}</p>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Textarea
+                              placeholder="この質問とは関係なく自由に振り返りを書いてもいいからね！"
+                              value={reflection}
+                              onChange={(e) => setReflection(e.target.value)}
+                              className="min-h-[120px] text-base"
+                              maxLength={400}
+                            />
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-muted-foreground">
+                                この質問とは関係なく自由に振り返りを書いてもいいからね！
+                              </span>
+                              <span className="text-xs text-muted-foreground">{reflection.length}/400文字</span>
+                            </div>
+                          </div>
+
+                          {reflection.trim() && !aiResponse && (
+                            <Button onClick={generateAIResponse} disabled={isGeneratingResponse} className="w-full">
+                              {isGeneratingResponse ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                  AIコーチが返信を作成中...
+                                </>
+                              ) : (
+                                "AIコーチに返信してもらう"
+                              )}
+                            </Button>
+                          )}
+
+                          {aiResponse && (
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-8 w-8">
+                                  <AvatarImage src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png" />
+                                  <AvatarFallback>AI</AvatarFallback>
+                                </Avatar>
+                                <span className="font-medium text-sm">AIコーチからの返信</span>
+                              </div>
+                              <div className="p-4 bg-gradient-to-r from-accent/10 to-primary/10 rounded-lg border border-accent/20">
+                                <p className="text-sm leading-relaxed">{aiResponse}</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <Button
+                        onClick={() => {
+                          setBlazeReflectionType(null)
+                          setAiReflections([])
+                          setAiQuestion("")
+                          setAiResponse("")
+                          setReflection("")
+                        }}
+                        variant="ghost"
+                        size="sm"
+                      >
+                        選択に戻る
+                      </Button>
                     </div>
                   )}
-
-                  <Button
-                    onClick={() => {
-                      setShowReflectionOptions(false)
-                      setAiReflections([])
-                      setAiQuestion("")
-                    }}
-                    variant="ghost"
-                    size="sm"
-                  >
-                    選択に戻る
-                  </Button>
-                </div>
+                </>
               )}
             </CardContent>
           </Card>
@@ -580,7 +762,7 @@ export default function SparkPage() {
           <Button
             onClick={handleSubmit}
             disabled={!isFormValid() || isSubmitting}
-            className="w-full h-14 text-lg font-medium shadow-lg"
+            className="w-full h-14 text-lg font-medium shadow-lg bg-primary text-primary-foreground hover:bg-primary/90"
           >
             <Save className="h-5 w-5 mr-2" />
             {isSubmitting ? "保存中..." : "学習記録を保存"}
