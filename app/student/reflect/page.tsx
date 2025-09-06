@@ -18,33 +18,100 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
+  Clock,
+  BookOpen,
+  Brain,
+  Headphones,
 } from "lucide-react"
 
 // Mock data
-const learningHistory = [
+const sparkLearningHistory = [
   {
-    date: "2024-08-15",
-    subjects: ["算数", "国語"],
-    totalProblems: 25,
-    totalCorrect: 20,
-    reflection: "算数の分数問題が難しかったけど、最後は理解できました。",
-    mood: "good",
+    recordedAt: "2024-09-06 20:30",
+    studyDate: "2024-09-06",
+    subject: "算数",
+    learningContent: ["授業", "宿題"],
+    understanding: "バッチリ理解",
+    understandingEmoji: "😄",
+    reflection: "図形問題が最初は難しかったけど、先生の説明でよく分かりました。宿題も全部解けました！",
+    level: "Blaze",
   },
   {
-    date: "2024-08-14",
-    subjects: ["理科", "社会"],
-    totalProblems: 18,
-    totalCorrect: 15,
-    reflection: "理科の実験問題が面白かった！",
-    mood: "good",
+    recordedAt: "2024-09-06 19:45",
+    studyDate: "2024-09-06",
+    subject: "国語",
+    learningContent: ["授業", "週テスト・復習ナビ"],
+    understanding: "できた",
+    understandingEmoji: "😊",
+    reflection: "漢字の読み方を復習しました。週テスト対策もできて良かったです。",
+    level: "Flame",
   },
   {
-    date: "2024-08-13",
-    subjects: ["算数", "国語", "理科"],
-    totalProblems: 30,
-    totalCorrect: 22,
-    reflection: "今日は集中できなかった。明日はもっと頑張る。",
-    mood: "normal",
+    recordedAt: "2024-09-05 21:15",
+    studyDate: "2024-09-05",
+    subject: "理科",
+    learningContent: ["宿題", "入試対策・過去問"],
+    understanding: "ふつう",
+    understandingEmoji: "😐",
+    reflection: "実験の問題は理解できたけど、計算問題がまだ少し難しいです。",
+    level: "Flame",
+  },
+  {
+    recordedAt: "2024-09-05 20:00",
+    studyDate: "2024-09-05",
+    subject: "社会",
+    learningContent: ["授業"],
+    understanding: "ちょっと不安",
+    understandingEmoji: "😟",
+    reflection: "歴史の年号を覚えるのが大変でした。もう少し復習が必要です。",
+    level: "Spark",
+  },
+  {
+    recordedAt: "2024-09-04 19:30",
+    studyDate: "2024-09-04",
+    subject: "算数",
+    learningContent: ["授業", "宿題", "週テスト・復習ナビ"],
+    understanding: "できた",
+    understandingEmoji: "😊",
+    reflection: "分数の計算問題をたくさん練習しました。だんだん慣れてきた感じです。",
+    level: "Flame",
+  },
+]
+
+const learningContentColors = {
+  授業: { bg: "bg-red-50", text: "text-red-700", border: "border-red-200" },
+  宿題: { bg: "bg-red-50", text: "text-red-700", border: "border-red-200" },
+  週テスト・復習ナビ: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
+  入試対策・過去問: { bg: "bg-gray-50", text: "text-gray-700", border: "border-gray-200" },
+}
+
+const levelColors = {
+  Spark: { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" },
+  Flame: { bg: "bg-yellow-50", text: "text-yellow-700", border: "border-yellow-200" },
+  Blaze: { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" },
+}
+
+const encouragementMessages = [
+  {
+    from: "お母さん",
+    avatar: "parent1",
+    message: "算数がんばったね！明日もファイト！",
+    time: "今日 18:30",
+    type: "parent",
+  },
+  {
+    from: "田中先生",
+    avatar: "coach",
+    message: "理科の実験問題、よくできていました。この調子で続けましょう。",
+    time: "今日 15:20",
+    type: "teacher",
+  },
+  {
+    from: "お父さん",
+    avatar: "parent2",
+    message: "毎日コツコツ続けているのが素晴らしい！",
+    time: "昨日 20:15",
+    type: "parent",
   },
 ]
 
@@ -72,30 +139,6 @@ const friendsActivity = [
     time: "5時間前",
     subjects: ["理科"],
     score: null,
-  },
-]
-
-const encouragementMessages = [
-  {
-    from: "お母さん",
-    avatar: "parent1",
-    message: "算数がんばったね！明日もファイト！",
-    time: "今日 18:30",
-    type: "parent",
-  },
-  {
-    from: "田中先生",
-    avatar: "coach",
-    message: "理科の実験問題、よくできていました。この調子で続けましょう。",
-    time: "今日 15:20",
-    type: "teacher",
-  },
-  {
-    from: "お父さん",
-    avatar: "parent2",
-    message: "毎日コツコツ続けているのが素晴らしい！",
-    time: "昨日 20:15",
-    type: "parent",
   },
 ]
 
@@ -260,10 +303,108 @@ const testHistory = [
   },
 ]
 
+const coachingHistory = [
+  {
+    date: "2024-09-06",
+    time: "20:45",
+    type: "週間振り返り",
+    duration: "15分",
+    topics: ["算数の図形問題", "学習習慣の改善", "次週の目標設定"],
+    summary:
+      "図形問題の理解が深まってきています。毎日の学習習慣も定着してきているので、この調子で続けましょう。来週は理科の実験問題にも挑戦してみましょう。",
+    coach: "AIコーチ",
+    level: "Blaze",
+  },
+  {
+    date: "2024-09-01",
+    time: "19:30",
+    type: "学習相談",
+    duration: "12分",
+    topics: ["国語の読解問題", "時間管理", "モチベーション向上"],
+    summary:
+      "読解問題で時間がかかりすぎる傾向があります。まずは問題文を素早く読み取る練習をしましょう。毎日少しずつでも続けることが大切です。",
+    coach: "AIコーチ",
+    level: "Flame",
+  },
+  {
+    date: "2024-08-25",
+    time: "18:15",
+    type: "テスト振り返り",
+    duration: "18分",
+    topics: ["合不合判定テスト結果", "弱点分析", "改善計画"],
+    summary:
+      "テスト結果を詳しく分析しました。算数の計算ミスが目立つので、見直しの習慣をつけましょう。理科は良くできているので、この調子で続けてください。",
+    coach: "AIコーチ",
+    level: "Flame",
+  },
+  {
+    date: "2024-08-18",
+    time: "20:00",
+    type: "学習計画相談",
+    duration: "10分",
+    topics: ["夏休み後の学習計画", "科目バランス", "目標設定"],
+    summary:
+      "夏休み明けの学習リズムを整えるための計画を立てました。各科目のバランスを考えて、無理のないペースで進めていきましょう。",
+    coach: "AIコーチ",
+    level: "Spark",
+  },
+  {
+    date: "2024-08-11",
+    time: "19:45",
+    type: "週間振り返り",
+    duration: "14分",
+    topics: ["夏期講習の振り返り", "理解度確認", "次週の予定"],
+    summary:
+      "夏期講習での学習内容をしっかり振り返りました。特に社会の歴史分野で成長が見られます。来週からは復習に重点を置いて進めましょう。",
+    coach: "AIコーチ",
+    level: "Flame",
+  },
+]
+
+const getAvatarSrc = (avatarId: string) => {
+  const avatarMap: { [key: string]: string } = {
+    student1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student1-xZFJU5uXJO4DEfUbq1jbTMQUXReyM0.png",
+    student2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student2-mZ9Q9oVm43IQoRyxSYytVFYgp3JS1V.png",
+    student3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student3-teUpOKnopXNhE2vGFtvz9RWtC7O6kv.png",
+    student4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student4-pKazGXekCT1H5kzHBqmfOrM1968hML.png",
+    coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/coach-LENT7C1nR9yWT7UBNTHgxnWakF66Pr.png",
+    ai_coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png",
+    parent1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent1-Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8.png",
+    parent2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent2-Fj9Fj9Fj9Fj9Fj9Fj9Fj9Fj9Fj9.png",
+    parent3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent3-Gk0Gk0Gk0Gk0Gk0Gk0Gk0Gk0Gk0.png",
+    parent4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent4-Hl1Hl1Hl1Hl1Hl1Hl1Hl1Hl1Hl1.png",
+    parent5: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent5-Im2Im2Im2Im2Im2Im2Im2Im2Im2.png",
+    parent6: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent6-Jn3Jn3Jn3Jn3Jn3Jn3Jn3Jn3Jn3.png",
+  }
+  return avatarMap[avatarId] || avatarMap["student1"]
+}
+
+const getSubjectDelta = (goal: number, result: number) => {
+  const delta = result - goal
+  if (delta > 0) return { value: `+${delta}`, color: "text-green-600", icon: TrendingUp }
+  if (delta < 0) return { value: `${delta}`, color: "text-red-600", icon: TrendingDown }
+  return { value: "±0", color: "text-gray-600", icon: Minus }
+}
+
+const getCourseOrder = (course: string) => {
+  const order = { S: 4, C: 3, B: 2, A: 1 }
+  return order[course as keyof typeof order] || 0
+}
+
+const isTestAchieved = (test: any) => {
+  if (test.type === "合不合") {
+    const goalCourseOrder = getCourseOrder(test.goal.course)
+    const resultCourseOrder = getCourseOrder(test.result.course)
+    return resultCourseOrder >= goalCourseOrder && test.result.class <= test.goal.class
+  }
+  return test.achieved
+}
+
+const displayedTests = testHistory.slice(0, 5)
+
 export default function ReflectPage() {
   const [showAIChat, setShowAIChat] = useState(false)
   const [activeTab, setActiveTab] = useState("history")
-  const [showMoreTests, setShowMoreTests] = useState(false)
 
   const isAICoachingAvailable = () => {
     const now = new Date()
@@ -282,47 +423,6 @@ export default function ReflectPage() {
 
     return false
   }
-
-  const getAvatarSrc = (avatarId: string) => {
-    const avatarMap: { [key: string]: string } = {
-      student1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student1-xZFJU5uXJO4DEfUbq1jbTMQUXReyM0.png",
-      student2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student2-mZ9Q9oVm43IQoRyxSYytVFYgp3JS1V.png",
-      student3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student3-teUpOKnopXNhE2vGFtvz9RWtC7O6kv.png",
-      student4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student4-pKazGXekCT1H5kzHBqmfOrM1968hML.png",
-      coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/coach-LENT7C1nR9yWT7UBNTHgxnWakF66Pr.png",
-      ai_coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png",
-      parent1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent1-Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8.png",
-      parent2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent2-Fj9Fj9Fj9Fj9Fj9Fj9Fj9Fj9Fj9.png",
-      parent3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent3-Gk0Gk0Gk0Gk0Gk0Gk0Gk0Gk0Gk0.png",
-      parent4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent4-Hl1Hl1Hl1Hl1Hl1Hl1Hl1Hl1Hl1.png",
-      parent5: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent5-Im2Im2Im2Im2Im2Im2Im2Im2Im2.png",
-      parent6: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent6-Jn3Jn3Jn3Jn3Jn3Jn3Jn3Jn3Jn3.png",
-    }
-    return avatarMap[avatarId] || avatarMap["student1"]
-  }
-
-  const getSubjectDelta = (goal: number, result: number) => {
-    const delta = result - goal
-    if (delta > 0) return { value: `+${delta}`, color: "text-green-600", icon: TrendingUp }
-    if (delta < 0) return { value: `${delta}`, color: "text-red-600", icon: TrendingDown }
-    return { value: "±0", color: "text-gray-600", icon: Minus }
-  }
-
-  const getCourseOrder = (course: string) => {
-    const order = { S: 4, C: 3, B: 2, A: 1 }
-    return order[course as keyof typeof order] || 0
-  }
-
-  const isTestAchieved = (test: any) => {
-    if (test.type === "合不合") {
-      const goalCourseOrder = getCourseOrder(test.goal.course)
-      const resultCourseOrder = getCourseOrder(test.result.course)
-      return resultCourseOrder >= goalCourseOrder && test.result.class <= test.goal.class
-    }
-    return test.achieved
-  }
-
-  const displayedTests = showMoreTests ? testHistory : testHistory.slice(0, 5)
 
   if (showAIChat) {
     return <AICoachChat onClose={() => setShowAIChat(false)} />
@@ -378,7 +478,7 @@ export default function ReflectPage() {
 
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="history" className="flex items-center gap-2">
               <History className="h-4 w-4" />
               学習履歴
@@ -391,6 +491,10 @@ export default function ReflectPage() {
               <Users className="h-4 w-4" />
               友だち
             </TabsTrigger>
+            <TabsTrigger value="coaching" className="flex items-center gap-2">
+              <Headphones className="h-4 w-4" />
+              コーチング履歴
+            </TabsTrigger>
           </TabsList>
 
           {/* Learning History Tab */}
@@ -399,54 +503,76 @@ export default function ReflectPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <History className="h-5 w-5 text-primary" />
-                  最近の学習記録
+                  スパーク機能で記録した学習履歴
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {learningHistory.map((record, index) => (
+                  {sparkLearningHistory.map((record, index) => (
                     <div key={index} className="p-4 rounded-lg bg-muted/30 border border-border/50">
                       <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Clock className="h-4 w-4" />
+                            <span>記録日時: {record.recordedAt}</span>
+                          </div>
                           <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-medium">{record.date}</span>
-                          </div>
-                          <div className="text-2xl">{moodEmojis[record.mood as keyof typeof moodEmojis]}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm text-muted-foreground">正答率</div>
-                          <div className="font-bold text-primary">
-                            {Math.round((record.totalCorrect / record.totalProblems) * 100)}%
+                            <span className="font-medium">学習日: {record.studyDate}</span>
                           </div>
                         </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2 mb-3">
-                        {record.subjects.map((subject) => (
+                        <div className="flex items-center gap-2">
                           <Badge
-                            key={subject}
-                            className={
-                              subjectColors[subject as keyof typeof subjectColors].bg +
-                              " " +
-                              subjectColors[subject as keyof typeof subjectColors].text +
-                              " " +
-                              subjectColors[subject as keyof typeof subjectColors].border
-                            }
+                            className={`${levelColors[record.level as keyof typeof levelColors].bg} ${levelColors[record.level as keyof typeof levelColors].text} ${levelColors[record.level as keyof typeof levelColors].border}`}
                           >
-                            {subject}
+                            {record.level}
                           </Badge>
-                        ))}
+                        </div>
                       </div>
 
-                      <div className="text-sm text-muted-foreground mb-2">
-                        問題数: {record.totalProblems}問 / 正解: {record.totalCorrect}問
+                      <div className="mb-3">
+                        <Badge
+                          className={`${subjectColors[record.subject as keyof typeof subjectColors].bg} ${subjectColors[record.subject as keyof typeof subjectColors].text} ${subjectColors[record.subject as keyof typeof subjectColors].border} text-base px-3 py-1`}
+                        >
+                          {record.subject}
+                        </Badge>
                       </div>
 
-                      <div className="p-3 bg-background rounded-lg">
-                        <div className="text-xs text-muted-foreground mb-1">振り返り</div>
-                        <p className="text-sm">{record.reflection}</p>
+                      <div className="mb-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <BookOpen className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">学習内容</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {record.learningContent.map((content) => (
+                            <Badge
+                              key={content}
+                              variant="outline"
+                              className={`${learningContentColors[content as keyof typeof learningContentColors].bg} ${learningContentColors[content as keyof typeof learningContentColors].text} ${learningContentColors[content as keyof typeof learningContentColors].border}`}
+                            >
+                              {content}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
+
+                      <div className="mb-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Brain className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">理解度</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl">{record.understandingEmoji}</span>
+                          <span className="font-medium">{record.understanding}</span>
+                        </div>
+                      </div>
+
+                      {record.reflection && (
+                        <div className="p-3 bg-background rounded-lg">
+                          <div className="text-xs text-muted-foreground mb-1">振り返り</div>
+                          <p className="text-sm">{record.reflection}</p>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -527,6 +653,74 @@ export default function ReflectPage() {
                             <Badge className="bg-accent/10 text-accent text-xs">スコア: {friend.score}点</Badge>
                           )}
                         </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="coaching" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Headphones className="h-5 w-5 text-accent" />
+                  コーチング履歴
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {coachingHistory.map((session, index) => (
+                    <div key={index} className="p-4 rounded-lg bg-accent/5 border border-accent/10">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium">{session.date}</span>
+                            <Clock className="h-4 w-4 text-muted-foreground ml-2" />
+                            <span className="text-sm text-muted-foreground">{session.time}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                              {session.type}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              {session.duration}
+                            </Badge>
+                            <Badge
+                              className={`${levelColors[session.level as keyof typeof levelColors].bg} ${levelColors[session.level as keyof typeof levelColors].text} ${levelColors[session.level as keyof typeof levelColors].border}`}
+                            >
+                              {session.level}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt={session.coach} />
+                            <AvatarFallback>AI</AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm font-medium">{session.coach}</span>
+                        </div>
+                      </div>
+
+                      <div className="mb-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <BookOpen className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">話し合ったトピック</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {session.topics.map((topic, topicIndex) => (
+                            <Badge key={topicIndex} variant="secondary" className="text-xs">
+                              {topic}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="p-3 bg-background rounded-lg">
+                        <div className="text-xs text-muted-foreground mb-1">コーチングサマリー</div>
+                        <p className="text-sm">{session.summary}</p>
                       </div>
                     </div>
                   ))}

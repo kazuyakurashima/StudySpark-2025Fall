@@ -6,66 +6,99 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Heart, Star, ThumbsUp, Send, Sparkles, BookOpen, Target } from "lucide-react"
+import { Heart, Send, MessageCircle, BookOpen, Clock, Calendar } from "lucide-react"
 import ParentBottomNavigation from "@/components/parent-bottom-navigation"
 
-// Mock data for today's records
-const todayRecords = [
+const sparkRecords = [
   {
     id: "record1",
     childName: "太郎",
     childAvatar: "student1",
-    subjects: ["算数", "国語"],
-    totalProblems: 25,
-    totalCorrect: 20,
-    mood: "good",
-    reflection: "算数の分数問題が難しかったけど、最後は理解できました。",
-    studyTime: "45分",
-    timestamp: "16:30",
+    recordDate: "2024-09-06T16:30:00",
+    studyDate: "2024-09-06",
+    subjects: [
+      {
+        name: "算数",
+        categories: ["授業", "宿題"],
+        understanding: "バッチリ理解",
+        emoji: "😄",
+      },
+      {
+        name: "国語",
+        categories: ["宿題", "週テスト・復習ナビ"],
+        understanding: "できた",
+        emoji: "😊",
+      },
+    ],
+    reflection: "算数の分数問題が最初は難しかったけど、先生の説明を聞いて理解できました。国語の漢字も覚えられました。",
   },
   {
     id: "record2",
     childName: "花子",
     childAvatar: "student2",
-    subjects: ["理科", "社会"],
-    totalProblems: 18,
-    totalCorrect: 16,
-    mood: "good",
-    reflection: "理科の実験が楽しかった！",
-    studyTime: "30分",
-    timestamp: "15:45",
+    recordDate: "2024-09-06T15:45:00",
+    studyDate: "2024-09-06",
+    subjects: [
+      {
+        name: "理科",
+        categories: ["授業"],
+        understanding: "バッチリ理解",
+        emoji: "😄",
+      },
+      {
+        name: "社会",
+        categories: ["宿題"],
+        understanding: "ふつう",
+        emoji: "😐",
+      },
+    ],
+    reflection: "理科の実験が楽しかった！社会の地理はもう少し復習が必要かも。",
   },
 ]
 
-const encouragementStamps = [
-  { id: "heart", icon: Heart, label: "がんばったね", color: "text-red-500" },
-  { id: "star", icon: Star, label: "すごい！", color: "text-yellow-500" },
-  { id: "thumbs", icon: ThumbsUp, label: "よくできました", color: "text-blue-500" },
-]
-
-const aiSuggestedMessages = [
-  "今日も勉強お疲れさま！この調子で頑張ろう！",
-  "毎日コツコツ続けているのが素晴らしいです。",
-  "難しい問題にもチャレンジしていて偉いね！",
-]
-
 const subjectColors = {
-  算数: "bg-blue-100 text-blue-800",
-  国語: "bg-green-100 text-green-800",
-  理科: "bg-purple-100 text-purple-800",
-  社会: "bg-orange-100 text-orange-800",
+  算数: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
+  国語: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
+  理科: { bg: "bg-violet-50", text: "text-violet-700", border: "border-violet-200" },
+  社会: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" },
 }
 
-const moodEmojis = {
-  good: "😊",
-  normal: "😐",
-  difficult: "😔",
+const categoryColors = {
+  授業: { bg: "bg-red-50", text: "text-red-700", border: "border-red-200" },
+  宿題: { bg: "bg-red-50", text: "text-red-700", border: "border-red-200" },
+  週テスト・復習ナビ: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
+  入試対策・過去問: { bg: "bg-slate-50", text: "text-slate-700", border: "border-slate-200" },
 }
 
 const children = [
   { id: "child1", name: "みかん", nickname: "みかんちゃん" },
   { id: "child2", name: "太郎", nickname: "たろう" },
 ]
+
+const generateAIMessages = (record: (typeof sparkRecords)[0]) => {
+  const goodSubjects = record.subjects.filter((s) => s.understanding === "バッチリ理解" || s.understanding === "できた")
+  const needsWork = record.subjects.filter(
+    (s) => s.understanding === "ちょっと不安" || s.understanding === "むずかしかった",
+  )
+
+  const messages = []
+
+  if (goodSubjects.length > 0) {
+    messages.push(`${goodSubjects.map((s) => s.name).join("と")}、よく理解できていて素晴らしいね！この調子で頑張ろう！`)
+  }
+
+  if (record.reflection) {
+    messages.push("今日も振り返りをしっかり書いてくれてありがとう。自分の学習を見つめ直すのは大切だね。")
+  }
+
+  if (needsWork.length > 0) {
+    messages.push(`${needsWork.map((s) => s.name).join("と")}は少し難しかったみたいだね。一緒に復習してみよう！`)
+  } else {
+    messages.push("毎日コツコツ勉強を続けているのが本当に偉いです。継続は力なり！")
+  }
+
+  return messages.slice(0, 3)
+}
 
 export default function ParentSparkPage() {
   const [selectedChild, setSelectedChild] = useState("child1")
@@ -80,21 +113,9 @@ export default function ParentSparkPage() {
     return avatarMap[avatarId] || avatarMap["student1"]
   }
 
-  const handleSendStamp = async (stampId: string, recordId: string) => {
-    setIsSending(true)
-    const stamp = encouragementStamps.find((s) => s.id === stampId)
-    const record = todayRecords.find((r) => r.id === recordId)
-
-    setTimeout(() => {
-      console.log(`Sent stamp: ${stamp?.label} to ${record?.childName}`)
-      alert(`${stamp?.label} を送信しました！`)
-      setIsSending(false)
-    }, 500)
-  }
-
   const handleSendMessage = async (message: string, recordId: string) => {
     setIsSending(true)
-    const record = todayRecords.find((r) => r.id === recordId)
+    const record = sparkRecords.find((r) => r.id === recordId)
 
     setTimeout(() => {
       console.log(`Sent message: ${message} to ${record?.childName}`)
@@ -104,15 +125,20 @@ export default function ParentSparkPage() {
     }, 800)
   }
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-accent/5 via-background to-primary/5 pb-20">
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center gap-3 mb-4">
-            <Sparkles className="h-6 w-6 text-primary" />
+            <Heart className="h-6 w-6 text-primary" />
             <div>
-              <h1 className="text-xl font-bold text-slate-800">スパーク</h1>
+              <h1 className="text-xl font-bold text-slate-800">応援</h1>
               <p className="text-sm text-slate-600">お子さんの学習記録に応援を送ろう</p>
             </div>
           </div>
@@ -139,7 +165,7 @@ export default function ParentSparkPage() {
       </div>
 
       <div className="max-w-4xl mx-auto p-4 space-y-6">
-        {todayRecords
+        {sparkRecords
           .filter((record) => record.childName === children.find((child) => child.id === selectedChild)?.name)
           .map((record) => (
             <Card key={record.id} className="border-l-4 border-l-primary">
@@ -152,85 +178,75 @@ export default function ParentSparkPage() {
                   <div>
                     <div className="flex items-center gap-2">
                       <span>{record.childName}さんの学習記録</span>
-                      <div className="text-2xl">{moodEmojis[record.mood as keyof typeof moodEmojis]}</div>
                     </div>
-                    <div className="text-sm text-muted-foreground font-normal">
-                      {record.timestamp} • 学習時間: {record.studyTime}
+                    <div className="text-sm text-muted-foreground font-normal flex items-center gap-4">
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-4 w-4" />
+                        記録日時: {formatDate(record.recordDate)}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-4 w-4" />
+                        学習日:{" "}
+                        {new Date(record.studyDate).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" })}
+                      </div>
                     </div>
                   </div>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Study Summary */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <BookOpen className="h-5 w-5 text-primary" />
-                    <div>
-                      <div className="text-sm text-muted-foreground">学習科目</div>
-                      <div className="flex gap-1">
-                        {record.subjects.map((subject) => (
-                          <Badge key={subject} className={subjectColors[subject as keyof typeof subjectColors]}>
-                            {subject}
+                    <span className="font-medium">学習内容</span>
+                  </div>
+                  {record.subjects.map((subject, index) => (
+                    <div
+                      key={index}
+                      className={`p-4 rounded-lg border ${subjectColors[subject.name as keyof typeof subjectColors]?.bg} ${subjectColors[subject.name as keyof typeof subjectColors]?.border}`}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            className={`${subjectColors[subject.name as keyof typeof subjectColors]?.bg} ${subjectColors[subject.name as keyof typeof subjectColors]?.text} border-0`}
+                          >
+                            {subject.name}
+                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <span className="text-2xl">{subject.emoji}</span>
+                            <span className="text-sm font-medium">{subject.understanding}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {subject.categories.map((category, catIndex) => (
+                          <Badge
+                            key={catIndex}
+                            variant="outline"
+                            className={`${categoryColors[category as keyof typeof categoryColors]?.bg} ${categoryColors[category as keyof typeof categoryColors]?.text} ${categoryColors[category as keyof typeof categoryColors]?.border}`}
+                          >
+                            {category}
                           </Badge>
                         ))}
                       </div>
                     </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Target className="h-5 w-5 text-accent" />
-                    <div>
-                      <div className="text-sm text-muted-foreground">正答率</div>
-                      <div className="font-bold text-lg text-accent">
-                        {Math.round((record.totalCorrect / record.totalProblems) * 100)}%
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-primary" />
-                    <div>
-                      <div className="text-sm text-muted-foreground">問題数</div>
-                      <div className="font-bold text-lg text-primary">
-                        {record.totalCorrect}/{record.totalProblems}問
-                      </div>
-                    </div>
-                  </div>
+                  ))}
                 </div>
 
                 {/* Child's Reflection */}
-                <div className="p-4 bg-muted/30 rounded-lg">
-                  <div className="text-sm text-muted-foreground mb-2">振り返り</div>
-                  <p className="text-sm">{record.reflection}</p>
-                </div>
-
-                {/* Quick Encouragement Stamps */}
-                <div className="space-y-3">
-                  <div className="text-sm font-medium">クイック応援</div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {encouragementStamps.map((stamp) => {
-                      const Icon = stamp.icon
-                      return (
-                        <Button
-                          key={stamp.id}
-                          onClick={() => handleSendStamp(stamp.id, record.id)}
-                          disabled={isSending}
-                          variant="outline"
-                          className="h-12 flex flex-col gap-1 hover:bg-primary/5 hover:border-primary/50"
-                        >
-                          <Icon className={`h-4 w-4 ${stamp.color}`} />
-                          <span className="text-xs">{stamp.label}</span>
-                        </Button>
-                      )
-                    })}
+                {record.reflection && (
+                  <div className="p-4 bg-muted/30 rounded-lg">
+                    <div className="text-sm text-muted-foreground mb-2">振り返り</div>
+                    <p className="text-sm">{record.reflection}</p>
                   </div>
-                </div>
+                )}
 
-                {/* AI Suggested Messages */}
                 <div className="space-y-3">
-                  <div className="text-sm font-medium">AI提案メッセージ</div>
+                  <div className="text-sm font-medium flex items-center gap-2">
+                    <MessageCircle className="h-4 w-4 text-primary" />
+                    AI提案メッセージ
+                  </div>
                   <div className="space-y-2">
-                    {aiSuggestedMessages.map((message, index) => (
+                    {generateAIMessages(record).map((message, index) => (
                       <Button
                         key={index}
                         onClick={() => handleSendMessage(message, record.id)}
