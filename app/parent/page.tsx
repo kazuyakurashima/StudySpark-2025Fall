@@ -3,11 +3,20 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Heart, Star, ThumbsUp, Send, Sparkles, Clock, BookOpen, Target } from "lucide-react"
+import {
+  Heart,
+  Send,
+  Sparkles,
+  BookOpen,
+  Target,
+  Calendar,
+  Flame,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+} from "lucide-react"
 import ParentBottomNavigation from "@/components/parent-bottom-navigation"
 
 // Mock data for children
@@ -48,8 +57,8 @@ const children = [
 
 const encouragementStamps = [
   { id: "heart", icon: Heart, label: "がんばったね", color: "text-red-500" },
-  { id: "star", icon: Star, label: "すごい！", color: "text-yellow-500" },
-  { id: "thumbs", icon: ThumbsUp, label: "よくできました", color: "text-blue-500" },
+  { id: "star", icon: Send, label: "すごい！", color: "text-yellow-500" },
+  { id: "thumbs", icon: Sparkles, label: "よくできました", color: "text-blue-500" },
 ]
 
 const aiSuggestedMessages = [
@@ -71,61 +80,380 @@ const moodEmojis = {
   difficult: "😔",
 }
 
-const getParentAvatarSrc = (avatarId: string) => {
-  const parentAvatarMap: { [key: string]: string } = {
-    parent1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent1-HbhESuJlC27LuGOGupullRXyEUzFLy.png",
-    parent2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent2-zluk4uVJLfzP8dBe0I7v5fVGSn5QfU.png",
-    parent3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent3-EzBDrjsFP5USAgnSPTXjcdNeq1bzSm.png",
-    parent4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent4-YHYTNRnNQ7bRb6aAfTNEFMozjGRlZq.png",
-    parent5: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent5-dGCLocpgcZw4lXWRiPmTHkXURBXXoH.png",
-    parent6: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent6-gKoeUywhHoKWJ4BPEk69iW6idztaLl.png",
+const studentData = {
+  id: "child1",
+  name: "太郎",
+  avatar: "student1",
+  streak: 7,
+  weeklyTotal: 24,
+  maxWeeklyTotal: 36,
+  todayMissions: {
+    completed: 4,
+    total: 6,
+    needsAttention: 2,
+    subjects: ["算数", "国語", "理科"],
+    mode: "input", // input | review | sunday
+  },
+  nextTest: {
+    name: "第3回合不合判定テスト",
+    date: "2024-09-08",
+    type: "合不合判定テスト",
+    course: "S",
+    group: 15,
+    thought: "今回は算数の図形問題を重点的に勉強したので、前回より良い結果を出したいです。",
+    riskLevel: "接戦", // 高 | 接戦 | 危険
+  },
+  learningDashboard: {
+    currentPeriod: "月・火",
+    currentScore: 8,
+    maxScore: 12,
+    weeklyScore: 24,
+    maxWeeklyScore: 36,
+    alerts: ["未入力が2日連続"],
+  },
+}
+
+const generateParentTip = () => {
+  const tips = [
+    "7日連続学習中！「毎日続けてすごいね」の一言で更にやる気アップ",
+    "算数で少し苦戦中。「一緒に1問だけやってみよう」で寄り添いサポート",
+    "テスト3日前。「復習は短時間で区切ろう」のアドバイスが効果的",
+    "今日のミッション達成率67%。「あと少しで完璧だね」で背中を押して",
+  ]
+  return tips[Math.floor(Math.random() * tips.length)]
+}
+
+const encouragementTemplates = {
+  praise: [
+    "今日もアプリを開けたね。まずはその一歩を褒めよう。",
+    "毎日コツコツ続けているのが素晴らしいです。",
+    "難しい問題にもチャレンジしていて偉いね。",
+  ],
+  nudge: [
+    "算数の「入力のみ」を「できた」に上げよう。1問だけ一緒に。",
+    "今日はあと2科目で目標達成だよ。ファイト！",
+    "復習は10分だけでも効果があるよ。一緒にやってみよう。",
+  ],
+  preTest: [
+    "あと2日。復習は短く区切って「終わりを決める」のがコツ。",
+    "テスト前は新しい問題より、間違えた問題の見直しを。",
+    "緊張するのは当然。深呼吸して、いつも通りにやろう。",
+  ],
+}
+
+const LearningHistoryCalendar = () => {
+  const generateLearningHistory = () => {
+    const history: { [key: string]: { subjects: string[]; understandingLevels: string[] } } = {}
+    const today = new Date()
+
+    for (let i = 0; i < 30; i++) {
+      const date = new Date(today)
+      date.setDate(date.getDate() - i)
+      const dateStr = date.toISOString().split("T")[0]
+
+      if (Math.random() > 0.3) {
+        const subjectCount = Math.floor(Math.random() * 4) + 1
+        const subjects = ["算数", "国語", "理科", "社会"].slice(0, subjectCount)
+        const understandingLevels = subjects.map(() => {
+          const levels = ["😄バッチリ理解", "😊できた", "😐ふつう", "😟ちょっと不安", "😥むずかしかった"]
+          return levels[Math.floor(Math.random() * levels.length)]
+        })
+        history[dateStr] = { subjects, understandingLevels }
+      }
+    }
+    return history
   }
-  return parentAvatarMap[avatarId] || parentAvatarMap["parent1"]
-}
 
-const getAvatarSrc = (avatarId: string) => {
-  const avatarMap: { [key: string]: string } = {
-    student1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student1-xZFJU5uXJO4DEfUbq1jbTMQUXReyM0.png",
-    student2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student2-mZ9Q9oVm43IQoRyxSYytVFYgp3JS1V.png",
-    student3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student3-teUpOKnopXNhE2vGFtvz9RWtC7O6kv.png",
-    student4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student4-pKazGXekCT1H5kzHBqmfOrM1968hML.png",
-    student5: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student5-kehwNSIKsgkTL6EkAPO2evB3qJWnRM.png",
-    student6: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student6-dJrMk7uUxYSRMp5tMJ3t4KYDOEIuNl.png",
+  const learningHistory = generateLearningHistory()
+
+  const getLearningIntensity = (date: string) => {
+    const data = learningHistory[date]
+    if (!data || data.subjects.length === 0) return "none"
+    if (data.subjects.length === 1) return "light"
+    if (data.subjects.length >= 2) {
+      const goodLevels = ["😄バッチリ理解", "😊できた"]
+      const normalOrBetter = ["😄バッチリ理解", "😊できた", "😐ふつう"]
+      const allGoodOrBetter = data.understandingLevels.every((level) => goodLevels.includes(level))
+      const allNormalOrBetter = data.understandingLevels.every((level) => normalOrBetter.includes(level))
+      if (allGoodOrBetter) return "dark"
+      if (allNormalOrBetter) return "medium"
+    }
+    return "light"
   }
-  return avatarMap[avatarId] || avatarMap["student1"]
+
+  const today = new Date()
+  const monthsData: { [key: string]: any } = {}
+
+  for (let monthOffset = 1; monthOffset >= 0; monthOffset--) {
+    const targetMonth = new Date(today.getFullYear(), today.getMonth() - monthOffset, 1)
+    const monthKey = `${targetMonth.getFullYear()}-${String(targetMonth.getMonth() + 1).padStart(2, "0")}`
+    const monthName = `${targetMonth.getMonth() + 1}月`
+
+    const weeks = []
+    const firstDay = new Date(targetMonth.getFullYear(), targetMonth.getMonth(), 1)
+    const lastDay = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0)
+    const startDate = new Date(firstDay)
+    startDate.setDate(startDate.getDate() - firstDay.getDay())
+    const endDate = new Date(lastDay)
+    endDate.setDate(endDate.getDate() + (6 - lastDay.getDay()))
+
+    const currentDate = new Date(startDate)
+    while (currentDate <= endDate) {
+      const week = []
+      for (let day = 0; day < 7; day++) {
+        const dateStr = currentDate.toISOString().split("T")[0]
+        const intensity = getLearningIntensity(dateStr)
+        const isCurrentMonth = currentDate.getMonth() === targetMonth.getMonth()
+
+        week.push({
+          date: dateStr,
+          day: currentDate.getDate(),
+          intensity: isCurrentMonth ? intensity : "none",
+          data: learningHistory[dateStr],
+          isCurrentMonth,
+        })
+        currentDate.setDate(currentDate.getDate() + 1)
+      }
+      weeks.push(week)
+    }
+    monthsData[monthKey] = { weeks, monthName }
+  }
+
+  const intensityColors = {
+    none: "bg-slate-100 border-slate-200",
+    light: "bg-blue-200 border-blue-300",
+    medium: "bg-blue-400 border-blue-500",
+    dark: "bg-primary border-primary",
+  }
+
+  return (
+    <Card className="bg-gradient-to-br from-blue-50 to-primary/10 border-primary/20 shadow-lg">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg font-bold flex items-center gap-2">
+          <Calendar className="h-6 w-6 text-primary" />
+          学習カレンダー
+          <Badge className="bg-primary text-primary-foreground font-bold ml-2">{studentData.streak}日連続</Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="px-3 sm:px-6">
+        <div className="space-y-3 sm:space-y-4">
+          <div className="grid grid-cols-7 gap-1 sm:gap-2">
+            {["月", "火", "水", "木", "金", "土", "日"].map((day) => (
+              <div
+                key={day}
+                className="text-sm font-semibold text-center text-slate-700 py-1 w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center"
+              >
+                {day}
+              </div>
+            ))}
+          </div>
+
+          {Object.entries(monthsData).map(([monthKey, monthData]) => (
+            <div key={monthKey} className="space-y-2">
+              <div className="text-base font-bold text-slate-800 text-left border-b border-slate-300 pb-2">
+                {monthData.monthName}
+              </div>
+              {monthData.weeks.map((week: any[], weekIndex: number) => (
+                <div key={weekIndex} className="grid grid-cols-7 gap-1 sm:gap-2">
+                  {week.map((day: any, dayIndex: number) => (
+                    <div
+                      key={dayIndex}
+                      className={`
+                        w-5 h-5 sm:w-6 sm:h-6 rounded-md border-2 transition-all duration-300 hover:scale-110 cursor-pointer shadow-sm
+                        ${intensityColors[day.intensity]}
+                        ${!day.isCurrentMonth ? "opacity-30" : ""}
+                      `}
+                      title={
+                        day.data && day.isCurrentMonth
+                          ? `${day.date}: ${day.data.subjects.join(", ")}`
+                          : `${day.date}: 学習記録なし`
+                      }
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+          ))}
+
+          <div className="flex items-center justify-between text-sm text-slate-600 pt-3 border-t border-slate-300">
+            <span className="font-medium">少ない</span>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-md bg-slate-100 border-2 border-slate-200 shadow-sm"></div>
+              <div className="w-4 h-4 rounded-md bg-blue-200 border-2 border-blue-300 shadow-sm"></div>
+              <div className="w-4 h-4 rounded-md bg-blue-400 border-2 border-blue-500 shadow-sm"></div>
+              <div className="w-4 h-4 rounded-md bg-primary border-2 border-primary shadow-sm"></div>
+            </div>
+            <span className="font-medium">多い</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
 }
 
-const handleSendStamp = async (stampId: string, setIsSending: any, currentChild: any) => {
-  setIsSending(true)
-  const stamp = encouragementStamps.find((s) => s.id === stampId)
+const LearningDashboard = ({
+  handleSendMessage,
+  isSending,
+}: { handleSendMessage: (message: string, isScheduled?: boolean) => void; isSending: boolean }) => {
+  const { currentPeriod, currentScore, maxScore, weeklyScore, maxWeeklyScore, alerts } = studentData.learningDashboard
 
-  // Simulate sending
-  setTimeout(() => {
-    console.log(`Sent stamp: ${stamp?.label} to ${currentChild.name}`)
-    alert(`${stamp?.label} を送信しました！`)
-    setIsSending(false)
-  }, 500)
-}
+  const getRiskLevel = (score: number, maxScore: number) => {
+    const percentage = (score / maxScore) * 100
+    if (percentage >= 80) return { level: "高", color: "text-primary", bgColor: "bg-primary/10" }
+    if (percentage >= 60) return { level: "接戦", color: "text-yellow-600", bgColor: "bg-yellow-50" }
+    return { level: "危険", color: "text-red-600", bgColor: "bg-red-50" }
+  }
 
-const handleSendMessage = async (message: string, setIsSending: any, setCustomMessage: any, currentChild: any) => {
-  setIsSending(true)
+  const currentRisk = getRiskLevel(currentScore, maxScore)
+  const weeklyRisk = getRiskLevel(weeklyScore, maxWeeklyScore)
 
-  // Simulate sending
-  setTimeout(() => {
-    console.log(`Sent message: ${message} to ${currentChild.name}`)
-    alert("応援メッセージを送信しました！")
-    setCustomMessage("")
-    setIsSending(false)
-  }, 800)
+  const generateAIEncouragement = () => {
+    const percentage = (weeklyScore / maxWeeklyScore) * 100
+    if (percentage >= 80) {
+      return "素晴らしい！この調子で頑張っているね。継続が力になってるよ！"
+    } else if (percentage >= 60) {
+      return "よく頑張ってる！あと少しで目標達成だね。応援してるよ！"
+    } else {
+      return "今日も勉強お疲れさま。一歩ずつ進んでいこう。君ならできる！"
+    }
+  }
+
+  const CircularProgress = ({ score, maxScore, size = 120, strokeWidth = 8, color = "#007BFF" }) => {
+    const radius = (size - strokeWidth) / 2
+    const circumference = radius * 2 * Math.PI
+    const percentage = (score / maxScore) * 100
+    const strokeDasharray = `${(percentage / 100) * circumference} ${circumference}`
+
+    return (
+      <div className="relative flex items-center justify-center">
+        <svg width={size} height={size} className="transform -rotate-90">
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke="#e5e7eb"
+            strokeWidth={strokeWidth}
+            fill="transparent"
+          />
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke={color}
+            strokeWidth={strokeWidth}
+            fill="transparent"
+            strokeDasharray={strokeDasharray}
+            strokeLinecap="round"
+            className="transition-all duration-500"
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-2xl font-bold text-slate-800">{score}</span>
+          <span className="text-sm text-slate-600">/{maxScore}点</span>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <Card className="bg-white border-slate-200 shadow-xl">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-xl font-bold flex items-center gap-3 text-slate-800">
+          <Sparkles className="h-7 w-7 text-primary" />
+          学習ダッシュボード
+          <Badge className={`${currentRisk.bgColor} ${currentRisk.color} font-bold`}>
+            到達見込み: {currentRisk.level}
+          </Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {alerts.length > 0 && (
+          <div className="space-y-2">
+            {alerts.map((alert, index) => (
+              <div key={index} className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+                <span className="text-red-800 font-medium">{alert}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="space-y-4">
+          <h4 className="font-bold text-lg text-slate-800">{currentPeriod}の学習状況</h4>
+          <div className="flex justify-center">
+            <CircularProgress score={currentScore} maxScore={maxScore} size={140} strokeWidth={10} color="#007BFF" />
+          </div>
+          <div className="text-center">
+            <p className="text-sm text-slate-600 font-medium">{currentPeriod}</p>
+            <p className="text-xs text-slate-500">/12点</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <h4 className="font-bold text-lg text-slate-800">今週の学習累積</h4>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-slate-600">進捗</span>
+              <span className="text-lg font-bold text-slate-800">
+                {weeklyScore}/{maxWeeklyScore}点
+              </span>
+            </div>
+            <div className="w-full bg-slate-200 rounded-full h-4 overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all duration-500"
+                style={{ width: `${(weeklyScore / maxWeeklyScore) * 100}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-xs text-slate-500">
+              <span>0</span>
+              <span>12</span>
+              <span>24</span>
+              <span>36</span>
+            </div>
+            <div className={`text-center p-3 rounded-lg ${weeklyRisk.bgColor}`}>
+              <p className={`text-sm font-medium ${weeklyRisk.color}`}>
+                {weeklyScore >= 24 ? "目標達成ペース！" : `合格ラインまであと${24 - weeklyScore}点`}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-3 pt-4 border-t border-slate-200">
+          <h4 className="font-bold text-lg text-slate-800">推奨アクション</h4>
+          <div className="space-y-2">
+            <Button
+              className="w-full justify-start bg-primary text-white hover:bg-primary/90 h-auto p-4 text-left"
+              onClick={() => handleSendMessage(generateAIEncouragement())}
+              disabled={isSending}
+            >
+              <Send className="h-4 w-4 mr-3 flex-shrink-0" />
+              <div className="text-sm leading-relaxed">{generateAIEncouragement()}</div>
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
 }
 
 export default function ParentDashboard() {
-  const [selectedChild, setSelectedChild] = useState(children[0].id)
-  const [customMessage, setCustomMessage] = useState("")
   const [isSending, setIsSending] = useState(false)
   const [parentAvatar, setParentAvatar] = useState<string>("")
 
-  const currentChild = children.find((child) => child.id === selectedChild) || children[0]
+  const handleSendMessage = async (message: string, isScheduled = false) => {
+    setIsSending(true)
+
+    setTimeout(() => {
+      if (isScheduled) {
+        console.log(`Scheduled message for 19:00: ${message}`)
+        alert(`19:00に応援メッセージを予約しました！`)
+      } else {
+        console.log(`Sent message: ${message}`)
+        alert("応援メッセージを送信しました！")
+      }
+      setIsSending(false)
+    }, 800)
+  }
 
   useEffect(() => {
     const savedParentAvatar = localStorage.getItem("selectedParentAvatar")
@@ -134,232 +462,299 @@ export default function ParentDashboard() {
     }
   }, [])
 
+  const getParentAvatarSrc = (avatarId: string) => {
+    const parentAvatarMap: { [key: string]: string } = {
+      parent1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent1-HbhESuJlC27LuGOGupullRXyEUzFLy.png",
+      parent2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent2-zluk4uVJLfzP8dBe0I7v5fVGSn5QfU.png",
+      parent3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent3-EzBDrjsFP5USAgnSPTXjcdNeq1bzSm.png",
+      parent4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent4-YHYTNRnNQ7bRb6aAfTNEFMozjGRlZq.png",
+      parent5: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent5-dGCLocpgcZw4lXWRiPmTHkXURBXXoH.png",
+      parent6: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent6-gKoeUywhHoKWJ4BPEk69iW6idztaLl.png",
+    }
+    return parentAvatarMap[avatarId] || parentAvatarMap["parent1"]
+  }
+
+  const getAvatarSrc = (avatarId: string) => {
+    const avatarMap: { [key: string]: string } = {
+      student1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student1-xZFJU5uXJO4DEfUbq1jbTMQUXReyM0.png",
+      student2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student2-mZ9Q9oVm43IQoRyxSYytVFYgp3JS1V.png",
+      student3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student3-teUpOKnopXNhE2vGFtvz9RWtC7O6kv.png",
+      student4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student4-pKazGXekCT1H5kzHBqmfOrM1968hML.png",
+      student5: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student5-kehwNSIKsgkTL6EkAPO2evB3qJWnRM.png",
+      student6: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student6-dJrMk7uUxYSRMp5tMJ3t4KYDOEIuNl.png",
+      ai_coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png",
+    }
+    return avatarMap[avatarId] || avatarMap["student1"]
+  }
+
+  const formatTestDate = (dateString: string) => {
+    const date = new Date(dateString)
+    const weekdays = ["日", "月", "火", "水", "木", "金", "土"]
+    const month = date.getMonth() + 1
+    const day = date.getDate()
+    const weekday = weekdays[date.getDay()]
+    return `${month}/${day}（${weekday}）`
+  }
+
+  const getDaysUntilTest = (testDate: string) => {
+    const today = new Date()
+    const test = new Date(testDate)
+    today.setHours(0, 0, 0, 0)
+    test.setHours(0, 0, 0, 0)
+    const diffTime = test.getTime() - today.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    if (diffDays === 0) return "本日！"
+    if (diffDays === 1) return "明日"
+    if (diffDays < 0) return "終了"
+    return `${diffDays}日後`
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-accent/5 via-background to-primary/5 pb-20">
-      {/* Header */}
-      <div className="bg-card/80 backdrop-blur-sm border-b border-border/50 p-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {parentAvatar && (
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={getParentAvatarSrc(parentAvatar) || "/placeholder.svg"} alt="保護者" />
-                  <AvatarFallback>保</AvatarFallback>
-                </Avatar>
-              )}
-              <div>
-                <h1 className="text-xl font-bold text-foreground">保護者サポート</h1>
-                <p className="text-sm text-muted-foreground flex items-center gap-1">
-                  <Clock className="h-4 w-4" />
-                  1日10秒で応援しよう
-                </p>
-              </div>
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-20">
+      <div className="bg-card/90 backdrop-blur-sm border-b border-border/60 p-6 shadow-sm">
+        <div className="flex items-center justify-between max-w-6xl mx-auto">
+          <div className="flex items-center gap-4">
+            {parentAvatar && (
+              <Avatar className="h-14 w-14 border-3 border-primary/30 shadow-lg">
+                <AvatarImage src={getParentAvatarSrc(parentAvatar) || "/placeholder.svg"} alt="保護者" />
+                <AvatarFallback className="bg-primary/10 text-primary font-bold text-lg">保</AvatarFallback>
+              </Avatar>
+            )}
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">保護者サポート</h1>
+              <p className="text-base text-muted-foreground mt-1">60秒で状況把握・応援しよう</p>
             </div>
-            <div className="text-right">
-              <div className="text-sm text-muted-foreground">今日の応援</div>
-              <div className="font-bold text-accent">完了</div>
+          </div>
+          <div className="text-right">
+            <div className="flex items-center gap-2 text-primary">
+              <Heart className="h-6 w-6" />
+              <span className="font-bold text-2xl">完了</span>
             </div>
+            <p className="text-sm text-muted-foreground font-medium">今日の応援</p>
           </div>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto p-4 space-y-6">
-        {/* Child Selection (if multiple children) */}
-        {children.length > 1 && (
-          <Card>
-            <CardContent className="p-4">
-              <Tabs value={selectedChild} onValueChange={setSelectedChild}>
-                <TabsList className="grid w-full grid-cols-2">
-                  {children.map((child) => (
-                    <TabsTrigger key={child.id} value={child.id} className="flex items-center gap-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarImage src={getAvatarSrc(child.avatar) || "/placeholder.svg"} alt={child.name} />
-                        <AvatarFallback>{child.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      {child.name}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-              </Tabs>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Child's Today Summary */}
-        <Card className="border-l-4 border-l-primary">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-3">
-              <Avatar className="h-12 w-12">
-                <AvatarImage src={getAvatarSrc(currentChild.avatar) || "/placeholder.svg"} alt={currentChild.name} />
-                <AvatarFallback>{currentChild.name.charAt(0)}</AvatarFallback>
-              </Avatar>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span>{currentChild.name}さんの今日</span>
-                  <div className="text-2xl">{moodEmojis[currentChild.todayRecord.mood as keyof typeof moodEmojis]}</div>
-                </div>
-                <div className="text-sm text-muted-foreground font-normal">
-                  学習時間: {currentChild.todayRecord.studyTime}
-                </div>
+      <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6 sm:space-y-8">
+        {/* AIの今日の声かけTip */}
+        <Card className="ai-coach-gradient border-0 shadow-2xl ai-coach-glow">
+          <CardHeader className="pb-4 sm:pb-6">
+            <CardTitle className="text-lg sm:text-xl font-bold flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-10 w-10 sm:h-12 sm:w-12 border-3 border-white/40 shadow-xl">
+                  <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
+                  <AvatarFallback className="bg-white/20 text-white font-bold">AI</AvatarFallback>
+                </Avatar>
+                <span className="text-slate-900 font-bold text-base sm:text-lg bg-white/95 px-3 py-2 rounded-xl shadow-lg">
+                  今日の声かけTip
+                </span>
               </div>
+              <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-white animate-pulse" />
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Study Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-primary" />
-                <div>
-                  <div className="text-sm text-muted-foreground">学習科目</div>
-                  <div className="flex gap-1">
-                    {currentChild.todayRecord.subjects.map((subject) => (
-                      <Badge key={subject} className={subjectColors[subject as keyof typeof subjectColors]}>
+          <CardContent>
+            <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-white/60 shadow-xl">
+              <p className="text-base sm:text-lg leading-relaxed text-slate-700 font-medium">{generateParentTip()}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 学習ダッシュボード */}
+        <div className="xl:col-span-2">
+          <LearningDashboard handleSendMessage={handleSendMessage} isSending={isSending} />
+        </div>
+
+        {/* 今日のミッション */}
+        <div className="xl:col-span-2">
+          <Card className="bg-gradient-to-br from-accent/8 to-primary/8 border-accent/30 shadow-xl">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg sm:text-xl font-bold flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <div className="flex items-center gap-3">
+                  <Flame className="h-6 w-6 sm:h-7 sm:w-7 text-accent" />
+                  <span className="text-slate-800">今日のミッション！</span>
+                </div>
+                <Badge className="bg-accent text-accent-foreground border-accent font-bold text-sm sm:text-base px-3 sm:px-4 py-1 sm:py-2 shadow-md">
+                  要対応 {studentData.todayMissions.needsAttention}/{studentData.todayMissions.total}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 sm:space-y-6">
+              <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-white/60 shadow-lg">
+                <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <span className="text-base sm:text-lg font-bold text-slate-800">
+                      {studentData.todayMissions.mode === "input" ? "入力促進モード" : "復習促進モード"}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {studentData.todayMissions.needsAttention > 0 ? (
+                        <XCircle className="h-5 w-5 text-red-500" />
+                      ) : (
+                        <CheckCircle className="h-5 w-5 text-primary" />
+                      )}
+                      <span className="font-medium">
+                        {studentData.todayMissions.completed}/{studentData.todayMissions.total} 完了
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 sm:gap-3">
+                    {studentData.todayMissions.subjects.map((subject) => (
+                      <Badge key={subject} className="bg-primary text-white border-primary font-medium py-1 sm:py-2">
                         {subject}
                       </Badge>
                     ))}
                   </div>
-                </div>
-              </div>
 
-              <div className="flex items-center gap-2">
-                <Target className="h-5 w-5 text-accent" />
-                <div>
-                  <div className="text-sm text-muted-foreground">正答率</div>
-                  <div className="font-bold text-lg text-accent">
-                    {Math.round((currentChild.todayRecord.totalCorrect / currentChild.todayRecord.totalProblems) * 100)}
-                    %
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {[
+                      { subject: "算数", type: "授業", status: "できた" },
+                      { subject: "算数", type: "宿題", status: "入力のみ" },
+                      { subject: "国語", type: "授業", status: "未入力" },
+                      { subject: "国語", type: "宿題", status: "バッチリ理解" },
+                      { subject: "理科", type: "授業", status: "ふつう" },
+                      { subject: "理科", type: "宿題", status: "未入力" },
+                    ].map((panel, index) => {
+                      const getStatusColor = (status: string) => {
+                        switch (status) {
+                          case "未入力":
+                            return "bg-slate-100 text-slate-700 border-slate-300"
+                          case "入力のみ":
+                            return "bg-blue-50 text-blue-800 border-blue-200"
+                          case "ふつう":
+                            return "bg-yellow-50 text-yellow-800 border-yellow-200"
+                          case "できた":
+                            return "bg-green-50 text-green-800 border-green-200"
+                          case "バッチリ理解":
+                            return "bg-purple-50 text-purple-800 border-purple-200"
+                          default:
+                            return "bg-slate-100 text-slate-700 border-slate-300"
+                        }
+                      }
+
+                      const getSubjectColor = (subject: string) => {
+                        switch (subject) {
+                          case "算数":
+                            return "border-l-4 border-l-blue-500 bg-blue-50/80"
+                          case "国語":
+                            return "border-l-4 border-l-green-500 bg-green-50/80"
+                          case "理科":
+                            return "border-l-4 border-l-purple-500 bg-purple-50/80"
+                          case "社会":
+                            return "border-l-4 border-l-red-500 bg-red-50/80"
+                          default:
+                            return "border-l-4 border-l-slate-400 bg-slate-50/80"
+                        }
+                      }
+
+                      const needsAction = panel.status === "未入力" || panel.status === "入力のみ"
+
+                      return (
+                        <div
+                          key={index}
+                          className={`p-3 rounded-lg border-2 shadow-sm ${getSubjectColor(panel.subject)} ${
+                            needsAction ? "ring-2 ring-red-200" : ""
+                          }`}
+                        >
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-sm text-slate-800">{panel.subject}</span>
+                              <Badge className={`text-xs px-2 py-1 border ${getStatusColor(panel.status)}`}>
+                                {panel.status}
+                              </Badge>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-slate-700">{panel.type}</p>
+                              <div className="text-xs text-slate-600">{needsAction ? "要サポート" : "順調"}</div>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </div>
 
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-primary" />
-                <div>
-                  <div className="text-sm text-muted-foreground">連続学習</div>
-                  <div className="font-bold text-lg text-primary">{currentChild.streak}日</div>
+        {/* 今週の目標 */}
+        <div>
+          <Card className="bg-gradient-to-br from-primary/10 to-accent/10 border-primary/30 shadow-xl">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg sm:text-xl font-bold flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <div className="flex items-center gap-3">
+                  <Target className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
+                  <span className="text-slate-800">今週の目標</span>
                 </div>
-              </div>
-            </div>
-
-            {/* Child's Reflection */}
-            <div className="p-4 bg-muted/30 rounded-lg">
-              <div className="text-sm text-muted-foreground mb-2">今日の振り返り</div>
-              <p className="text-sm">{currentChild.todayRecord.reflection}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Quick Encouragement Stamps */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Heart className="h-5 w-5 text-red-500" />
-              クイック応援
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {encouragementStamps.map((stamp) => {
-                const Icon = stamp.icon
-                return (
-                  <Button
-                    key={stamp.id}
-                    onClick={() => handleSendStamp(stamp.id, setIsSending, currentChild)}
-                    disabled={isSending}
-                    variant="outline"
-                    className="h-16 flex flex-col gap-2 hover:bg-primary/5 hover:border-primary/50"
-                  >
-                    <Icon className={`h-6 w-6 ${stamp.color}`} />
-                    <span className="text-sm font-medium">{stamp.label}</span>
-                  </Button>
-                )
-              })}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* AI Suggested Messages */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-accent" />
-              AI提案メッセージ
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {aiSuggestedMessages.map((message, index) => (
-              <Button
-                key={index}
-                onClick={() => handleSendMessage(message, setIsSending, setCustomMessage, currentChild)}
-                disabled={!message.trim() || isSending}
-                variant="outline"
-                className="w-full h-auto p-4 text-left justify-start hover:bg-accent/5 hover:border-accent/50"
-              >
-                <div className="flex items-start gap-3">
-                  <Send className="h-4 w-4 text-accent mt-1 flex-shrink-0" />
-                  <span className="text-sm leading-relaxed">{message}</span>
+                <Badge
+                  className={`${
+                    studentData.nextTest.riskLevel === "高"
+                      ? "bg-primary/10 text-primary"
+                      : studentData.nextTest.riskLevel === "接戦"
+                        ? "bg-yellow-50 text-yellow-600"
+                        : "bg-red-50 text-red-600"
+                  } font-bold`}
+                >
+                  到達見込み: {studentData.nextTest.riskLevel}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 sm:space-y-6">
+              <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-white/60 shadow-lg">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
+                  <div>
+                    <h3 className="font-bold text-lg sm:text-xl text-foreground">{studentData.nextTest.name}</h3>
+                    <p className="text-sm sm:text-base text-muted-foreground mt-1">
+                      {formatTestDate(studentData.nextTest.date)}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl sm:text-3xl font-black text-primary">
+                      {getDaysUntilTest(studentData.nextTest.date)}
+                    </div>
+                  </div>
                 </div>
-              </Button>
-            ))}
-          </CardContent>
-        </Card>
 
-        {/* Custom Message */}
-        <Card>
-          <CardHeader>
-            <CardTitle>カスタムメッセージ</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Textarea
-              placeholder="お子さんへの応援メッセージを自由に書いてください..."
-              value={customMessage}
-              onChange={(e) => setCustomMessage(e.target.value)}
-              className="min-h-[100px] text-base"
-              maxLength={200}
-            />
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-muted-foreground">{customMessage.length}/200文字</span>
-              <Button
-                onClick={() => handleSendMessage(customMessage, setIsSending, setCustomMessage, currentChild)}
-                disabled={!customMessage.trim() || isSending}
-                className="px-6"
-              >
-                <Send className="h-4 w-4 mr-2" />
-                送信
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+                <div className="space-y-4">
+                  <h4 className="font-bold text-base sm:text-lg text-foreground flex items-center gap-2">
+                    <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                    結果目標
+                  </h4>
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <div
+                      className="font-bold text-sm sm:text-lg px-3 sm:px-4 py-2 border shadow-md rounded-md"
+                      style={{ backgroundColor: "#1e3a8a", color: "#ffffff" }}
+                    >
+                      {studentData.nextTest.course}コース
+                    </div>
+                    <div
+                      className="font-bold text-sm sm:text-lg px-3 sm:px-4 py-2 border shadow-md rounded-md"
+                      style={{ backgroundColor: "#1e40af", color: "#ffffff" }}
+                    >
+                      {studentData.nextTest.group}組
+                    </div>
+                  </div>
+                </div>
 
-        {/* Weekly Progress */}
-        <Card>
-          <CardHeader>
-            <CardTitle>今週の進捗</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm">週間目標</span>
-                <span className="font-medium">
-                  {currentChild.weeklyProgress}/{currentChild.weeklyGoal}日
-                </span>
+                {studentData.nextTest.thought && (
+                  <div className="space-y-3 pt-4 border-t border-border/40">
+                    <h4 className="font-bold text-base sm:text-lg text-foreground">{studentData.name}さんの思い</h4>
+                    <div className="bg-accent/10 rounded-xl p-3 sm:p-4 border border-accent/30 shadow-sm">
+                      <p className="text-sm sm:text-base leading-relaxed text-slate-800">
+                        {studentData.nextTest.thought}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="w-full bg-muted rounded-full h-3">
-                <div
-                  className="bg-primary h-3 rounded-full transition-all duration-300"
-                  style={{
-                    width: `${Math.min((currentChild.weeklyProgress / currentChild.weeklyGoal) * 100, 100)}%`,
-                  }}
-                />
-              </div>
-              <div className="text-xs text-muted-foreground text-center">
-                {currentChild.weeklyProgress >= currentChild.weeklyGoal
-                  ? "今週の目標達成！素晴らしいです！"
-                  : `あと${currentChild.weeklyGoal - currentChild.weeklyProgress}日で目標達成`}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* 学習カレンダー */}
+        <div>
+          <LearningHistoryCalendar />
+        </div>
       </div>
 
       <ParentBottomNavigation />

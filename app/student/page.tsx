@@ -657,10 +657,10 @@ const TodayMissionCard = () => {
   }
 
   const getActionText = (panel: any) => {
-    if (missionData.mode === "input") {
-      return panel.status === "未入力" ? `${panel.type}をやる` : "記録済み"
+    if (missionData.mode === "sunday") {
+      return panel.status === "未完了" ? "開始" : ""
     } else {
-      return !["できた", "バッチリ理解"].includes(panel.status) ? "解き直す" : "定着済み"
+      return !["できた", "バッチリ理解"].includes(panel.status) ? "復習する" : "定着済み"
     }
   }
 

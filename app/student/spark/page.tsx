@@ -32,7 +32,7 @@ const learningCategories = [
     priority: "最重要",
     color: "🔴",
     bgColor: "bg-red-50 border-red-200 text-red-800",
-    description: "授業で解いた問題・解き直しの復習を含む",
+    description: "授業で解いた問題・復習を含む",
   },
   {
     id: "homework",
@@ -40,7 +40,7 @@ const learningCategories = [
     priority: "最重要",
     color: "🔴",
     bgColor: "bg-red-50 border-red-200 text-red-800",
-    description: "宿題で出された問題・解き直しの復習を含む",
+    description: "宿題で出された問題・復習を含む",
   },
   {
     id: "weekly-test-prep",

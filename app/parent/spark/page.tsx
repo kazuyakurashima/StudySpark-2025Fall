@@ -62,7 +62,13 @@ const moodEmojis = {
   difficult: "😔",
 }
 
+const children = [
+  { id: "child1", name: "みかん", nickname: "みかんちゃん" },
+  { id: "child2", name: "太郎", nickname: "たろう" },
+]
+
 export default function ParentSparkPage() {
+  const [selectedChild, setSelectedChild] = useState("child1")
   const [customMessage, setCustomMessage] = useState("")
   const [isSending, setIsSending] = useState(false)
 
@@ -101,148 +107,171 @@ export default function ParentSparkPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-accent/5 via-background to-primary/5 pb-20">
       {/* Header */}
-      <div className="bg-card/80 backdrop-blur-sm border-b border-border/50 p-4">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-            <Heart className="h-6 w-6 text-red-500" />
-            応援スパーク
-          </h1>
-          <p className="text-sm text-muted-foreground">お子さんの今日の学習記録に応援を送ろう</p>
+      <div className="bg-white shadow-sm border-b">
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <div className="flex items-center gap-3 mb-4">
+            <Sparkles className="h-6 w-6 text-primary" />
+            <div>
+              <h1 className="text-xl font-bold text-slate-800">スパーク</h1>
+              <p className="text-sm text-slate-600">お子さんの学習記録に応援を送ろう</p>
+            </div>
+          </div>
+
+          {/* 生徒選択タブ */}
+          <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+            {children.map((child) => (
+              <Button
+                key={child.id}
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedChild(child.id)}
+                className={`flex-1 rounded-md transition-all ${
+                  selectedChild === child.id
+                    ? "bg-white text-primary shadow-sm font-medium"
+                    : "text-slate-600 hover:text-slate-800 hover:bg-white/50"
+                }`}
+              >
+                {child.name}
+              </Button>
+            ))}
+          </div>
         </div>
       </div>
 
       <div className="max-w-4xl mx-auto p-4 space-y-6">
-        {todayRecords.map((record) => (
-          <Card key={record.id} className="border-l-4 border-l-primary">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3">
-                <Avatar className="h-12 w-12">
-                  <AvatarImage src={getAvatarSrc(record.childAvatar) || "/placeholder.svg"} alt={record.childName} />
-                  <AvatarFallback>{record.childName.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div>
+        {todayRecords
+          .filter((record) => record.childName === children.find((child) => child.id === selectedChild)?.name)
+          .map((record) => (
+            <Card key={record.id} className="border-l-4 border-l-primary">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3">
+                  <Avatar className="h-12 w-12">
+                    <AvatarImage src={getAvatarSrc(record.childAvatar) || "/placeholder.svg"} alt={record.childName} />
+                    <AvatarFallback>{record.childName.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span>{record.childName}さんの学習記録</span>
+                      <div className="text-2xl">{moodEmojis[record.mood as keyof typeof moodEmojis]}</div>
+                    </div>
+                    <div className="text-sm text-muted-foreground font-normal">
+                      {record.timestamp} • 学習時間: {record.studyTime}
+                    </div>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Study Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="flex items-center gap-2">
-                    <span>{record.childName}さんの学習記録</span>
-                    <div className="text-2xl">{moodEmojis[record.mood as keyof typeof moodEmojis]}</div>
+                    <BookOpen className="h-5 w-5 text-primary" />
+                    <div>
+                      <div className="text-sm text-muted-foreground">学習科目</div>
+                      <div className="flex gap-1">
+                        {record.subjects.map((subject) => (
+                          <Badge key={subject} className={subjectColors[subject as keyof typeof subjectColors]}>
+                            {subject}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-sm text-muted-foreground font-normal">
-                    {record.timestamp} • 学習時間: {record.studyTime}
+
+                  <div className="flex items-center gap-2">
+                    <Target className="h-5 w-5 text-accent" />
+                    <div>
+                      <div className="text-sm text-muted-foreground">正答率</div>
+                      <div className="font-bold text-lg text-accent">
+                        {Math.round((record.totalCorrect / record.totalProblems) * 100)}%
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Study Summary */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="flex items-center gap-2">
-                  <BookOpen className="h-5 w-5 text-primary" />
-                  <div>
-                    <div className="text-sm text-muted-foreground">学習科目</div>
-                    <div className="flex gap-1">
-                      {record.subjects.map((subject) => (
-                        <Badge key={subject} className={subjectColors[subject as keyof typeof subjectColors]}>
-                          {subject}
-                        </Badge>
-                      ))}
+
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                    <div>
+                      <div className="text-sm text-muted-foreground">問題数</div>
+                      <div className="font-bold text-lg text-primary">
+                        {record.totalCorrect}/{record.totalProblems}問
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <Target className="h-5 w-5 text-accent" />
-                  <div>
-                    <div className="text-sm text-muted-foreground">正答率</div>
-                    <div className="font-bold text-lg text-accent">
-                      {Math.round((record.totalCorrect / record.totalProblems) * 100)}%
-                    </div>
+                {/* Child's Reflection */}
+                <div className="p-4 bg-muted/30 rounded-lg">
+                  <div className="text-sm text-muted-foreground mb-2">振り返り</div>
+                  <p className="text-sm">{record.reflection}</p>
+                </div>
+
+                {/* Quick Encouragement Stamps */}
+                <div className="space-y-3">
+                  <div className="text-sm font-medium">クイック応援</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {encouragementStamps.map((stamp) => {
+                      const Icon = stamp.icon
+                      return (
+                        <Button
+                          key={stamp.id}
+                          onClick={() => handleSendStamp(stamp.id, record.id)}
+                          disabled={isSending}
+                          variant="outline"
+                          className="h-12 flex flex-col gap-1 hover:bg-primary/5 hover:border-primary/50"
+                        >
+                          <Icon className={`h-4 w-4 ${stamp.color}`} />
+                          <span className="text-xs">{stamp.label}</span>
+                        </Button>
+                      )
+                    })}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                  <div>
-                    <div className="text-sm text-muted-foreground">問題数</div>
-                    <div className="font-bold text-lg text-primary">
-                      {record.totalCorrect}/{record.totalProblems}問
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Child's Reflection */}
-              <div className="p-4 bg-muted/30 rounded-lg">
-                <div className="text-sm text-muted-foreground mb-2">振り返り</div>
-                <p className="text-sm">{record.reflection}</p>
-              </div>
-
-              {/* Quick Encouragement Stamps */}
-              <div className="space-y-3">
-                <div className="text-sm font-medium">クイック応援</div>
-                <div className="grid grid-cols-3 gap-2">
-                  {encouragementStamps.map((stamp) => {
-                    const Icon = stamp.icon
-                    return (
+                {/* AI Suggested Messages */}
+                <div className="space-y-3">
+                  <div className="text-sm font-medium">AI提案メッセージ</div>
+                  <div className="space-y-2">
+                    {aiSuggestedMessages.map((message, index) => (
                       <Button
-                        key={stamp.id}
-                        onClick={() => handleSendStamp(stamp.id, record.id)}
+                        key={index}
+                        onClick={() => handleSendMessage(message, record.id)}
                         disabled={isSending}
                         variant="outline"
-                        className="h-12 flex flex-col gap-1 hover:bg-primary/5 hover:border-primary/50"
+                        className="w-full h-auto p-3 text-left justify-start hover:bg-accent/5 hover:border-accent/50"
                       >
-                        <Icon className={`h-4 w-4 ${stamp.color}`} />
-                        <span className="text-xs">{stamp.label}</span>
+                        <div className="flex items-start gap-2">
+                          <Send className="h-4 w-4 text-accent mt-1 flex-shrink-0" />
+                          <span className="text-sm leading-relaxed">{message}</span>
+                        </div>
                       </Button>
-                    )
-                  })}
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              {/* AI Suggested Messages */}
-              <div className="space-y-3">
-                <div className="text-sm font-medium">AI提案メッセージ</div>
-                <div className="space-y-2">
-                  {aiSuggestedMessages.map((message, index) => (
+                {/* Custom Message */}
+                <div className="space-y-3">
+                  <div className="text-sm font-medium">カスタムメッセージ</div>
+                  <Textarea
+                    placeholder="お子さんへの応援メッセージを自由に書いてください..."
+                    value={customMessage}
+                    onChange={(e) => setCustomMessage(e.target.value)}
+                    className="min-h-[80px] text-base"
+                    maxLength={200}
+                  />
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground">{customMessage.length}/200文字</span>
                     <Button
-                      key={index}
-                      onClick={() => handleSendMessage(message, record.id)}
-                      disabled={isSending}
-                      variant="outline"
-                      className="w-full h-auto p-3 text-left justify-start hover:bg-accent/5 hover:border-accent/50"
+                      onClick={() => handleSendMessage(customMessage, record.id)}
+                      disabled={!customMessage.trim() || isSending}
+                      size="sm"
                     >
-                      <div className="flex items-start gap-2">
-                        <Send className="h-4 w-4 text-accent mt-1 flex-shrink-0" />
-                        <span className="text-sm leading-relaxed">{message}</span>
-                      </div>
+                      <Send className="h-4 w-4 mr-2" />
+                      送信
                     </Button>
-                  ))}
+                  </div>
                 </div>
-              </div>
-
-              {/* Custom Message */}
-              <div className="space-y-3">
-                <div className="text-sm font-medium">カスタムメッセージ</div>
-                <Textarea
-                  placeholder="お子さんへの応援メッセージを自由に書いてください..."
-                  value={customMessage}
-                  onChange={(e) => setCustomMessage(e.target.value)}
-                  className="min-h-[80px] text-base"
-                  maxLength={200}
-                />
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-muted-foreground">{customMessage.length}/200文字</span>
-                  <Button
-                    onClick={() => handleSendMessage(customMessage, record.id)}
-                    disabled={!customMessage.trim() || isSending}
-                    size="sm"
-                  >
-                    <Send className="h-4 w-4 mr-2" />
-                    送信
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          ))}
       </div>
 
       <ParentBottomNavigation />

@@ -8,7 +8,21 @@ import { Textarea } from "@/components/ui/textarea"
 import { Slider } from "@/components/ui/slider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { BottomNavigation } from "@/components/bottom-navigation"
-import { Calendar, Flag, Save, Bot, Sparkles, Send, Target, PartyPopper, Trophy } from "lucide-react"
+import {
+  Calendar,
+  Flag,
+  Save,
+  Bot,
+  Sparkles,
+  Send,
+  Target,
+  PartyPopper,
+  Trophy,
+  TestTube,
+  ArrowUp,
+  ArrowDown,
+} from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 
 const goalTestSchedule = [
   {
@@ -292,6 +306,7 @@ const coachQuestions = [
 ]
 
 export default function GoalSettingPage() {
+  const [activeTab, setActiveTab] = useState<"goal" | "result" | "tests">("goal")
   const [selectedTest, setSelectedTest] = useState("")
   const [selectedCourse, setSelectedCourse] = useState("")
   const [classNumber, setClassNumber] = useState([20])
@@ -319,7 +334,6 @@ export default function GoalSettingPage() {
   const [isGoalSet, setIsGoalSet] = useState(false)
   const [showCelebration, setShowCelebration] = useState(false)
   const [isAiCoachActive, setIsAiCoachActive] = useState(false)
-  const [activeTab, setActiveTab] = useState<"goal" | "result">("goal")
   const [resultTest, setResultTest] = useState("")
   const [resultCourse, setResultCourse] = useState("")
   const [resultClass, setResultClass] = useState([20])
@@ -589,6 +603,143 @@ export default function GoalSettingPage() {
     }
   }
 
+  const testHistory = [
+    {
+      id: "test1",
+      name: "第1回 合不合判定テスト",
+      date: "2024-07-07",
+      type: "合不合",
+      goal: { course: "C", class: 25 },
+      result: { course: "B", class: 18 },
+      memo: "目標より良い結果が出ました！",
+    },
+    {
+      id: "test2",
+      name: "第2回 週テスト",
+      date: "2024-07-14",
+      type: "週テスト",
+      goal: { subjects: { 算数: 60, 国語: 55, 理科: 50, 社会: 55 } },
+      result: { subjects: { 算数: 65, 国語: 50, 理科: 45, 社会: 60 } },
+      memo: "国語が少し悪かったので、次回頑張ります。",
+    },
+    {
+      id: "test3",
+      name: "第3回 週テスト",
+      date: "2024-07-21",
+      type: "週テスト",
+      goal: { subjects: { 算数: 65, 国語: 60, 理科: 55, 社会: 60 } },
+      result: { subjects: { 算数: 70, 国語: 58, 理科: 52, 社会: 65 } },
+      memo: "算数と社会で目標を上回りました！",
+    },
+    {
+      id: "test4",
+      name: "第2回 合不合判定テスト",
+      date: "2024-08-04",
+      type: "合不合",
+      goal: { course: "B", class: 20 },
+      result: { course: "B", class: 15 },
+      memo: "目標通りの結果でした。",
+    },
+    {
+      id: "test5",
+      name: "第4回 週テスト",
+      date: "2024-08-11",
+      type: "週テスト",
+      goal: { subjects: { 算数: 70, 国語: 65, 理科: 60, 社会: 65 } },
+      result: { subjects: { 算数: 75, 国語: 62, 理科: 58, 社会: 70 } },
+      memo: "全体的に良い結果でした！",
+    },
+  ]
+
+  const [showMoreTests, setShowMoreTests] = useState(false)
+  const displayedTests = showMoreTests ? testHistory : testHistory.slice(0, 5)
+
+  const isTestAchieved = (test: any) => {
+    if (test.type === "合不合") {
+      const courseOrder = { S: 4, C: 3, B: 2, A: 1 }
+      return courseOrder[test.result.course] >= courseOrder[test.goal.course]
+    } else {
+      return Object.keys(test.goal.subjects).every(
+        (subject) => test.result.subjects[subject] >= test.goal.subjects[subject],
+      )
+    }
+  }
+
+  const getSubjectDelta = (goalValue: number, resultValue: number) => {
+    const delta = resultValue - goalValue
+    if (delta > 0) {
+      return {
+        value: `+${delta}`,
+        icon: ArrowUp,
+        color: "text-emerald-600",
+      }
+    } else if (delta < 0) {
+      return {
+        value: `${delta}`,
+        icon: ArrowDown,
+        color: "text-red-600",
+      }
+    } else {
+      return {
+        value: "±0",
+        icon: ArrowUp,
+        color: "text-slate-600",
+      }
+    }
+  }
+
+  const courseColors = {
+    goal: {
+      bg: "bg-blue-50",
+      border: "border-blue-200",
+      text: "text-blue-700",
+      gradient: "from-blue-50 to-blue-100",
+    },
+    result: {
+      bg: "bg-emerald-50",
+      border: "border-emerald-200",
+      text: "text-emerald-700",
+      gradient: "from-emerald-50 to-emerald-100",
+    },
+  }
+
+  const subjectColors = {
+    算数: {
+      bg: "bg-blue-50",
+      border: "border-blue-200",
+      text: "text-blue-700",
+      gradient: "from-blue-50 to-blue-100",
+    },
+    国語: {
+      bg: "bg-emerald-50",
+      border: "border-emerald-200",
+      text: "text-emerald-700",
+      gradient: "from-emerald-50 to-emerald-100",
+    },
+    理科: {
+      bg: "bg-violet-50",
+      border: "border-violet-200",
+      text: "text-violet-700",
+      gradient: "from-violet-50 to-violet-100",
+    },
+    社会: {
+      bg: "bg-amber-50",
+      border: "border-amber-200",
+      text: "text-amber-700",
+      gradient: "from-amber-50 to-amber-100",
+    },
+  }
+
+  const getAchievedCount = (test: any) => {
+    if (test.type === "合不合") {
+      return 0
+    } else {
+      return Object.keys(test.goal.subjects).filter(
+        (subject) => test.result.subjects[subject] >= test.goal.subjects[subject],
+      ).length
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-20">
       {showCelebration && (
@@ -649,6 +800,17 @@ export default function GoalSettingPage() {
             >
               <Trophy className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1 sm:mr-2" />
               実績入力
+            </button>
+            <button
+              onClick={() => setActiveTab("tests")}
+              className={`flex-1 px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${
+                activeTab === "tests"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <TestTube className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1 sm:mr-2" />
+              テスト結果
             </button>
           </div>
         </div>
@@ -1041,7 +1203,7 @@ export default function GoalSettingPage() {
               </div>
             </div>
           </>
-        ) : (
+        ) : activeTab === "result" ? (
           <>
             <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
               <CardContent className="p-6">
@@ -1277,6 +1439,149 @@ export default function GoalSettingPage() {
               </div>
             </div>
           </>
+        ) : (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <TestTube className="h-5 w-5 text-primary" />
+                  テスト結果
+                </CardTitle>
+                <Badge variant="outline" className="text-xs">
+                  全{testHistory.length}件
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {displayedTests.map((test) => (
+                  <Card key={test.id} className="border border-border/50 shadow-sm hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-semibold text-slate-800">{test.name}</h3>
+                            <Badge
+                              variant={test.type === "合不合" ? "default" : "secondary"}
+                              className="text-xs bg-primary/10 text-primary border-primary/20"
+                            >
+                              {test.type}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-slate-600">
+                            {new Date(test.date).toLocaleDateString("ja-JP", {
+                              year: "numeric",
+                              month: "numeric",
+                              day: "numeric",
+                              weekday: "short",
+                            })}
+                          </p>
+                        </div>
+                        <Badge
+                          variant={isTestAchieved(test) ? "default" : "destructive"}
+                          className={`text-xs font-medium ${
+                            isTestAchieved(test)
+                              ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                              : "bg-red-100 text-red-700 border-red-200"
+                          }`}
+                        >
+                          {isTestAchieved(test) ? "✓ 達成" : "× 未達"}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      {test.type === "合不合" ? (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div
+                              className={`text-center p-4 ${courseColors.goal.bg} ${courseColors.goal.border} border rounded-xl bg-gradient-to-br ${courseColors.goal.gradient} shadow-sm`}
+                            >
+                              <div className="text-xs text-slate-500 mb-2 font-medium">目標</div>
+                              <div className={`font-bold text-xl ${courseColors.goal.text} mb-1`}>
+                                {test.goal.course}コース
+                              </div>
+                              <div className={`text-sm ${courseColors.goal.text} opacity-80`}>{test.goal.class}組</div>
+                            </div>
+                            <div
+                              className={`text-center p-4 ${courseColors.result.bg} ${courseColors.result.border} border rounded-xl bg-gradient-to-br ${courseColors.result.gradient} shadow-sm`}
+                            >
+                              <div className="text-xs text-slate-500 mb-2 font-medium">実績</div>
+                              <div className={`font-bold text-xl ${courseColors.result.text} mb-1`}>
+                                {test.result.course}コース
+                              </div>
+                              <div className={`text-sm ${courseColors.result.text} opacity-80`}>
+                                {test.result.class}組
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-sm font-semibold text-slate-700">科目別結果</span>
+                            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                              {test.achievedCount}/{test.totalSubjects}科目 達成
+                            </Badge>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            {Object.entries(test.goal.subjects).map(([subject, goalValue]) => {
+                              const resultValue = test.result.subjects[subject as keyof typeof test.result.subjects]
+                              const delta = getSubjectDelta(goalValue, resultValue)
+                              const DeltaIcon = delta.icon
+                              const colors = subjectColors[subject as keyof typeof subjectColors]
+                              const isAchieved = resultValue >= goalValue
+
+                              return (
+                                <div
+                                  key={subject}
+                                  className={`p-3 ${colors.bg} ${colors.border} border rounded-xl bg-gradient-to-br ${colors.gradient} shadow-sm hover:shadow-md transition-all duration-200`}
+                                >
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className={`text-sm font-semibold ${colors.text}`}>{subject}</span>
+                                    <div className={`flex items-center gap-1 text-xs font-medium ${delta.color}`}>
+                                      <DeltaIcon className="h-3 w-3" />
+                                      {delta.value}
+                                    </div>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <div className="flex justify-between text-xs">
+                                      <span className="text-slate-600">目標</span>
+                                      <span className={`font-medium ${colors.text}`}>{goalValue}</span>
+                                    </div>
+                                    <div className="flex justify-between text-xs">
+                                      <span className="text-slate-600">実績</span>
+                                      <span className={`font-bold ${isAchieved ? "text-emerald-600" : "text-red-600"}`}>
+                                        {resultValue}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {test.memo && (
+                        <div className="mt-4 p-4 bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl border border-slate-200 shadow-sm">
+                          <div className="text-xs text-slate-500 mb-2 font-medium">今回の思い</div>
+                          <p className="text-sm text-slate-700 leading-relaxed">{test.memo}</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+
+                {testHistory.length > 5 && !showMoreTests && (
+                  <div className="text-center">
+                    <Button variant="outline" onClick={() => setShowMoreTests(true)} className="text-sm">
+                      もっと見る（残り{testHistory.length - 5}件）
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
 

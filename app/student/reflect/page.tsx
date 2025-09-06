@@ -15,7 +15,6 @@ import {
   MessageCircle,
   Sparkles,
   Calendar,
-  TestTube,
   TrendingUp,
   TrendingDown,
   Minus,
@@ -379,7 +378,7 @@ export default function ReflectPage() {
 
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="history" className="flex items-center gap-2">
               <History className="h-4 w-4" />
               学習履歴
@@ -391,10 +390,6 @@ export default function ReflectPage() {
             <TabsTrigger value="friends" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               友だち
-            </TabsTrigger>
-            <TabsTrigger value="tests" className="flex items-center gap-2">
-              <TestTube className="h-4 w-4" />
-              テスト
             </TabsTrigger>
           </TabsList>
 
@@ -535,156 +530,6 @@ export default function ReflectPage() {
                       </div>
                     </div>
                   ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Tests Tab */}
-          <TabsContent value="tests" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <TestTube className="h-5 w-5 text-primary" />
-                    テスト結果
-                  </CardTitle>
-                  <Badge variant="outline" className="text-xs">
-                    全{testHistory.length}件
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {displayedTests.map((test) => (
-                    <Card key={test.id} className="border border-border/50 shadow-sm hover:shadow-md transition-shadow">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <h3 className="font-semibold text-slate-800">{test.name}</h3>
-                              <Badge
-                                variant={test.type === "合不合" ? "default" : "secondary"}
-                                className="text-xs bg-primary/10 text-primary border-primary/20"
-                              >
-                                {test.type}
-                              </Badge>
-                            </div>
-                            <p className="text-sm text-slate-600">
-                              {new Date(test.date).toLocaleDateString("ja-JP", {
-                                year: "numeric",
-                                month: "numeric",
-                                day: "numeric",
-                                weekday: "short",
-                              })}
-                            </p>
-                          </div>
-                          <Badge
-                            variant={isTestAchieved(test) ? "default" : "destructive"}
-                            className={`text-xs font-medium ${
-                              isTestAchieved(test)
-                                ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                                : "bg-red-100 text-red-700 border-red-200"
-                            }`}
-                          >
-                            {isTestAchieved(test) ? "✓ 達成" : "× 未達"}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="pt-0">
-                        {test.type === "合不合" ? (
-                          <div className="space-y-3">
-                            <div className="grid grid-cols-2 gap-4">
-                              <div
-                                className={`text-center p-4 ${courseColors.goal.bg} ${courseColors.goal.border} border rounded-xl bg-gradient-to-br ${courseColors.goal.gradient} shadow-sm`}
-                              >
-                                <div className="text-xs text-slate-500 mb-2 font-medium">目標</div>
-                                <div className={`font-bold text-xl ${courseColors.goal.text} mb-1`}>
-                                  {test.goal.course}コース
-                                </div>
-                                <div className={`text-sm ${courseColors.goal.text} opacity-80`}>
-                                  {test.goal.class}組
-                                </div>
-                              </div>
-                              <div
-                                className={`text-center p-4 ${courseColors.result.bg} ${courseColors.result.border} border rounded-xl bg-gradient-to-br ${courseColors.result.gradient} shadow-sm`}
-                              >
-                                <div className="text-xs text-slate-500 mb-2 font-medium">実績</div>
-                                <div className={`font-bold text-xl ${courseColors.result.text} mb-1`}>
-                                  {test.result.course}コース
-                                </div>
-                                <div className={`text-sm ${courseColors.result.text} opacity-80`}>
-                                  {test.result.class}組
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between mb-3">
-                              <span className="text-sm font-semibold text-slate-700">科目別結果</span>
-                              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                {test.achievedCount}/{test.totalSubjects}科目 達成
-                              </Badge>
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                              {Object.entries(test.goal.subjects).map(([subject, goalValue]) => {
-                                const resultValue = test.result.subjects[subject as keyof typeof test.result.subjects]
-                                const delta = getSubjectDelta(goalValue, resultValue)
-                                const DeltaIcon = delta.icon
-                                const colors = subjectColors[subject as keyof typeof subjectColors]
-                                const isAchieved = resultValue >= goalValue
-
-                                return (
-                                  <div
-                                    key={subject}
-                                    className={`p-3 ${colors.bg} ${colors.border} border rounded-xl bg-gradient-to-br ${colors.gradient} shadow-sm hover:shadow-md transition-all duration-200`}
-                                  >
-                                    <div className="flex items-center justify-between mb-2">
-                                      <span className={`text-sm font-semibold ${colors.text}`}>{subject}</span>
-                                      <div className={`flex items-center gap-1 text-xs font-medium ${delta.color}`}>
-                                        <DeltaIcon className="h-3 w-3" />
-                                        {delta.value}
-                                      </div>
-                                    </div>
-                                    <div className="space-y-1">
-                                      <div className="flex justify-between text-xs">
-                                        <span className="text-slate-600">目標</span>
-                                        <span className={`font-medium ${colors.text}`}>{goalValue}</span>
-                                      </div>
-                                      <div className="flex justify-between text-xs">
-                                        <span className="text-slate-600">実績</span>
-                                        <span
-                                          className={`font-bold ${isAchieved ? "text-emerald-600" : "text-red-600"}`}
-                                        >
-                                          {resultValue}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        {test.memo && (
-                          <div className="mt-4 p-4 bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl border border-slate-200 shadow-sm">
-                            <div className="text-xs text-slate-500 mb-2 font-medium">今回の思い</div>
-                            <p className="text-sm text-slate-700 leading-relaxed">{test.memo}</p>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
-
-                  {testHistory.length > 5 && !showMoreTests && (
-                    <div className="text-center">
-                      <Button variant="outline" onClick={() => setShowMoreTests(true)} className="text-sm">
-                        もっと見る（残り{testHistory.length - 5}件）
-                      </Button>
-                    </div>
-                  )}
                 </div>
               </CardContent>
             </Card>

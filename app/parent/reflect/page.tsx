@@ -53,15 +53,36 @@ export default function ParentReflectPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <div className="bg-white shadow-sm border-b">
-        <div className="max-w-md mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
-            <RotateCcw className="h-6 w-6 text-cyan-600" />
-            <h1 className="text-xl font-bold text-gray-900">リフレクト</h1>
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <div className="flex items-center gap-3 mb-4">
+            <RotateCcw className="h-6 w-6 text-primary" />
+            <div>
+              <h1 className="text-xl font-bold text-slate-800">リフレクト</h1>
+              <p className="text-sm text-slate-600">お子さんの学習を振り返ろう</p>
+            </div>
+          </div>
+
+          <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+            {children.map((child) => (
+              <Button
+                key={child.id}
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedChild(child.id)}
+                className={`flex-1 rounded-md transition-all ${
+                  selectedChild === child.id
+                    ? "bg-white text-primary shadow-sm font-medium"
+                    : "text-slate-600 hover:text-slate-800 hover:bg-white/50"
+                }`}
+              >
+                {child.name}
+              </Button>
+            ))}
           </div>
         </div>
       </div>
 
-      <div className="max-w-md mx-auto px-4 py-6">
+      <div className="max-w-4xl mx-auto px-4 py-6">
         <div className="mb-6">
           <div className="flex gap-2">
             {children.map((child) => (

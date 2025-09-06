@@ -46,7 +46,7 @@ export default function ParentBottomNavigation() {
               key={tab.id}
               href={tab.href}
               className={`flex flex-col items-center justify-center gap-1 transition-colors ${
-                isActive ? "text-cyan-600 bg-cyan-50" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                isActive ? "text-blue-700 bg-blue-50" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
               }`}
             >
               <Icon className="h-5 w-5" />
