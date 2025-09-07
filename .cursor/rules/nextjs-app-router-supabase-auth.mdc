@@ -1,0 +1,555 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+---
+description:
+globs:
+alwaysApply: true
+---
+
+# Cursor Rules for Next.js App Router with Supabase Auth
+
+## Project Overview
+This is a Next.js 14 App Router project with Supabase Auth for authentication testing. The project follows Server Components First approach with TypeScript strict mode.
+
+## Tech Stack
+- **Framework**: Next.js 14.2.x (App Router)
+- **Language**: TypeScript 5.5.x (strict mode)
+- **Authentication**: Supabase Auth with @supabase/ssr
+- **Database**: Supabase (PostgreSQL)
+- **Styling**: Tailwind CSS
+- **Testing**: Jest + Testing Library + Playwright
+
+## Supabase Auth Implementation Guidelines
+
+### Critical Security Rules
+1. **ALWAYS** use `supabase.auth.getUser()` to protect pages and user data
+2. **NEVER** trust `supabase.auth.getSession()` inside Server Components, Route Handlers, or Server Actions
+3. **ALWAYS** validate sessions server-side before performing sensitive operations
+4. **NEVER** expose Service Role Key on the client side
+
+### Client Setup Pattern
+```typescript
+// utils/supabase/client.ts
+import { createBrowserClient } from '@supabase/ssr'
+
+export function createClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+  )
+}
+```
+
+### Server Setup Pattern
+```typescript
+// utils/supabase/server.ts
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+
+export async function createClient() {
+  const cookieStore = await cookies()
+
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            )
+          } catch {
+            // Cookie setting fails in Server Components
+          }
+        },
+      },
+    }
+  )
+}
+```
+
+### Middleware Pattern
+```typescript
+// middleware.ts
+import { type NextRequest } from 'next/server'
+import { updateSession } from '@/utils/supabase/middleware'
+
+export async function middleware(request: NextRequest) {
+  return await updateSession(request)
+}
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * Feel free to modify this pattern to include more paths.
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
+}
+```
+
+### Middleware Utility Pattern
+```typescript
+// utils/supabase/middleware.ts
+import { createServerClient } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
+
+export async function updateSession(request: NextRequest) {
+  let supabaseResponse = NextResponse.next({
+    request,
+  })
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          supabaseResponse = NextResponse.next({
+            request,
+          })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+
+  // IMPORTANT: Avoid writing any logic between createServerClient and
+  // supabase.auth.getUser(). A simple mistake could make it very hard to debug
+  // issues with users being randomly logged out.
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (
+    !user &&
+    !request.nextUrl.pathname.startsWith('/login') &&
+    !request.nextUrl.pathname.startsWith('/auth')
+  ) {
+    // no user, potentially respond by redirecting the user to the login page
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
+  }
+
+  // IMPORTANT: You *must* return the supabaseResponse object as it is. If you're
+  // creating a new response object with NextResponse.next() make sure to:
+  // 1. Pass the request in it, like so:
+  //    const myNewResponse = NextResponse.next({ request })
+  // 2. Copy over the cookies, like so:
+  //    myNewResponse.cookies.setAll(supabaseResponse.cookies.getAll())
+  // 3. Change the myNewResponse object instead of the supabaseResponse object
+
+  return supabaseResponse
+}
+```
+
+### Authentication Check Pattern
+```typescript
+// In Server Components or Route Handlers
+import { createClient } from '@/utils/supabase/server'
+import { redirect } from 'next/navigation'
+
+export default async function ProtectedPage() {
+  const supabase = await createClient()
+  
+  // ALWAYS use getUser() for authentication checks
+  const { data: { user }, error } = await supabase.auth.getUser()
+  
+  if (error || !user) {
+    redirect('/login')
+  }
+  
+  // User is authenticated, proceed with protected content
+  return <div>Protected content for {user.email}</div>
+}
+```
+
+### Server Actions Pattern
+```typescript
+// app/actions.ts
+'use server'
+
+import { createClient } from '@/utils/supabase/server'
+import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
+
+export async function signIn(formData: FormData) {
+  const supabase = await createClient()
+
+  const data = {
+    email: formData.get('email') as string,
+    password: formData.get('password') as string,
+  }
+
+  const { error } = await supabase.auth.signInWithPassword(data)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/', 'layout')
+  redirect('/dashboard')
+}
+
+export async function signOut() {
+  const supabase = await createClient()
+  
+  // ALWAYS check authentication before operations
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (user) {
+    await supabase.auth.signOut()
+  }
+  
+  revalidatePath('/', 'layout')
+  redirect('/login')
+}
+```
+
+## Next.js App Router Best Practices
+
+### Component Architecture
+1. **Default to Server Components** - Only use Client Components when necessary
+2. **Use Server Actions** for mutations instead of API routes
+3. **Implement Suspense boundaries** for better loading states
+4. **Use parallel routes** where applicable
+
+### Data Fetching Rules
+1. Fetch data in Server Components
+2. Use `unstable_cache` for expensive computations
+3. Implement proper error boundaries
+4. Use streaming for large datasets
+
+### Route Organization
+```
+app/
+├── (auth)/                  # Authenticated routes
+│   ├── dashboard/
+│   └── migration/
+├── (public)/               # Public routes
+│   ├── login/
+│   └── register/
+├── (admin)/                # Admin only routes
+│   └── admin/
+└── api/
+    └── auth/
+        └── callback/       # OAuth callback
+```
+
+### Form Handling Pattern
+```typescript
+// Client Component with Server Action
+'use client'
+
+import { signIn } from '@/app/actions'
+import { useFormStatus } from 'react-dom'
+
+function SubmitButton() {
+  const { pending } = useFormStatus()
+  
+  return (
+    <button type="submit" disabled={pending}>
+      {pending ? 'Loading...' : 'Sign In'}
+    </button>
+  )
+}
+
+export function LoginForm() {
+  return (
+    <form action={signIn}>
+      <input name="email" type="email" required />
+      <input name="password" type="password" required />
+      <SubmitButton />
+    </form>
+  )
+}
+```
+
+### Login Page with Server Actions
+```typescript
+// app/login/page.tsx
+import { login, signup } from './actions'
+
+export default function LoginPage() {
+  return (
+    <form>
+      <label htmlFor="email">Email:</label>
+      <input id="email" name="email" type="email" required />
+      <label htmlFor="password">Password:</label>
+      <input id="password" name="password" type="password" required />
+      <button formAction={login}>Log in</button>
+      <button formAction={signup}>Sign up</button>
+    </form>
+  )
+}
+```
+
+### Login Actions
+```typescript
+// app/login/actions.ts
+'use server'
+
+import { createClient } from '@/utils/supabase/server'
+import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
+
+export async function login(formData: FormData) {
+  const supabase = await createClient()
+
+  const data = {
+    email: formData.get('email') as string,
+    password: formData.get('password') as string,
+  }
+
+  const { error } = await supabase.auth.signInWithPassword(data)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/', 'layout')
+  redirect('/dashboard')
+}
+
+export async function signup(formData: FormData) {
+  const supabase = await createClient()
+
+  const data = {
+    email: formData.get('email') as string,
+    password: formData.get('password') as string,
+  }
+
+  const { error } = await supabase.auth.signUp(data)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/', 'layout')
+  redirect('/dashboard')
+}
+```
+
+## Database Best Practices
+
+### RLS (Row Level Security)
+1. **ALWAYS** enable RLS on all tables
+2. Create policies for each operation (SELECT, INSERT, UPDATE, DELETE)
+3. Use `auth.uid()` for user identification in policies
+
+### Table Design Pattern
+```sql
+-- Always include these columns
+created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
+updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
+
+-- Create update trigger for updated_at
+CREATE TRIGGER update_updated_at BEFORE UPDATE ON table_name
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+```
+
+## Error Handling
+
+### Server Component Error Boundary
+```typescript
+// app/error.tsx
+'use client'
+
+export default function Error({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string }
+  reset: () => void
+}) {
+  return (
+    <div>
+      <h2>Something went wrong!</h2>
+      <button onClick={() => reset()}>Try again</button>
+    </div>
+  )
+}
+```
+
+### Not Found Page
+```typescript
+// app/not-found.tsx
+export default function NotFound() {
+  return (
+    <div>
+      <h2>Page Not Found</h2>
+    </div>
+  )
+}
+```
+
+## Testing Guidelines
+
+### Unit Testing Rules
+1. Mock Supabase clients in tests
+2. Test Server Actions separately
+3. Use Testing Library best practices
+4. Maintain 80% code coverage
+
+### E2E Testing Pattern
+```typescript
+// e2e/auth.spec.ts
+import { test, expect } from '@playwright/test'
+
+test('user can sign in', async ({ page }) => {
+  await page.goto('/login')
+  await page.fill('input[name="email"]', 'test@example.com')
+  await page.fill('input[name="password"]', 'password')
+  await page.click('button[type="submit"]')
+  
+  await expect(page).toHaveURL('/dashboard')
+})
+```
+
+## Code Style Rules
+
+1. **NO COMMENTS** in production code unless absolutely necessary
+2. Use TypeScript strict mode
+3. Prefer named exports over default exports
+4. Use async/await over promises
+5. Always handle errors explicitly
+6. Use early returns for guard clauses
+
+## Performance Guidelines
+
+1. Use dynamic imports for heavy components
+2. Implement image optimization with next/image
+3. Use font optimization with next/font
+4. Minimize client-side JavaScript
+5. Leverage ISR (Incremental Static Regeneration) where possible
+
+## Security Checklist
+
+- [ ] All environment variables are in .env.local
+- [ ] Service Role Key is never exposed to client
+- [ ] RLS is enabled on all tables
+- [ ] User input is validated and sanitized
+- [ ] Authentication is checked server-side
+- [ ] CSRF protection via SameSite cookies
+- [ ] Rate limiting on authentication endpoints
+- [ ] Secure headers configured in next.config.js
+
+## Common Pitfalls to Avoid
+
+1. **DON'T** use getSession() for authorization decisions
+2. **DON'T** trust client-side authentication state
+3. **DON'T** fetch data in Client Components
+4. **DON'T** use useEffect for data fetching
+5. **DON'T** mutate data without Server Actions
+6. **DON'T** expose sensitive data in client bundles
+7. **DON'T** write logic between createServerClient and getUser() in middleware
+8. **DON'T** forget to call cookies() before Supabase calls to opt out of caching
+9. **DON'T** use the wrong environment variable name (use PUBLISHABLE_KEY not ANON_KEY)
+
+## Environment Variables
+
+Required variables in `.env.local`:
+```env
+NEXT_PUBLIC_SUPABASE_URL=your-project-url
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+```
+
+**Note**: The environment variable name should be `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (not `NEXT_PUBLIC_SUPABASE_ANON_KEY`) as per the official Supabase documentation.
+
+## Git Commit Guidelines
+
+Use conventional commits:
+- `feat:` New feature
+- `fix:` Bug fix
+- `docs:` Documentation changes
+- `style:` Code style changes
+- `refactor:` Code refactoring
+- `test:` Test additions/changes
+- `chore:` Maintenance tasks
+
+## Email Confirmation Setup
+
+### Email Template Configuration
+If email confirmation is enabled (default), configure the email template:
+
+1. Go to Auth templates page in Supabase dashboard
+2. In the `Confirm signup` template, change `{{ .ConfirmationURL }}` to:
+   ```
+   {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email
+   ```
+
+### Auth Confirmation Route Handler
+```typescript
+// app/auth/confirm/route.ts
+import { type EmailOtpType } from '@supabase/supabase-js'
+import { type NextRequest } from 'next/server'
+import { createClient } from '@/utils/supabase/server'
+import { redirect } from 'next/navigation'
+
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url)
+  const token_hash = searchParams.get('token_hash')
+  const type = searchParams.get('type') as EmailOtpType | null
+  const next = searchParams.get('next') ?? '/'
+
+  if (token_hash && type) {
+    const supabase = await createClient()
+    const { error } = await supabase.auth.verifyOtp({
+      type,
+      token_hash,
+    })
+
+    if (!error) {
+      // redirect user to specified redirect URL or root of app
+      redirect(next)
+    }
+  }
+
+  // redirect the user to an error page with some instructions
+  redirect('/error')
+}
+```
+
+## Installation Requirements
+
+### Required Packages
+```bash
+npm install @supabase/supabase-js @supabase/ssr
+```
+
+### Package Versions
+- `@supabase/supabase-js`: Latest stable version
+- `@supabase/ssr`: Latest stable version (for Next.js App Router support)
+
+## Project Specific Rules
+
+1. **Student Authentication**: Use virtual email format `loginId@studyspark.local`
+2. **Family ID**: Auto-generate as `FAM-XXXXX` format
+3. **Email Migration**: Requires admin approval
+4. **Gmail Aliases**: Use for testing only
+5. **Dashboard**: Minimal UI for authentication verification only
+
+---
+
+Remember: This project is for authentication testing only. Do not implement learning features (Spark, Goal Navi, Reflect).

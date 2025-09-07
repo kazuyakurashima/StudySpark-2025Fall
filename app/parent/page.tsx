@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useAuth } from "@/lib/hooks/useAuth"
+import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -141,7 +143,7 @@ const encouragementTemplates = {
   ],
 }
 
-const LearningHistoryCalendar = () => {
+const LearningHistoryCalendar = ({ currentChild }: { currentChild: typeof children[0] }) => {
   const generateLearningHistory = () => {
     const history: { [key: string]: { subjects: string[]; understandingLevels: string[] } } = {}
     const today = new Date()
@@ -232,7 +234,7 @@ const LearningHistoryCalendar = () => {
         <CardTitle className="text-lg font-bold flex items-center gap-2">
           <Calendar className="h-6 w-6 text-primary" />
           学習カレンダー
-          <Badge className="bg-primary text-primary-foreground font-bold ml-2">{studentData.streak}日連続</Badge>
+          <Badge className="bg-primary text-primary-foreground font-bold ml-2">{currentChild.streak}日連続</Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="px-3 sm:px-6">
@@ -294,7 +296,12 @@ const LearningHistoryCalendar = () => {
 const LearningDashboard = ({
   handleSendMessage,
   isSending,
-}: { handleSendMessage: (message: string, isScheduled?: boolean) => void; isSending: boolean }) => {
+  currentChild,
+}: { 
+  handleSendMessage: (message: string, isScheduled?: boolean) => void
+  isSending: boolean
+  currentChild: typeof children[0]
+}) => {
   const { currentPeriod, currentScore, maxScore, weeklyScore, maxWeeklyScore, alerts } = studentData.learningDashboard
 
   const getRiskLevel = (score: number, maxScore: number) => {
@@ -439,20 +446,45 @@ const LearningDashboard = ({
 export default function ParentDashboard() {
   const [isSending, setIsSending] = useState(false)
   const [parentAvatar, setParentAvatar] = useState<string>("")
+  const [selectedChild, setSelectedChild] = useState<string>(children[0]?.id || "child1")
+  const { user } = useAuth()
+  const supabase = createClient()
+
+  // Get selected child data
+  const currentChild = children.find(child => child.id === selectedChild) || children[0]
 
   const handleSendMessage = async (message: string, isScheduled = false) => {
+    if (!user) return
+
     setIsSending(true)
 
-    setTimeout(() => {
-      if (isScheduled) {
-        console.log(`Scheduled message for 19:00: ${message}`)
-        alert(`19:00に応援メッセージを予約しました！`)
-      } else {
-        console.log(`Sent message: ${message}`)
-        alert("応援メッセージを送信しました！")
+    try {
+      // In a real implementation, we would send the message to the messages table
+      // For now, we'll simulate the API call
+      const messageData = {
+        sender_id: user.id,
+        receiver_id: selectedChild, // This would be the actual child's user ID
+        content: message,
+        message_type: 'encouragement',
+        scheduled_for: isScheduled ? new Date(Date.now() + 8 * 60 * 60 * 1000) : null, // 19:00 JST
       }
+
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 800))
+      
+      if (isScheduled) {
+        console.log(`Scheduled message for 19:00:`, messageData)
+        alert(`19:00に応援メッセージを予約しました！\n「${message}」`)
+      } else {
+        console.log(`Sent message:`, messageData)
+        alert(`応援メッセージを送信しました！\n「${message}」`)
+      }
+    } catch (error) {
+      console.error('Error sending message:', error)
+      alert('メッセージの送信に失敗しました。もう一度お試しください。')
+    } finally {
       setIsSending(false)
-    }, 800)
+    }
   }
 
   useEffect(() => {
@@ -525,12 +557,39 @@ export default function ParentDashboard() {
               <p className="text-base text-muted-foreground mt-1">60秒で状況把握・応援しよう</p>
             </div>
           </div>
-          <div className="text-right">
-            <div className="flex items-center gap-2 text-primary">
-              <Heart className="h-6 w-6" />
-              <span className="font-bold text-2xl">完了</span>
+          
+          {/* Child Selection */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 bg-white/90 rounded-xl p-3 shadow-lg border border-primary/20">
+              <span className="text-sm font-medium text-slate-700">お子さん:</span>
+              <div className="flex gap-2">
+                {children.map((child) => (
+                  <button
+                    key={child.id}
+                    onClick={() => setSelectedChild(child.id)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all duration-200 ${
+                      selectedChild === child.id
+                        ? "border-primary bg-primary/10 text-primary shadow-md"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-primary/50 hover:bg-primary/5"
+                    }`}
+                  >
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={getAvatarSrc(child.avatar)} alt={child.name} />
+                      <AvatarFallback className="text-xs">{child.name[0]}</AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm font-medium">{child.name}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-            <p className="text-sm text-muted-foreground font-medium">今日の応援</p>
+            
+            <div className="text-right">
+              <div className="flex items-center gap-2 text-primary">
+                <Heart className="h-6 w-6" />
+                <span className="font-bold text-2xl">完了</span>
+              </div>
+              <p className="text-sm text-muted-foreground font-medium">今日の応援</p>
+            </div>
           </div>
         </div>
       </div>
@@ -561,7 +620,7 @@ export default function ParentDashboard() {
 
         {/* 学習ダッシュボード */}
         <div className="xl:col-span-2">
-          <LearningDashboard handleSendMessage={handleSendMessage} isSending={isSending} />
+          <LearningDashboard handleSendMessage={handleSendMessage} isSending={isSending} currentChild={currentChild} />
         </div>
 
         {/* 今日のミッション */}
@@ -738,7 +797,7 @@ export default function ParentDashboard() {
 
                 {studentData.nextTest.thought && (
                   <div className="space-y-3 pt-4 border-t border-border/40">
-                    <h4 className="font-bold text-base sm:text-lg text-foreground">{studentData.name}さんの思い</h4>
+                    <h4 className="font-bold text-base sm:text-lg text-foreground">{currentChild.name}さんの思い</h4>
                     <div className="bg-accent/10 rounded-xl p-3 sm:p-4 border border-accent/30 shadow-sm">
                       <p className="text-sm sm:text-base leading-relaxed text-slate-800">
                         {studentData.nextTest.thought}
@@ -751,9 +810,61 @@ export default function ParentDashboard() {
           </Card>
         </div>
 
+        {/* 応援メッセージ送信 */}
+        <div>
+          <Card className="bg-gradient-to-br from-green-50 to-primary/10 border-green/20 shadow-lg">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-bold flex items-center gap-3 text-slate-800">
+                <Send className="h-6 w-6 text-green-600" />
+                {currentChild.name}さんに応援メッセージ
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 border border-white/60 shadow-lg">
+                <div className="space-y-4">
+                  <h4 className="font-bold text-base text-slate-800">おすすめメッセージ</h4>
+                  <div className="space-y-2">
+                    {aiSuggestedMessages.map((suggestedMessage, index) => (
+                      <Button
+                        key={index}
+                        variant="outline"
+                        className="w-full justify-start text-left h-auto p-4 border-green-200 hover:border-green-400 hover:bg-green-50"
+                        onClick={() => handleSendMessage(suggestedMessage)}
+                        disabled={isSending}
+                      >
+                        <div className="text-sm leading-relaxed">{suggestedMessage}</div>
+                      </Button>
+                    ))}
+                  </div>
+                  
+                  <div className="flex gap-2 pt-3 border-t border-slate-200">
+                    <Button
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                      onClick={() => handleSendMessage("今日もお疲れ様！頑張ってる姿を見ていて、とても誇らしいです。", false)}
+                      disabled={isSending}
+                    >
+                      <Heart className="h-4 w-4 mr-2" />
+                      今すぐ送信
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="flex-1 border-green-600 text-green-600 hover:bg-green-50"
+                      onClick={() => handleSendMessage("今日もお疲れ様！頑張ってる姿を見ていて、とても誇らしいです。", true)}
+                      disabled={isSending}
+                    >
+                      <Calendar className="h-4 w-4 mr-2" />
+                      19:00に予約
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* 学習カレンダー */}
         <div>
-          <LearningHistoryCalendar />
+          <LearningHistoryCalendar currentChild={currentChild} />
         </div>
       </div>
 

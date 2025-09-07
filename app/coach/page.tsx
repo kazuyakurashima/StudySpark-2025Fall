@@ -29,6 +29,42 @@ import {
 
 import { CoachBottomNavigation } from "@/components/coach-bottom-navigation"
 
+interface ClassInfo {
+  id: string
+  name: string
+  grade: string
+  studentCount: number
+  activeToday: number
+  needsAttention: number
+}
+
+const classes: ClassInfo[] = [
+  {
+    id: "class_6a",
+    name: "6年A組",
+    grade: "6年",
+    studentCount: 28,
+    activeToday: 24,
+    needsAttention: 3,
+  },
+  {
+    id: "class_6b", 
+    name: "6年B組",
+    grade: "6年",
+    studentCount: 26,
+    activeToday: 22,
+    needsAttention: 2,
+  },
+  {
+    id: "class_5a",
+    name: "5年A組", 
+    grade: "5年",
+    studentCount: 30,
+    activeToday: 25,
+    needsAttention: 4,
+  },
+]
+
 interface LearningRecord {
   id: string
   studentId: string
@@ -75,7 +111,7 @@ const students: Student[] = [
     name: "田中太郎",
     nickname: "たんじろう",
     avatar: "student1",
-    class: "6A",
+    class: "class_6a",
     streak: 7,
     weeklyProgress: 5,
     weeklyGoal: 5,
@@ -97,7 +133,7 @@ const students: Student[] = [
     name: "佐藤花子",
     nickname: "はなちゃん",
     avatar: "student2",
-    class: "6A",
+    class: "class_6a",
     streak: 3,
     weeklyProgress: 3,
     weeklyGoal: 5,
@@ -119,7 +155,7 @@ const students: Student[] = [
     name: "鈴木次郎",
     nickname: "じろう",
     avatar: "student3",
-    class: "6B",
+    class: "class_6b",
     streak: 1,
     weeklyProgress: 2,
     weeklyGoal: 5,
@@ -141,7 +177,7 @@ const students: Student[] = [
     name: "高橋美咲",
     nickname: "みさき",
     avatar: "student4",
-    class: "6B",
+    class: "class_6b",
     streak: 12,
     weeklyProgress: 5,
     weeklyGoal: 5,
@@ -324,6 +360,10 @@ export default function CoachDashboard() {
   const [aiPatterns, setAiPatterns] = useState<AIResponsePattern[]>([])
   const [customResponse, setCustomResponse] = useState("")
   const [isGeneratingAI, setIsGeneratingAI] = useState(false)
+  const [selectedClass, setSelectedClass] = useState<string>(classes[0]?.id || "class_6a")
+
+  // Get current selected class info
+  const currentClass = classes.find(cls => cls.id === selectedClass) || classes[0]
 
   const parentEngagementSummary = {
     totalParents: parentEngagementData.length,
@@ -380,6 +420,8 @@ export default function CoachDashboard() {
 
   const getSortedStudents = (students: Student[]) => {
     const filtered = students.filter((student) => {
+      // Filter by selected class first
+      if (student.class !== selectedClass) return false
       if (filterClass !== "all" && student.class !== filterClass) return false
       if (filterStatus !== "all" && student.todayStatus !== filterStatus) return false
       return true
@@ -403,9 +445,10 @@ export default function CoachDashboard() {
   }
 
   const filteredStudents = getSortedStudents(students)
-  const needsAttentionCount = students.filter((s) => s.needsAttention).length
-  const completedTodayCount = students.filter((s) => s.todayStatus === "completed").length
-  const noParentResponseCount = students.filter((s) => !s.parentResponse).length
+  const classStudents = students.filter(student => student.class === selectedClass)
+  const needsAttentionCount = classStudents.filter((s) => s.needsAttention).length
+  const completedTodayCount = classStudents.filter((s) => s.todayStatus === "completed").length
+  const noParentResponseCount = classStudents.filter((s) => !s.parentResponse).length
   const totalUnresponded = unrespondedRecords.length
   const urgentCount = unrespondedRecords.filter((r) => r.priority === "urgent").length
 
@@ -481,15 +524,79 @@ export default function CoachDashboard() {
       {/* Header */}
       <div className="bg-card/80 backdrop-blur-sm border-b border-border/50 p-4">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-            <Users className="h-6 w-6 text-primary" />
-            指導者ダッシュボード
-          </h1>
-          <p className="text-sm text-muted-foreground">生徒の学習状況を管理し、効果的なサポートを提供</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+                <Users className="h-6 w-6 text-primary" />
+                指導者ダッシュボード
+              </h1>
+              <p className="text-sm text-muted-foreground">生徒の学習状況を管理し、効果的なサポートを提供</p>
+            </div>
+            
+            {/* Class Selection */}
+            <div className="flex items-center gap-3 bg-white/90 rounded-xl p-3 shadow-lg border border-primary/20">
+              <span className="text-sm font-medium text-slate-700">担当クラス:</span>
+              <div className="flex gap-2">
+                {classes.map((classInfo) => (
+                  <button
+                    key={classInfo.id}
+                    onClick={() => setSelectedClass(classInfo.id)}
+                    className={`px-4 py-2 rounded-lg border-2 transition-all duration-200 text-sm font-medium ${
+                      selectedClass === classInfo.id
+                        ? "border-primary bg-primary/10 text-primary shadow-md"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-primary/50 hover:bg-primary/5"
+                    }`}
+                  >
+                    <div className="text-center">
+                      <div className="font-bold">{classInfo.name}</div>
+                      <div className="text-xs opacity-75">
+                        {classInfo.activeToday}/{classInfo.studentCount}人
+                        {classInfo.needsAttention > 0 && (
+                          <span className="text-red-600 ml-1">({classInfo.needsAttention}要対応)</span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto p-4 space-y-6">
+        {/* Current Class Overview */}
+        <Card className="bg-gradient-to-r from-primary/10 to-accent/10 border-primary/30">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              {currentClass.name} クラス概要
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary">{currentClass.studentCount}</div>
+                <div className="text-sm text-muted-foreground">総生徒数</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">{currentClass.activeToday}</div>
+                <div className="text-sm text-muted-foreground">今日の活動</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-red-600">{currentClass.needsAttention}</div>
+                <div className="text-sm text-muted-foreground">要対応</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">
+                  {Math.round((currentClass.activeToday / currentClass.studentCount) * 100)}%
+                </div>
+                <div className="text-sm text-muted-foreground">参加率</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <Card className="border-l-4 border-l-red-500">
             <CardContent className="p-4">
@@ -513,8 +620,8 @@ export default function CoachDashboard() {
                   <Users className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold">{students.length}</div>
-                  <div className="text-sm text-muted-foreground">総生徒数</div>
+                  <div className="text-2xl font-bold">{classStudents.length}</div>
+                  <div className="text-sm text-muted-foreground">{currentClass.name}生徒数</div>
                 </div>
               </div>
             </CardContent>
