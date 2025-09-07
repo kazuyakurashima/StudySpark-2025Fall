@@ -1,113 +1,30 @@
-# StudySpark 2025Fall
+# Character portraits
 
-StudySpark学習管理システム - 生徒・保護者・指導者向けの学習記録・分析プラットフォーム
+*Automatically synced with your [v0.app](https://v0.app) deployments*
 
-## 環境変数設定
+[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/gskaz224-gmailcoms-projects/v0-character-portraits)
+[![Built with v0](https://img.shields.io/badge/Built%20with-v0.app-black?style=for-the-badge)](https://v0.app/chat/projects/m5HUAxMkhNT)
 
-### ローカル開発環境 (.env.local)
+## Overview
 
-ローカル開発では `.env.local` ファイルに以下の環境変数を設定してください：
+This repository will stay in sync with your deployed chats on [v0.app](https://v0.app).
+Any changes you make to your deployed app will be automatically pushed to this repository from [v0.app](https://v0.app).
 
-```bash
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+## Deployment
 
-# Application Configuration
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-SESSION_SECRET=your_session_secret_here_32_chars_min
+Your project is live at:
 
-# AI Configuration (GPT-5-mini)
-OPENAI_API_KEY=your_openai_api_key_here
-OPENAI_MODEL=gpt-5-mini
+**[https://vercel.com/gskaz224-gmailcoms-projects/v0-character-portraits](https://vercel.com/gskaz224-gmailcoms-projects/v0-character-portraits)**
 
-# Development
-NODE_ENV=development
+## Build your app
 
-# Feature Flags
-ENABLE_AI_COACHING=true
-ENABLE_PUSH_NOTIFICATIONS=false
-```
+Continue building your app on:
 
-### 本番環境 (Vercel)
+**[https://v0.app/chat/projects/m5HUAxMkhNT](https://v0.app/chat/projects/m5HUAxMkhNT)**
 
-本番環境では Vercel の Environment Variables に同名の変数を登録してください。
+## How It Works
 
-## 重要なセキュリティ事項
-
-- **SUPABASE_SERVICE_ROLE_KEY** はserver-onlyで使用されます
-- クライアント側からは参照できないよう静的に保証されています
-- RLSをバイパスする権限を持つため、厳重な管理が必要です
-
-## 開発環境セットアップ
-
-1. 依存関係のインストール
-```bash
-npm install
-```
-
-2. 環境変数の設定
-```bash
-cp .env.local.example .env.local
-# .env.local を編集して実際の値を設定
-```
-
-3. 開発サーバーの起動
-```bash
-npm run dev
-```
-
-## API エンドポイント
-
-### Chat API
-- `POST /api/chat` - OpenAI GPT-5-mini との対話API
-- RFC 7807 (JSON Problem Details) 準拠のエラーレスポンス
-
-### 学習記録API
-- `GET /api/students/[studentId]/records` - 学習記録取得
-- `POST /api/students/[studentId]/records` - 学習記録作成・更新
-- `GET /api/students/[studentId]/calendar` - 月次学習カレンダーデータ
-
-### 保護者ダッシュボードAPI
-- `GET /api/parents/[parentId]/dashboard` - 子供の週次学習状況
-- `GET /api/parents/[parentId]/coaching` - AI解釈・コーチング提案
-- `GET /api/parents/[parentId]/students` - 保護者の子供一覧
-
-## テスト
-
-### E2Eテスト実行
-```bash
-npm run test:e2e
-```
-
-**注意:** Chat API のE2Eテストは `OPENAI_API_KEY` が設定されている場合のみ実行されます。未設定の場合は自動的にスキップされます。
-
-## 技術スタック
-
-- **Framework:** Next.js 14.2.x (App Router)
-- **Language:** TypeScript 5.5.x
-- **Database:** Supabase (PostgreSQL + RLS)
-- **Authentication:** Supabase Auth
-- **AI Integration:** OpenAI GPT-5-mini
-- **UI Components:** Radix UI + Tailwind CSS
-- **Validation:** Zod
-
-## 実装済み機能
-
-- ✅ 認証システム (T-070)
-- ✅ 学習記録CRUD (T-010) 
-- ✅ 保護者ダッシュボード・AI解釈 (T-030)
-- ✅ カレンダーヒートマップAPI (T-020)
-- ✅ Chat API (OpenAI統合)
-
-## 開発ルール
-
-- **D-007 (UIロック):** 既存UIのDOM/クラスは変更禁止。data-testid 追加のみ許可
-- **Server-only:** 機密情報を扱うモジュールは `'server-only'` インポートを使用
-- **RFC 7807:** API エラーは JSON Problem Details 形式で統一
-- **RLS準拠:** データベースアクセスは Row Level Security に準拠
-
-## ライセンス
-
-[LICENSE](./LICENSE) を参照してください。
+1. Create and modify your project using [v0.app](https://v0.app)
+2. Deploy your chats from the v0 interface
+3. Changes are automatically pushed to this repository
+4. Vercel deploys the latest version from this repository
