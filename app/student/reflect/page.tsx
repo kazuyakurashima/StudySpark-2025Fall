@@ -9,10 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BottomNavigation } from "@/components/bottom-navigation"
 import { AICoachChat } from "@/components/ai-coach-chat"
 import {
-  RotateCcw,
+  MessageCircle,
   History,
   Users,
-  MessageCircle,
   Sparkles,
   Calendar,
   TrendingUp,
@@ -434,7 +433,7 @@ export default function ReflectPage() {
       <div className="bg-card/80 backdrop-blur-sm border-b border-border/50 p-4">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-            <RotateCcw className="h-6 w-6 text-primary" />
+            <MessageCircle className="h-6 w-6 text-primary" />
             リフレクト
           </h1>
           <p className="text-sm text-muted-foreground">1週間の学習を振り返り、仲間との交流</p>
