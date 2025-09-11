@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { RotateCcw, Calendar, BookOpen, ChevronRight } from "lucide-react"
+import { RotateCcw, Calendar, BookOpen } from "lucide-react"
 import CoachBottomNavigation from "@/components/coach-bottom-navigation"
 
 export default function CoachReflectPage() {
@@ -146,30 +146,59 @@ export default function CoachReflectPage() {
             {students.map((student) => (
               <Card key={student.id} className="cursor-pointer hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage src={student.avatar || "/placeholder.svg"} alt={student.name} />
-                        <AvatarFallback>{student.nickname[0]}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <h3 className="font-semibold text-gray-900">{student.name}</h3>
-                        <p className="text-sm text-gray-600">最終活動: {student.lastActivity}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="outline" className="text-xs">
-                            週リング{student.weekRing}
+                  <div className="flex items-center gap-3 mb-3">
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={student.avatar || "/placeholder.svg"} alt={student.name} />
+                      <AvatarFallback>{student.nickname[0]}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-900">{student.name}</h3>
+                      <p className="text-sm text-gray-600">最終活動: {student.lastActivity}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline" className="text-xs">
+                          週リング{student.weekRing}
+                        </Badge>
+                        {student.unreadSupport > 0 && (
+                          <Badge variant="destructive" className="text-xs">
+                            未応援{student.unreadSupport}件
                           </Badge>
-                          {student.unreadSupport > 0 && (
-                            <Badge variant="destructive" className="text-xs">
-                              未応援{student.unreadSupport}件
-                            </Badge>
-                          )}
-                        </div>
+                        )}
                       </div>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={() => setSelectedStudent(student.id)}>
-                      詳細
-                      <ChevronRight className="h-4 w-4 ml-1" />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs bg-transparent"
+                      onClick={() => {
+                        setSelectedStudent(student.id)
+                        setActiveTab("history")
+                      }}
+                    >
+                      学習履歴
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs bg-transparent"
+                      onClick={() => {
+                        setSelectedStudent(student.id)
+                        setActiveTab("support")
+                      }}
+                    >
+                      応援メッセージ
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs bg-transparent"
+                      onClick={() => {
+                        setSelectedStudent(student.id)
+                        setActiveTab("coaching")
+                      }}
+                    >
+                      コーチング履歴
                     </Button>
                   </div>
                 </CardContent>
