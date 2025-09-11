@@ -34,7 +34,7 @@ const sparkRecords = [
   },
   {
     id: "record2",
-    childName: "花子",
+    childName: "みかん",
     childAvatar: "student2",
     recordDate: "2024-09-06T15:45:00",
     studyDate: "2024-09-06",
@@ -130,6 +130,20 @@ export default function ParentSparkPage() {
     return date.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })
   }
 
+  const selectedChildName = children.find((child) => child.id === selectedChild)?.name
+  const filteredRecords = sparkRecords.filter((record) => record.childName === selectedChildName)
+
+  console.log("[v0] Selected child ID:", selectedChild)
+  console.log("[v0] Selected child name:", selectedChildName)
+  console.log(
+    "[v0] All spark records:",
+    sparkRecords.map((r) => ({ id: r.id, childName: r.childName })),
+  )
+  console.log(
+    "[v0] Filtered records:",
+    filteredRecords.map((r) => ({ id: r.id, childName: r.childName })),
+  )
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-accent/5 via-background to-primary/5 pb-20">
       {/* Header */}
@@ -165,9 +179,14 @@ export default function ParentSparkPage() {
       </div>
 
       <div className="max-w-4xl mx-auto p-4 space-y-6">
-        {sparkRecords
-          .filter((record) => record.childName === children.find((child) => child.id === selectedChild)?.name)
-          .map((record) => (
+        {filteredRecords.length === 0 ? (
+          <Card className="border-l-4 border-l-primary">
+            <CardContent className="p-6 text-center">
+              <p className="text-muted-foreground">{selectedChildName}さんの学習記録がまだありません。</p>
+            </CardContent>
+          </Card>
+        ) : (
+          filteredRecords.map((record) => (
             <Card key={record.id} className="border-l-4 border-l-primary">
               <CardHeader>
                 <CardTitle className="flex items-center gap-3">
@@ -287,7 +306,8 @@ export default function ParentSparkPage() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+          ))
+        )}
       </div>
 
       <ParentBottomNavigation />

@@ -3,67 +3,25 @@
 import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import {
   Users,
   AlertTriangle,
-  MessageSquare,
-  TrendingUp,
   Send,
-  CheckCircle,
-  Clock,
   Target,
   Bell,
-  Sparkles,
-  Edit3,
-  PenTool,
-  Heart,
-  BarChart3,
+  ChevronDown,
+  ChevronUp,
+  Flame,
+  RotateCcw,
+  UserCheck,
 } from "lucide-react"
 
 import { CoachBottomNavigation } from "@/components/coach-bottom-navigation"
-
-interface ClassInfo {
-  id: string
-  name: string
-  grade: string
-  studentCount: number
-  activeToday: number
-  needsAttention: number
-}
-
-const classes: ClassInfo[] = [
-  {
-    id: "class_6a",
-    name: "6年A組",
-    grade: "6年",
-    studentCount: 28,
-    activeToday: 24,
-    needsAttention: 3,
-  },
-  {
-    id: "class_6b", 
-    name: "6年B組",
-    grade: "6年",
-    studentCount: 26,
-    activeToday: 22,
-    needsAttention: 2,
-  },
-  {
-    id: "class_5a",
-    name: "5年A組", 
-    grade: "5年",
-    studentCount: 30,
-    activeToday: 25,
-    needsAttention: 4,
-  },
-]
 
 interface LearningRecord {
   id: string
@@ -88,6 +46,7 @@ interface Student {
   avatar: string
   class: string
   streak: number
+  weekRing: number // 週リング（0-10）
   weeklyProgress: number
   weeklyGoal: number
   lastActivity: string
@@ -102,17 +61,21 @@ interface Student {
   lastLearningDate: Date
   understandingTrend: "up" | "stable" | "down"
   unresponded: number
+  daysToTest: number // テストまでの日数
+  mathMastered: boolean // 算数マスター状況
+  untouchedSubjects: string[] // 未タッチ科目
+  hoursWithoutRecord: number // 未記録時間
 }
 
-// Mock student data with enhanced structure
 const students: Student[] = [
   {
     id: "student1",
     name: "田中太郎",
     nickname: "たんじろう",
     avatar: "student1",
-    class: "class_6a",
+    class: "6A",
     streak: 7,
+    weekRing: 8.5,
     weeklyProgress: 5,
     weeklyGoal: 5,
     lastActivity: "2時間前",
@@ -127,19 +90,24 @@ const students: Student[] = [
     lastLearningDate: new Date(Date.now() - 2 * 60 * 60 * 1000),
     understandingTrend: "up",
     unresponded: 0,
+    daysToTest: 5,
+    mathMastered: true,
+    untouchedSubjects: [],
+    hoursWithoutRecord: 2,
   },
   {
     id: "student2",
     name: "佐藤花子",
     nickname: "はなちゃん",
     avatar: "student2",
-    class: "class_6a",
+    class: "6A",
     streak: 3,
+    weekRing: 6.8,
     weeklyProgress: 3,
     weeklyGoal: 5,
     lastActivity: "5時間前",
     todayStatus: "in-progress",
-    needsAttention: false,
+    needsAttention: true,
     recentScore: 92,
     subjects: ["理科", "社会"],
     lastMessage: "2024-08-13",
@@ -149,14 +117,19 @@ const students: Student[] = [
     lastLearningDate: new Date(Date.now() - 5 * 60 * 60 * 1000),
     understandingTrend: "stable",
     unresponded: 1,
+    daysToTest: 2,
+    mathMastered: false,
+    untouchedSubjects: ["算数"],
+    hoursWithoutRecord: 5,
   },
   {
     id: "student3",
     name: "鈴木次郎",
     nickname: "じろう",
     avatar: "student3",
-    class: "class_6b",
+    class: "6B",
     streak: 1,
+    weekRing: 4.2,
     weeklyProgress: 2,
     weeklyGoal: 5,
     lastActivity: "1日前",
@@ -168,17 +141,22 @@ const students: Student[] = [
     parentResponse: false,
     parentEngagement: "low",
     parentResponseCount: 1,
-    lastLearningDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
+    lastLearningDate: new Date(Date.now() - 50 * 60 * 60 * 1000),
     understandingTrend: "down",
     unresponded: 3,
+    daysToTest: 3,
+    mathMastered: false,
+    untouchedSubjects: ["国語", "理科"],
+    hoursWithoutRecord: 50,
   },
   {
     id: "student4",
     name: "高橋美咲",
     nickname: "みさき",
     avatar: "student4",
-    class: "class_6b",
+    class: "6B",
     streak: 12,
+    weekRing: 9.2,
     weeklyProgress: 5,
     weeklyGoal: 5,
     lastActivity: "30分前",
@@ -190,9 +168,13 @@ const students: Student[] = [
     parentResponse: true,
     parentEngagement: "high",
     parentResponseCount: 12,
-    lastLearningDate: new Date(Date.now() - 30 * 60 * 1000),
+    lastLearningDate: new Date(Date.now() - 30 * 60 * 60 * 1000),
     understandingTrend: "up",
     unresponded: 0,
+    daysToTest: 7,
+    mathMastered: true,
+    untouchedSubjects: [],
+    hoursWithoutRecord: 0.5,
   },
 ]
 
@@ -351,8 +333,18 @@ const quickMessages = ["今日も素晴らしい一日を！", "頑張ってい�
 export default function CoachDashboard() {
   const [selectedStudents, setSelectedStudents] = useState<string[]>([])
   const [filterClass, setFilterClass] = useState("all")
-  const [filterStatus, setFilterStatus] = useState("all")
-  const [sortBy, setSortBy] = useState("unresponded")
+  const [filterStatus, setFilterStatus] = useState<
+    | "all"
+    | "completed"
+    | "in-progress"
+    | "not-started"
+    | "attention"
+    | "low-parent-engagement"
+    | "emergency"
+    | "unrecorded48h"
+    | "math-unmastered"
+  >("all")
+  const [sortBy, setSortBy] = useState("priority")
   const [bulkMessage, setBulkMessage] = useState("")
   const [activeTab, setActiveTab] = useState("overview")
   const [selectedRecord, setSelectedRecord] = useState<LearningRecord | null>(null)
@@ -360,10 +352,99 @@ export default function CoachDashboard() {
   const [aiPatterns, setAiPatterns] = useState<AIResponsePattern[]>([])
   const [customResponse, setCustomResponse] = useState("")
   const [isGeneratingAI, setIsGeneratingAI] = useState(false)
-  const [selectedClass, setSelectedClass] = useState<string>(classes[0]?.id || "class_6a")
+  const [showSubKPIs, setShowSubKPIs] = useState(false)
 
-  // Get current selected class info
-  const currentClass = classes.find(cls => cls.id === selectedClass) || classes[0]
+  // 主KPI計算
+  const emergencyCount = students.filter((s) => s.daysToTest <= 3 && s.weekRing < 6).length
+  const unrecorded48hCount = students.filter((s) => s.hoursWithoutRecord >= 48).length
+  const attentionCount = students.filter(
+    (s) => (s.weekRing >= 6 && s.weekRing < 8) || !s.mathMastered || s.untouchedSubjects.length > 0,
+  ).length
+
+  // 副KPI計算
+  const lowStreakCount = students.filter((s) => s.streak <= 2).length
+  const parentUnreadCount = students.filter((s) => !s.parentResponse).length
+  const weekRingMedian = students.map((s) => s.weekRing).sort((a, b) => a - b)[Math.floor(students.length / 2)]
+
+  const getPriorityActions = () => {
+    const actions = students
+      .map((student) => {
+        let priority = 0
+        let reason = ""
+        let action = ""
+        let type: "emergency" | "unrecorded" | "attention" = "attention"
+
+        // 緊急（最優先）
+        if (student.daysToTest <= 3 && student.weekRing < 6) {
+          priority = 100
+          reason = `テスト${student.daysToTest}日前・週リング${student.weekRing}`
+          action = "テスト対策の集中学習を提案"
+          type = "emergency"
+        }
+        // 未記録48h（2番目）
+        else if (student.hoursWithoutRecord >= 48) {
+          priority = 90
+          reason = `${Math.floor(student.hoursWithoutRecord)}時間未記録`
+          action = "学習状況の確認と励ましメッセージ"
+          type = "unrecorded"
+        }
+        // 要注意（3番目）
+        else if (
+          (student.weekRing >= 6 && student.weekRing < 8) ||
+          !student.mathMastered ||
+          student.untouchedSubjects.length > 0
+        ) {
+          priority = 80
+          if (!student.mathMastered) {
+            reason = "算数未マスター"
+            action = "算数の基礎問題3問を提案"
+          } else if (student.untouchedSubjects.length > 0) {
+            reason = `未タッチ科目: ${student.untouchedSubjects.join(", ")}`
+            action = "未学習科目の学習開始を促す"
+          } else {
+            reason = `週リング${student.weekRing}（要注意域）`
+            action = "学習習慣の見直しを提案"
+          }
+          type = "attention"
+        }
+
+        return {
+          studentId: student.id,
+          studentName: student.name,
+          studentNickname: student.nickname,
+          studentAvatar: student.avatar,
+          priority,
+          reason,
+          action,
+          type,
+          weekRing: student.weekRing,
+        }
+      })
+      .filter((action) => action.priority > 0)
+      .sort((a, b) => b.priority - a.priority)
+      .slice(0, 10) // 1日上位10件まで
+
+    return actions
+  }
+
+  const priorityActions = getPriorityActions()
+
+  const handleKPIClick = (kpiType: string) => {
+    switch (kpiType) {
+      case "emergency":
+        setFilterStatus("emergency")
+        break
+      case "unrecorded48h":
+        setFilterStatus("unrecorded48h")
+        break
+      case "attention":
+        setFilterStatus("attention")
+        break
+      default:
+        setFilterStatus("all")
+    }
+    setActiveTab("overview")
+  }
 
   const parentEngagementSummary = {
     totalParents: parentEngagementData.length,
@@ -420,15 +501,43 @@ export default function CoachDashboard() {
 
   const getSortedStudents = (students: Student[]) => {
     const filtered = students.filter((student) => {
-      // Filter by selected class first
-      if (student.class !== selectedClass) return false
       if (filterClass !== "all" && student.class !== filterClass) return false
-      if (filterStatus !== "all" && student.todayStatus !== filterStatus) return false
-      return true
+
+      switch (filterStatus) {
+        case "emergency":
+          return student.daysToTest <= 3 && student.weekRing < 6
+        case "unrecorded48h":
+          return student.hoursWithoutRecord >= 48
+        case "attention":
+          return (
+            (student.weekRing >= 6 && student.weekRing < 8) ||
+            !student.mathMastered ||
+            student.untouchedSubjects.length > 0
+          )
+        case "math-unmastered":
+          return !student.mathMastered
+        case "low-parent-engagement":
+          return !student.parentResponse
+        case "completed":
+        case "in-progress":
+        case "not-started":
+          return student.todayStatus === filterStatus
+        default:
+          return true
+      }
     })
 
     return filtered.sort((a, b) => {
       switch (sortBy) {
+        case "priority":
+          // 優先度順：緊急 > 未記録48h > 要注意
+          const getPriorityScore = (s: Student) => {
+            if (s.daysToTest <= 3 && s.weekRing < 6) return 100
+            if (s.hoursWithoutRecord >= 48) return 90
+            if ((s.weekRing >= 6 && s.weekRing < 8) || !s.mathMastered || s.untouchedSubjects.length > 0) return 80
+            return 0
+          }
+          return getPriorityScore(b) - getPriorityScore(a)
         case "unresponded":
           return b.unresponded - a.unresponded
         case "parent-engagement":
@@ -436,8 +545,8 @@ export default function CoachDashboard() {
           return engagementOrder[a.parentEngagement] - engagementOrder[b.parentEngagement]
         case "last-activity":
           return a.lastLearningDate.getTime() - b.lastLearningDate.getTime()
-        case "attention":
-          return (b.needsAttention ? 1 : 0) - (a.needsAttention ? 1 : 0)
+        case "week-ring":
+          return a.weekRing - b.weekRing
         default:
           return 0
       }
@@ -445,10 +554,9 @@ export default function CoachDashboard() {
   }
 
   const filteredStudents = getSortedStudents(students)
-  const classStudents = students.filter(student => student.class === selectedClass)
-  const needsAttentionCount = classStudents.filter((s) => s.needsAttention).length
-  const completedTodayCount = classStudents.filter((s) => s.todayStatus === "completed").length
-  const noParentResponseCount = classStudents.filter((s) => !s.parentResponse).length
+  const needsAttentionCount = students.filter((s) => s.needsAttention).length
+  const completedTodayCount = students.filter((s) => s.todayStatus === "completed").length
+  const noParentResponseCount = students.filter((s) => !s.parentResponse).length
   const totalUnresponded = unrespondedRecords.length
   const urgentCount = unrespondedRecords.filter((r) => r.priority === "urgent").length
 
@@ -519,156 +627,184 @@ export default function CoachDashboard() {
     setSelectedStudents([])
   }
 
+  const handleStatCardClick = (cardType: string) => {
+    switch (cardType) {
+      case "unresponded":
+        setActiveTab("unresponded")
+        break
+      case "total":
+        setActiveTab("overview")
+        setFilterClass("all")
+        setFilterStatus("all")
+        break
+      case "completed":
+        setActiveTab("overview")
+        setFilterStatus("completed")
+        break
+      case "attention":
+        setActiveTab("overview")
+        setFilterClass("all")
+        setFilterStatus("attention")
+        setSortBy("attention")
+        break
+      case "parent-engagement":
+        setActiveTab("overview")
+        setFilterClass("all")
+        setFilterStatus("low-parent-engagement")
+        setSortBy("parent-engagement")
+        break
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-20">
       {/* Header */}
       <div className="bg-card/80 backdrop-blur-sm border-b border-border/50 p-4">
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-                <Users className="h-6 w-6 text-primary" />
-                指導者ダッシュボード
-              </h1>
-              <p className="text-sm text-muted-foreground">生徒の学習状況を管理し、効果的なサポートを提供</p>
-            </div>
-            
-            {/* Class Selection */}
-            <div className="flex items-center gap-3 bg-white/90 rounded-xl p-3 shadow-lg border border-primary/20">
-              <span className="text-sm font-medium text-slate-700">担当クラス:</span>
-              <div className="flex gap-2">
-                {classes.map((classInfo) => (
-                  <button
-                    key={classInfo.id}
-                    onClick={() => setSelectedClass(classInfo.id)}
-                    className={`px-4 py-2 rounded-lg border-2 transition-all duration-200 text-sm font-medium ${
-                      selectedClass === classInfo.id
-                        ? "border-primary bg-primary/10 text-primary shadow-md"
-                        : "border-slate-200 bg-white text-slate-600 hover:border-primary/50 hover:bg-primary/5"
-                    }`}
-                  >
-                    <div className="text-center">
-                      <div className="font-bold">{classInfo.name}</div>
-                      <div className="text-xs opacity-75">
-                        {classInfo.activeToday}/{classInfo.studentCount}人
-                        {classInfo.needsAttention > 0 && (
-                          <span className="text-red-600 ml-1">({classInfo.needsAttention}要対応)</span>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+          <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+            <Users className="h-6 w-6 text-primary" />
+            指導者ダッシュボード
+          </h1>
+          <p className="text-sm text-muted-foreground">毎日これだけ見れば動ける - 行動ファースト設計</p>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto p-4 space-y-6">
-        {/* Current Class Overview */}
-        <Card className="bg-gradient-to-r from-primary/10 to-accent/10 border-primary/30">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              {currentClass.name} クラス概要
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary">{currentClass.studentCount}</div>
-                <div className="text-sm text-muted-foreground">総生徒数</div>
+        <Card>
+          <CardContent className="p-4">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">主KPI（毎日これだけ見れば動ける）</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowSubKPIs(!showSubKPIs)}
+                  className="flex items-center gap-1"
+                >
+                  {showSubKPIs ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  詳しく
+                </Button>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{currentClass.activeToday}</div>
-                <div className="text-sm text-muted-foreground">今日の活動</div>
+
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  variant={filterStatus === "emergency" ? "default" : "outline"}
+                  onClick={() => handleKPIClick("emergency")}
+                  className={`flex items-center gap-2 ${
+                    emergencyCount > 0 ? "border-red-500 text-red-700 hover:bg-red-50" : ""
+                  }`}
+                >
+                  <Flame className="h-4 w-4" />🧯 緊急
+                  <Badge className="bg-red-600 text-white ml-1">{emergencyCount}</Badge>
+                </Button>
+
+                <Button
+                  variant={filterStatus === "unrecorded48h" ? "default" : "outline"}
+                  onClick={() => handleKPIClick("unrecorded48h")}
+                  className={`flex items-center gap-2 ${
+                    unrecorded48hCount > 0 ? "border-orange-500 text-orange-700 hover:bg-orange-50" : ""
+                  }`}
+                >
+                  <Bell className="h-4 w-4" />🔔 未記録48h
+                  <Badge className="bg-orange-600 text-white ml-1">{unrecorded48hCount}</Badge>
+                </Button>
+
+                <Button
+                  variant={filterStatus === "attention" ? "default" : "outline"}
+                  onClick={() => handleKPIClick("attention")}
+                  className={`flex items-center gap-2 ${
+                    attentionCount > 0 ? "border-yellow-500 text-yellow-700 hover:bg-yellow-50" : ""
+                  }`}
+                >
+                  <AlertTriangle className="h-4 w-4" />⚠ 要注意
+                  <Badge className="bg-yellow-600 text-white ml-1">{attentionCount}</Badge>
+                </Button>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-red-600">{currentClass.needsAttention}</div>
-                <div className="text-sm text-muted-foreground">要対応</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">
-                  {Math.round((currentClass.activeToday / currentClass.studentCount) * 100)}%
+
+              {showSubKPIs && (
+                <div className="border-t pt-4 mt-4">
+                  <h3 className="text-sm font-medium text-muted-foreground mb-3">副KPI（必要に応じて展開）</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <RotateCcw className="h-4 w-4 text-blue-500" />
+                      <span>🔁 連続日2日以下: </span>
+                      <Badge className="bg-slate-100 text-slate-700">{lowStreakCount}名</Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <UserCheck className="h-4 w-4 text-purple-500" />
+                      <span>👪 保護者未既読: </span>
+                      <Badge className="bg-slate-100 text-slate-700">{parentUnreadCount}名</Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Target className="h-4 w-4 text-green-500" />
+                      <span>🎯 今週リング中央値: </span>
+                      <Badge className="bg-slate-100 text-slate-700">{weekRingMedian.toFixed(1)}</Badge>
+                    </div>
+                  </div>
                 </div>
-                <div className="text-sm text-muted-foreground">参加率</div>
-              </div>
+              )}
             </div>
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <Card className="border-l-4 border-l-red-500">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                  <Bell className="h-5 w-5 text-red-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-red-600">{totalUnresponded}</div>
-                  <div className="text-sm text-muted-foreground">未応援記録</div>
-                  {urgentCount > 0 && <div className="text-xs text-red-600">緊急: {urgentCount}件</div>}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
+        {priorityActions.length > 0 && (
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                  <Users className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{classStudents.length}</div>
-                  <div className="text-sm text-muted-foreground">{currentClass.name}生徒数</div>
-                </div>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Target className="h-5 w-5 text-primary" />
+                今日の優先アクション
+                <Badge className="bg-slate-100 text-slate-700">{priorityActions.length}/10</Badge>
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">アラート予算: 1日上位10件まで・1生徒1日1アクション</p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {priorityActions.map((action, index) => (
+                  <div
+                    key={action.studentId}
+                    className={`p-4 rounded-lg border-l-4 ${
+                      action.type === "emergency"
+                        ? "border-l-red-500 bg-red-50"
+                        : action.type === "unrecorded"
+                          ? "border-l-orange-500 bg-orange-50"
+                          : "border-l-yellow-500 bg-yellow-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1">
+                          {action.type === "emergency" && "🧯"}
+                          {action.type === "unrecorded" && "🔔"}
+                          {action.type === "attention" && "⚠"}
+                          <span className="text-sm font-medium">#{index + 1}</span>
+                        </div>
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage
+                            src={getAvatarSrc(action.studentAvatar) || "/placeholder.svg"}
+                            alt={action.studentName}
+                          />
+                          <AvatarFallback>{action.studentName.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-medium">{action.studentName}</div>
+                          <div className="text-sm text-muted-foreground">{action.reason}</div>
+                        </div>
+                        <Badge className="bg-slate-100 text-slate-700 text-xs">週リング{action.weekRing}</Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground max-w-xs">{action.action}</span>
+                        <Button size="sm" className="bg-primary hover:bg-primary/90">
+                          <Send className="h-4 w-4 mr-1" />
+                          送信
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-green-600">{completedTodayCount}</div>
-                  <div className="text-sm text-muted-foreground">今日完了</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                  <AlertTriangle className="h-5 w-5 text-red-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-red-600">{needsAttentionCount}</div>
-                  <div className="text-sm text-muted-foreground">要注意</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                  <Heart className="h-5 w-5 text-yellow-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-yellow-600">{noParentResponseCount}</div>
-                  <div className="text-sm text-muted-foreground">保護者低関与</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        )}
 
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -682,7 +818,6 @@ export default function CoachDashboard() {
             </TabsTrigger>
             <TabsTrigger value="feedback">一括応援</TabsTrigger>
             <TabsTrigger value="analytics">分析</TabsTrigger>
-            {/*  保護者連携タブを追加 */}
             <TabsTrigger value="parent-engagement" className="relative">
               保護者連携
               {parentEngagementSummary.alertsCount > 0 && (
@@ -711,14 +846,19 @@ export default function CoachDashboard() {
                     </Select>
 
                     <Select value={filterStatus} onValueChange={setFilterStatus}>
-                      <SelectTrigger className="w-32">
+                      <SelectTrigger className="w-40">
                         <SelectValue placeholder="状態" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">全状態</SelectItem>
+                        <SelectItem value="emergency">🧯 緊急</SelectItem>
+                        <SelectItem value="unrecorded48h">🔔 未記録48h</SelectItem>
+                        <SelectItem value="attention">⚠ 要注意</SelectItem>
+                        <SelectItem value="math-unmastered">📐 算数未マスター</SelectItem>
                         <SelectItem value="completed">完了</SelectItem>
                         <SelectItem value="in-progress">学習中</SelectItem>
                         <SelectItem value="not-started">未開始</SelectItem>
+                        <SelectItem value="low-parent-engagement">保護者低関与</SelectItem>
                       </SelectContent>
                     </Select>
 
@@ -727,10 +867,11 @@ export default function CoachDashboard() {
                         <SelectValue placeholder="並び順" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="priority">優先度順</SelectItem>
+                        <SelectItem value="week-ring">週リング低い順</SelectItem>
                         <SelectItem value="unresponded">未応援の多い順</SelectItem>
                         <SelectItem value="parent-engagement">保護者関与度の低い順</SelectItem>
                         <SelectItem value="last-activity">最終学習日時順</SelectItem>
-                        <SelectItem value="attention">要注意度順</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -755,655 +896,161 @@ export default function CoachDashboard() {
 
             <Card>
               <CardHeader>
-                <CardTitle>生徒一覧</CardTitle>
+                <CardTitle>生徒一覧（優先度順・アラート疲れ防止）</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {filteredStudents.map((student) => (
-                    <div
-                      key={student.id}
-                      className={`p-4 rounded-lg border-2 transition-all ${
-                        selectedStudents.includes(student.id)
-                          ? "border-primary bg-primary/5"
-                          : "border-border bg-background"
-                      } ${student.needsAttention ? "border-l-4 border-l-red-500" : ""}`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <Checkbox
-                          checked={selectedStudents.includes(student.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedStudents((prev) => [...prev, student.id])
-                            } else {
-                              setSelectedStudents((prev) => prev.filter((id) => id !== student.id))
-                            }
-                          }}
-                        />
+                  {filteredStudents.map((student) => {
+                    let priorityLabel = ""
+                    let priorityColor = ""
 
-                        <Avatar className="h-12 w-12">
-                          <AvatarImage src={getAvatarSrc(student.avatar) || "/placeholder.svg"} alt={student.name} />
-                          <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
+                    if (student.daysToTest <= 3 && student.weekRing < 6) {
+                      priorityLabel = "🧯"
+                      priorityColor = "border-l-red-500 bg-red-50"
+                    } else if (student.hoursWithoutRecord >= 48) {
+                      priorityLabel = "🔔"
+                      priorityColor = "border-l-orange-500 bg-orange-50"
+                    } else if (
+                      (student.weekRing >= 6 && student.weekRing < 8) ||
+                      !student.mathMastered ||
+                      student.untouchedSubjects.length > 0
+                    ) {
+                      priorityLabel = "⚠"
+                      priorityColor = "border-l-yellow-500 bg-yellow-50"
+                    }
 
-                        <div className="flex-1 grid grid-cols-1 md:grid-cols-7 gap-4">
-                          <div>
-                            <div className="font-medium">{student.name}</div>
-                            <div className="text-sm text-muted-foreground">ニックネーム: {student.nickname}</div>
-                            <div className="text-xs text-muted-foreground">{student.class}</div>
-                          </div>
-
-                          <div>
-                            <Badge className={statusColors[student.todayStatus as keyof typeof statusColors]}>
-                              {statusLabels[student.todayStatus as keyof typeof statusLabels]}
-                            </Badge>
-                            <div className="text-xs text-muted-foreground mt-1">{student.lastActivity}</div>
-                          </div>
-
-                          <div>
-                            <div className="text-sm font-medium">連続{student.streak}日</div>
-                            <div className="text-xs text-muted-foreground">
-                              週間: {student.weeklyProgress}/{student.weeklyGoal}
-                            </div>
-                            <div className="flex items-center gap-1 mt-1">
-                              <span className="text-xs">理解度:</span>
-                              {student.understandingTrend === "up" && <span className="text-green-600">↑</span>}
-                              {student.understandingTrend === "stable" && <span className="text-gray-600">→</span>}
-                              {student.understandingTrend === "down" && <span className="text-red-600">↓</span>}
-                            </div>
-                          </div>
-
-                          <div>
-                            <div className="text-sm font-medium">スコア: {student.recentScore}%</div>
-                            <div className="flex gap-1 mt-1">
-                              {student.subjects.slice(0, 2).map((subject) => {
-                                const subjectColors: { [key: string]: string } = {
-                                  算数: "bg-blue-100 text-blue-800",
-                                  国語: "bg-green-100 text-green-800",
-                                  理科: "bg-purple-100 text-purple-800",
-                                  社会: "bg-orange-100 text-orange-800",
-                                }
-                                return (
-                                  <Badge
-                                    key={subject}
-                                    className={`text-xs ${subjectColors[subject] || "bg-gray-100 text-gray-800"}`}
-                                  >
-                                    {subject}
-                                  </Badge>
-                                )
-                              })}
-                            </div>
-                          </div>
-
-                          <div>
-                            <div className="text-xs text-muted-foreground">保護者関与度</div>
-                            <Badge className={`text-xs ${engagementColors[student.parentEngagement]}`}>
-                              {engagementLabels[student.parentEngagement]}
-                            </Badge>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              今週: {student.parentResponseCount}回
-                            </div>
-                          </div>
-
-                          <div>
-                            <div className="text-xs text-muted-foreground">最終メッセージ</div>
-                            <div className="text-sm">{student.lastMessage}</div>
-                            {student.unresponded > 0 && (
-                              <Badge className="bg-red-500 text-white text-xs mt-1">
-                                未応援: {student.unresponded}件
-                              </Badge>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            {student.needsAttention && (
-                              <AlertTriangle className="h-4 w-4 text-red-500" title="要注意" />
-                            )}
-                            {!student.parentResponse && (
-                              <Clock className="h-4 w-4 text-yellow-500" title="保護者未応答" />
-                            )}
-                            <Button size="sm" variant="outline">
-                              詳細
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="unresponded" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Bell className="h-5 w-5 text-red-500" />
-                  未応援記録一覧
-                  <Badge className="bg-red-500 text-white">
-                    {unrespondedRecords.filter((r) => !r.hasCoachResponse).length}件
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {unrespondedRecords
-                    .filter((r) => !r.hasCoachResponse)
-                    .sort((a, b) => b.hoursAgo - a.hoursAgo)
-                    .map((record) => (
+                    return (
                       <div
-                        key={record.id}
-                        className={`p-4 rounded-lg border-l-4 ${priorityColors[record.priority]} transition-all hover:shadow-md`}
+                        key={student.id}
+                        className={`p-4 rounded-lg border-2 transition-all ${
+                          selectedStudents.includes(student.id)
+                            ? "border-primary bg-primary/5"
+                            : "border-border bg-background"
+                        } ${priorityColor ? `border-l-4 ${priorityColor}` : ""}`}
                       >
-                        <div className="flex items-start gap-4">
-                          <Avatar className="h-10 w-10">
-                            <AvatarImage
-                              src={getAvatarSrc(record.studentAvatar) || "/placeholder.svg"}
-                              alt={record.studentName}
-                            />
-                            <AvatarFallback>{record.studentName.charAt(0)}</AvatarFallback>
+                        <div className="flex items-center gap-4">
+                          <Checkbox
+                            checked={selectedStudents.includes(student.id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedStudents((prev) => [...prev, student.id])
+                              } else {
+                                setSelectedStudents((prev) => prev.filter((id) => id !== student.id))
+                              }
+                            }}
+                          />
+
+                          <Avatar className="h-12 w-12">
+                            <AvatarImage src={getAvatarSrc(student.avatar) || "/placeholder.svg"} alt={student.name} />
+                            <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
                           </Avatar>
 
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="font-medium">{record.studentName}</span>
-                              <span className="text-sm text-muted-foreground">({record.studentNickname})</span>
-                              <Badge variant="outline" className="text-xs">
-                                {record.subject}
-                              </Badge>
-                              <Badge className="text-xs bg-gray-100 text-gray-800">{record.understanding}</Badge>
-                              <span className="text-xs text-muted-foreground">{record.hoursAgo}時間前</span>
-                              {record.hasParentResponse && (
-                                <Badge className="text-xs bg-blue-100 text-blue-800">保護者応援済み</Badge>
-                              )}
+                          <div className="flex-1 grid grid-cols-1 md:grid-cols-8 gap-4">
+                            <div>
+                              <div className="font-medium flex items-center gap-2">
+                                {priorityLabel && <span className="text-lg">{priorityLabel}</span>}
+                                {student.name}
+                              </div>
+                              <div className="text-sm text-muted-foreground">ニックネーム: {student.nickname}</div>
+                              <div className="text-xs text-muted-foreground">{student.class}</div>
                             </div>
 
-                            <div className="text-sm text-gray-700 mb-3 bg-gray-50 p-3 rounded">{record.reflection}</div>
+                            <div>
+                              <div className="text-sm font-medium">週リング</div>
+                              <div className="flex items-center gap-2">
+                                <Badge className="bg-slate-100 text-slate-700 text-xs">{student.weekRing}/10</Badge>
+                                <div
+                                  className={`w-6 h-6 rounded-full border-2 ${
+                                    student.weekRing >= 8
+                                      ? "border-green-500 bg-green-100"
+                                      : student.weekRing >= 6
+                                        ? "border-yellow-500 bg-yellow-100"
+                                        : "border-red-500 bg-red-100"
+                                  }`}
+                                />
+                              </div>
+                            </div>
 
-                            <div className="flex gap-2">
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => setSelectedRecord(record)}
-                                    className="bg-primary hover:bg-primary/90"
-                                  >
-                                    <MessageSquare className="h-4 w-4 mr-1" />
-                                    応援する
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-2xl">
-                                  <DialogHeader>
-                                    <DialogTitle className="flex items-center gap-2">
-                                      <Avatar className="h-8 w-8">
-                                        <AvatarImage src={getAvatarSrc(record.studentAvatar) || "/placeholder.svg"} />
-                                        <AvatarFallback>{record.studentName.charAt(0)}</AvatarFallback>
-                                      </Avatar>
-                                      {record.studentNickname}さんへの応援メッセージ
-                                    </DialogTitle>
-                                  </DialogHeader>
+                            <div>
+                              <div className="text-sm font-medium">連続{student.streak}日</div>
+                              <div className="text-xs text-muted-foreground">最終: {student.lastActivity}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {student.hoursWithoutRecord >= 48
+                                  ? `未記録${Math.floor(student.hoursWithoutRecord)}h`
+                                  : "記録OK"}
+                              </div>
+                            </div>
 
-                                  <div className="space-y-4">
-                                    <div className="bg-gray-50 p-3 rounded">
-                                      <div className="text-sm font-medium mb-1">学習記録</div>
-                                      <div className="text-sm text-gray-600">
-                                        科目: {record.subject} | 理解度: {record.understanding}
-                                      </div>
-                                      <div className="text-sm mt-2">{record.reflection}</div>
-                                    </div>
+                            <div>
+                              <div className="text-sm font-medium">テストまで</div>
+                              <Badge
+                                className={`text-xs ${
+                                  student.daysToTest <= 3
+                                    ? "bg-red-100 text-red-800"
+                                    : student.daysToTest <= 7
+                                      ? "bg-yellow-100 text-yellow-800"
+                                      : "bg-green-100 text-green-800"
+                                }`}
+                              >
+                                {student.daysToTest}日
+                              </Badge>
+                            </div>
 
-                                    <div className="space-y-3">
-                                      <div className="flex gap-2">
-                                        <Button
-                                          variant={responseType === "ai-select" ? "default" : "outline"}
-                                          size="sm"
-                                          onClick={() => {
-                                            setResponseType("ai-select")
-                                            if (selectedRecord) generateAIPatterns(selectedRecord)
-                                          }}
-                                        >
-                                          <Sparkles className="h-4 w-4 mr-1" />
-                                          AI提案選択
-                                        </Button>
-                                        <Button
-                                          variant={responseType === "ai-edit" ? "default" : "outline"}
-                                          size="sm"
-                                          onClick={() => {
-                                            setResponseType("ai-edit")
-                                            if (selectedRecord) generateAIPatterns(selectedRecord)
-                                          }}
-                                        >
-                                          <Edit3 className="h-4 w-4 mr-1" />
-                                          AI提案編集
-                                        </Button>
-                                        <Button
-                                          variant={responseType === "free" ? "default" : "outline"}
-                                          size="sm"
-                                          onClick={() => setResponseType("free")}
-                                        >
-                                          <PenTool className="h-4 w-4 mr-1" />
-                                          自由記述
-                                        </Button>
-                                      </div>
+                            <div>
+                              <div className="text-sm font-medium">科目バッジ</div>
+                              <div className="flex gap-1 flex-wrap">
+                                <Badge
+                                  className={`text-xs ${student.mathMastered ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}`}
+                                >
+                                  算{student.mathMastered ? "M" : "未M"}
+                                </Badge>
+                                {student.untouchedSubjects.map((subject) => (
+                                  <Badge key={subject} className="text-xs bg-gray-100 text-gray-800">
+                                    {subject.charAt(0)}未T
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
 
-                                      {responseType === "ai-select" && (
-                                        <div className="space-y-3">
-                                          {isGeneratingAI ? (
-                                            <div className="text-center py-8">
-                                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                                              <div className="text-sm text-muted-foreground">
-                                                AI応援メッセージを生成中...
-                                              </div>
-                                            </div>
-                                          ) : (
-                                            aiPatterns.map((pattern, index) => (
-                                              <div
-                                                key={index}
-                                                className="border rounded p-3 hover:bg-gray-50 cursor-pointer"
-                                              >
-                                                <div className="font-medium text-sm mb-1">{pattern.title}</div>
-                                                <div className="text-sm text-gray-700 mb-2">{pattern.message}</div>
-                                                <Button
-                                                  size="sm"
-                                                  onClick={() => handleSendResponse(record, pattern.message)}
-                                                >
-                                                  この応援を送信
-                                                </Button>
-                                              </div>
-                                            ))
-                                          )}
-                                        </div>
-                                      )}
+                            <div>
+                              <Badge className={statusColors[student.todayStatus as keyof typeof statusColors]}>
+                                {statusLabels[student.todayStatus as keyof typeof statusLabels]}
+                              </Badge>
+                              <div className="flex items-center gap-1 mt-1">
+                                <span className="text-xs">理解度:</span>
+                                {student.understandingTrend === "up" && <span className="text-green-600">↑</span>}
+                                {student.understandingTrend === "stable" && <span className="text-gray-600">→</span>}
+                                {student.understandingTrend === "down" && <span className="text-red-600">↓</span>}
+                              </div>
+                            </div>
 
-                                      {responseType === "ai-edit" && (
-                                        <div className="space-y-3">
-                                          {isGeneratingAI ? (
-                                            <div className="text-center py-8">
-                                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                                              <div className="text-sm text-muted-foreground">
-                                                AI応援メッセージを生成中...
-                                              </div>
-                                            </div>
-                                          ) : aiPatterns.length > 0 ? (
-                                            <div>
-                                              <div className="text-sm font-medium mb-2">AI提案を編集してください</div>
-                                              <Textarea
-                                                value={customResponse || aiPatterns[0]?.message || ""}
-                                                onChange={(e) => setCustomResponse(e.target.value)}
-                                                className="min-h-[100px]"
-                                                maxLength={400}
-                                              />
-                                              <div className="flex justify-between items-center mt-2">
-                                                <span className="text-xs text-muted-foreground">
-                                                  {(customResponse || aiPatterns[0]?.message || "").length}/400文字
-                                                </span>
-                                                <Button
-                                                  onClick={() =>
-                                                    handleSendResponse(
-                                                      record,
-                                                      customResponse || aiPatterns[0]?.message || "",
-                                                    )
-                                                  }
-                                                  disabled={!(customResponse || aiPatterns[0]?.message)}
-                                                >
-                                                  応援を送信
-                                                </Button>
-                                              </div>
-                                            </div>
-                                          ) : (
-                                            <Button onClick={() => generateAIPatterns(record)}>AI提案を生成</Button>
-                                          )}
-                                        </div>
-                                      )}
+                            <div>
+                              <div className="text-xs text-muted-foreground">保護者関与度</div>
+                              <Badge className={`text-xs ${engagementColors[student.parentEngagement]}`}>
+                                {engagementLabels[student.parentEngagement]}
+                              </Badge>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                今週: {student.parentResponseCount}回
+                              </div>
+                            </div>
 
-                                      {responseType === "free" && (
-                                        <div>
-                                          <div className="text-sm font-medium mb-2">自由に応援メッセージを作成</div>
-                                          <Textarea
-                                            value={customResponse}
-                                            onChange={(e) => setCustomResponse(e.target.value)}
-                                            placeholder={`${record.studentNickname}さんへの応援メッセージを入力してください...`}
-                                            className="min-h-[120px]"
-                                            maxLength={400}
-                                          />
-                                          <div className="flex justify-between items-center mt-2">
-                                            <span className="text-xs text-muted-foreground">
-                                              {customResponse.length}/400文字
-                                            </span>
-                                            <Button
-                                              onClick={() => handleSendResponse(record, customResponse)}
-                                              disabled={!customResponse.trim()}
-                                            >
-                                              応援を送信
-                                            </Button>
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </DialogContent>
-                              </Dialog>
-
+                            <div className="flex items-center gap-2">
+                              {student.unresponded > 0 && (
+                                <Badge className="bg-red-500 text-white text-xs">未応援: {student.unresponded}件</Badge>
+                              )}
                               <Button size="sm" variant="outline">
-                                後で対応
+                                詳細
                               </Button>
                             </div>
                           </div>
                         </div>
                       </div>
-                    ))}
+                    )
+                  })}
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
-
-          {/* Bulk Feedback Tab */}
-          <TabsContent value="feedback" className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Bulk Message */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <MessageSquare className="h-5 w-5 text-primary" />
-                    一括メッセージ
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="text-sm text-muted-foreground">選択中: {selectedStudents.length}名の生徒</div>
-
-                  <Textarea
-                    placeholder="生徒たちへのメッセージを入力してください..."
-                    value={bulkMessage}
-                    onChange={(e) => setBulkMessage(e.target.value)}
-                    className="min-h-[120px]"
-                    maxLength={300}
-                  />
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-muted-foreground">{bulkMessage.length}/300文字</span>
-                    <Button
-                      onClick={handleSendBulkMessage}
-                      disabled={selectedStudents.length === 0 || !bulkMessage.trim()}
-                    >
-                      <Send className="h-4 w-4 mr-2" />
-                      送信
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Quick Messages */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>クイックメッセージ</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="text-sm text-muted-foreground mb-3">選択中: {selectedStudents.length}名の生徒</div>
-
-                  {quickMessages.map((message, index) => (
-                    <Button
-                      key={index}
-                      onClick={() => handleQuickMessage(message)}
-                      disabled={selectedStudents.length === 0}
-                      variant="outline"
-                      className="w-full h-auto p-3 text-left justify-start"
-                    >
-                      <div className="flex items-start gap-2">
-                        <Send className="h-4 w-4 text-primary mt-1 flex-shrink-0" />
-                        <span className="text-sm leading-relaxed">{message}</span>
-                      </div>
-                    </Button>
-                  ))}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* Analytics Tab */}
-          <TabsContent value="analytics" className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-accent" />
-                    クラス別進捗
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span>6A (2名)</span>
-                      <span className="font-medium">平均 88.5%</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span>6B (2名)</span>
-                      <span className="font-medium">平均 82.0%</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Target className="h-5 w-5 text-primary" />
-                    今週の目標達成率
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-primary">75%</div>
-                    <div className="text-sm text-muted-foreground">3/4名が目標達成</div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/*  保護者連携タブの内容を追加 */}
-          <TabsContent value="parent-engagement" className="space-y-6">
-            {/* 保護者関与度サマリー */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                      <Users className="h-5 w-5 text-green-600" />
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-green-600">{parentEngagementSummary.highEngagement}</div>
-                      <div className="text-sm text-muted-foreground">高関与保護者</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <BarChart3 className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-blue-600">
-                        {Math.round(parentEngagementSummary.averageResponseRate * 100)}%
-                      </div>
-                      <div className="text-sm text-muted-foreground">平均応援率</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <Clock className="h-5 w-5 text-purple-600" />
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-purple-600">
-                        {Math.round(parentEngagementSummary.averageResponseTime * 10) / 10}h
-                      </div>
-                      <div className="text-sm text-muted-foreground">平均応答時間</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                      <AlertTriangle className="h-5 w-5 text-red-600" />
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-red-600">{parentEngagementSummary.alertsCount}</div>
-                      <div className="text-sm text-muted-foreground">要注意保護者</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* 保護者関与度詳細リスト */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Heart className="h-5 w-5" />
-                  保護者関与度ダッシュボード
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {parentEngagementData.map((parent) => (
-                    <div key={parent.studentId} className="border rounded-lg p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="font-medium">{parent.studentName}</div>
-                          {(parent.alerts.noResponseFor3Days ||
-                            parent.alerts.lowResponseRate ||
-                            parent.alerts.childNeedsHelp) && (
-                            <div className="flex gap-1">
-                              {parent.alerts.noResponseFor3Days && (
-                                <Badge className="bg-red-100 text-red-800 text-xs">3日間応援なし</Badge>
-                              )}
-                              {parent.alerts.lowResponseRate && (
-                                <Badge className="bg-orange-100 text-orange-800 text-xs">応援率30%以下</Badge>
-                              )}
-                              {parent.alerts.childNeedsHelp && (
-                                <Badge className="bg-yellow-100 text-yellow-800 text-xs">
-                                  子どもが助けを求めている
-                                </Badge>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                        <Button size="sm" variant="outline">
-                          保護者に連絡
-                        </Button>
-                      </div>
-
-                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-                        <div>
-                          <div className="text-muted-foreground">応援回数/週</div>
-                          <div className="font-medium">{parent.weeklyResponseCount}回</div>
-                        </div>
-                        <div>
-                          <div className="text-muted-foreground">応援率</div>
-                          <div className="font-medium">{Math.round(parent.responseRate * 100)}%</div>
-                        </div>
-                        <div>
-                          <div className="text-muted-foreground">平均応答時間</div>
-                          <div className="font-medium">{parent.averageResponseTime}時間</div>
-                        </div>
-                        <div>
-                          <div className="text-muted-foreground">AI提案/自由記述</div>
-                          <div className="font-medium">
-                            {parent.messageTypes.aiSuggested}/{parent.messageTypes.freeForm}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-muted-foreground">子どもの反応率</div>
-                          <div className="font-medium">{Math.round(parent.childReactionRate * 100)}%</div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-2 border-t">
-                        <div className="text-sm text-muted-foreground">
-                          最終応援:{" "}
-                          {parent.lastResponseDate.toLocaleString("ja-JP", {
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </div>
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline">
-                            応援履歴
-                          </Button>
-                          <Button size="sm" variant="outline">
-                            効果分析
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* 保護者サポート機能 */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">状況共有</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="text-sm text-muted-foreground">保護者応援が少ない場合の通知機能</div>
-                    <Button className="w-full bg-transparent" variant="outline">
-                      保護者に状況を共有
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">役割分担</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="text-sm text-muted-foreground">保護者/指導者の応援バランス表示</div>
-                    <div className="text-xs">
-                      保護者: {Math.round(parentEngagementSummary.averageResponseRate * 100)}% / 指導者: 85%
-                    </div>
-                    <Button className="w-full bg-transparent" variant="outline">
-                      バランス調整
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">効果分析</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="text-sm text-muted-foreground">保護者応援と成績の相関表示</div>
-                    <div className="text-xs text-green-600">相関係数: +0.73 (強い正の相関)</div>
-                    <Button className="w-full bg-transparent" variant="outline">
-                      詳細レポート
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/*  existing code ... */}
         </Tabs>
       </div>
 

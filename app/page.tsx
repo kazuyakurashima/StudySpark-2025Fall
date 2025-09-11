@@ -2,32 +2,22 @@
 
 import type React from "react"
 import Image from "next/image"
-import { useRouter } from "next/navigation"
-import { useState, useEffect } from "react"
+
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useAuth } from "@/lib/hooks/useAuth"
-import type { UserRole } from "@/lib/types/auth"
 
 export default function LoginPage() {
-  const router = useRouter()
-  const { signIn, signUp, user, profile, loading: authLoading } = useAuth()
+  const [userId, setUserId] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [showCoachCode, setShowCoachCode] = useState(false)
   const [coachCode, setCoachCode] = useState("")
-  const [selectedRole, setSelectedRole] = useState<UserRole>('student')
-  const [error, setError] = useState<string | null>(null)
   const [codeValidation, setCodeValidation] = useState<{ isValid: boolean; message: string } | null>(null)
-
-  const validateCoachCodeSync = (code: string): boolean => {
-    const validCodes = ["COACH123", "TEACHER456", "MENTOR789"]
-    return code.length >= 6 && validCodes.includes(code.toUpperCase())
-  }
 
   const validateCoachCode = (code: string) => {
     if (code.length === 0) {
@@ -40,7 +30,10 @@ export default function LoginPage() {
       return
     }
 
-    const isValid = validateCoachCodeSync(code)
+    // 簡単な検証ロジック（実際のアプリでは API 呼び出しを行う）
+    const validCodes = ["COACH123", "TEACHER456", "MENTOR789"]
+    const isValid = validCodes.includes(code.toUpperCase())
+
     setCodeValidation({
       isValid,
       message: isValid ? "有効なコードです" : "無効なコードです",
@@ -56,68 +49,51 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    setError(null)
 
-    try {
-      const { error } = await signIn(email, password)
-      if (error) {
-        setError('ログインに失敗しました。メールアドレスとパスワードを確認してください。')
+    // Simulate login process
+    setTimeout(() => {
+      const isReturningUser = localStorage.getItem("registrationComplete") === "true"
+
+      if (userId.startsWith("student")) {
+        if (isReturningUser) {
+          window.location.href = "/student"
+        } else {
+          window.location.href = "/setup/avatar"
+        }
+      } else if (userId.startsWith("parent")) {
+        if (isReturningUser) {
+          window.location.href = "/parent"
+        } else {
+          window.location.href = "/setup/parent-avatar"
+        }
+      } else if (userId.startsWith("coach")) {
+        window.location.href = "/coach"
+      } else {
+        window.location.href = "/setup/avatar"
       }
-    } catch (err) {
-      setError('ログイン中にエラーが発生しました。')
-    } finally {
       setIsLoading(false)
-    }
+    }, 1000)
   }
 
   const handleNewRegistration = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    setError(null)
 
-    // Validate coach code if role is coach
-    if (selectedRole === 'coach' && !validateCoachCodeSync(coachCode)) {
-      setError('有効な指導者コードを入力してください。')
-      setIsLoading(false)
-      return
-    }
+    localStorage.removeItem("registrationComplete")
 
-    try {
-      const { error } = await signUp(email, password, selectedRole, coachCode || undefined)
-      if (error) {
-        setError('登録に失敗しました。入力内容を確認してください。')
+    // Simulate registration process
+    setTimeout(() => {
+      if (email.includes("student")) {
+        window.location.href = "/setup/avatar"
+      } else if (email.includes("parent")) {
+        window.location.href = "/setup/parent-avatar"
+      } else if (email.includes("coach")) {
+        window.location.href = "/coach"
+      } else {
+        window.location.href = "/setup/avatar"
       }
-    } catch (err) {
-      setError('登録中にエラーが発生しました。')
-    } finally {
       setIsLoading(false)
-    }
-  }
-
-  // Redirect if already authenticated
-  useEffect(() => {
-    if (!authLoading && user && profile) {
-      const isReturningUser = localStorage.getItem("registrationComplete") === "true"
-      
-      if (profile.role === 'student') {
-        router.push(isReturningUser ? '/student' : '/setup/avatar')
-      } else if (profile.role === 'parent') {
-        router.push(isReturningUser ? '/parent' : '/setup/parent-avatar')
-      } else if (profile.role === 'coach') {
-        router.push('/coach')
-      }
-    }
-  }, [user, profile, authLoading, router])
-
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">読み込み中...</p>
-        </div>
-      </div>
-    )
+    }, 1000)
   }
 
   return (
@@ -151,28 +127,23 @@ export default function LoginPage() {
               </TabsList>
 
               <TabsContent value="login" className="space-y-4 mt-4">
-                {error && (
-                  <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                    <p className="text-red-600 text-sm">{error}</p>
-                  </div>
-                )}
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="loginEmail">メールアドレス</Label>
+                    <Label htmlFor="userId">ユーザーID</Label>
                     <Input
-                      id="loginEmail"
-                      type="email"
-                      placeholder="メールアドレスを入力"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      id="userId"
+                      type="text"
+                      placeholder="ユーザーIDを入力"
+                      value={userId}
+                      onChange={(e) => setUserId(e.target.value)}
                       required
                       className="h-12"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="loginPassword">パスワード</Label>
+                    <Label htmlFor="password">パスワード</Label>
                     <Input
-                      id="loginPassword"
+                      id="password"
                       type="password"
                       placeholder="パスワードを入力"
                       value={password}
@@ -188,30 +159,11 @@ export default function LoginPage() {
               </TabsContent>
 
               <TabsContent value="register" className="space-y-4 mt-4">
-                {error && (
-                  <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                    <p className="text-red-600 text-sm">{error}</p>
-                  </div>
-                )}
                 <form onSubmit={handleNewRegistration} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="registerRole">ユーザータイプ</Label>
-                    <select
-                      id="registerRole"
-                      value={selectedRole}
-                      onChange={(e) => setSelectedRole(e.target.value as UserRole)}
-                      className="w-full h-12 px-3 border border-input bg-background rounded-md text-sm"
-                      required
-                    >
-                      <option value="student">学生</option>
-                      <option value="parent">保護者</option>
-                      <option value="coach">指導者</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="registerEmail">メールアドレス</Label>
+                    <Label htmlFor="email">メールアドレス</Label>
                     <Input
-                      id="registerEmail"
+                      id="email"
                       type="email"
                       placeholder="メールアドレスを入力"
                       value={email}
@@ -221,15 +173,14 @@ export default function LoginPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="registerPassword">パスワード</Label>
+                    <Label htmlFor="newPassword">パスワード</Label>
                     <Input
-                      id="registerPassword"
+                      id="newPassword"
                       type="password"
-                      placeholder="パスワードを入力（8文字以上）"
+                      placeholder="パスワードを入力"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      minLength={8}
                       className="h-12"
                     />
                   </div>
@@ -237,35 +188,14 @@ export default function LoginPage() {
                     {isLoading ? "登録中..." : "新規登録"}
                   </Button>
 
-                  {selectedRole === 'coach' && (
-                    <div className="space-y-2">
-                      <Label htmlFor="coachCode">指導者コード（必須）</Label>
-                      <Input
-                        id="coachCode"
-                        type="text"
-                        placeholder="指導者コードを入力"
-                        value={coachCode}
-                        onChange={handleCoachCodeChange}
-                        required
-                        className="h-10"
-                      />
-                      {codeValidation && (
-                        <p className={`text-xs ${codeValidation.isValid ? "text-green-600" : "text-red-600"}`}>
-                          {codeValidation.message}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {selectedRole !== 'coach' && (
-                    <div className="mt-4 pt-4 border-t border-border">
-                      <button
-                        type="button"
-                        onClick={() => setShowCoachCode(!showCoachCode)}
-                        className="text-primary hover:text-primary/80 underline text-sm transition-colors"
-                      >
-                        指導者コード/招待リンクをお持ちの方
-                      </button>
+                  <div className="mt-4 pt-4 border-t border-border">
+                    <button
+                      type="button"
+                      onClick={() => setShowCoachCode(!showCoachCode)}
+                      className="text-primary hover:text-primary/80 underline text-sm transition-colors"
+                    >
+                      指導者コード/招待リンクをお持ちの方
+                    </button>
 
                     <div
                       className={`overflow-hidden transition-all duration-300 ease-in-out ${
@@ -301,7 +231,7 @@ export default function LoginPage() {
           <p className="text-sm text-muted-foreground text-center">
             <strong>デモ用:</strong>
             <br />
-            任意のメールアドレスとパスワード（8文字以上）で登録できます
+            student1 / parent1 / coach1 で始まるIDを入力してください
             <br />
             <span className="text-xs">指導者コード例: COACH123, TEACHER456, MENTOR789</span>
           </p>
