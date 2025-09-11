@@ -6,11 +6,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { RotateCcw, Calendar, BookOpen } from "lucide-react"
+import { RotateCcw, Calendar, BookOpen, ChevronRight } from "lucide-react"
 import CoachBottomNavigation from "@/components/coach-bottom-navigation"
 
 export default function CoachReflectPage() {
-  const [selectedStudent, setSelectedStudent] = useState("student1")
+  const [selectedStudent, setSelectedStudent] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("history")
 
   const students = [
@@ -19,30 +19,45 @@ export default function CoachReflectPage() {
       name: "田中みかん",
       nickname: "みかん",
       avatar: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student1-7vQJ9X2pqtBKn8fY3mZ1sL4cR6wE9t.png",
+      weekRing: 8,
+      lastActivity: "今日 18:30",
+      unreadSupport: 2,
     },
     {
       id: "student2",
       name: "佐藤太郎",
       nickname: "太郎",
       avatar: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student2-2mN5pQ8rY1vK7xB3nC9fG4hL6wE8tR.png",
+      weekRing: 6,
+      lastActivity: "昨日 19:15",
+      unreadSupport: 0,
     },
     {
       id: "student3",
       name: "鈴木花子",
       nickname: "花子",
       avatar: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student3-9pL3mQ7rY2vK8xB4nC0fG5hL7wE9tR.png",
+      weekRing: 9,
+      lastActivity: "今日 20:00",
+      unreadSupport: 1,
     },
     {
       id: "student4",
       name: "山田次郎",
       nickname: "次郎",
       avatar: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student4-4nM6pQ9rY3vK9xB5nC1fG6hL8wE0tR.png",
+      weekRing: 5,
+      lastActivity: "2日前 17:45",
+      unreadSupport: 3,
     },
     {
       id: "student5",
       name: "高橋美咲",
       nickname: "美咲",
       avatar: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student5-7pL5mQ0rY4vK0xB6nC2fG7hL9wE1tR.png",
+      weekRing: 7,
+      lastActivity: "今日 16:30",
+      unreadSupport: 0,
     },
   ]
 
@@ -111,46 +126,80 @@ export default function CoachReflectPage() {
 
   const selectedStudentData = students.find((s) => s.id === selectedStudent)
 
+  if (!selectedStudent) {
+    return (
+      <div className="min-h-screen bg-gray-50 pb-20">
+        <div className="bg-white shadow-sm border-b">
+          <div className="max-w-md mx-auto px-4 py-4">
+            <div className="flex items-center gap-3">
+              <RotateCcw className="h-6 w-6 text-blue-600" />
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">リフレクト</h1>
+                <p className="text-sm text-gray-600">生徒の学習を振り返ろう</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="max-w-md mx-auto px-4 py-6">
+          <div className="space-y-3">
+            {students.map((student) => (
+              <Card key={student.id} className="cursor-pointer hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={student.avatar || "/placeholder.svg"} alt={student.name} />
+                        <AvatarFallback>{student.nickname[0]}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">{student.name}</h3>
+                        <p className="text-sm text-gray-600">最終活動: {student.lastActivity}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="outline" className="text-xs">
+                            週リング{student.weekRing}
+                          </Badge>
+                          {student.unreadSupport > 0 && (
+                            <Badge variant="destructive" className="text-xs">
+                              未応援{student.unreadSupport}件
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedStudent(student.id)}>
+                      詳細
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        <CoachBottomNavigation />
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-md mx-auto px-4 py-4">
           <div className="flex items-center gap-3">
-            <RotateCcw className="h-6 w-6 text-blue-600" />
+            <Button variant="ghost" size="sm" onClick={() => setSelectedStudent(null)} className="p-0 h-auto">
+              ← 戻る
+            </Button>
             <div>
               <h1 className="text-xl font-bold text-gray-900">リフレクト</h1>
-              <p className="text-sm text-gray-600">生徒の学習を振り返ろう</p>
+              <p className="text-sm text-gray-600">{selectedStudentData?.name}の詳細</p>
             </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-md mx-auto px-4 py-6">
-        <div className="mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3">生徒を選択</h2>
-          <div className="grid grid-cols-2 gap-2">
-            {students.map((student) => (
-              <Button
-                key={student.id}
-                variant={selectedStudent === student.id ? "default" : "outline"}
-                className={`h-auto p-3 justify-start ${
-                  selectedStudent === student.id ? "bg-blue-600 hover:bg-blue-700 text-white" : "hover:bg-blue-50"
-                }`}
-                onClick={() => setSelectedStudent(student.id)}
-              >
-                <Avatar className="h-8 w-8 mr-2">
-                  <AvatarImage src={student.avatar || "/placeholder.svg"} alt={student.name} />
-                  <AvatarFallback>{student.nickname[0]}</AvatarFallback>
-                </Avatar>
-                <div className="text-left">
-                  <div className="font-medium">{student.nickname}</div>
-                  <div className="text-xs opacity-75">{student.name}</div>
-                </div>
-              </Button>
-            ))}
-          </div>
-        </div>
-
         {selectedStudentData && (
           <div className="space-y-4">
             <div className="flex items-center gap-3 p-4 bg-white rounded-lg shadow-sm">
