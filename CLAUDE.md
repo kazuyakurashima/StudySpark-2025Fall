@@ -9,12 +9,12 @@ StudySpark is a Next.js educational application with three user types: students,
 ## Commands
 
 ### Development
-```bash
+\`\`\`bash
 npm run dev          # Start development server (Next.js)
 npm run build        # Build production bundle
 npm run start        # Start production server
 npm run lint         # Run ESLint for code quality
-```
+\`\`\`
 
 ### Testing
 No test scripts are currently configured. Add test commands when implementing testing framework.

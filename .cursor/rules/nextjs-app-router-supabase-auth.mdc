@@ -31,7 +31,7 @@ This is a Next.js 14 App Router project with Supabase Auth for authentication te
 4. **NEVER** expose Service Role Key on the client side
 
 ### Client Setup Pattern
-```typescript
+\`\`\`typescript
 // utils/supabase/client.ts
 import { createBrowserClient } from '@supabase/ssr'
 
@@ -41,10 +41,10 @@ export function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
   )
 }
-```
+\`\`\`
 
 ### Server Setup Pattern
-```typescript
+\`\`\`typescript
 // utils/supabase/server.ts
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
@@ -73,10 +73,10 @@ export async function createClient() {
     }
   )
 }
-```
+\`\`\`
 
 ### Middleware Pattern
-```typescript
+\`\`\`typescript
 // middleware.ts
 import { type NextRequest } from 'next/server'
 import { updateSession } from '@/utils/supabase/middleware'
@@ -97,10 +97,10 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
-```
+\`\`\`
 
 ### Middleware Utility Pattern
-```typescript
+\`\`\`typescript
 // utils/supabase/middleware.ts
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
@@ -160,10 +160,10 @@ export async function updateSession(request: NextRequest) {
 
   return supabaseResponse
 }
-```
+\`\`\`
 
 ### Authentication Check Pattern
-```typescript
+\`\`\`typescript
 // In Server Components or Route Handlers
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
@@ -181,10 +181,10 @@ export default async function ProtectedPage() {
   // User is authenticated, proceed with protected content
   return <div>Protected content for {user.email}</div>
 }
-```
+\`\`\`
 
 ### Server Actions Pattern
-```typescript
+\`\`\`typescript
 // app/actions.ts
 'use server'
 
@@ -223,7 +223,7 @@ export async function signOut() {
   revalidatePath('/', 'layout')
   redirect('/login')
 }
-```
+\`\`\`
 
 ## Next.js App Router Best Practices
 
@@ -240,7 +240,7 @@ export async function signOut() {
 4. Use streaming for large datasets
 
 ### Route Organization
-```
+\`\`\`
 app/
 ├── (auth)/                  # Authenticated routes
 │   ├── dashboard/
@@ -253,10 +253,10 @@ app/
 └── api/
     └── auth/
         └── callback/       # OAuth callback
-```
+\`\`\`
 
 ### Form Handling Pattern
-```typescript
+\`\`\`typescript
 // Client Component with Server Action
 'use client'
 
@@ -282,10 +282,10 @@ export function LoginForm() {
     </form>
   )
 }
-```
+\`\`\`
 
 ### Login Page with Server Actions
-```typescript
+\`\`\`typescript
 // app/login/page.tsx
 import { login, signup } from './actions'
 
@@ -301,10 +301,10 @@ export default function LoginPage() {
     </form>
   )
 }
-```
+\`\`\`
 
 ### Login Actions
-```typescript
+\`\`\`typescript
 // app/login/actions.ts
 'use server'
 
@@ -347,7 +347,7 @@ export async function signup(formData: FormData) {
   revalidatePath('/', 'layout')
   redirect('/dashboard')
 }
-```
+\`\`\`
 
 ## Database Best Practices
 
@@ -357,7 +357,7 @@ export async function signup(formData: FormData) {
 3. Use `auth.uid()` for user identification in policies
 
 ### Table Design Pattern
-```sql
+\`\`\`sql
 -- Always include these columns
 created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()),
 updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
@@ -365,12 +365,12 @@ updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
 -- Create update trigger for updated_at
 CREATE TRIGGER update_updated_at BEFORE UPDATE ON table_name
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-```
+\`\`\`
 
 ## Error Handling
 
 ### Server Component Error Boundary
-```typescript
+\`\`\`typescript
 // app/error.tsx
 'use client'
 
@@ -388,10 +388,10 @@ export default function Error({
     </div>
   )
 }
-```
+\`\`\`
 
 ### Not Found Page
-```typescript
+\`\`\`typescript
 // app/not-found.tsx
 export default function NotFound() {
   return (
@@ -400,7 +400,7 @@ export default function NotFound() {
     </div>
   )
 }
-```
+\`\`\`
 
 ## Testing Guidelines
 
@@ -411,7 +411,7 @@ export default function NotFound() {
 4. Maintain 80% code coverage
 
 ### E2E Testing Pattern
-```typescript
+\`\`\`typescript
 // e2e/auth.spec.ts
 import { test, expect } from '@playwright/test'
 
@@ -423,7 +423,7 @@ test('user can sign in', async ({ page }) => {
   
   await expect(page).toHaveURL('/dashboard')
 })
-```
+\`\`\`
 
 ## Code Style Rules
 
@@ -468,12 +468,12 @@ test('user can sign in', async ({ page }) => {
 ## Environment Variables
 
 Required variables in `.env.local`:
-```env
+\`\`\`env
 NEXT_PUBLIC_SUPABASE_URL=your-project-url
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
-```
+\`\`\`
 
 **Note**: The environment variable name should be `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (not `NEXT_PUBLIC_SUPABASE_ANON_KEY`) as per the official Supabase documentation.
 
@@ -495,12 +495,12 @@ If email confirmation is enabled (default), configure the email template:
 
 1. Go to Auth templates page in Supabase dashboard
 2. In the `Confirm signup` template, change `{{ .ConfirmationURL }}` to:
-   ```
+   \`\`\`
    {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email
-   ```
+   \`\`\`
 
 ### Auth Confirmation Route Handler
-```typescript
+\`\`\`typescript
 // app/auth/confirm/route.ts
 import { type EmailOtpType } from '@supabase/supabase-js'
 import { type NextRequest } from 'next/server'
@@ -529,14 +529,14 @@ export async function GET(request: NextRequest) {
   // redirect the user to an error page with some instructions
   redirect('/error')
 }
-```
+\`\`\`
 
 ## Installation Requirements
 
 ### Required Packages
-```bash
+\`\`\`bash
 npm install @supabase/supabase-js @supabase/ssr
-```
+\`\`\`
 
 ### Package Versions
 - `@supabase/supabase-js`: Latest stable version

@@ -10,7 +10,7 @@ StudySparkアプリケーションの要件に基づき、学生・保護者・�
 
 ## 2. エンティティ関係図 (概念)
 
-```
+\`\`\`
 profiles (users) 1:N learning_records
 profiles 1:N goals
 profiles 1:N messages (sender)
@@ -19,7 +19,7 @@ profiles 1:N class_memberships
 classes 1:N class_memberships
 profiles (coach) 1:N classes
 test_schedules 1:N goals
-```
+\`\`\`
 
 ## 3. テーブル定義
 
@@ -181,17 +181,17 @@ test_schedules 1:N goals
 ## 4. Row Level Security (RLS) ポリシー
 
 ### 4.1 profiles テーブル
-```sql
+\`\`\`sql
 -- ユーザーは自分のプロフィールのみ閲覧・更新可能
 CREATE POLICY "Users can view own profile" ON profiles 
   FOR SELECT USING (auth.uid() = id);
 
 CREATE POLICY "Users can update own profile" ON profiles 
   FOR UPDATE USING (auth.uid() = id);
-```
+\`\`\`
 
 ### 4.2 learning_records テーブル
-```sql
+\`\`\`sql
 -- 学生は自分の記録のみ操作可能
 -- 保護者は子供の記録を閲覧可能
 -- 指導者は担当クラスの学生記録を閲覧可能
@@ -207,17 +207,17 @@ CREATE POLICY "Parents can view children records" ON learning_records
         AND id = (SELECT parent_id FROM profiles WHERE id = student_id)
     )
   );
-```
+\`\`\`
 
 ### 4.3 messages テーブル
-```sql
+\`\`\`sql
 -- 送信者・受信者のみメッセージを閲覧可能
 CREATE POLICY "Users can view own messages" ON messages
   FOR SELECT USING (auth.uid() IN (sender_id, recipient_id));
 
 CREATE POLICY "Users can send messages" ON messages
   FOR INSERT WITH CHECK (auth.uid() = sender_id);
-```
+\`\`\`
 
 ## 5. パフォーマンス考慮事項
 

@@ -6,7 +6,7 @@ Create the following tables in your Supabase database:
 
 ### Profiles Table
 
-```sql
+\`\`\`sql
 -- Create profiles table
 create table profiles (
   id uuid references auth.users on delete cascade not null primary key,
@@ -33,11 +33,11 @@ create policy "Users can update own profile"
 create policy "Users can insert own profile" 
   on profiles for insert 
   with check (auth.uid() = id);
-```
+\`\`\`
 
 ### Learning Records Table (Optional - for future use)
 
-```sql
+\`\`\`sql
 -- Create learning records table
 create table learning_records (
   id uuid default gen_random_uuid() primary key,
@@ -63,17 +63,17 @@ create policy "Users can insert own records"
 create policy "Users can update own records" 
   on learning_records for update 
   using (auth.uid() = user_id);
-```
+\`\`\`
 
 ## Environment Variables
 
 Create a `.env.local` file with your Supabase credentials:
 
-```bash
+\`\`\`bash
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 NEXT_PUBLIC_APP_URL=http://localhost:3000
-```
+\`\`\`
 
 ## Authentication Flow
 
