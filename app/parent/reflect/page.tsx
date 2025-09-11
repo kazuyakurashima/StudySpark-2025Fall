@@ -19,6 +19,7 @@ export default function ParentReflectPage() {
 
   const learningHistory = [
     {
+      childName: "みかん",
       recordedAt: "2024年9月6日 20:30",
       studyDate: "2024年9月6日",
       subject: "算数",
@@ -30,6 +31,7 @@ export default function ParentReflectPage() {
       reflection: "図形問題の解き方がよく理解できました。特に面積の求め方が分かりやすかったです。",
     },
     {
+      childName: "みかん",
       recordedAt: "2024年9月5日 19:45",
       studyDate: "2024年9月5日",
       subject: "国語",
@@ -44,6 +46,7 @@ export default function ParentReflectPage() {
       reflection: "漢字の読み方を間違えやすいところがありましたが、復習して覚えました。",
     },
     {
+      childName: "太郎",
       recordedAt: "2024年9月4日 21:15",
       studyDate: "2024年9月4日",
       subject: "理科",
@@ -55,6 +58,7 @@ export default function ParentReflectPage() {
       reflection: "実験の結果を予想するのが難しかったです。もう少し練習が必要だと思います。",
     },
     {
+      childName: "太郎",
       recordedAt: "2024年9月3日 18:20",
       studyDate: "2024年9月3日",
       subject: "社会",
@@ -68,6 +72,7 @@ export default function ParentReflectPage() {
 
   const coachingHistory = [
     {
+      childName: "みかん",
       date: "2024-09-06",
       time: "20:45",
       type: "週間振り返り",
@@ -79,6 +84,7 @@ export default function ParentReflectPage() {
       level: "Blaze",
     },
     {
+      childName: "みかん",
       date: "2024-09-01",
       time: "19:30",
       type: "学習相談",
@@ -90,6 +96,7 @@ export default function ParentReflectPage() {
       level: "Flame",
     },
     {
+      childName: "太郎",
       date: "2024-08-25",
       time: "18:15",
       type: "テスト振り返り",
@@ -101,6 +108,7 @@ export default function ParentReflectPage() {
       level: "Flame",
     },
     {
+      childName: "太郎",
       date: "2024-08-18",
       time: "20:00",
       type: "学習計画相談",
@@ -112,6 +120,62 @@ export default function ParentReflectPage() {
       level: "Spark",
     },
   ]
+
+  const encouragementMessages = [
+    {
+      childName: "みかん",
+      from: "お母さん",
+      message: "今日も算数頑張ったね！図形問題が得意になってきたよ！",
+      time: "今日 20:30",
+      type: "parent",
+    },
+    {
+      childName: "みかん",
+      from: "田中先生",
+      message: "国語の読解力が向上していますね。この調子で続けましょう。",
+      time: "今日 18:45",
+      type: "teacher",
+    },
+    {
+      childName: "太郎",
+      from: "お母さん",
+      message: "理科の実験、興味深く取り組んでいたね！",
+      time: "今日 19:15",
+      type: "parent",
+    },
+    {
+      childName: "太郎",
+      from: "佐藤先生",
+      message: "社会の地理問題、復習の成果が出ています。",
+      time: "昨日 17:30",
+      type: "teacher",
+    },
+  ]
+
+  const analyticsData = {
+    みかん: {
+      goodTrends: [
+        "毎日継続して学習できています",
+        "算数の図形問題の正答率が向上しています",
+        "国語の読解スピードが上がっています",
+      ],
+      improvementPoints: ["理科の実験問題により時間をかけましょう", "漢字の書き取り練習を増やしましょう"],
+    },
+    太郎: {
+      goodTrends: [
+        "理科への興味・関心が高まっています",
+        "社会の暗記項目の定着率が向上しています",
+        "学習計画を立てて実行できています",
+      ],
+      improvementPoints: ["算数の計算ミスを減らす練習をしましょう", "国語の記述問題に慣れましょう"],
+    },
+  }
+
+  const selectedChildName = children.find((child) => child.id === selectedChild)?.name
+  const filteredLearningHistory = learningHistory.filter((entry) => entry.childName === selectedChildName)
+  const filteredCoachingHistory = coachingHistory.filter((session) => session.childName === selectedChildName)
+  const filteredEncouragementMessages = encouragementMessages.filter((msg) => msg.childName === selectedChildName)
+  const currentAnalytics = analyticsData[selectedChildName as keyof typeof analyticsData]
 
   const levelColors = {
     Spark: { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" },
@@ -125,21 +189,6 @@ export default function ParentReflectPage() {
     }
     return avatarMap[avatarId] || "/placeholder.svg"
   }
-
-  const encouragementMessages = [
-    {
-      from: "お母さん",
-      message: "今日も頑張ったね！明日もファイト！",
-      time: "今日 20:30",
-      type: "parent",
-    },
-    {
-      from: "田中先生",
-      message: "算数の応用問題、よくできていました",
-      time: "今日 18:45",
-      type: "teacher",
-    },
-  ]
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -195,7 +244,7 @@ export default function ParentReflectPage() {
           </TabsList>
 
           <TabsContent value="history" className="space-y-4">
-            {learningHistory.map((entry, index) => (
+            {filteredLearningHistory.map((entry, index) => (
               <Card key={index} className="border-l-4 border-l-primary">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
@@ -248,7 +297,7 @@ export default function ParentReflectPage() {
           </TabsContent>
 
           <TabsContent value="messages" className="space-y-4">
-            {encouragementMessages.map((msg, index) => (
+            {filteredEncouragementMessages.map((msg, index) => (
               <Card key={index}>
                 <CardContent className="pt-4">
                   <div className="flex items-start gap-3">
@@ -284,15 +333,17 @@ export default function ParentReflectPage() {
                 <div className="p-4 bg-green-50 rounded-lg">
                   <h4 className="font-medium text-green-800 mb-2">良い傾向</h4>
                   <ul className="text-sm text-green-700 space-y-1">
-                    <li>• 毎日継続して学習できています</li>
-                    <li>• 算数の正答率が向上しています</li>
+                    {currentAnalytics?.goodTrends.map((trend, index) => (
+                      <li key={index}>• {trend}</li>
+                    ))}
                   </ul>
                 </div>
                 <div className="p-4 bg-yellow-50 rounded-lg">
                   <h4 className="font-medium text-yellow-800 mb-2">改善ポイント</h4>
                   <ul className="text-sm text-yellow-700 space-y-1">
-                    <li>• 理科の応用問題に時間をかけましょう</li>
-                    <li>• 社会の暗記項目を復習しましょう</li>
+                    {currentAnalytics?.improvementPoints.map((point, index) => (
+                      <li key={index}>• {point}</li>
+                    ))}
                   </ul>
                 </div>
               </CardContent>
@@ -309,7 +360,7 @@ export default function ParentReflectPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {coachingHistory.map((session, index) => (
+                  {filteredCoachingHistory.map((session, index) => (
                     <div key={index} className="p-4 rounded-lg bg-accent/5 border border-accent/10">
                       <div className="flex items-start justify-between mb-3">
                         <div className="space-y-1">

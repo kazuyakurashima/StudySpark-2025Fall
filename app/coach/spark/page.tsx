@@ -378,7 +378,11 @@ export default function CoachSparkPage() {
                             {!student.parentResponse && (
                               <Clock className="h-4 w-4 text-yellow-500" title="保護者未応答" />
                             )}
-                            <Button size="sm" variant="outline">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => (window.location.href = `/coach/student/${student.id}`)}
+                            >
                               詳細
                             </Button>
                           </div>

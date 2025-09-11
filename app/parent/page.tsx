@@ -23,7 +23,7 @@ import ParentBottomNavigation from "@/components/parent-bottom-navigation"
 const children = [
   {
     id: "child1",
-    name: "太郎",
+    name: "みかん",
     avatar: "student1",
     todayRecord: {
       subjects: ["算数", "国語"],
@@ -39,7 +39,7 @@ const children = [
   },
   {
     id: "child2",
-    name: "花子",
+    name: "太郎",
     avatar: "student2",
     todayRecord: {
       subjects: ["理科", "社会"],
@@ -80,38 +80,72 @@ const moodEmojis = {
   difficult: "😔",
 }
 
-const studentData = {
-  id: "child1",
-  name: "太郎",
-  avatar: "student1",
-  streak: 7,
-  weeklyTotal: 24,
-  maxWeeklyTotal: 36,
-  todayMissions: {
-    completed: 4,
-    total: 6,
-    needsAttention: 2,
-    subjects: ["算数", "国語", "理科"],
-    mode: "input", // input | review | sunday
+const studentDataArray = [
+  {
+    id: "child1",
+    name: "みかん",
+    avatar: "student1",
+    streak: 7,
+    weeklyTotal: 24,
+    maxWeeklyTotal: 36,
+    todayMissions: {
+      completed: 4,
+      total: 6,
+      needsAttention: 2,
+      subjects: ["算数", "国語", "理科"],
+      mode: "input",
+    },
+    nextTest: {
+      name: "第3回合不合判定テスト",
+      date: "2024-09-08",
+      type: "合不合判定テスト",
+      course: "S",
+      group: 15,
+      thought: "今回は算数の図形問題を重点的に勉強したので、前回より良い結果を出したいです。",
+      riskLevel: "接戦",
+    },
+    learningDashboard: {
+      currentPeriod: "月・火",
+      currentScore: 8,
+      maxScore: 12,
+      weeklyScore: 24,
+      maxWeeklyScore: 36,
+      alerts: ["未入力が2日連続"],
+    },
   },
-  nextTest: {
-    name: "第3回合不合判定テスト",
-    date: "2024-09-08",
-    type: "合不合判定テスト",
-    course: "S",
-    group: 15,
-    thought: "今回は算数の図形問題を重点的に勉強したので、前回より良い結果を出したいです。",
-    riskLevel: "接戦", // 高 | 接戦 | 危険
+  {
+    id: "child2",
+    name: "太郎",
+    avatar: "student2",
+    streak: 5,
+    weeklyTotal: 18,
+    maxWeeklyTotal: 36,
+    todayMissions: {
+      completed: 3,
+      total: 6,
+      needsAttention: 3,
+      subjects: ["理科", "社会", "算数"],
+      mode: "review",
+    },
+    nextTest: {
+      name: "第3回合不合判定テスト",
+      date: "2024-09-08",
+      type: "合不合判定テスト",
+      course: "A",
+      group: 12,
+      thought: "理科の実験問題をもっと練習して、今度こそ良い結果を出したいです。",
+      riskLevel: "危険",
+    },
+    learningDashboard: {
+      currentPeriod: "月・火",
+      currentScore: 6,
+      maxScore: 12,
+      weeklyScore: 18,
+      maxWeeklyScore: 36,
+      alerts: ["理科の理解度が低下中"],
+    },
   },
-  learningDashboard: {
-    currentPeriod: "月・火",
-    currentScore: 8,
-    maxScore: 12,
-    weeklyScore: 24,
-    maxWeeklyScore: 36,
-    alerts: ["未入力が2日連続"],
-  },
-}
+]
 
 const generateParentTip = () => {
   const tips = [
@@ -141,10 +175,15 @@ const encouragementTemplates = {
   ],
 }
 
-const LearningHistoryCalendar = () => {
-  const generateLearningHistory = () => {
+const LearningHistoryCalendar = ({ selectedChild }: { selectedChild: string }) => {
+  const generateLearningHistory = (childId: string) => {
     const history: { [key: string]: { subjects: string[]; understandingLevels: string[] } } = {}
     const today = new Date()
+
+    const subjectSets =
+      childId === "child1"
+        ? [["算数", "国語"], ["算数", "国語", "理科"], ["国語"]]
+        : [["理科", "社会"], ["理科", "社会", "算数"], ["社会"]]
 
     for (let i = 0; i < 30; i++) {
       const date = new Date(today)
@@ -152,8 +191,7 @@ const LearningHistoryCalendar = () => {
       const dateStr = date.toISOString().split("T")[0]
 
       if (Math.random() > 0.3) {
-        const subjectCount = Math.floor(Math.random() * 4) + 1
-        const subjects = ["算数", "国語", "理科", "社会"].slice(0, subjectCount)
+        const subjects = subjectSets[Math.floor(Math.random() * subjectSets.length)]
         const understandingLevels = subjects.map(() => {
           const levels = ["😄バッチリ理解", "😊できた", "😐ふつう", "😟ちょっと不安", "😥むずかしかった"]
           return levels[Math.floor(Math.random() * levels.length)]
@@ -164,7 +202,8 @@ const LearningHistoryCalendar = () => {
     return history
   }
 
-  const learningHistory = generateLearningHistory()
+  const learningHistory = generateLearningHistory(selectedChild)
+  const selectedChildData = children.find((child) => child.id === selectedChild)
 
   const getLearningIntensity = (date: string) => {
     const data = learningHistory[date]
@@ -232,7 +271,9 @@ const LearningHistoryCalendar = () => {
         <CardTitle className="text-lg font-bold flex items-center gap-2">
           <Calendar className="h-6 w-6 text-primary" />
           学習カレンダー
-          <Badge className="bg-primary text-primary-foreground font-bold ml-2">{studentData.streak}日連続</Badge>
+          <Badge className="bg-primary text-primary-foreground font-bold ml-2">
+            {selectedChildData?.streak || 0}日連続
+          </Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="px-3 sm:px-6">
@@ -294,7 +335,13 @@ const LearningHistoryCalendar = () => {
 const LearningDashboard = ({
   handleSendMessage,
   isSending,
-}: { handleSendMessage: (message: string, isScheduled?: boolean) => void; isSending: boolean }) => {
+  selectedChild,
+}: {
+  handleSendMessage: (message: string, isScheduled?: boolean) => void
+  isSending: boolean
+  selectedChild: string
+}) => {
+  const studentData = studentDataArray.find((data) => data.id === selectedChild) || studentDataArray[0]
   const { currentPeriod, currentScore, maxScore, weeklyScore, maxWeeklyScore, alerts } = studentData.learningDashboard
 
   const getRiskLevel = (score: number, maxScore: number) => {
@@ -438,7 +485,8 @@ const LearningDashboard = ({
 
 export default function ParentDashboard() {
   const [isSending, setIsSending] = useState(false)
-  const [parentAvatar, setParentAvatar] = useState<string>("")
+  const [parentAvatar, setParentAvatar] = useState<string>("parent1")
+  const [selectedChild, setSelectedChild] = useState<string>("child1")
 
   const handleSendMessage = async (message: string, isScheduled = false) => {
     setIsSending(true)
@@ -509,17 +557,17 @@ export default function ParentDashboard() {
     return `${diffDays}日後`
   }
 
+  const currentChildData = studentDataArray.find((data) => data.id === selectedChild) || studentDataArray[0]
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-20">
       <div className="bg-card/90 backdrop-blur-sm border-b border-border/60 p-6 shadow-sm">
         <div className="flex items-center justify-between max-w-6xl mx-auto">
           <div className="flex items-center gap-4">
-            {parentAvatar && (
-              <Avatar className="h-14 w-14 border-3 border-primary/30 shadow-lg">
-                <AvatarImage src={getParentAvatarSrc(parentAvatar) || "/placeholder.svg"} alt="保護者" />
-                <AvatarFallback className="bg-primary/10 text-primary font-bold text-lg">保</AvatarFallback>
-              </Avatar>
-            )}
+            <Avatar className="h-14 w-14 border-3 border-primary/30 shadow-lg">
+              <AvatarImage src={getParentAvatarSrc(parentAvatar) || "/placeholder.svg"} alt="保護者" />
+              <AvatarFallback className="bg-primary text-white font-bold text-lg">保</AvatarFallback>
+            </Avatar>
             <div>
               <h1 className="text-2xl font-bold text-foreground">保護者サポート</h1>
               <p className="text-base text-muted-foreground mt-1">60秒で状況把握・応援しよう</p>
@@ -536,35 +584,52 @@ export default function ParentDashboard() {
       </div>
 
       <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6 sm:space-y-8">
-        {/* AIの今日の声かけTip */}
-        <Card className="ai-coach-gradient border-0 shadow-2xl ai-coach-glow">
-          <CardHeader className="pb-4 sm:pb-6">
-            <CardTitle className="text-lg sm:text-xl font-bold flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+        <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+          {children.map((child) => (
+            <Button
+              key={child.id}
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedChild(child.id)}
+              className={`flex-1 rounded-md transition-all ${
+                selectedChild === child.id
+                  ? "bg-white text-primary shadow-sm font-medium"
+                  : "text-slate-600 hover:text-slate-800 hover:bg-white/50"
+              }`}
+            >
+              {child.name}
+            </Button>
+          ))}
+        </div>
+
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl p-6 shadow-2xl">
+          <div className="pb-4 sm:pb-6">
+            <div className="text-lg sm:text-xl font-bold flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10 sm:h-12 sm:w-12 border-3 border-white/40 shadow-xl">
                   <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
                   <AvatarFallback className="bg-white/20 text-white font-bold">AI</AvatarFallback>
                 </Avatar>
-                <span className="text-slate-900 font-bold text-base sm:text-lg bg-white/95 px-3 py-2 rounded-xl shadow-lg">
+                <span className="text-slate-900 font-bold text-base sm:text-lg bg-white px-4 py-2 rounded-full shadow-lg">
                   今日の声かけTip
                 </span>
               </div>
               <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-white animate-pulse" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-white/60 shadow-xl">
-              <p className="text-base sm:text-lg leading-relaxed text-slate-700 font-medium">{generateParentTip()}</p>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* 学習ダッシュボード */}
-        <div className="xl:col-span-2">
-          <LearningDashboard handleSendMessage={handleSendMessage} isSending={isSending} />
+          </div>
+          <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-xl">
+            <p className="text-base sm:text-lg leading-relaxed text-slate-700 font-medium">{generateParentTip()}</p>
+          </div>
         </div>
 
-        {/* 今日のミッション */}
+        <div className="xl:col-span-2">
+          <LearningDashboard
+            handleSendMessage={handleSendMessage}
+            isSending={isSending}
+            selectedChild={selectedChild}
+          />
+        </div>
+
         <div className="xl:col-span-2">
           <Card className="bg-gradient-to-br from-accent/8 to-primary/8 border-accent/30 shadow-xl">
             <CardHeader className="pb-4">
@@ -574,7 +639,7 @@ export default function ParentDashboard() {
                   <span className="text-slate-800">今日のミッション！</span>
                 </div>
                 <Badge className="bg-accent text-accent-foreground border-accent font-bold text-sm sm:text-base px-3 sm:px-4 py-1 sm:py-2 shadow-md">
-                  要対応 {studentData.todayMissions.needsAttention}/{studentData.todayMissions.total}
+                  要対応 {currentChildData.todayMissions.needsAttention}/{currentChildData.todayMissions.total}
                 </Badge>
               </CardTitle>
             </CardHeader>
@@ -583,22 +648,22 @@ export default function ParentDashboard() {
                 <div className="space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <span className="text-base sm:text-lg font-bold text-slate-800">
-                      {studentData.todayMissions.mode === "input" ? "入力促進モード" : "復習促進モード"}
+                      {currentChildData.todayMissions.mode === "input" ? "入力促進モード" : "復習促進モード"}
                     </span>
                     <div className="flex items-center gap-2">
-                      {studentData.todayMissions.needsAttention > 0 ? (
+                      {currentChildData.todayMissions.needsAttention > 0 ? (
                         <XCircle className="h-5 w-5 text-red-500" />
                       ) : (
                         <CheckCircle className="h-5 w-5 text-primary" />
                       )}
                       <span className="font-medium">
-                        {studentData.todayMissions.completed}/{studentData.todayMissions.total} 完了
+                        {currentChildData.todayMissions.completed}/{currentChildData.todayMissions.total} 完了
                       </span>
                     </div>
                   </div>
 
                   <div className="flex flex-wrap gap-2 sm:gap-3">
-                    {studentData.todayMissions.subjects.map((subject) => (
+                    {currentChildData.todayMissions.subjects.map((subject) => (
                       <Badge key={subject} className="bg-primary text-white border-primary font-medium py-1 sm:py-2">
                         {subject}
                       </Badge>
@@ -677,7 +742,6 @@ export default function ParentDashboard() {
           </Card>
         </div>
 
-        {/* 今週の目標 */}
         <div>
           <Card className="bg-gradient-to-br from-primary/10 to-accent/10 border-primary/30 shadow-xl">
             <CardHeader className="pb-4">
@@ -688,14 +752,14 @@ export default function ParentDashboard() {
                 </div>
                 <Badge
                   className={`${
-                    studentData.nextTest.riskLevel === "高"
+                    currentChildData.nextTest.riskLevel === "高"
                       ? "bg-primary/10 text-primary"
-                      : studentData.nextTest.riskLevel === "接戦"
+                      : currentChildData.nextTest.riskLevel === "接戦"
                         ? "bg-yellow-50 text-yellow-600"
                         : "bg-red-50 text-red-600"
                   } font-bold`}
                 >
-                  到達見込み: {studentData.nextTest.riskLevel}
+                  到達見込み: {currentChildData.nextTest.riskLevel}
                 </Badge>
               </CardTitle>
             </CardHeader>
@@ -703,14 +767,14 @@ export default function ParentDashboard() {
               <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-white/60 shadow-lg">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
                   <div>
-                    <h3 className="font-bold text-lg sm:text-xl text-foreground">{studentData.nextTest.name}</h3>
+                    <h3 className="font-bold text-lg sm:text-xl text-foreground">{currentChildData.nextTest.name}</h3>
                     <p className="text-sm sm:text-base text-muted-foreground mt-1">
-                      {formatTestDate(studentData.nextTest.date)}
+                      {formatTestDate(currentChildData.nextTest.date)}
                     </p>
                   </div>
                   <div className="text-right">
                     <div className="text-2xl sm:text-3xl font-black text-primary">
-                      {getDaysUntilTest(studentData.nextTest.date)}
+                      {getDaysUntilTest(currentChildData.nextTest.date)}
                     </div>
                   </div>
                 </div>
@@ -725,23 +789,25 @@ export default function ParentDashboard() {
                       className="font-bold text-sm sm:text-lg px-3 sm:px-4 py-2 border shadow-md rounded-md"
                       style={{ backgroundColor: "#1e3a8a", color: "#ffffff" }}
                     >
-                      {studentData.nextTest.course}コース
+                      {currentChildData.nextTest.course}コース
                     </div>
                     <div
                       className="font-bold text-sm sm:text-lg px-3 sm:px-4 py-2 border shadow-md rounded-md"
                       style={{ backgroundColor: "#1e40af", color: "#ffffff" }}
                     >
-                      {studentData.nextTest.group}組
+                      {currentChildData.nextTest.group}組
                     </div>
                   </div>
                 </div>
 
-                {studentData.nextTest.thought && (
+                {currentChildData.nextTest.thought && (
                   <div className="space-y-3 pt-4 border-t border-border/40">
-                    <h4 className="font-bold text-base sm:text-lg text-foreground">{studentData.name}さんの思い</h4>
+                    <h4 className="font-bold text-base sm:text-lg text-foreground">
+                      {currentChildData.name}さんの思い
+                    </h4>
                     <div className="bg-accent/10 rounded-xl p-3 sm:p-4 border border-accent/30 shadow-sm">
                       <p className="text-sm sm:text-base leading-relaxed text-slate-800">
-                        {studentData.nextTest.thought}
+                        {currentChildData.nextTest.thought}
                       </p>
                     </div>
                   </div>
@@ -751,40 +817,9 @@ export default function ParentDashboard() {
           </Card>
         </div>
 
-        {/* 学習カレンダー */}
         <div>
-          <LearningHistoryCalendar />
+          <LearningHistoryCalendar selectedChild={selectedChild} />
         </div>
-
-        {/* 子供を追加 */}
-        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 shadow-xl">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg sm:text-xl font-bold flex items-center gap-3 text-green-800">
-              <div className="flex items-center gap-3">
-                <svg className="h-6 w-6 sm:h-7 sm:w-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                </svg>
-                <span>お子様を追加</span>
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-white/60 shadow-lg">
-              <p className="text-sm sm:text-base text-slate-700 mb-4 leading-relaxed">
-                お子様のアカウントを作成して、学習状況を管理しましょう。
-              </p>
-              <Button 
-                className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3"
-                onClick={() => {
-                  // TODO: Implement student addition flow
-                  alert('お子様追加機能を実装予定です')
-                }}
-              >
-                お子様を追加する
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       <ParentBottomNavigation />
