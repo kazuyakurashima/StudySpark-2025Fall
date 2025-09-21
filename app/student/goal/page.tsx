@@ -174,46 +174,46 @@ const grade6TestSchedule = [
   },
 ]
 
-const grade5ResultTestSchedule = [
+const grade5GoalTestSchedule = [
   {
     id: "kumiwake5",
     name: "第5回公開組分けテスト",
-    date: "2024-08-31",
-    dateDisplay: "8月31日(日)",
-    displayStart: "2024-08-31",
-    displayEnd: "2024-10-31",
+    date: "2024-11-03",
+    dateDisplay: "11月3日(日)",
+    displayStart: "2024-11-01",
+    displayEnd: "2024-12-31",
   },
   {
     id: "kumiwake6",
     name: "第6回公開組分けテスト",
-    date: "2024-10-05",
-    dateDisplay: "10月5日(日)",
-    displayStart: "2024-10-05",
-    displayEnd: "2024-11-30",
+    date: "2024-12-08",
+    dateDisplay: "12月8日(日)",
+    displayStart: "2024-11-01",
+    displayEnd: "2024-12-31",
   },
   {
     id: "kumiwake7",
     name: "第7回公開組分けテスト",
-    date: "2024-11-09",
-    dateDisplay: "11月9日(日)",
-    displayStart: "2024-11-09",
+    date: "2024-12-22",
+    dateDisplay: "12月22日(日)",
+    displayStart: "2024-11-01",
     displayEnd: "2024-12-31",
   },
   {
     id: "kumiwake8",
     name: "第8回公開組分けテスト",
-    date: "2024-12-14",
-    dateDisplay: "12月14日(日)",
-    displayStart: "2024-12-14",
-    displayEnd: "2025-01-31",
+    date: "2025-01-12",
+    dateDisplay: "1月12日(日)",
+    displayStart: "2024-11-01",
+    displayEnd: "2024-12-31",
   },
   {
-    id: "new6th",
-    name: "新6年公開組分けテスト",
-    date: "2025-01-25",
-    dateDisplay: "1月25日(日)",
-    displayStart: "2025-01-25",
-    displayEnd: "2025-02-28",
+    id: "new6-kumiwake1",
+    name: "新6年第1回公開組分けテスト",
+    date: "2025-02-02",
+    dateDisplay: "2月2日(日)",
+    displayStart: "2024-11-01",
+    displayEnd: "2024-12-31",
   },
 ]
 
@@ -321,6 +321,49 @@ const grade6ResultTestSchedule = [
     dateDisplay: "11月29日(土)",
     displayStart: "2024-11-29",
     displayEnd: "2024-12-31",
+  },
+]
+
+const grade5ResultTestSchedule = [
+  {
+    id: "kumiwake5",
+    name: "第5回公開組分けテスト",
+    date: "2024-11-03",
+    dateDisplay: "11月3日(日)",
+    displayStart: "2024-11-03",
+    displayEnd: "2024-12-31",
+  },
+  {
+    id: "kumiwake6",
+    name: "第6回公開組分けテスト",
+    date: "2024-12-08",
+    dateDisplay: "12月8日(日)",
+    displayStart: "2024-12-08",
+    displayEnd: "2025-01-31",
+  },
+  {
+    id: "kumiwake7",
+    name: "第7回公開組分けテスト",
+    date: "2024-12-22",
+    dateDisplay: "12月22日(日)",
+    displayStart: "2024-12-22",
+    displayEnd: "2025-01-31",
+  },
+  {
+    id: "kumiwake8",
+    name: "第8回公開組分けテスト",
+    date: "2025-01-12",
+    dateDisplay: "1月12日(日)",
+    displayStart: "2025-01-12",
+    displayEnd: "2025-02-28",
+  },
+  {
+    id: "new6-kumiwake1",
+    name: "新6年第1回公開組分けテスト",
+    date: "2025-02-02",
+    dateDisplay: "2月2日(日)",
+    displayStart: "2025-02-02",
+    displayEnd: "2025-03-31",
   },
 ]
 
@@ -442,7 +485,7 @@ export default function GoalSettingPage() {
 
   const getTestType = (testId: string): "gohan" | "kumiwake" | "week" => {
     if (testId.startsWith("gohan")) return "gohan"
-    if (testId.startsWith("kumiwake") || testId === "new6th") return "kumiwake"
+    if (testId.startsWith("kumiwake") || testId === "new6th" || testId.startsWith("new6-kumiwake")) return "kumiwake"
     return "week"
   }
 
@@ -637,14 +680,14 @@ export default function GoalSettingPage() {
   const getAvailableTests = (isGoalTab: boolean) => {
     let schedule
     if (isGoalTab) {
-      schedule = studentGrade === "5" ? grade5TestSchedule : grade6TestSchedule
+      schedule = studentGrade === "5" ? grade5GoalTestSchedule : grade6TestSchedule
     } else {
       schedule = studentGrade === "5" ? grade5ResultTestSchedule : grade6ResultTestSchedule
     }
     return schedule.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
   }
 
-  const [goalSettingMode, setGoalSettingMode] = useState<"based" | "manual">("based")
+  const [goalSettingMode, setGoalSettingMode] = useState<"based" | "manual" | "auto">("based")
   const [autoSuggestionMode, setAutoSuggestionMode] = useState<string>("weakness_boost")
 
   const autoSuggestionModes = [
@@ -711,27 +754,9 @@ export default function GoalSettingPage() {
       name: "第1回 合不合判定テスト",
       date: "2024-07-07",
       type: "合不合",
-      goal: { course: "C", class: 25 },
+      goal: { course: "C", class: 15 },
       result: { course: "B", class: 18 },
       memo: "目標より良い結果が出ました！",
-    },
-    {
-      id: "test2",
-      name: "第2回 週テスト",
-      date: "2024-07-14",
-      type: "週テスト",
-      goal: { subjects: { 算数: 60, 国語: 55, 理科: 50, 社会: 55 } },
-      result: { subjects: { 算数: 65, 国語: 50, 理科: 45, 社会: 60 } },
-      memo: "国語が少し悪かったので、次回頑張ります。",
-    },
-    {
-      id: "test3",
-      name: "第3回 週テスト",
-      date: "2024-07-21",
-      type: "週テスト",
-      goal: { subjects: { 算数: 65, 国語: 60, 理科: 55, 社会: 60 } },
-      result: { subjects: { 算数: 70, 国語: 58, 理科: 52, 社会: 65 } },
-      memo: "算数と社会で目標を上回りました！",
     },
     {
       id: "test4",
@@ -741,15 +766,6 @@ export default function GoalSettingPage() {
       goal: { course: "B", class: 20 },
       result: { course: "B", class: 15 },
       memo: "目標通りの結果でした。",
-    },
-    {
-      id: "test5",
-      name: "第4回 週テスト",
-      date: "2024-08-11",
-      type: "週テスト",
-      goal: { subjects: { 算数: 70, 国語: 65, 理科: 60, 社会: 65 } },
-      result: { subjects: { 算数: 75, 国語: 62, 理科: 58, 社会: 70 } },
-      memo: "全体的に良い結果でした！",
     },
   ]
 
