@@ -85,6 +85,7 @@ const grade5Sessions = [
   { id: "session16", name: "第16回", period: "12/14〜12/20" },
   { id: "session17", name: "第17回", period: "12/21〜1/10" },
   { id: "session18", name: "第18回", period: "1/11〜1/17" },
+  { id: "session19", name: "第19回", period: "1/18〜1/24" },
 ]
 
 const grade6Sessions = [
