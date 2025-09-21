@@ -15,7 +15,8 @@ const sparkRecords = [
     childName: "太郎",
     childAvatar: "student1",
     recordDate: "2024-09-06T16:30:00",
-    studyDate: "2024-09-06",
+    learningSession: "第3回",
+    learningPeriod: "9/14〜9/20",
     subjects: [
       {
         name: "算数",
@@ -37,7 +38,8 @@ const sparkRecords = [
     childName: "みかん",
     childAvatar: "student2",
     recordDate: "2024-09-06T15:45:00",
-    studyDate: "2024-09-06",
+    learningSession: "合不合第3回",
+    learningPeriod: "8/31〜9/6",
     subjects: [
       {
         name: "理科",
@@ -205,8 +207,7 @@ export default function ParentSparkPage() {
                       </div>
                       <div className="flex items-center gap-1">
                         <Calendar className="h-4 w-4" />
-                        学習日:{" "}
-                        {new Date(record.studyDate).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" })}
+                        学習回: {record.learningSession} ({record.learningPeriod})
                       </div>
                     </div>
                   </div>

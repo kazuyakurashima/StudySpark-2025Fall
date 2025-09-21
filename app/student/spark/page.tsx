@@ -1,9 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
@@ -11,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { BottomNavigation } from "@/components/bottom-navigation"
 import { Calendar, BookOpen, MessageSquare, Save, Sparkles, Flame, Crown, Info } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 const subjects = [
   { id: "math", name: "算数", color: "bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200" },
@@ -66,8 +66,77 @@ const levels = {
   blaze: { name: "Blaze", icon: Crown, description: "最高にチャレンジ", color: "text-purple-500" },
 }
 
+const grade5Sessions = [
+  { id: "session1", name: "第1回", period: "8/31〜9/6" },
+  { id: "session2", name: "第2回", period: "9/7〜9/13" },
+  { id: "session3", name: "第3回", period: "9/14〜9/20" },
+  { id: "session4", name: "第4回", period: "9/21〜9/27" },
+  { id: "session5", name: "第5回", period: "9/28〜10/4" },
+  { id: "session6", name: "第6回", period: "10/5〜10/11" },
+  { id: "session7", name: "第7回", period: "10/12〜10/18" },
+  { id: "session8", name: "第8回", period: "10/19〜10/25" },
+  { id: "session9", name: "第9回", period: "10/26〜11/1" },
+  { id: "session10", name: "第10回", period: "11/2〜11/8" },
+  { id: "session11", name: "第11回", period: "11/9〜11/15" },
+  { id: "session12", name: "第12回", period: "11/16〜11/22" },
+  { id: "session13", name: "第13回", period: "11/23〜11/29" },
+  { id: "session14", name: "第14回", period: "11/30〜12/6" },
+  { id: "session15", name: "第15回", period: "12/7〜12/13" },
+  { id: "session16", name: "第16回", period: "12/14〜12/20" },
+  { id: "session17", name: "第17回", period: "12/21〜1/10" },
+  { id: "session18", name: "第18回", period: "1/11〜1/17" },
+]
+
+const grade6Sessions = [
+  { id: "gohan3", name: "合不合第3回", period: "8/31〜9/6" },
+  { id: "session2", name: "第2回", period: "9/7〜9/13" },
+  { id: "session3", name: "第3回", period: "9/14〜9/20" },
+  { id: "session4", name: "第4回", period: "9/21〜9/27" },
+  { id: "gohan4", name: "合不合第4回", period: "9/28〜10/4" },
+  { id: "session5", name: "第5回", period: "10/5〜10/11" },
+  { id: "session6", name: "第6回", period: "10/12〜10/18" },
+  { id: "session7", name: "第7回", period: "10/19〜10/25" },
+  { id: "session8", name: "第8回", period: "10/26〜11/1" },
+  { id: "session9", name: "第9回", period: "11/2〜11/8" },
+  { id: "gohan5", name: "合不合第5回", period: "11/9〜11/15" },
+  { id: "session10", name: "第10回", period: "11/16〜11/22" },
+  { id: "session11", name: "第11回", period: "11/23〜11/29" },
+  { id: "gohan6", name: "合不合第6回", period: "11/30〜12/6" },
+  { id: "session12", name: "第12回", period: "12/7〜12/13" },
+  { id: "session13", name: "第13回", period: "12/14〜12/20" },
+  { id: "session14", name: "第14回", period: "12/21〜1/10" },
+  { id: "session15", name: "第15回", period: "1/11〜1/17" },
+]
+
+const getCurrentLearningSession = (grade: string) => {
+  const today = new Date()
+  const sessions = grade === "5" ? grade5Sessions : grade6Sessions
+
+  for (const session of sessions) {
+    const [startDate, endDate] = session.period.split("〜")
+    const currentYear = today.getFullYear()
+
+    // Parse start date
+    const [startMonth, startDay] = startDate.split("/").map(Number)
+    const startYear = startMonth >= 8 ? currentYear : currentYear + 1
+    const start = new Date(startYear, startMonth - 1, startDay)
+
+    // Parse end date
+    const [endMonth, endDay] = endDate.split("/").map(Number)
+    const endYear = endMonth >= 8 ? currentYear : currentYear + 1
+    const end = new Date(endYear, endMonth - 1, endDay, 23, 59, 59)
+
+    if (today >= start && today <= end) {
+      return session.id
+    }
+  }
+
+  // If no current session found, return the first session
+  return sessions[0].id
+}
+
 export default function SparkPage() {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0])
+  const [selectedSession, setSelectedSession] = useState("")
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
   const [subjectDetails, setSubjectDetails] = useState<{
     [key: string]: {
@@ -93,7 +162,17 @@ export default function SparkPage() {
   const [showUnderstandingGuide, setShowUnderstandingGuide] = useState<{ [key: string]: boolean }>({})
   const [showCategoryGuide, setShowCategoryGuide] = useState<{ [key: string]: boolean }>({})
 
-  const today = new Date().toISOString().split("T")[0]
+  // Initialize student grade based on localStorage or default to '6'
+  const [studentGrade, setStudentGrade] = useState<string>("6")
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const grade = localStorage.getItem("studentGrade") || "6"
+      setStudentGrade(grade)
+      const currentSession = getCurrentLearningSession(grade)
+      setSelectedSession(currentSession)
+    }
+  }, [])
 
   const canAccessFlame = weeklyRecords >= 3
   const canAccessBlaze = currentLevel === "flame" && weeklyContentRecords >= 3
@@ -230,7 +309,7 @@ export default function SparkPage() {
 
     setTimeout(() => {
       console.log("Learning record saved:", {
-        date: selectedDate,
+        date: selectedSession, // Changed from selectedDate to selectedSession
         subjects: selectedSubjects,
         details: subjectDetails,
         reflection,
@@ -253,6 +332,7 @@ export default function SparkPage() {
   }
 
   const isFormValid = () => {
+    if (!selectedSession) return false // Added check for selectedSession
     if (selectedSubjects.length === 0) return false
 
     return selectedSubjects.every((subjectId) => {
@@ -284,6 +364,10 @@ export default function SparkPage() {
       ...prev,
       [subjectId]: !prev[subjectId],
     }))
+  }
+
+  const getAvailableSessions = () => {
+    return studentGrade === "5" ? grade5Sessions : grade6Sessions
   }
 
   return (
@@ -363,63 +447,85 @@ export default function SparkPage() {
           </Card>
         )}
 
-        {/* Date Selection */}
+        {/* Learning Session Selection - replacing Date Selection */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5 text-primary" />
-              学習日
+              学習回 *
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-4">
-              <Input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                max={today}
-                className="w-auto"
-              />
-              {selectedDate === today && (
-                <Badge variant="default" className="bg-primary text-primary-foreground">
-                  今日
-                </Badge>
+            <div className="space-y-3">
+              <Select value={selectedSession} onValueChange={setSelectedSession}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="学習回を選択してください" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getAvailableSessions().map((session) => (
+                    <SelectItem key={session.id} value={session.id}>
+                      {session.name} ({session.period})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {selectedSession && (
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">
+                    {getAvailableSessions().find((s) => s.id === selectedSession)?.period}
+                  </Badge>
+                  {(() => {
+                    const currentSession = getCurrentLearningSession(studentGrade)
+                    return (
+                      selectedSession === currentSession && (
+                        <Badge variant="default" className="bg-primary text-primary-foreground text-xs">
+                          今回
+                        </Badge>
+                      )
+                    )
+                  })()}
+                </div>
               )}
+
+              <p className="text-xs text-muted-foreground">小学{studentGrade}年生の学習回が表示されています</p>
             </div>
           </CardContent>
         </Card>
 
         {/* Subject Selection */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-primary" />
-              学習した科目 *
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {subjects.map((subject) => (
-                <button
-                  key={subject.id}
-                  onClick={() => handleSubjectToggle(subject.id)}
-                  className={`p-4 rounded-lg border-2 transition-all duration-200 ${
-                    selectedSubjects.includes(subject.id)
-                      ? "border-primary bg-primary/10 shadow-md scale-105"
-                      : `border-border bg-background hover:border-primary/50`
-                  }`}
-                >
-                  <div className="flex items-center justify-center">
-                    <span className="font-medium">{subject.name}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        {selectedSession && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-primary" />
+                学習した科目 *
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {subjects.map((subject) => (
+                  <button
+                    key={subject.id}
+                    onClick={() => handleSubjectToggle(subject.id)}
+                    className={`p-4 rounded-lg border-2 transition-all duration-200 ${
+                      selectedSubjects.includes(subject.id)
+                        ? "border-primary bg-primary/10 shadow-md scale-105"
+                        : `border-border bg-background hover:border-primary/50`
+                    }`}
+                  >
+                    <div className="flex items-center justify-center">
+                      <span className="font-medium">{subject.name}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Subject Details */}
-        {selectedSubjects.length > 0 && (
+        {selectedSubjects.length > 0 && selectedSession && (
           <div className="space-y-4">
             {selectedSubjects.map((subjectId) => {
               const subject = subjects.find((s) => s.id === subjectId)
@@ -970,7 +1076,7 @@ export default function SparkPage() {
         <div className="sticky bottom-24 md:bottom-6">
           <Button
             onClick={handleSubmit}
-            disabled={!isFormValid() || isSubmitting}
+            disabled={!isFormValid() || isSubmitting || !selectedSession}
             className="w-full h-14 text-lg font-medium shadow-lg bg-primary text-primary-foreground hover:bg-primary/90"
           >
             <Save className="h-5 w-5 mr-2" />
@@ -979,12 +1085,14 @@ export default function SparkPage() {
         </div>
 
         {/* Form Validation Message */}
-        {selectedSubjects.length > 0 && !isFormValid() && (
+        {selectedSubjects.length > 0 && (!isFormValid() || !selectedSession) && (
           <div className="p-4 bg-accent/10 border border-accent/20 rounded-lg">
             <p className="text-sm text-accent font-medium">
-              {currentLevel === "spark"
-                ? "選択した科目の理解度を選んでください"
-                : "選択した科目の学習内容と、各学習内容の理解度を選んでください"}
+              {!selectedSession
+                ? "学習回を選択してください"
+                : currentLevel === "spark"
+                  ? "選択した科目の理解度を選んでください"
+                  : "選択した科目の学習内容と、各学習内容の理解度を選んでください"}
             </p>
           </div>
         )}
