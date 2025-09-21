@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -24,7 +24,50 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
-const goalTestSchedule = [
+const grade5TestSchedule = [
+  {
+    id: "kumiwake5",
+    name: "第5回公開組分けテスト",
+    date: "2024-08-31",
+    dateDisplay: "8月31日(日)",
+    displayStart: "2024-07-01",
+    displayEnd: "2024-08-31",
+  },
+  {
+    id: "kumiwake6",
+    name: "第6回公開組分けテスト",
+    date: "2024-10-05",
+    dateDisplay: "10月5日(日)",
+    displayStart: "2024-09-01",
+    displayEnd: "2024-10-31",
+  },
+  {
+    id: "kumiwake7",
+    name: "第7回公開組分けテスト",
+    date: "2024-11-09",
+    dateDisplay: "11月9日(日)",
+    displayStart: "2024-10-01",
+    displayEnd: "2024-11-30",
+  },
+  {
+    id: "kumiwake8",
+    name: "第8回公開組分けテスト",
+    date: "2024-12-14",
+    dateDisplay: "12月14日(日)",
+    displayStart: "2024-11-01",
+    displayEnd: "2024-12-31",
+  },
+  {
+    id: "new6th",
+    name: "新6年公開組分けテスト",
+    date: "2025-01-25",
+    dateDisplay: "1月25日(日)",
+    displayStart: "2024-12-01",
+    displayEnd: "2025-01-31",
+  },
+]
+
+const grade6TestSchedule = [
   {
     id: "gohan3",
     name: "第3回合不合判定テスト",
@@ -131,7 +174,50 @@ const goalTestSchedule = [
   },
 ]
 
-const resultTestSchedule = [
+const grade5ResultTestSchedule = [
+  {
+    id: "kumiwake5",
+    name: "第5回公開組分けテスト",
+    date: "2024-08-31",
+    dateDisplay: "8月31日(日)",
+    displayStart: "2024-08-31",
+    displayEnd: "2024-10-31",
+  },
+  {
+    id: "kumiwake6",
+    name: "第6回公開組分けテスト",
+    date: "2024-10-05",
+    dateDisplay: "10月5日(日)",
+    displayStart: "2024-10-05",
+    displayEnd: "2024-11-30",
+  },
+  {
+    id: "kumiwake7",
+    name: "第7回公開組分けテスト",
+    date: "2024-11-09",
+    dateDisplay: "11月9日(日)",
+    displayStart: "2024-11-09",
+    displayEnd: "2024-12-31",
+  },
+  {
+    id: "kumiwake8",
+    name: "第8回公開組分けテスト",
+    date: "2024-12-14",
+    dateDisplay: "12月14日(日)",
+    displayStart: "2024-12-14",
+    displayEnd: "2025-01-31",
+  },
+  {
+    id: "new6th",
+    name: "新6年公開組分けテスト",
+    date: "2025-01-25",
+    dateDisplay: "1月25日(日)",
+    displayStart: "2025-01-25",
+    displayEnd: "2025-02-28",
+  },
+]
+
+const grade6ResultTestSchedule = [
   {
     id: "gohan3",
     name: "第3回合不合判定テスト",
@@ -345,8 +431,19 @@ export default function GoalSettingPage() {
     social: [85],
   })
 
-  const getTestType = (testId: string): "gohan" | "week" => {
-    return testId.startsWith("gohan") ? "gohan" : "week"
+  const [studentGrade, setStudentGrade] = useState<string>("")
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const grade = localStorage.getItem("studentGrade") || "6"
+      setStudentGrade(grade)
+    }
+  }, [])
+
+  const getTestType = (testId: string): "gohan" | "kumiwake" | "week" => {
+    if (testId.startsWith("gohan")) return "gohan"
+    if (testId.startsWith("kumiwake") || testId === "new6th") return "kumiwake"
+    return "week"
   }
 
   const handleSubjectToggle = (subjectId: string) => {
@@ -402,7 +499,7 @@ export default function GoalSettingPage() {
   const handleGoalDecision = () => {
     const testType = getTestType(selectedTest)
 
-    if (testType === "gohan") {
+    if (testType === "gohan" || testType === "kumiwake") {
       if (!selectedTest || !selectedCourse) {
         alert("テストとコースを選択してください")
         return
@@ -426,10 +523,10 @@ export default function GoalSettingPage() {
 
   const startDynamicCoachChat = () => {
     const testType = getTestType(selectedTest)
-    const selectedTestName = goalTestSchedule.find((t) => t.id === selectedTest)?.name || ""
+    const selectedTestName = getAvailableTests(true).find((t) => t.id === selectedTest)?.name || ""
 
     let goalDescription = ""
-    if (testType === "gohan") {
+    if (testType === "gohan" || testType === "kumiwake") {
       const selectedCourseName = courses.find((c) => c.id === selectedCourse)?.name || ""
       const targetClass = classNumber[0]
       goalDescription = `「${selectedTestName}」で「${selectedCourseName}・${targetClass}組」を目指す`
@@ -538,7 +635,12 @@ export default function GoalSettingPage() {
   }
 
   const getAvailableTests = (isGoalTab: boolean) => {
-    const schedule = isGoalTab ? goalTestSchedule : resultTestSchedule
+    let schedule
+    if (isGoalTab) {
+      schedule = studentGrade === "5" ? grade5TestSchedule : grade6TestSchedule
+    } else {
+      schedule = studentGrade === "5" ? grade5ResultTestSchedule : grade6ResultTestSchedule
+    }
     return schedule.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
   }
 
@@ -565,7 +667,7 @@ export default function GoalSettingPage() {
 
   const canSetGoal =
     selectedTest &&
-    ((getTestType(selectedTest) === "gohan" && selectedCourse) ||
+    (((getTestType(selectedTest) === "gohan" || getTestType(selectedTest) === "kumiwake") && selectedCourse) ||
       (getTestType(selectedTest) === "week" && goalSettingMode && (goalSettingMode === "manual" || autoSuggestionMode)))
 
   const getSubjectColor = (subjectId: string) => {
@@ -775,6 +877,7 @@ export default function GoalSettingPage() {
           <h1 className="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2">
             <Flag className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
             ゴールナビ
+            <span className="text-sm text-muted-foreground ml-2">(小学{studentGrade}年生)</span>
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground">目標を設定して、合格に向けて頑張ろう！</p>
 
@@ -883,67 +986,73 @@ export default function GoalSettingPage() {
                           実施日: {getAvailableTests(true).find((t) => t.id === selectedTest)?.dateDisplay}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          種類: {getTestType(selectedTest) === "gohan" ? "合不合判定テスト" : "週テスト"}
+                          種類:{" "}
+                          {getTestType(selectedTest) === "gohan"
+                            ? "合不合判定テスト"
+                            : getTestType(selectedTest) === "kumiwake"
+                              ? "公開組分けテスト"
+                              : "週テスト"}
                         </p>
                       </div>
                     )}
                   </CardContent>
                 </Card>
 
-                {selectedTest && getTestType(selectedTest) === "gohan" && (
-                  <Card className={isGoalSet ? "opacity-75" : ""}>
-                    <CardHeader>
-                      <CardTitle>目標の設定</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4 sm:space-y-6">
-                      <div className="space-y-2">
-                        <Label className="text-sm sm:text-base">目標コースを決めよう</Label>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-                          {courses.map((course) => (
-                            <button
-                              key={course.id}
-                              onClick={() => !isGoalSet && setSelectedCourse(course.id)}
-                              disabled={isGoalSet}
-                              className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all min-h-[60px] sm:min-h-[70px] ${
-                                selectedCourse === course.id
-                                  ? "border-primary bg-primary/10 shadow-md"
-                                  : "border-border bg-background hover:border-primary/50"
-                              } ${isGoalSet ? "cursor-not-allowed" : ""}`}
-                            >
-                              <div className="font-bold text-base sm:text-lg">{course.name}</div>
-                              <div className="text-xs sm:text-sm text-muted-foreground">{course.description}</div>
-                            </button>
-                          ))}
+                {selectedTest &&
+                  (getTestType(selectedTest) === "gohan" || getTestType(selectedTest) === "kumiwake") && (
+                    <Card className={isGoalSet ? "opacity-75" : ""}>
+                      <CardHeader>
+                        <CardTitle>目標の設定</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4 sm:space-y-6">
+                        <div className="space-y-2">
+                          <Label className="text-sm sm:text-base">目標コースを決めよう</Label>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                            {courses.map((course) => (
+                              <button
+                                key={course.id}
+                                onClick={() => !isGoalSet && setSelectedCourse(course.id)}
+                                disabled={isGoalSet}
+                                className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all min-h-[60px] sm:min-h-[70px] ${
+                                  selectedCourse === course.id
+                                    ? "border-primary bg-primary/10 shadow-md"
+                                    : "border-border bg-background hover:border-primary/50"
+                                } ${isGoalSet ? "cursor-not-allowed" : ""}`}
+                              >
+                                <div className="font-bold text-base sm:text-lg">{course.name}</div>
+                                <div className="text-xs sm:text-sm text-muted-foreground">{course.description}</div>
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
 
-                      <div className="space-y-3 sm:space-y-4">
-                        <Label className="text-sm sm:text-base font-medium">目標の組を決めよう</Label>
-                        <div className="px-3 sm:px-4 py-3 sm:py-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border border-blue-200">
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="text-xs sm:text-sm font-medium text-blue-800">目標の組</span>
-                            <div className="px-2 sm:px-3 py-1 bg-blue-600 text-white rounded-full text-xs sm:text-sm font-bold">
-                              {classNumber[0]}組
+                        <div className="space-y-3 sm:space-y-4">
+                          <Label className="text-sm sm:text-base font-medium">目標の組を決めよう</Label>
+                          <div className="px-3 sm:px-4 py-3 sm:py-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border border-blue-200">
+                            <div className="flex items-center justify-between mb-3">
+                              <span className="text-xs sm:text-sm font-medium text-blue-800">目標の組</span>
+                              <div className="px-2 sm:px-3 py-1 bg-blue-600 text-white rounded-full text-xs sm:text-sm font-bold">
+                                {classNumber[0]}組
+                              </div>
+                            </div>
+                            <Slider
+                              value={classNumber}
+                              onValueChange={setClassNumber}
+                              max={40}
+                              min={1}
+                              step={1}
+                              className="w-full"
+                              disabled={isGoalSet}
+                            />
+                            <div className="flex justify-between text-xs text-blue-600 mt-2 font-medium">
+                              <span>1組</span>
+                              <span>40組</span>
                             </div>
                           </div>
-                          <Slider
-                            value={classNumber}
-                            onValueChange={setClassNumber}
-                            max={40}
-                            min={1}
-                            step={1}
-                            className="w-full"
-                            disabled={isGoalSet}
-                          />
-                          <div className="flex justify-between text-xs text-blue-600 mt-2 font-medium">
-                            <span>1組</span>
-                            <span>40組</span>
-                          </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+                      </CardContent>
+                    </Card>
+                  )}
 
                 {selectedTest && getTestType(selectedTest) === "week" && (
                   <>
@@ -1089,12 +1198,18 @@ export default function GoalSettingPage() {
                     <CardContent className="p-6 text-center">
                       <Target className="h-12 w-12 text-primary mx-auto mb-4" />
                       <h3 className="text-lg font-bold text-primary mb-2">
-                        {getTestType(selectedTest) === "gohan" ? "目標を決定しよう！" : "今週はこれで行く！"}
+                        {getTestType(selectedTest) === "gohan"
+                          ? "目標を決定しよう！"
+                          : getTestType(selectedTest) === "kumiwake"
+                            ? "目標を決定しよう！"
+                            : "今週はこれで行く！"}
                       </h3>
                       <p className="text-sm text-muted-foreground mb-4">
                         {getTestType(selectedTest) === "gohan"
                           ? "テスト、コース、組を選択したら、目標を決定してください"
-                          : "テスト、科目、目標設定モードを選択したら、目標を決定してください"}
+                          : getTestType(selectedTest) === "kumiwake"
+                            ? "テスト、コース、組を選択したら、目標を決定してください"
+                            : "テスト、科目、目標設定モードを選択したら、目標を決定してください"}
                       </p>
                       <Button
                         onClick={handleGoalDecision}
@@ -1102,7 +1217,11 @@ export default function GoalSettingPage() {
                         className="w-full h-11 sm:h-12 text-sm sm:text-lg font-medium bg-primary text-primary-foreground hover:bg-primary/90"
                       >
                         <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                        {getTestType(selectedTest) === "gohan" ? "今回の目標はこれにする！" : "今週はこれで行く！"}
+                        {getTestType(selectedTest) === "gohan"
+                          ? "今回の目標はこれにする！"
+                          : getTestType(selectedTest) === "kumiwake"
+                            ? "今回の目標はこれにする！"
+                            : "今週はこれで行く！"}
                       </Button>
                     </CardContent>
                   </Card>
@@ -1269,7 +1388,12 @@ export default function GoalSettingPage() {
                               実施日: {getAvailableTests(false).find((t) => t.id === resultTest)?.dateDisplay}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              種類: {getTestType(resultTest) === "gohan" ? "合不合判定テスト" : "週テスト"}
+                              種類:{" "}
+                              {getTestType(resultTest) === "gohan"
+                                ? "合不合判定テスト"
+                                : getTestType(resultTest) === "kumiwake"
+                                  ? "公開組分けテスト"
+                                  : "週テスト"}
                             </p>
                           </div>
                         )}
@@ -1277,6 +1401,59 @@ export default function GoalSettingPage() {
                     </Card>
 
                     {resultTest && getTestType(resultTest) === "gohan" && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>実績の記録</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4 sm:space-y-6">
+                          <div className="space-y-2">
+                            <Label className="text-sm sm:text-base">実際のコース</Label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                              {courses.map((course) => (
+                                <button
+                                  key={course.id}
+                                  onClick={() => setResultCourse(course.id)}
+                                  className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all min-h-[60px] sm:min-h-[70px] ${
+                                    resultCourse === course.id
+                                      ? "border-primary bg-primary/10 shadow-md"
+                                      : "border-border bg-background hover:border-primary/50"
+                                  }`}
+                                >
+                                  <div className="font-bold text-base sm:text-lg">{course.name}</div>
+                                  <div className="text-xs sm:text-sm text-muted-foreground">{course.description}</div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="space-y-3 sm:space-y-4">
+                            <Label className="text-sm sm:text-base font-medium">実際の組</Label>
+                            <div className="px-3 sm:px-4 py-3 sm:py-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">
+                              <div className="flex items-center justify-between mb-3">
+                                <span className="text-xs sm:text-sm font-medium text-green-800">実際の組</span>
+                                <div className="px-2 sm:px-3 py-1 bg-green-600 text-white rounded-full text-xs sm:text-sm font-bold">
+                                  {resultClass[0]}組
+                                </div>
+                              </div>
+                              <Slider
+                                value={resultClass}
+                                onValueChange={setResultClass}
+                                max={40}
+                                min={1}
+                                step={1}
+                                className="w-full"
+                              />
+                              <div className="flex justify-between text-xs text-green-600 mt-2 font-medium">
+                                <span>1組</span>
+                                <span>40組</span>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {resultTest && getTestType(resultTest) === "kumiwake" && (
                       <Card>
                         <CardHeader>
                           <CardTitle>実績の記録</CardTitle>
@@ -1585,7 +1762,7 @@ export default function GoalSettingPage() {
         )}
       </div>
 
-      <BottomNavigation activeTab={activeTab} />
+      <BottomNavigation />
     </div>
   )
 }

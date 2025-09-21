@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function ProfileSetup() {
   const router = useRouter()
   const [realName, setRealName] = useState("")
   const [nickname, setNickname] = useState("")
+  const [grade, setGrade] = useState("")
 
   const selectedAvatar = typeof window !== "undefined" ? localStorage.getItem("selectedAvatar") : null
 
@@ -28,9 +30,10 @@ export default function ProfileSetup() {
   }
 
   const handleNext = () => {
-    if (realName.trim() && nickname.trim() && nickname.length <= 12) {
+    if (realName.trim() && nickname.trim() && nickname.length <= 12 && grade) {
       localStorage.setItem("realName", realName)
       localStorage.setItem("nickname", nickname)
+      localStorage.setItem("studentGrade", grade)
       router.push("/setup/complete")
     }
   }
@@ -80,10 +83,25 @@ export default function ProfileSetup() {
             <p className="text-xs text-gray-400">{nickname.length}/12文字</p>
           </div>
 
+          {/* 学年 */}
+          <div className="space-y-2">
+            <Label htmlFor="grade">学年</Label>
+            <Select value={grade} onValueChange={setGrade}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="学年を選択してください" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">小学5年生</SelectItem>
+                <SelectItem value="6">小学6年生</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-gray-500">学年に応じて適切なテストが表示されます。</p>
+          </div>
+
           <div className="flex justify-center pt-4">
             <Button
               onClick={handleNext}
-              disabled={!realName.trim() || !nickname.trim() || nickname.length > 12}
+              disabled={!realName.trim() || !nickname.trim() || nickname.length > 12 || !grade}
               className="px-8 py-3 bg-cyan-600 hover:bg-cyan-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
               次へ進む
