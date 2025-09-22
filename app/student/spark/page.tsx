@@ -800,7 +800,7 @@ export default function SparkPage() {
                 >
                   <div className="flex items-start gap-4">
                     <Avatar className="h-12 w-12 border-2 border-blue-200 shadow-lg">
-                      <AvatarImage src="/friendly-ai-coach-avatar.jpg" />
+                      <AvatarImage src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png" />
                       <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-bold">
                         <Bot className="h-6 w-6" />
                       </AvatarFallback>
@@ -832,58 +832,71 @@ export default function SparkPage() {
 
                 {reflectionMode === "ai" && (
                   <div className="space-y-6">
-                    <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200">
-                      <Avatar className="h-12 w-12 border-2 border-blue-300 shadow-lg">
-                        <AvatarImage src="/friendly-ai-coach-avatar.jpg" />
+                    <div className="flex items-center gap-4 p-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200 shadow-lg">
+                      <Avatar className="h-14 w-14 border-3 border-blue-300 shadow-xl flex-shrink-0">
+                        <AvatarImage src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png" />
                         <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-bold">
-                          <Bot className="h-6 w-6" />
+                          <Bot className="h-7 w-7" />
                         </AvatarFallback>
                       </Avatar>
-                      <div>
-                        <div className="font-bold text-lg text-slate-800">AIコーチ</div>
-                        <div className="text-base text-slate-600">あなたの学習記録を分析して振り返りを作成しました</div>
+                      <div className="flex-1">
+                        <div className="font-bold text-xl text-slate-800 mb-2">AIコーチ</div>
+                        <div className="text-base text-slate-600 leading-relaxed">
+                          あなたの学習記録を分析して振り返りを作成しました
+                        </div>
                       </div>
                     </div>
 
                     {isGeneratingAI ? (
-                      <div className="flex items-center justify-center py-12 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl border border-blue-200">
-                        <div className="animate-spin rounded-full h-10 w-10 border-b-3 border-blue-600"></div>
-                        <span className="ml-4 text-lg text-slate-700 font-medium">振り返りを生成中...</span>
+                      <div className="flex items-center justify-center py-16 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl border border-blue-200 shadow-lg">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-600"></div>
+                        <span className="ml-6 text-xl text-slate-700 font-medium">振り返りを生成中...</span>
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        <p className="text-base text-slate-700 font-medium mb-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                          学習内容に基づいて3つの振り返りを生成しました。気に入ったものを選んでください：
-                        </p>
-                        {aiReflections.map((reflectionText, index) => {
-                          const types = [
-                            "Celebrate系（できたこと）",
-                            "Insight系（学び・気づき）",
-                            "Next step系（次への行動）",
-                          ]
-                          const colors = [
-                            "border-green-300 hover:bg-green-50",
-                            "border-blue-300 hover:bg-blue-50",
-                            "border-purple-300 hover:bg-purple-50",
-                          ]
-                          return (
-                            <Button
-                              key={index}
-                              onClick={() => setReflection(reflectionText)}
-                              variant={reflection === reflectionText ? "default" : "outline"}
-                              className={`h-auto p-6 text-left w-full border-2 ${colors[index]} transition-all duration-300 rounded-xl shadow-lg hover:shadow-xl ${
-                                reflection === reflectionText
-                                  ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-xl"
-                                  : ""
-                              }`}
-                            >
-                              <div className="space-y-2">
-                                <div className="text-sm font-bold opacity-80">{types[index]}</div>
-                                <div className="text-base leading-relaxed">{reflectionText}</div>
-                              </div>
-                            </Button>
-                          )
-                        })}
+                        <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 shadow-lg">
+                          <p className="text-lg text-slate-700 font-medium leading-relaxed">
+                            学習内容に基づいて3つの振り返りを生成しました。気に入ったものを選んでください：
+                          </p>
+                        </div>
+                        <div className="grid gap-4">
+                          {aiReflections.map((reflectionText, index) => {
+                            const types = [
+                              "Celebrate系（できたこと）",
+                              "Insight系（学び・気づき）",
+                              "Next step系（次への行動）",
+                            ]
+                            const colors = [
+                              "border-green-300 hover:bg-green-50 hover:border-green-400",
+                              "border-blue-300 hover:bg-blue-50 hover:border-blue-400",
+                              "border-purple-300 hover:bg-purple-50 hover:border-purple-400",
+                            ]
+                            const selectedColors = [
+                              "bg-gradient-to-r from-green-500 to-green-600 text-white shadow-xl border-green-500",
+                              "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-xl border-blue-500",
+                              "bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-xl border-purple-500",
+                            ]
+                            return (
+                              <Button
+                                key={index}
+                                onClick={() => setReflection(reflectionText)}
+                                variant="outline"
+                                className={`h-auto p-6 text-left w-full border-2 transition-all duration-300 rounded-xl shadow-lg hover:shadow-xl ${
+                                  reflection === reflectionText ? selectedColors[index] : `bg-white ${colors[index]}`
+                                }`}
+                              >
+                                <div className="space-y-3">
+                                  <div
+                                    className={`text-sm font-bold ${reflection === reflectionText ? "opacity-90" : "text-slate-600"}`}
+                                  >
+                                    {types[index]}
+                                  </div>
+                                  <div className="text-base leading-relaxed font-medium">{reflectionText}</div>
+                                </div>
+                              </Button>
+                            )
+                          })}
+                        </div>
                       </div>
                     )}
                   </div>
