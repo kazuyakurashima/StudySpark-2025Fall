@@ -6,11 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Progress } from "@/components/ui/progress"
 import { BottomNavigation } from "@/components/bottom-navigation"
-import { Calendar, BookOpen, MessageSquare, Save, Sparkles, Flame, Crown, Info } from "lucide-react"
+import { Calendar, BookOpen, MessageSquare, Save, Sparkles, Flame, Crown } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Slider } from "@/components/ui/slider"
 
 const subjects = [
   { id: "math", name: "算数", color: "bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200" },
@@ -19,46 +18,270 @@ const subjects = [
   { id: "social", name: "社会", color: "bg-sky-100 text-sky-800 border-sky-200 hover:bg-sky-200" },
 ]
 
-const moodOptions = [
-  { value: "good", label: "よくできた", emoji: "😊", color: "border-green-500 bg-green-50 text-green-700" },
-  { value: "normal", label: "ふつう", emoji: "😐", color: "border-yellow-500 bg-yellow-50 text-yellow-700" },
-  { value: "difficult", label: "むずかしかった", emoji: "😢", color: "border-red-500 bg-red-50 text-red-700" },
-]
+const grade5LearningContent = {
+  math: [
+    { id: "ruirui", name: "類題", course: "A", maxProblems: {} },
+    { id: "kihon", name: "基本問題", course: "A", maxProblems: {} },
+    { id: "renshu", name: "練習問題", course: "B", maxProblems: {} },
+    { id: "jissen", name: "演習問題集（実戦演習）", course: "C", maxProblems: {} },
+  ],
+  japanese: [{ id: "kakunin", name: "確認問題", course: "A", maxProblems: {} }],
+  science: [
+    { id: "kihon", name: "演習問題集（基本問題）", course: "A", maxProblems: {} },
+    { id: "renshu", name: "演習問題集（練習問題）", course: "B", maxProblems: {} },
+    { id: "hatten", name: "演習問題集（発展問題）", course: "C", maxProblems: {} },
+  ],
+  social: [
+    { id: "renshu", name: "演習問題集（練習問題）", course: "A", maxProblems: {} },
+    { id: "hatten", name: "演習問題集（発展問題・記述問題）", course: "B", maxProblems: {} },
+  ],
+}
 
-const learningCategories = [
-  {
-    id: "class",
-    name: "授業",
-    priority: "最重要",
-    color: "🔴",
-    bgColor: "bg-red-50 border-red-200 text-red-800",
-    description: "授業で解いた問題・復習を含む",
+const grade6LearningContent = {
+  math: [
+    { id: "ichigyo", name: "１行問題", course: "A", maxProblems: {} },
+    { id: "kihon", name: "基本演習", course: "B", maxProblems: {} },
+    { id: "jissen", name: "実戦演習", course: "C", maxProblems: {} },
+  ],
+  japanese: [{ id: "kanji", name: "中学入試頻出漢字", course: "A", maxProblems: {} }],
+  science: [
+    { id: "kihon", name: "演習問題集（基本問題）", course: "A", maxProblems: {} },
+    { id: "renshu", name: "演習問題集（練習問題）", course: "C", maxProblems: {} },
+  ],
+  social: [
+    { id: "kihon", name: "演習問題集（基本問題）", course: "A", maxProblems: {} },
+    { id: "renshu", name: "演習問題集（練習問題）", course: "B", maxProblems: {} },
+    { id: "oyo", name: "演習問題集（応用問題）", course: "C", maxProblems: {} },
+  ],
+}
+
+const grade5ProblemCounts = {
+  session1: {
+    math: { ruirui: 7, kihon: 22, renshu: 12, jissen: 10 },
+    japanese: { kakunin: 40 },
+    science: { kihon: 17, renshu: 19, hatten: 5 },
+    social: { renshu: 13, hatten: 11 },
   },
-  {
-    id: "homework",
-    name: "宿題",
-    priority: "最重要",
-    color: "🔴",
-    bgColor: "bg-red-50 border-red-200 text-red-800",
-    description: "宿題で出された問題・復習を含む",
+  session2: {
+    math: { ruirui: 7, kihon: 15, renshu: 11, jissen: 12 },
+    japanese: { kakunin: 40 },
+    science: { kihon: 18, renshu: 35, hatten: 3 },
+    social: { renshu: 20, hatten: 10 },
   },
-  {
-    id: "weekly-test-prep",
-    name: "週テスト対策・復習ナビ",
-    priority: "標準",
-    color: "🔵",
-    bgColor: "bg-blue-50 border-blue-200 text-blue-800",
-    description: "週テスト範囲の演習や復習・復習ナビでの実施",
+  session3: {
+    math: { ruirui: 5, kihon: 12, renshu: 11, jissen: 9 },
+    japanese: { kakunin: 40 },
+    science: { kihon: 18, renshu: 37, hatten: 5 },
+    social: { renshu: 18, hatten: 8 },
   },
-  {
-    id: "exam-prep",
-    name: "入試対策・過去問",
-    priority: "補充",
-    color: "⚪",
-    bgColor: "bg-gray-50 border-gray-200 text-gray-800",
-    description: "過去問・入試レベル問題など",
+  session4: {
+    math: { ruirui: 8, kihon: 15, renshu: 14, jissen: 13 },
+    japanese: { kakunin: 40 },
+    science: { kihon: 18, renshu: 30, hatten: 5 },
+    social: { renshu: 23, hatten: 7 },
   },
-]
+  session5: {
+    math: { ruirui: 0, kihon: 31, renshu: 12, jissen: 0 },
+    japanese: { kakunin: 80 },
+    science: { kihon: 0, renshu: 45, hatten: 23 },
+    social: { renshu: 26, hatten: 45 },
+  },
+  session6: {
+    math: { ruirui: 8, kihon: 14, renshu: 12, jissen: 10 },
+    japanese: { kakunin: 40 },
+    science: { kihon: 33, renshu: 33, hatten: 7 },
+    social: { renshu: 20, hatten: 9 },
+  },
+  session7: {
+    math: { ruirui: 6, kihon: 12, renshu: 10, jissen: 12 },
+    japanese: { kakunin: 40 },
+    science: { kihon: 21, renshu: 25, hatten: 7 },
+    social: { renshu: 26, hatten: 8 },
+  },
+  session8: {
+    math: { ruirui: 6, kihon: 14, renshu: 11, jissen: 12 },
+    japanese: { kakunin: 40 },
+    science: { kihon: 19, renshu: 24, hatten: 6 },
+    social: { renshu: 16, hatten: 11 },
+  },
+  session9: {
+    math: { ruirui: 6, kihon: 10, renshu: 11, jissen: 9 },
+    japanese: { kakunin: 40 },
+    science: { kihon: 22, renshu: 23, hatten: 6 },
+    social: { renshu: 19, hatten: 7 },
+  },
+  session10: {
+    math: { ruirui: 0, kihon: 26, renshu: 9, jissen: 0 },
+    japanese: { kakunin: 80 },
+    science: { kihon: 52, renshu: 15, hatten: 5 },
+    social: { renshu: 30, hatten: 33 },
+  },
+  session11: {
+    math: { ruirui: 8, kihon: 15, renshu: 11, jissen: 13 },
+    japanese: { kakunin: 40 },
+    science: { kihon: 20, renshu: 20, hatten: 3 },
+    social: { renshu: 15, hatten: 9 },
+  },
+  session12: {
+    math: { ruirui: 6, kihon: 10, renshu: 8, jissen: 8 },
+    japanese: { kakunin: 40 },
+    science: { kihon: 22, renshu: 18, hatten: 5 },
+    social: { renshu: 14, hatten: 6 },
+  },
+  session13: {
+    math: { ruirui: 7, kihon: 20, renshu: 15, jissen: 14 },
+    japanese: { kakunin: 40 },
+    science: { kihon: 17, renshu: 26, hatten: 3 },
+    social: { renshu: 16, hatten: 13 },
+  },
+  session14: {
+    math: { ruirui: 5, kihon: 14, renshu: 8, jissen: 12 },
+    japanese: { kakunin: 40 },
+    science: { kihon: 22, renshu: 30, hatten: 6 },
+    social: { renshu: 18, hatten: 11 },
+  },
+  session15: {
+    math: { ruirui: 0, kihon: 32, renshu: 13, jissen: 0 },
+    japanese: { kakunin: 80 },
+    science: { kihon: 0, renshu: 41, hatten: 17 },
+    social: { renshu: 31, hatten: 28 },
+  },
+  session16: {
+    math: { ruirui: 7, kihon: 17, renshu: 12, jissen: 10 },
+    japanese: { kakunin: 40 },
+    science: { kihon: 15, renshu: 24, hatten: 6 },
+    social: { renshu: 17, hatten: 11 },
+  },
+  session17: {
+    math: { ruirui: 6, kihon: 10, renshu: 10, jissen: 8 },
+    japanese: { kakunin: 40 },
+    science: { kihon: 19, renshu: 28, hatten: 8 },
+    social: { renshu: 17, hatten: 11 },
+  },
+  session18: {
+    math: { ruirui: 8, kihon: 22, renshu: 13, jissen: 11 },
+    japanese: { kakunin: 40 },
+    science: { kihon: 21, renshu: 22, hatten: 7 },
+    social: { renshu: 17, hatten: 9 },
+  },
+  session19: {
+    math: { ruirui: 0, kihon: 22, renshu: 0, jissen: 0 },
+    japanese: { kakunin: 80 },
+    science: { kihon: 0, renshu: 42, hatten: 12 },
+    social: { renshu: 25, hatten: 27 },
+  },
+}
+
+const grade6ProblemCounts = {
+  gohan3: {
+    math: { ichigyo: 0, kihon: 0, jissen: 0 },
+    japanese: { kanji: 0 },
+    science: { kihon: 0, renshu: 0 },
+    social: { kihon: 0, renshu: 0, oyo: 0 },
+  },
+  session2: {
+    math: { ichigyo: 22, kihon: 13, jissen: 14 },
+    japanese: { kanji: 40 },
+    science: { kihon: 40, renshu: 33 },
+    social: { kihon: 75, renshu: 20, oyo: 9 },
+  },
+  session3: {
+    math: { ichigyo: 19, kihon: 12, jissen: 12 },
+    japanese: { kanji: 40 },
+    science: { kihon: 52, renshu: 41 },
+    social: { kihon: 64, renshu: 36, oyo: 6 },
+  },
+  session4: {
+    math: { ichigyo: 22, kihon: 13, jissen: 15 },
+    japanese: { kanji: 40 },
+    science: { kihon: 47, renshu: 46 },
+    social: { kihon: 56, renshu: 30, oyo: 12 },
+  },
+  gohan4: {
+    math: { ichigyo: 0, kihon: 0, jissen: 0 },
+    japanese: { kanji: 0 },
+    science: { kihon: 0, renshu: 0 },
+    social: { kihon: 0, renshu: 0, oyo: 0 },
+  },
+  session5: {
+    math: { ichigyo: 21, kihon: 14, jissen: 14 },
+    japanese: { kanji: 40 },
+    science: { kihon: 46, renshu: 44 },
+    social: { kihon: 57, renshu: 8, oyo: 7 },
+  },
+  session6: {
+    math: { ichigyo: 17, kihon: 12, jissen: 15 },
+    japanese: { kanji: 40 },
+    science: { kihon: 31, renshu: 37 },
+    social: { kihon: 58, renshu: 16, oyo: 10 },
+  },
+  session7: {
+    math: { ichigyo: 22, kihon: 12, jissen: 12 },
+    japanese: { kanji: 40 },
+    science: { kihon: 40, renshu: 35 },
+    social: { kihon: 64, renshu: 27, oyo: 10 },
+  },
+  session8: {
+    math: { ichigyo: 20, kihon: 12, jissen: 13 },
+    japanese: { kanji: 40 },
+    science: { kihon: 34, renshu: 29 },
+    social: { kihon: 72, renshu: 22, oyo: 11 },
+  },
+  session9: {
+    math: { ichigyo: 17, kihon: 12, jissen: 13 },
+    japanese: { kanji: 40 },
+    science: { kihon: 65, renshu: 27 },
+    social: { kihon: 61, renshu: 15, oyo: 8 },
+  },
+  gohan5: {
+    math: { ichigyo: 0, kihon: 0, jissen: 0 },
+    japanese: { kanji: 0 },
+    science: { kihon: 0, renshu: 0 },
+    social: { kihon: 0, renshu: 0, oyo: 0 },
+  },
+  session10: {
+    math: { ichigyo: 20, kihon: 13, jissen: 13 },
+    japanese: { kanji: 40 },
+    science: { kihon: 44, renshu: 39 },
+    social: { kihon: 63, renshu: 12, oyo: 10 },
+  },
+  session11: {
+    math: { ichigyo: 18, kihon: 12, jissen: 14 },
+    japanese: { kanji: 40 },
+    science: { kihon: 40, renshu: 30 },
+    social: { kihon: 52, renshu: 28, oyo: 17 },
+  },
+  gohan6: {
+    math: { ichigyo: 0, kihon: 0, jissen: 0 },
+    japanese: { kanji: 0 },
+    science: { kihon: 0, renshu: 0 },
+    social: { kihon: 0, renshu: 0, oyo: 0 },
+  },
+  session12: {
+    math: { ichigyo: 19, kihon: 13, jissen: 12 },
+    japanese: { kanji: 40 },
+    science: { kihon: 40, renshu: 38 },
+    social: { kihon: 65, renshu: 12, oyo: 9 },
+  },
+  session13: {
+    math: { ichigyo: 9, kihon: 21, jissen: 0 },
+    japanese: { kanji: 40 },
+    science: { kihon: 32, renshu: 40 },
+    social: { kihon: 88, renshu: 36, oyo: 10 },
+  },
+  session14: {
+    math: { ichigyo: 9, kihon: 24, jissen: 0 },
+    japanese: { kanji: 40 },
+    science: { kihon: 34, renshu: 44 },
+    social: { kihon: 161, renshu: 15, oyo: 10 },
+  },
+  session15: {
+    math: { ichigyo: 9, kihon: 23, jissen: 0 },
+    japanese: { kanji: 40 },
+    science: { kihon: 30, renshu: 36 },
+    social: { kihon: 71, renshu: 23, oyo: 7 },
+  },
+}
 
 const levels = {
   spark: { name: "Spark", icon: Sparkles, description: "楽しくスタート", color: "text-primary" },
@@ -141,15 +364,13 @@ export default function SparkPage() {
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
   const [subjectDetails, setSubjectDetails] = useState<{
     [key: string]: {
-      mood?: string // Sparkレベルのみ使用
-      categories: string[] // 選択された学習内容カテゴリー
-      categoryUnderstanding: { [categoryId: string]: string } // カテゴリーごとの理解度
+      [contentId: string]: number // correct answers count
     }
   }>({})
   const [reflection, setReflection] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const [currentLevel, setCurrentLevel] = useState<"spark" | "flame" | "blaze">("spark")
+  const [currentCourse, setCurrentCourse] = useState<"A" | "B" | "C" | "S">("A")
   const [weeklyRecords, setWeeklyRecords] = useState(4) // Mock data - デモ用に3以上に設定
   const [weeklyContentRecords, setWeeklyContentRecords] = useState(3) // Mock data - デモ用に3以上に設定
   const [showReflectionOptions, setShowReflectionOptions] = useState(false)
@@ -160,9 +381,6 @@ export default function SparkPage() {
   const [aiResponse, setAiResponse] = useState("")
   const [isGeneratingResponse, setIsGeneratingResponse] = useState(false)
 
-  const [showUnderstandingGuide, setShowUnderstandingGuide] = useState<{ [key: string]: boolean }>({})
-  const [showCategoryGuide, setShowCategoryGuide] = useState<{ [key: string]: boolean }>({})
-
   // Initialize student grade based on localStorage or default to '6'
   const [studentGrade, setStudentGrade] = useState<string>("6")
 
@@ -172,13 +390,56 @@ export default function SparkPage() {
       setStudentGrade(grade)
       const currentSession = getCurrentLearningSession(grade)
       setSelectedSession(currentSession)
+
+      const goalRecords = localStorage.getItem("goalRecords")
+      if (goalRecords) {
+        try {
+          const records = JSON.parse(goalRecords)
+          // Get the latest course from goal records
+          const latestRecord = records[records.length - 1]
+          if (latestRecord?.course) {
+            setCurrentCourse(latestRecord.course)
+          }
+        } catch (e) {
+          console.log("No goal records found, using default course A")
+        }
+      }
     }
   }, [])
 
+  const getCurrentLevel = () => {
+    if (currentCourse === "A") return "spark"
+    if (currentCourse === "B") return "flame"
+    return "blaze" // C or S course
+  }
+
+  const currentLevel = getCurrentLevel()
   const canAccessFlame = weeklyRecords >= 3
   const canAccessBlaze = currentLevel === "flame" && weeklyContentRecords >= 3
   const progressToFlame = Math.min((weeklyRecords / 3) * 100, 100)
   const progressToBlaze = currentLevel === "flame" ? Math.min((weeklyContentRecords / 3) * 100, 100) : 0
+
+  const getAvailableLearningContent = (subjectId: string) => {
+    const contentMap = studentGrade === "5" ? grade5LearningContent : grade6LearningContent
+    const subjectContent = contentMap[subjectId as keyof typeof contentMap] || []
+
+    return subjectContent.filter((content) => {
+      if (currentCourse === "A") return content.course === "A"
+      if (currentCourse === "B") return content.course === "A" || content.course === "B"
+      return true // C and S courses can access all content
+    })
+  }
+
+  const getProblemCount = (subjectId: string, contentId: string) => {
+    const problemData = studentGrade === "5" ? grade5ProblemCounts : grade6ProblemCounts
+    const sessionData = problemData[selectedSession as keyof typeof problemData]
+    if (!sessionData) return 0
+
+    const subjectData = sessionData[subjectId as keyof typeof sessionData]
+    if (!subjectData) return 0
+
+    return subjectData[contentId as keyof typeof subjectData] || 0
+  }
 
   const handleSubjectToggle = (subjectId: string) => {
     setSelectedSubjects((prev) => {
@@ -191,61 +452,19 @@ export default function SparkPage() {
       } else {
         setSubjectDetails((prevDetails) => ({
           ...prevDetails,
-          [subjectId]: {
-            mood: currentLevel === "spark" ? "" : undefined,
-            categories: [],
-            categoryUnderstanding: {},
-          },
+          [subjectId]: {},
         }))
         return [...prev, subjectId]
       }
     })
   }
 
-  const handleCategoryToggle = (subjectId: string, categoryId: string) => {
-    const currentCategories = subjectDetails[subjectId]?.categories || []
-    const newCategories = currentCategories.includes(categoryId)
-      ? currentCategories.filter((id) => id !== categoryId)
-      : [...currentCategories, categoryId]
-
-    setSubjectDetails((prev) => {
-      const newCategoryUnderstanding = { ...prev[subjectId]?.categoryUnderstanding }
-
-      // カテゴリーが削除された場合、対応する理解度も削除
-      if (currentCategories.includes(categoryId)) {
-        delete newCategoryUnderstanding[categoryId]
-      }
-
-      return {
-        ...prev,
-        [subjectId]: {
-          ...prev[subjectId],
-          categories: newCategories,
-          categoryUnderstanding: newCategoryUnderstanding,
-        },
-      }
-    })
-  }
-
-  const handleCategoryUnderstandingChange = (subjectId: string, categoryId: string, understanding: string) => {
+  const handleCorrectAnswersChange = (subjectId: string, contentId: string, value: number) => {
     setSubjectDetails((prev) => ({
       ...prev,
       [subjectId]: {
         ...prev[subjectId],
-        categoryUnderstanding: {
-          ...prev[subjectId]?.categoryUnderstanding,
-          [categoryId]: understanding,
-        },
-      },
-    }))
-  }
-
-  const handleSubjectDetailChange = (subjectId: string, field: string, value: string | string[]) => {
-    setSubjectDetails((prev) => ({
-      ...prev,
-      [subjectId]: {
-        ...prev[subjectId],
-        [field]: value,
+        [contentId]: value,
       },
     }))
   }
@@ -255,20 +474,17 @@ export default function SparkPage() {
 
     setTimeout(() => {
       const studiedSubjects = selectedSubjects.map((id) => subjects.find((s) => s.id === id)?.name).join("、")
-      const understandingLevels = selectedSubjects.map((id) => {
-        const understanding = subjectDetails[id]?.mood
-        if (understanding === "perfect") return "バッチリ理解"
-        if (understanding === "good") return "できた"
-        if (understanding === "normal") return "ふつう"
-        if (understanding === "slightly_anxious") return "ちょっと不安"
-        if (understanding === "difficult") return "むずかしかった"
-        return "ふつう"
-      })
+      const levelName =
+        currentLevel === "spark"
+          ? "Spark（楽しくスタート）"
+          : currentLevel === "flame"
+            ? "Flame（成長ステップ）"
+            : "Blaze（最高にチャレンジ）"
 
       const reflections = [
-        `今日は${studiedSubjects}に取り組みました。特に${understandingLevels[0]}と感じた部分があり、自分なりに頑張れたと思います。この調子で続けていきたいです。`, // Celebrate系
-        `${studiedSubjects}の学習を通して、前回よりも理解が深まったように感じます。分からなかった部分も少しずつ見えてきて、成長を実感できました。`, // Insight系
-        `今日学んだ${studiedSubjects}の内容を明日もう一度復習して、理解を定着させたいと思います。継続することで必ず力がつくはずです。`, // Next step系
+        `今日は${studiedSubjects}の学習に取り組みました。${levelName}レベルの内容をしっかりと進めることができ、自分なりに頑張れたと思います。この調子で続けていきたいです。`, // Celebrate系
+        `${studiedSubjects}の学習を通して、前回よりも理解が深まったように感じます。${levelName}の内容も少しずつ見えてきて、成長を実感できました。`, // Insight系
+        `今日学んだ${studiedSubjects}の内容を明日もう一度復習して、理解を定着させたいと思います。${levelName}レベルを継続することで必ず力がつくはずです。`, // Next step系
       ]
       setAiReflections(reflections)
       setIsGeneratingAI(false)
@@ -310,10 +526,11 @@ export default function SparkPage() {
 
     setTimeout(() => {
       console.log("Learning record saved:", {
-        date: selectedSession, // Changed from selectedDate to selectedSession
+        session: selectedSession,
         subjects: selectedSubjects,
         details: subjectDetails,
         reflection,
+        course: currentCourse,
         level: currentLevel,
       })
 
@@ -333,42 +550,31 @@ export default function SparkPage() {
   }
 
   const isFormValid = () => {
-    if (!selectedSession) return false // Added check for selectedSession
+    if (!selectedSession) return false
     if (selectedSubjects.length === 0) return false
 
     return selectedSubjects.every((subjectId) => {
       const details = subjectDetails[subjectId]
       if (!details) return false
 
-      if (currentLevel === "spark") {
-        // Sparkレベルは従来通り理解度のみ必須
-        return details.mood
-      } else {
-        // Flame/Blazeレベルは学習内容必須、選択した学習内容ごとに理解度必須
-        if (details.categories.length === 0) return false
-        return details.categories.every((categoryId) => details.categoryUnderstanding[categoryId])
-      }
+      const availableContent = getAvailableLearningContent(subjectId)
+      return (
+        availableContent.length > 0 &&
+        availableContent.some((content) => details[content.id] !== undefined && details[content.id] >= 0)
+      )
     })
   }
 
   const CurrentLevelIcon = levels[currentLevel].icon
 
-  const toggleUnderstandingGuide = (subjectId: string) => {
-    setShowUnderstandingGuide((prev) => ({
-      ...prev,
-      [subjectId]: !prev[subjectId],
-    }))
-  }
-
-  const toggleCategoryGuide = (subjectId: string) => {
-    setShowCategoryGuide((prev) => ({
-      ...prev,
-      [subjectId]: !prev[subjectId],
-    }))
-  }
-
   const getAvailableSessions = () => {
     return studentGrade === "5" ? grade5Sessions : grade6Sessions
+  }
+
+  const getLevelDisplayName = () => {
+    if (currentCourse === "A") return "Spark（楽しくスタート）"
+    if (currentCourse === "B") return "Flame（成長ステップ）"
+    return "Blaze（最高にチャレンジ）"
   }
 
   return (
@@ -380,75 +586,16 @@ export default function SparkPage() {
             <div>
               <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
                 <CurrentLevelIcon className={`h-6 w-6 ${levels[currentLevel].color}`} />
-                スパーク - {levels[currentLevel].name}
+                スパーク - {getLevelDisplayName()}
               </h1>
-              <p className="text-sm text-muted-foreground">{levels[currentLevel].description}</p>
-            </div>
-
-            <div className="flex gap-2">
-              <Button
-                variant={currentLevel === "spark" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setCurrentLevel("spark")}
-              >
-                <Sparkles className="h-4 w-4 mr-1" />
-                Spark
-              </Button>
-              <Button
-                variant={currentLevel === "flame" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setCurrentLevel("flame")}
-                disabled={!canAccessFlame}
-              >
-                <Flame className="h-4 w-4 mr-1" />
-                Flame
-              </Button>
-              <Button
-                variant={currentLevel === "blaze" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setCurrentLevel("blaze")}
-                disabled={!canAccessBlaze}
-              >
-                <Crown className="h-4 w-4 mr-1" />
-                Blaze
-              </Button>
+              <p className="text-sm text-muted-foreground">コース: {currentCourse}コース</p>
             </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-4xl mx-auto p-4 space-y-6">
-        {!canAccessFlame && (
-          <Card className="border-primary/20 bg-primary/5">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3 mb-2">
-                <Flame className="h-5 w-5 text-primary" />
-                <span className="font-medium">Flameレベル解放まで</span>
-              </div>
-              <Progress value={progressToFlame} className="mb-2" />
-              <p className="text-sm text-muted-foreground">
-                あと{3 - weeklyRecords}回記録でレベルアップ！振り返り機能が使えるようになります。
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {currentLevel === "flame" && !canAccessBlaze && (
-          <Card className="border-purple-200 bg-purple-50/50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3 mb-2">
-                <Crown className="h-5 w-5 text-purple-500" />
-                <span className="font-medium">Blazeレベル解放まで</span>
-              </div>
-              <Progress value={progressToBlaze} className="mb-2" />
-              <p className="text-sm text-muted-foreground">
-                学習内容をあと{3 - weeklyContentRecords}回記録でレベルアップ！AIコーチと会話できるようになります。
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Learning Session Selection - replacing Date Selection */}
+        {/* Learning Session Selection */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -530,270 +677,50 @@ export default function SparkPage() {
           <div className="space-y-4">
             {selectedSubjects.map((subjectId) => {
               const subject = subjects.find((s) => s.id === subjectId)
-              if (!subject) return null
+              const availableContent = getAvailableLearningContent(subjectId)
+              if (!subject || availableContent.length === 0) return null
 
               return (
                 <Card key={subjectId} className="border-l-4 border-l-primary">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-lg flex items-center gap-2">
                       <Badge className={subject.color}>{subject.name}</Badge>
-                      の詳細
+                      の正答数入力
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {currentLevel === "spark" && (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Label className="text-sm font-medium">理解度 *</Label>
-                          <button
-                            onClick={() => toggleUnderstandingGuide(subjectId)}
-                            className="p-1 rounded-full hover:bg-muted/50 transition-colors"
-                            type="button"
-                          >
-                            <Info className="h-4 w-4 text-muted-foreground hover:text-primary" />
-                          </button>
-                        </div>
+                    {availableContent.map((content) => {
+                      const maxProblems = getProblemCount(subjectId, content.id)
+                      const currentValue = subjectDetails[subjectId]?.[content.id] || 0
 
-                        {showUnderstandingGuide[subjectId] && (
-                          <div className="mb-3 p-3 bg-gradient-to-r from-primary/5 to-accent/5 rounded-lg border border-primary/20 shadow-sm">
-                            <div className="font-medium mb-2 text-primary text-sm">理解度の目安</div>
-                            <div className="space-y-1 text-xs">
-                              <div className="flex items-center gap-2">
-                                <span>😄</span>
-                                <span>
-                                  <strong>バッチリ理解</strong>：正答率90%以上
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span>😐</span>
-                                <span>
-                                  <strong>ふつう</strong>：正答率70-79%
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span>😥</span>
-                                <span>
-                                  <strong>むずかしかった</strong>：正答率50%未満
-                                </span>
-                              </div>
+                      if (maxProblems === 0) return null
+
+                      return (
+                        <div key={content.id} className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-sm font-medium">{content.name}</Label>
+                            <Badge variant="outline" className="text-xs">
+                              {currentValue} / {maxProblems}問
+                            </Badge>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Slider
+                              value={[currentValue]}
+                              onValueChange={(value) => handleCorrectAnswersChange(subjectId, content.id, value[0])}
+                              max={maxProblems}
+                              min={0}
+                              step={1}
+                              className="w-full"
+                            />
+                            <div className="flex justify-between text-xs text-muted-foreground">
+                              <span>0問</span>
+                              <span>{maxProblems}問</span>
                             </div>
                           </div>
-                        )}
-
-                        <div className="grid gap-2 grid-cols-1 md:grid-cols-3">
-                          {[
-                            {
-                              value: "perfect",
-                              label: "バッチリ理解",
-                              emoji: "😄",
-                              color: "border-green-600 bg-green-50 text-green-800",
-                            },
-                            {
-                              value: "normal",
-                              label: "ふつう",
-                              emoji: "😐",
-                              color: "border-yellow-500 bg-yellow-50 text-yellow-700",
-                            },
-                            {
-                              value: "difficult",
-                              label: "むずかしかった",
-                              emoji: "😥",
-                              color: "border-red-500 bg-red-50 text-red-700",
-                            },
-                          ].map((understanding) => (
-                            <button
-                              key={understanding.value}
-                              onClick={() => handleSubjectDetailChange(subjectId, "mood", understanding.value)}
-                              className={`p-3 rounded-lg border-2 text-center transition-all ${
-                                subjectDetails[subjectId]?.mood === understanding.value
-                                  ? `${understanding.color} shadow-md`
-                                  : "border-border bg-background hover:border-primary/50"
-                              }`}
-                            >
-                              <div className="text-2xl mb-1">{understanding.emoji}</div>
-                              <div className="text-xs font-medium leading-tight">{understanding.label}</div>
-                            </button>
-                          ))}
                         </div>
-                      </div>
-                    )}
-
-                    {(currentLevel === "flame" || currentLevel === "blaze") && (
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <Label className="text-sm font-medium">学習内容 *</Label>
-                            <button
-                              onClick={() => toggleCategoryGuide(subjectId)}
-                              className="p-1 rounded-full hover:bg-muted/50 transition-colors"
-                              type="button"
-                            >
-                              <Info className="h-4 w-4 text-muted-foreground hover:text-primary" />
-                            </button>
-                          </div>
-
-                          {showCategoryGuide[subjectId] && (
-                            <div className="mb-3 p-3 bg-gradient-to-r from-primary/5 to-accent/5 rounded-lg border border-primary/20 shadow-sm">
-                              <div className="font-medium mb-2 text-primary text-sm">学習内容カテゴリーの説明</div>
-                              <div className="space-y-2 text-xs">
-                                {learningCategories.map((category) => (
-                                  <div key={category.id} className="flex items-start gap-2">
-                                    <span className="text-sm">{category.color}</span>
-                                    <div>
-                                      <span className="font-medium">{category.name}</span>
-                                      <span className="text-muted-foreground ml-1">- {category.description}</span>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="text-xs text-muted-foreground mb-2">
-                            今日取り組んだ学習内容を選択してください（複数選択可）
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                            {learningCategories.map((category) => (
-                              <button
-                                key={category.id}
-                                onClick={() => handleCategoryToggle(subjectId, category.id)}
-                                className={`p-3 rounded-lg border-2 text-left transition-all ${
-                                  subjectDetails[subjectId]?.categories?.includes(category.id)
-                                    ? `${category.bgColor} shadow-md`
-                                    : "border-border bg-background hover:border-primary/50"
-                                }`}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <span className="text-lg">{category.color}</span>
-                                  <div>
-                                    <div className="font-medium text-sm">{category.name}</div>
-                                  </div>
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {subjectDetails[subjectId]?.categories?.length > 0 && (
-                          <div className="space-y-4">
-                            <div className="flex items-center gap-2">
-                              <Label className="text-sm font-medium">各学習内容の理解度 *</Label>
-                              <button
-                                onClick={() => toggleUnderstandingGuide(subjectId)}
-                                className="p-1 rounded-full hover:bg-muted/50 transition-colors"
-                                type="button"
-                              >
-                                <Info className="h-4 w-4 text-muted-foreground hover:text-primary" />
-                              </button>
-                            </div>
-
-                            {showUnderstandingGuide[subjectId] && (
-                              <div className="mb-3 p-3 bg-gradient-to-r from-primary/5 to-accent/5 rounded-lg border border-primary/20 shadow-sm">
-                                <div className="font-medium mb-2 text-primary text-sm">理解度の目安</div>
-                                <div className="space-y-1 text-xs">
-                                  <div className="flex items-center gap-2">
-                                    <span>😄</span>
-                                    <span>
-                                      <strong>バッチリ理解</strong>：正答率90%以上
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span>😊</span>
-                                    <span>
-                                      <strong>できた</strong>：正答率80-89%
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span>😐</span>
-                                    <span>
-                                      <strong>ふつう</strong>：正答率70-79%
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span>😟</span>
-                                    <span>
-                                      <strong>ちょっと不安</strong>：正答率50-69%
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span>😥</span>
-                                    <span>
-                                      <strong>むずかしかった</strong>：正答率50%未満
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-
-                            {subjectDetails[subjectId].categories.map((categoryId) => {
-                              const category = learningCategories.find((c) => c.id === categoryId)
-                              if (!category) return null
-
-                              return (
-                                <div key={categoryId} className="space-y-2">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-lg">{category.color}</span>
-                                    <span className="font-medium text-sm">{category.name}</span>
-                                    <span className="text-red-500 text-sm">*</span>
-                                  </div>
-
-                                  <div className="grid gap-2 grid-cols-1 md:grid-cols-5">
-                                    {[
-                                      {
-                                        value: "perfect",
-                                        label: "バッチリ理解",
-                                        emoji: "😄",
-                                        color: "border-green-600 bg-green-50 text-green-800",
-                                      },
-                                      {
-                                        value: "good",
-                                        label: "できた",
-                                        emoji: "😊",
-                                        color: "border-green-400 bg-green-50 text-green-700",
-                                      },
-                                      {
-                                        value: "normal",
-                                        label: "ふつう",
-                                        emoji: "😐",
-                                        color: "border-yellow-500 bg-yellow-50 text-yellow-700",
-                                      },
-                                      {
-                                        value: "slightly_anxious",
-                                        label: "ちょっと不安",
-                                        emoji: "😟",
-                                        color: "border-sky-500 bg-sky-50 text-sky-700",
-                                      },
-                                      {
-                                        value: "difficult",
-                                        label: "むずかしかった",
-                                        emoji: "😥",
-                                        color: "border-red-500 bg-red-50 text-red-700",
-                                      },
-                                    ].map((understanding) => (
-                                      <button
-                                        key={understanding.value}
-                                        onClick={() =>
-                                          handleCategoryUnderstandingChange(subjectId, categoryId, understanding.value)
-                                        }
-                                        className={`p-3 rounded-lg border-2 text-center transition-all ${
-                                          subjectDetails[subjectId]?.categoryUnderstanding[categoryId] ===
-                                          understanding.value
-                                            ? `${understanding.color} shadow-md`
-                                            : "border-border bg-background hover:border-primary/50"
-                                        }`}
-                                      >
-                                        <div className="text-2xl mb-1">{understanding.emoji}</div>
-                                        <div className="text-xs font-medium leading-tight">{understanding.label}</div>
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    )}
+                      )
+                    })}
                   </CardContent>
                 </Card>
               )
@@ -801,6 +728,7 @@ export default function SparkPage() {
           </div>
         )}
 
+        {/* Reflection Section - only for Flame and Blaze levels */}
         {currentLevel !== "spark" && (
           <Card>
             <CardHeader>
@@ -823,7 +751,7 @@ export default function SparkPage() {
                         className="h-auto p-4 text-left"
                       >
                         <div>
-                          <div className="font-medium">自由に振り返りを書く</div>
+                          <div className="font-medium">今日の振り返りをする</div>
                           <div className="text-sm text-muted-foreground mt-1">自分の言葉で今日の学習を振り返る</div>
                         </div>
                       </Button>
@@ -837,7 +765,7 @@ export default function SparkPage() {
                         className="h-auto p-4 text-left"
                       >
                         <div>
-                          <div className="font-medium">AIコーチに振り返りを作ってもらう</div>
+                          <div className="font-medium">今日の振り返りを生成</div>
                           <div className="text-sm text-muted-foreground mt-1">
                             学習記録に基づいた3つの選択肢から選ぶ
                           </div>
@@ -848,57 +776,52 @@ export default function SparkPage() {
                     <div className="space-y-4">
                       {aiReflections.length === 0 && (
                         <div className="space-y-3">
-                          <div className="flex items-center gap-2">
-                            <MessageSquare className="h-5 w-5 text-primary" />
-                            <span className="font-medium text-sm">自由に振り返りを書く</span>
-                          </div>
-
                           <Textarea
                             placeholder="今日の学習はどうでしたか？感じたことや気づいたことを自由に書いてみましょう。"
                             value={reflection}
                             onChange={(e) => setReflection(e.target.value)}
                             className="min-h-[120px] text-base"
-                            maxLength={300}
+                            maxLength={200}
                           />
                           <div className="flex justify-between items-center">
-                            <span className="text-xs text-muted-foreground">自分の言葉で振り返ってみよう</span>
-                            <span className="text-xs text-muted-foreground">{reflection.length}/300文字</span>
+                            <span className="text-xs text-muted-foreground">目安80-120字</span>
+                            <span className="text-xs text-muted-foreground">{reflection.length}/200文字</span>
                           </div>
                         </div>
                       )}
 
                       {aiReflections.length > 0 && (
                         <div className="space-y-3">
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png" />
-                              <AvatarFallback>AI</AvatarFallback>
-                            </Avatar>
-                            <span className="font-medium text-sm">あなたの学習記録に基づいた振り返り</span>
-                          </div>
-
                           {isGeneratingAI ? (
                             <div className="p-4 bg-muted/50 rounded-lg">
                               <div className="flex items-center gap-2">
                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                                <span className="text-sm">あなたの学習内容を分析して振り返りを作成中...</span>
+                                <span className="text-sm">振り返りを生成中...</span>
                               </div>
                             </div>
                           ) : (
                             <div className="space-y-2">
-                              {aiReflections.map((reflectionOption, index) => (
-                                <button
-                                  key={index}
-                                  onClick={() => setReflection(reflectionOption)}
-                                  className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
-                                    reflection === reflectionOption
-                                      ? "border-primary bg-primary/5"
-                                      : "border-border bg-background hover:border-primary/50"
-                                  }`}
-                                >
-                                  <div className="text-sm leading-relaxed">{reflectionOption}</div>
-                                </button>
-                              ))}
+                              {aiReflections.map((reflectionOption, index) => {
+                                const types = ["Celebrate系", "Insight系", "Next step系"]
+                                return (
+                                  <button
+                                    key={index}
+                                    onClick={() => setReflection(reflectionOption)}
+                                    className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
+                                      reflection === reflectionOption
+                                        ? "border-primary bg-primary/5"
+                                        : "border-border bg-background hover:border-primary/50"
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <Badge variant="outline" className="text-xs">
+                                        {types[index]}
+                                      </Badge>
+                                    </div>
+                                    <div className="text-sm leading-relaxed">{reflectionOption}</div>
+                                  </button>
+                                )
+                              })}
                             </div>
                           )}
                         </div>
@@ -957,36 +880,36 @@ export default function SparkPage() {
                     <div className="space-y-4">
                       {blazeReflectionType === "generate" && (
                         <div className="space-y-3">
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png" />
-                              <AvatarFallback>AI</AvatarFallback>
-                            </Avatar>
-                            <span className="font-medium text-sm">あなたの学習記録に基づいた振り返り</span>
-                          </div>
-
                           {isGeneratingAI ? (
                             <div className="p-4 bg-muted/50 rounded-lg">
                               <div className="flex items-center gap-2">
                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                                <span className="text-sm">あなたの学習内容を分析して振り返りを作成中...</span>
+                                <span className="text-sm">振り返りを生成中...</span>
                               </div>
                             </div>
                           ) : (
                             <div className="space-y-2">
-                              {aiReflections.map((reflectionOption, index) => (
-                                <button
-                                  key={index}
-                                  onClick={() => setReflection(reflectionOption)}
-                                  className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
-                                    reflection === reflectionOption
-                                      ? "border-primary bg-primary/5"
-                                      : "border-border bg-background hover:border-primary/50"
-                                  }`}
-                                >
-                                  <div className="text-sm leading-relaxed">{reflectionOption}</div>
-                                </button>
-                              ))}
+                              {aiReflections.map((reflectionOption, index) => {
+                                const types = ["Celebrate系", "Insight系", "Next step系"]
+                                return (
+                                  <button
+                                    key={index}
+                                    onClick={() => setReflection(reflectionOption)}
+                                    className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
+                                      reflection === reflectionOption
+                                        ? "border-primary bg-primary/5"
+                                        : "border-border bg-background hover:border-primary/50"
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <Badge variant="outline" className="text-xs">
+                                        {types[index]}
+                                      </Badge>
+                                    </div>
+                                    <div className="text-sm leading-relaxed">{reflectionOption}</div>
+                                  </button>
+                                )
+                              })}
                             </div>
                           )}
                         </div>
@@ -994,14 +917,6 @@ export default function SparkPage() {
 
                       {blazeReflectionType === "chat" && (
                         <div className="space-y-4">
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png" />
-                              <AvatarFallback>AI</AvatarFallback>
-                            </Avatar>
-                            <span className="font-medium text-sm">AIコーチからの質問</span>
-                          </div>
-
                           <div className="p-4 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg border border-primary/20">
                             <p className="text-sm font-medium text-primary">{aiQuestion}</p>
                           </div>
@@ -1037,13 +952,6 @@ export default function SparkPage() {
 
                           {aiResponse && (
                             <div className="space-y-3">
-                              <div className="flex items-center gap-2">
-                                <Avatar className="h-8 w-8">
-                                  <AvatarImage src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png" />
-                                  <AvatarFallback>AI</AvatarFallback>
-                                </Avatar>
-                                <span className="font-medium text-sm">AIコーチからの返信</span>
-                              </div>
                               <div className="p-4 bg-gradient-to-r from-accent/10 to-primary/10 rounded-lg border border-accent/20">
                                 <p className="text-sm leading-relaxed">{aiResponse}</p>
                               </div>
@@ -1077,7 +985,7 @@ export default function SparkPage() {
         <div className="sticky bottom-24 md:bottom-6">
           <Button
             onClick={handleSubmit}
-            disabled={!isFormValid() || isSubmitting || !selectedSession}
+            disabled={!isFormValid() || isSubmitting}
             className="w-full h-14 text-lg font-medium shadow-lg bg-primary text-primary-foreground hover:bg-primary/90"
           >
             <Save className="h-5 w-5 mr-2" />
@@ -1086,14 +994,10 @@ export default function SparkPage() {
         </div>
 
         {/* Form Validation Message */}
-        {selectedSubjects.length > 0 && (!isFormValid() || !selectedSession) && (
+        {selectedSubjects.length > 0 && !isFormValid() && (
           <div className="p-4 bg-accent/10 border border-accent/20 rounded-lg">
             <p className="text-sm text-accent font-medium">
-              {!selectedSession
-                ? "学習回を選択してください"
-                : currentLevel === "spark"
-                  ? "選択した科目の理解度を選んでください"
-                  : "選択した科目の学習内容と、各学習内容の理解度を選んでください"}
+              {!selectedSession ? "学習回を選択してください" : "選択した科目の正答数を入力してください"}
             </p>
           </div>
         )}
