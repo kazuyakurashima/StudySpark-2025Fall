@@ -7,43 +7,56 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { BottomNavigation } from "@/components/bottom-navigation"
-import { Calendar, BookOpen, MessageSquare, Save, Sparkles, Flame, Crown } from "lucide-react"
+import { Calendar, BookOpen, MessageSquare, Save, Sparkles, Flame, Crown, Bot } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Input } from "@/components/ui/input"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 const subjects = [
   {
     id: "math",
     name: "算数",
     color:
-      "bg-gradient-to-r from-blue-50 to-blue-100 text-blue-900 border-blue-300 hover:from-blue-100 hover:to-blue-200",
+      "bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200 text-blue-900 border-blue-200 hover:from-blue-100 hover:via-blue-200 hover:to-blue-300",
     accent: "border-l-blue-500",
-    badge: "bg-blue-500 text-white",
+    badge: "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg",
+    sliderColor: "from-blue-400 to-blue-600",
+    progressBg: "bg-blue-100",
+    progressFill: "bg-gradient-to-r from-blue-500 to-blue-600",
   },
   {
     id: "japanese",
     name: "国語",
     color:
-      "bg-gradient-to-r from-emerald-50 to-emerald-100 text-emerald-900 border-emerald-300 hover:from-emerald-100 hover:to-emerald-200",
+      "bg-gradient-to-br from-emerald-50 via-emerald-100 to-emerald-200 text-emerald-900 border-emerald-200 hover:from-emerald-100 hover:via-emerald-200 hover:to-emerald-300",
     accent: "border-l-emerald-500",
-    badge: "bg-emerald-500 text-white",
+    badge: "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg",
+    sliderColor: "from-emerald-400 to-emerald-600",
+    progressBg: "bg-emerald-100",
+    progressFill: "bg-gradient-to-r from-emerald-500 to-emerald-600",
   },
   {
     id: "science",
     name: "理科",
     color:
-      "bg-gradient-to-r from-purple-50 to-purple-100 text-purple-900 border-purple-300 hover:from-purple-100 hover:to-purple-200",
+      "bg-gradient-to-br from-purple-50 via-purple-100 to-purple-200 text-purple-900 border-purple-200 hover:from-purple-100 hover:via-purple-200 hover:to-purple-300",
     accent: "border-l-purple-500",
-    badge: "bg-purple-500 text-white",
+    badge: "bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg",
+    sliderColor: "from-purple-400 to-purple-600",
+    progressBg: "bg-purple-100",
+    progressFill: "bg-gradient-to-r from-purple-500 to-purple-600",
   },
   {
     id: "social",
     name: "社会",
     color:
-      "bg-gradient-to-r from-amber-50 to-amber-100 text-amber-900 border-amber-300 hover:from-amber-100 hover:to-amber-200",
+      "bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200 text-amber-900 border-amber-200 hover:from-amber-100 hover:via-amber-200 hover:to-amber-300",
     accent: "border-l-amber-500",
-    badge: "bg-amber-500 text-white",
+    badge: "bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg",
+    sliderColor: "from-amber-400 to-amber-600",
+    progressBg: "bg-amber-100",
+    progressFill: "bg-gradient-to-r from-amber-500 to-amber-600",
   },
 ]
 
@@ -565,7 +578,7 @@ export default function SparkPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 pb-20">
-      <div className="bg-white/90 backdrop-blur-md border-b border-slate-200/60 shadow-sm p-6">
+      <div className="bg-white/95 backdrop-blur-lg border-b border-slate-200/60 shadow-lg p-6">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between">
             <div>
@@ -580,17 +593,17 @@ export default function SparkPage() {
       </div>
 
       <div className="max-w-4xl mx-auto p-6 space-y-8">
-        <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-          <CardHeader className="pb-4">
+        <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm ring-1 ring-slate-200/50">
+          <CardHeader className="pb-4 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 rounded-t-lg">
             <CardTitle className="flex items-center gap-3 text-lg font-semibold text-slate-800">
               <Calendar className="h-6 w-6 text-blue-600" />
               学習回 *
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             <div className="space-y-4">
               <Select value={selectedSession} onValueChange={setSelectedSession}>
-                <SelectTrigger className="w-full h-12 text-base border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
+                <SelectTrigger className="w-full h-14 text-base border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 rounded-xl shadow-sm">
                   <SelectValue placeholder="学習回を選択してください" />
                 </SelectTrigger>
                 <SelectContent>
@@ -604,47 +617,49 @@ export default function SparkPage() {
 
               {selectedSession && (
                 <div className="flex items-center gap-3">
-                  <Badge variant="outline" className="text-sm px-3 py-1 bg-slate-50 border-slate-300">
+                  <Badge variant="outline" className="text-sm px-4 py-2 bg-slate-50 border-slate-300 font-medium">
                     {getAvailableSessions().find((s) => s.id === selectedSession)?.period}
                   </Badge>
                   {(() => {
                     const currentSession = getCurrentLearningSession(studentGrade)
                     return (
                       selectedSession === currentSession && (
-                        <Badge className="bg-blue-600 text-white text-sm px-3 py-1">今回</Badge>
+                        <Badge className="bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm px-4 py-2 shadow-lg">
+                          今回
+                        </Badge>
                       )
                     )
                   })()}
                 </div>
               )}
 
-              <p className="text-sm text-slate-600">小学{studentGrade}年生の学習回が表示されています</p>
+              <p className="text-sm text-slate-600 font-medium">小学{studentGrade}年生の学習回が表示されています</p>
             </div>
           </CardContent>
         </Card>
 
         {selectedSession && (
-          <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-            <CardHeader className="pb-4">
+          <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm ring-1 ring-slate-200/50">
+            <CardHeader className="pb-4 bg-gradient-to-r from-green-50/50 to-emerald-50/50 rounded-t-lg">
               <CardTitle className="flex items-center gap-3 text-lg font-semibold text-slate-800">
-                <BookOpen className="h-6 w-6 text-blue-600" />
+                <BookOpen className="h-6 w-6 text-emerald-600" />
                 学習した科目 *
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <CardContent className="pt-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 {subjects.map((subject) => (
                   <button
                     key={subject.id}
                     onClick={() => handleSubjectToggle(subject.id)}
-                    className={`p-6 rounded-xl border-2 transition-all duration-300 transform ${
+                    className={`p-6 rounded-2xl border-2 transition-all duration-300 transform shadow-lg ${
                       selectedSubjects.includes(subject.id)
-                        ? `${subject.color} shadow-lg scale-105 border-opacity-100`
-                        : `bg-white border-slate-200 hover:border-slate-300 hover:shadow-md hover:scale-102`
+                        ? `${subject.color} shadow-xl scale-105 border-opacity-100 ring-2 ring-offset-2 ring-opacity-30`
+                        : `bg-white border-slate-200 hover:border-slate-300 hover:shadow-xl hover:scale-102`
                     }`}
                   >
                     <div className="flex items-center justify-center">
-                      <span className="font-semibold text-lg">{subject.name}</span>
+                      <span className="font-bold text-lg">{subject.name}</span>
                     </div>
                   </button>
                 ))}
@@ -663,11 +678,13 @@ export default function SparkPage() {
               return (
                 <Card
                   key={subjectId}
-                  className={`shadow-lg border-0 bg-white/90 backdrop-blur-sm border-l-4 ${subject.accent}`}
+                  className={`shadow-xl border-0 bg-white/95 backdrop-blur-sm border-l-8 ${subject.accent} ring-1 ring-slate-200/50`}
                 >
                   <CardHeader className="pb-4">
                     <CardTitle className="text-xl flex items-center gap-3">
-                      <Badge className={`${subject.badge} px-4 py-2 text-base font-semibold`}>{subject.name}</Badge>
+                      <Badge className={`${subject.badge} px-6 py-3 text-base font-bold rounded-xl`}>
+                        {subject.name}
+                      </Badge>
                       の正答数入力
                     </CardTitle>
                   </CardHeader>
@@ -681,35 +698,46 @@ export default function SparkPage() {
                       return (
                         <div
                           key={content.id}
-                          className="space-y-4 p-4 bg-slate-50/50 rounded-lg border border-slate-200"
+                          className="space-y-6 p-6 bg-gradient-to-br from-slate-50/80 to-white rounded-2xl border-2 border-slate-100 shadow-lg"
                         >
                           <div className="flex items-center justify-between">
-                            <Label className="text-base font-semibold text-slate-800">{content.name}</Label>
-                            <Badge variant="outline" className="text-sm px-3 py-1 bg-white border-slate-300">
+                            <Label className="text-lg font-bold text-slate-800">{content.name}</Label>
+                            <Badge
+                              variant="outline"
+                              className="text-base px-4 py-2 bg-white border-slate-300 font-bold shadow-sm"
+                            >
                               {currentValue} / {maxProblems}問
                             </Badge>
                           </div>
 
-                          <div className="space-y-4">
-                            <div className="space-y-3">
-                              <div className="px-2">
+                          <div className="space-y-6">
+                            <div className="space-y-4">
+                              <div className="px-3">
+                                <div
+                                  className={`h-4 rounded-full ${subject.progressBg} relative overflow-hidden shadow-inner`}
+                                >
+                                  <div
+                                    className={`h-full ${subject.progressFill} rounded-full transition-all duration-500 ease-out shadow-sm`}
+                                    style={{ width: `${(currentValue / maxProblems) * 100}%` }}
+                                  />
+                                </div>
                                 <Slider
                                   value={[currentValue]}
                                   onValueChange={(value) => handleCorrectAnswersChange(subjectId, content.id, value[0])}
                                   max={maxProblems}
                                   min={0}
                                   step={1}
-                                  className="w-full [&_[role=slider]]:h-5 [&_[role=slider]]:w-5 [&_[role=slider]]:border-2 [&_[role=slider]]:border-white [&_[role=slider]]:shadow-lg [&>span:first-child]:h-3 [&>span:first-child]:bg-gradient-to-r [&>span:first-child]:from-blue-500 [&>span:first-child]:to-blue-600"
+                                  className="w-full mt-2 [&_[role=slider]]:h-6 [&_[role=slider]]:w-6 [&_[role=slider]]:border-3 [&_[role=slider]]:border-white [&_[role=slider]]:shadow-xl [&_[role=slider]]:bg-white [&>span:first-child]:h-0"
                                 />
                               </div>
-                              <div className="flex justify-between text-sm text-slate-600 font-medium px-2">
+                              <div className="flex justify-between text-sm text-slate-600 font-bold px-3">
                                 <span>0問</span>
                                 <span>{maxProblems}問</span>
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-4 p-3 bg-white rounded-lg border border-slate-200">
-                              <Label className="text-base font-medium text-slate-700 min-w-fit">直接入力:</Label>
+                            <div className="flex items-center gap-6 p-4 bg-white rounded-xl border-2 border-slate-200 shadow-lg">
+                              <Label className="text-lg font-bold text-slate-700 min-w-fit">直接入力:</Label>
                               <Input
                                 type="number"
                                 min={0}
@@ -719,9 +747,9 @@ export default function SparkPage() {
                                   const value = Math.min(Math.max(0, Number.parseInt(e.target.value) || 0), maxProblems)
                                   handleCorrectAnswersChange(subjectId, content.id, value)
                                 }}
-                                className="w-24 h-10 text-center text-lg font-semibold border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                                className="w-32 h-12 text-center text-xl font-bold border-2 border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 rounded-xl shadow-sm"
                               />
-                              <span className="text-base text-slate-600 font-medium">/ {maxProblems}問</span>
+                              <span className="text-lg text-slate-600 font-bold">/ {maxProblems}問</span>
                             </div>
                           </div>
                         </div>
@@ -734,16 +762,16 @@ export default function SparkPage() {
           </div>
         )}
 
-        <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-          <CardHeader className="pb-4">
+        <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm ring-1 ring-slate-200/50">
+          <CardHeader className="pb-4 bg-gradient-to-r from-purple-50/50 to-pink-50/50 rounded-t-lg">
             <CardTitle className="flex items-center gap-3 text-lg font-semibold text-slate-800">
               <MessageSquare className="h-6 w-6 text-purple-600" />
               今日の振り返り（任意）
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-6 pt-6">
             {!showReflectionOptions ? (
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 gap-6">
                 <Button
                   onClick={() => {
                     setShowReflectionOptions(true)
@@ -752,11 +780,11 @@ export default function SparkPage() {
                     setAiReflections([])
                   }}
                   variant="outline"
-                  className="h-auto p-6 text-left border-2 border-slate-200 hover:border-purple-300 hover:bg-purple-50/50 transition-all duration-200"
+                  className="h-auto p-6 text-left border-2 border-slate-200 hover:border-purple-400 hover:bg-purple-50/70 transition-all duration-300 rounded-xl shadow-lg hover:shadow-xl"
                 >
                   <div>
-                    <div className="font-semibold text-base text-slate-800">今日の振り返りをする</div>
-                    <div className="text-sm text-slate-600 mt-2">自分の言葉で今日の学習を振り返る</div>
+                    <div className="font-bold text-lg text-slate-800">今日の振り返りをする</div>
+                    <div className="text-base text-slate-600 mt-2">自分の言葉で今日の学習を振り返る</div>
                   </div>
                 </Button>
 
@@ -768,11 +796,19 @@ export default function SparkPage() {
                     generateAIReflections()
                   }}
                   variant="outline"
-                  className="h-auto p-6 text-left border-2 border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all duration-200"
+                  className="h-auto p-6 text-left border-2 border-slate-200 hover:border-blue-400 hover:bg-blue-50/70 transition-all duration-300 rounded-xl shadow-lg hover:shadow-xl"
                 >
-                  <div>
-                    <div className="font-semibold text-base text-slate-800">今日の振り返りを生成</div>
-                    <div className="text-sm text-slate-600 mt-2">学習記録に基づいた3つの選択肢から選ぶ</div>
+                  <div className="flex items-start gap-4">
+                    <Avatar className="h-12 w-12 border-2 border-blue-200 shadow-lg">
+                      <AvatarImage src="/friendly-ai-coach-avatar.jpg" />
+                      <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-bold">
+                        <Bot className="h-6 w-6" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="font-bold text-lg text-slate-800">今日の振り返りを生成</div>
+                      <div className="text-base text-slate-600 mt-2">AIコーチが学習記録に基づいた3つの選択肢を作成</div>
+                    </div>
                   </div>
                 </Button>
               </div>
@@ -784,26 +820,39 @@ export default function SparkPage() {
                       placeholder="今日の学習はどうでしたか？感じたことや気づいたことを自由に書いてみましょう。"
                       value={reflection}
                       onChange={(e) => setReflection(e.target.value)}
-                      className="min-h-[140px] text-base border-slate-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 p-4"
+                      className="min-h-[160px] text-lg border-2 border-slate-300 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 p-6 rounded-xl shadow-lg"
                       maxLength={200}
                     />
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-slate-600 font-medium">目安80-120字</span>
-                      <span className="text-sm text-slate-600 font-medium">{reflection.length}/200文字</span>
+                      <span className="text-base text-slate-600 font-bold">目安80-120字</span>
+                      <span className="text-base text-slate-600 font-bold">{reflection.length}/200文字</span>
                     </div>
                   </div>
                 )}
 
                 {reflectionMode === "ai" && (
-                  <div className="space-y-4">
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200">
+                      <Avatar className="h-12 w-12 border-2 border-blue-300 shadow-lg">
+                        <AvatarImage src="/friendly-ai-coach-avatar.jpg" />
+                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-bold">
+                          <Bot className="h-6 w-6" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-bold text-lg text-slate-800">AIコーチ</div>
+                        <div className="text-base text-slate-600">あなたの学習記録を分析して振り返りを作成しました</div>
+                      </div>
+                    </div>
+
                     {isGeneratingAI ? (
-                      <div className="flex items-center justify-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                        <span className="ml-2 text-sm text-muted-foreground">振り返りを生成中...</span>
+                      <div className="flex items-center justify-center py-12 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl border border-blue-200">
+                        <div className="animate-spin rounded-full h-10 w-10 border-b-3 border-blue-600"></div>
+                        <span className="ml-4 text-lg text-slate-700 font-medium">振り返りを生成中...</span>
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        <p className="text-sm text-muted-foreground mb-3">
+                        <p className="text-base text-slate-700 font-medium mb-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
                           学習内容に基づいて3つの振り返りを生成しました。気に入ったものを選んでください：
                         </p>
                         {aiReflections.map((reflectionText, index) => {
@@ -812,16 +861,25 @@ export default function SparkPage() {
                             "Insight系（学び・気づき）",
                             "Next step系（次への行動）",
                           ]
+                          const colors = [
+                            "border-green-300 hover:bg-green-50",
+                            "border-blue-300 hover:bg-blue-50",
+                            "border-purple-300 hover:bg-purple-50",
+                          ]
                           return (
                             <Button
                               key={index}
                               onClick={() => setReflection(reflectionText)}
                               variant={reflection === reflectionText ? "default" : "outline"}
-                              className="h-auto p-4 text-left w-full"
+                              className={`h-auto p-6 text-left w-full border-2 ${colors[index]} transition-all duration-300 rounded-xl shadow-lg hover:shadow-xl ${
+                                reflection === reflectionText
+                                  ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-xl"
+                                  : ""
+                              }`}
                             >
-                              <div className="space-y-1">
-                                <div className="text-xs text-muted-foreground">{types[index]}</div>
-                                <div className="text-sm">{reflectionText}</div>
+                              <div className="space-y-2">
+                                <div className="text-sm font-bold opacity-80">{types[index]}</div>
+                                <div className="text-base leading-relaxed">{reflectionText}</div>
                               </div>
                             </Button>
                           )
@@ -831,7 +889,7 @@ export default function SparkPage() {
                   </div>
                 )}
 
-                <div className="flex gap-3">
+                <div className="flex gap-4">
                   <Button
                     onClick={() => {
                       setShowReflectionOptions(false)
@@ -840,7 +898,7 @@ export default function SparkPage() {
                       setAiReflections([])
                     }}
                     variant="outline"
-                    className="px-6 py-2 border-slate-300 hover:bg-slate-50"
+                    className="px-8 py-3 border-2 border-slate-300 hover:bg-slate-50 rounded-xl shadow-lg font-bold"
                   >
                     戻る
                   </Button>
@@ -854,16 +912,16 @@ export default function SparkPage() {
           <Button
             onClick={handleSubmit}
             disabled={!isFormValid() || isSubmitting}
-            className="w-full h-16 text-xl font-semibold shadow-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 disabled:from-slate-400 disabled:to-slate-500 transition-all duration-200"
+            className="w-full h-18 text-xl font-bold shadow-2xl bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 text-white hover:from-blue-700 hover:via-blue-800 hover:to-indigo-800 disabled:from-slate-400 disabled:to-slate-500 transition-all duration-300 rounded-2xl border-0"
           >
-            <Save className="h-6 w-6 mr-3" />
+            <Save className="h-7 w-7 mr-4" />
             {isSubmitting ? "保存中..." : "学習記録を保存"}
           </Button>
         </div>
 
         {selectedSubjects.length > 0 && !isFormValid() && (
-          <div className="p-4 bg-amber-50 border-l-4 border-amber-400 rounded-lg shadow-sm">
-            <p className="text-base text-amber-800 font-medium">
+          <div className="p-6 bg-gradient-to-r from-amber-50 to-orange-50 border-l-8 border-amber-400 rounded-2xl shadow-xl">
+            <p className="text-lg text-amber-800 font-bold">
               {!selectedSession ? "学習回を選択してください" : "選択した科目の正答数を入力してください"}
             </p>
           </div>
