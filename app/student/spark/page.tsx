@@ -859,13 +859,8 @@ export default function SparkPage() {
                             学習内容に基づいて3つの振り返りを生成しました。気に入ったものを選んでください：
                           </p>
                         </div>
-                        <div className="grid gap-4">
+                        <div className="space-y-4">
                           {aiReflections.map((reflectionText, index) => {
-                            const types = [
-                              "Celebrate系（できたこと）",
-                              "Insight系（学び・気づき）",
-                              "Next step系（次への行動）",
-                            ]
                             const colors = [
                               "border-green-300 hover:bg-green-50 hover:border-green-400",
                               "border-blue-300 hover:bg-blue-50 hover:border-blue-400",
@@ -885,13 +880,8 @@ export default function SparkPage() {
                                   reflection === reflectionText ? selectedColors[index] : `bg-white ${colors[index]}`
                                 }`}
                               >
-                                <div className="space-y-3">
-                                  <div
-                                    className={`text-sm font-bold ${reflection === reflectionText ? "opacity-90" : "text-slate-600"}`}
-                                  >
-                                    {types[index]}
-                                  </div>
-                                  <div className="text-base leading-relaxed font-medium">{reflectionText}</div>
+                                <div className="text-base leading-relaxed font-medium break-words">
+                                  {reflectionText}
                                 </div>
                               </Button>
                             )
