@@ -880,7 +880,7 @@ export default function SparkPage() {
                                   reflection === reflectionText ? selectedColors[index] : `bg-white ${colors[index]}`
                                 }`}
                               >
-                                <div className="text-base leading-relaxed font-medium break-words">
+                                <div className="text-base leading-relaxed font-medium break-words whitespace-normal overflow-wrap-anywhere">
                                   {reflectionText}
                                 </div>
                               </Button>

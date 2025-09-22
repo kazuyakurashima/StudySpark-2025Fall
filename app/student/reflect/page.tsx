@@ -11,7 +11,6 @@ import { AICoachChat } from "@/components/ai-coach-chat"
 import {
   MessageCircle,
   History,
-  Users,
   Sparkles,
   Calendar,
   TrendingUp,
@@ -477,7 +476,7 @@ export default function ReflectPage() {
 
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="history" className="flex items-center gap-2">
               <History className="h-4 w-4" />
               学習履歴
@@ -485,10 +484,6 @@ export default function ReflectPage() {
             <TabsTrigger value="messages" className="flex items-center gap-2">
               <MessageCircle className="h-4 w-4" />
               応援メッセージ
-            </TabsTrigger>
-            <TabsTrigger value="friends" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              友だち
             </TabsTrigger>
             <TabsTrigger value="coaching" className="flex items-center gap-2">
               <Headphones className="h-4 w-4" />
@@ -616,50 +611,7 @@ export default function ReflectPage() {
             </Card>
           </TabsContent>
 
-          {/* Friends Activity Tab */}
-          <TabsContent value="friends" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-primary" />
-                  友だちの活動
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {friendsActivity.map((friend, index) => (
-                    <div
-                      key={index}
-                      className="flex items-start gap-4 p-4 rounded-lg bg-primary/5 border border-primary/10"
-                    >
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage src={getAvatarSrc(friend.avatar) || "/placeholder.svg"} alt={friend.name} />
-                        <AvatarFallback>{friend.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium">{friend.name}</span>
-                          <span className="text-xs text-muted-foreground">{friend.time}</span>
-                        </div>
-                        <p className="text-sm text-foreground mb-2">{friend.activity}</p>
-                        <div className="flex items-center gap-2">
-                          {friend.subjects.map((subject) => (
-                            <Badge key={subject} variant="secondary" className="text-xs">
-                              {subject}
-                            </Badge>
-                          ))}
-                          {friend.score && (
-                            <Badge className="bg-accent/10 text-accent text-xs">スコア: {friend.score}点</Badge>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
+          {/* Coaching History Tab */}
           <TabsContent value="coaching" className="space-y-4">
             <Card>
               <CardHeader>

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { BottomNavigation } from "@/components/bottom-navigation"
-import { Flame, Calendar, Users, MessageCircle, Sparkles, Target, BookOpen } from "lucide-react"
+import { Flame, Calendar, Sparkles, Target, BookOpen } from "lucide-react"
 
 const mockData = {
   user: {
@@ -847,84 +847,6 @@ export default function StudentDashboard() {
           <WeeklyGoalCard />
           <LearningDashboard />
         </div>
-
-        <Card className="shadow-lg border-slate-200">
-          <CardHeader>
-            <CardTitle className="text-xl font-bold flex items-center gap-3">
-              <MessageCircle className="h-6 w-6 text-accent" />
-              応援メッセージ
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {mockData.encouragementMessages.map((message, index) => (
-                <div
-                  key={index}
-                  className="flex items-start gap-4 p-6 rounded-xl bg-accent/8 border border-accent/20 shadow-sm"
-                >
-                  <Avatar className="h-12 w-12 shadow-md">
-                    <AvatarImage src={getAvatarSrc(message.avatar) || "/placeholder.svg"} alt={message.from} />
-                    <AvatarFallback className="bg-accent/20 text-accent font-bold">
-                      {message.from.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
-                      <span className="text-lg font-bold text-foreground">{message.from}</span>
-                      <span className="text-base text-muted-foreground">{message.date}</span>
-                    </div>
-                    <p className="text-lg leading-relaxed text-foreground">{message.message}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-slate-200">
-          <CardHeader>
-            <CardTitle className="text-xl font-bold flex items-center gap-3">
-              <Users className="h-6 w-6 text-primary" />
-              友だちの様子
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {mockData.friends.map((friend, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-4 p-6 rounded-xl bg-primary/8 border border-primary/20 shadow-sm"
-                >
-                  <Avatar className="h-14 w-14 shadow-md">
-                    <AvatarImage src={getAvatarSrc(friend.avatar) || "/placeholder.svg"} alt={friend.name} />
-                    <AvatarFallback className="bg-primary/20 text-primary font-bold">
-                      {friend.name.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="text-lg font-bold text-foreground">{friend.name}</span>
-                      {friend.status === "学習中" ? (
-                        <Badge className="bg-primary text-primary-foreground border-primary font-semibold px-3 py-1">
-                          {friend.status}
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-secondary text-secondary-foreground border-secondary font-semibold px-3 py-1">
-                          {friend.status}
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-lg text-muted-foreground">
-                      {friend.status === "学習中"
-                        ? `${friend.subject}を勉強中`
-                        : `今日のスコア: ${friend.todayScore}点`}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       <BottomNavigation activeTab="home" />
