@@ -10,6 +10,7 @@ import { BottomNavigation } from "@/components/bottom-navigation"
 import { Calendar, BookOpen, MessageSquare, Save, Sparkles, Flame, Crown } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
+import { Input } from "@/components/ui/input"
 
 const subjects = [
   { id: "math", name: "算数", color: "bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200" },
@@ -370,18 +371,14 @@ export default function SparkPage() {
   const [reflection, setReflection] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const [currentCourse, setCurrentCourse] = useState<"A" | "B" | "C" | "S">("A")
+  const [currentCourse, setCurrentCourse] = useState<"A" | "B" | "C" | "S">("C") // デモ用にCコースに設定
   const [weeklyRecords, setWeeklyRecords] = useState(4) // Mock data - デモ用に3以上に設定
   const [weeklyContentRecords, setWeeklyContentRecords] = useState(3) // Mock data - デモ用に3以上に設定
   const [showReflectionOptions, setShowReflectionOptions] = useState(false)
   const [aiReflections, setAiReflections] = useState<string[]>([])
   const [isGeneratingAI, setIsGeneratingAI] = useState(false)
-  const [aiQuestion, setAiQuestion] = useState("")
-  const [blazeReflectionType, setBlazeReflectionType] = useState<"generate" | "chat" | null>(null)
-  const [aiResponse, setAiResponse] = useState("")
-  const [isGeneratingResponse, setIsGeneratingResponse] = useState(false)
+  const [reflectionMode, setReflectionMode] = useState<"manual" | "ai" | null>(null)
 
-  // Initialize student grade based on localStorage or default to '6'
   const [studentGrade, setStudentGrade] = useState<string>("6")
 
   useEffect(() => {
@@ -474,51 +471,14 @@ export default function SparkPage() {
 
     setTimeout(() => {
       const studiedSubjects = selectedSubjects.map((id) => subjects.find((s) => s.id === id)?.name).join("、")
-      const levelName =
-        currentLevel === "spark"
-          ? "Spark（楽しくスタート）"
-          : currentLevel === "flame"
-            ? "Flame（成長ステップ）"
-            : "Blaze（最高にチャレンジ）"
 
-      const reflections = [
-        `今日は${studiedSubjects}の学習に取り組みました。${levelName}レベルの内容をしっかりと進めることができ、自分なりに頑張れたと思います。この調子で続けていきたいです。`, // Celebrate系
-        `${studiedSubjects}の学習を通して、前回よりも理解が深まったように感じます。${levelName}の内容も少しずつ見えてきて、成長を実感できました。`, // Insight系
-        `今日学んだ${studiedSubjects}の内容を明日もう一度復習して、理解を定着させたいと思います。${levelName}レベルを継続することで必ず力がつくはずです。`, // Next step系
-      ]
-      setAiReflections(reflections)
+      const celebrateReflection = `今日は${studiedSubjects}の学習に取り組めました。特に難しい問題にも諦めずに挑戦できたのは素晴らしいことです。`
+      const insightReflection = `${studiedSubjects}を学習する中で、基礎をしっかり理解することの大切さに気づきました。一つひとつ丁寧に取り組むことで理解が深まります。`
+      const nextStepReflection = `明日は今日間違えた問題を復習し、もし分からない部分があれば先生に質問して、確実に理解してから次に進みます。`
+
+      setAiReflections([celebrateReflection, insightReflection, nextStepReflection])
       setIsGeneratingAI(false)
-    }, 1500)
-  }
-
-  const generateAIQuestion = () => {
-    const studiedSubjects = selectedSubjects.map((id) => subjects.find((s) => s.id === id)?.name).join("、")
-    const questions = [
-      `今日の${studiedSubjects}の学習で一番印象に残ったことは何ですか？`,
-      `${studiedSubjects}で難しいと感じた問題があったとき、どんな工夫をしましたか？`,
-      `今日学んだ${studiedSubjects}の内容を友達に説明するとしたら、どう伝えますか？`,
-      `${studiedSubjects}の学習を通して、新しく発見したことはありますか？`,
-      `${studiedSubjects}の学習で、前回と比べて成長を感じた部分はありますか？`,
-    ]
-    const randomQuestion = questions[Math.floor(Math.random() * questions.length)]
-    setAiQuestion(randomQuestion)
-  }
-
-  const generateAIResponse = async () => {
-    if (!reflection.trim()) return
-
-    setIsGeneratingResponse(true)
-
-    setTimeout(() => {
-      const responses = [
-        `素晴らしい振り返りですね！${reflection.length > 100 ? "詳しく" : "簡潔に"}書いてくれてありがとう。今日の学習への取り組み方から、あなたの成長への意欲が伝わってきます。この調子で続けていきたいですよ。`,
-        `今日の振り返りを読んで、あなたが学習に真剣に向き合っていることがよく分かります。${reflection.length > 150 ? "具体的に書いてくれた" : "率直に表現してくれた"}ことで、自分の学習を客観視できていますね。明日もこの調子で頑張りましょう！`,
-        `とても良い振り返りです！自分の学習を言葉にすることで、理解が深まったのではないでしょうか。${reflection.length > 80 ? "詳細な" : "シンプルな"}振り返りから、あなたの学習への姿勢が見えて嬉しいです。継続することが一番大切ですからね。`,
-      ]
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)]
-      setAiResponse(randomResponse)
-      setIsGeneratingResponse(false)
-    }, 1500)
+    }, 2000)
   }
 
   const handleSubmit = async () => {
@@ -540,9 +500,7 @@ export default function SparkPage() {
       setReflection("")
       setShowReflectionOptions(false)
       setAiReflections([])
-      setAiQuestion("")
-      setAiResponse("")
-      setBlazeReflectionType(null)
+      setReflectionMode(null)
       setIsSubmitting(false)
 
       alert("学習記録を保存しました！")
@@ -704,18 +662,36 @@ export default function SparkPage() {
                             </Badge>
                           </div>
 
-                          <div className="space-y-2">
-                            <Slider
-                              value={[currentValue]}
-                              onValueChange={(value) => handleCorrectAnswersChange(subjectId, content.id, value[0])}
-                              max={maxProblems}
-                              min={0}
-                              step={1}
-                              className="w-full"
-                            />
-                            <div className="flex justify-between text-xs text-muted-foreground">
-                              <span>0問</span>
-                              <span>{maxProblems}問</span>
+                          <div className="space-y-3">
+                            <div className="space-y-2">
+                              <Slider
+                                value={[currentValue]}
+                                onValueChange={(value) => handleCorrectAnswersChange(subjectId, content.id, value[0])}
+                                max={maxProblems}
+                                min={0}
+                                step={1}
+                                className="w-full"
+                              />
+                              <div className="flex justify-between text-xs text-muted-foreground">
+                                <span>0問</span>
+                                <span>{maxProblems}問</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <Label className="text-sm">直接入力:</Label>
+                              <Input
+                                type="number"
+                                min={0}
+                                max={maxProblems}
+                                value={currentValue}
+                                onChange={(e) => {
+                                  const value = Math.min(Math.max(0, Number.parseInt(e.target.value) || 0), maxProblems)
+                                  handleCorrectAnswersChange(subjectId, content.id, value)
+                                }}
+                                className="w-20 text-center"
+                              />
+                              <span className="text-sm text-muted-foreground">/ {maxProblems}問</span>
                             </div>
                           </div>
                         </div>
@@ -728,258 +704,121 @@ export default function SparkPage() {
           </div>
         )}
 
-        {/* Reflection Section - only for Flame and Blaze levels */}
-        {currentLevel !== "spark" && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5 text-accent" />
-                今日の振り返り（任意）
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {currentLevel === "flame" && (
-                <>
-                  {!showReflectionOptions ? (
-                    <div className="grid grid-cols-1 gap-3">
-                      <Button
-                        onClick={() => {
-                          setShowReflectionOptions(true)
-                          setReflection("")
-                        }}
-                        variant="outline"
-                        className="h-auto p-4 text-left"
-                      >
-                        <div>
-                          <div className="font-medium">今日の振り返りをする</div>
-                          <div className="text-sm text-muted-foreground mt-1">自分の言葉で今日の学習を振り返る</div>
-                        </div>
-                      </Button>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-accent" />
+              今日の振り返り（任意）
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!showReflectionOptions ? (
+              <div className="grid grid-cols-1 gap-3">
+                <Button
+                  onClick={() => {
+                    setShowReflectionOptions(true)
+                    setReflectionMode("manual")
+                    setReflection("")
+                    setAiReflections([])
+                  }}
+                  variant="outline"
+                  className="h-auto p-4 text-left"
+                >
+                  <div>
+                    <div className="font-medium">今日の振り返りをする</div>
+                    <div className="text-sm text-muted-foreground mt-1">自分の言葉で今日の学習を振り返る</div>
+                  </div>
+                </Button>
 
-                      <Button
-                        onClick={() => {
-                          setShowReflectionOptions(true)
-                          generateAIReflections()
-                        }}
-                        variant="outline"
-                        className="h-auto p-4 text-left"
-                      >
-                        <div>
-                          <div className="font-medium">今日の振り返りを生成</div>
-                          <div className="text-sm text-muted-foreground mt-1">
-                            学習記録に基づいた3つの選択肢から選ぶ
-                          </div>
-                        </div>
-                      </Button>
+                <Button
+                  onClick={() => {
+                    setShowReflectionOptions(true)
+                    setReflectionMode("ai")
+                    setReflection("")
+                    generateAIReflections()
+                  }}
+                  variant="outline"
+                  className="h-auto p-4 text-left"
+                >
+                  <div>
+                    <div className="font-medium">今日の振り返りを生成</div>
+                    <div className="text-sm text-muted-foreground mt-1">学習記録に基づいた3つの選択肢から選ぶ</div>
+                  </div>
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {reflectionMode === "manual" && (
+                  <div className="space-y-3">
+                    <Textarea
+                      placeholder="今日の学習はどうでしたか？感じたことや気づいたことを自由に書いてみましょう。"
+                      value={reflection}
+                      onChange={(e) => setReflection(e.target.value)}
+                      className="min-h-[120px] text-base"
+                      maxLength={200}
+                    />
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-muted-foreground">目安80-120字</span>
+                      <span className="text-xs text-muted-foreground">{reflection.length}/200文字</span>
                     </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {aiReflections.length === 0 && (
-                        <div className="space-y-3">
-                          <Textarea
-                            placeholder="今日の学習はどうでしたか？感じたことや気づいたことを自由に書いてみましょう。"
-                            value={reflection}
-                            onChange={(e) => setReflection(e.target.value)}
-                            className="min-h-[120px] text-base"
-                            maxLength={200}
-                          />
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs text-muted-foreground">目安80-120字</span>
-                            <span className="text-xs text-muted-foreground">{reflection.length}/200文字</span>
-                          </div>
-                        </div>
-                      )}
+                  </div>
+                )}
 
-                      {aiReflections.length > 0 && (
-                        <div className="space-y-3">
-                          {isGeneratingAI ? (
-                            <div className="p-4 bg-muted/50 rounded-lg">
-                              <div className="flex items-center gap-2">
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                                <span className="text-sm">振り返りを生成中...</span>
+                {reflectionMode === "ai" && (
+                  <div className="space-y-3">
+                    {isGeneratingAI ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                        <span className="ml-2 text-sm text-muted-foreground">振り返りを生成中...</span>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <p className="text-sm text-muted-foreground mb-3">
+                          学習内容に基づいて3つの振り返りを生成しました。気に入ったものを選んでください：
+                        </p>
+                        {aiReflections.map((reflectionText, index) => {
+                          const types = [
+                            "Celebrate系（できたこと）",
+                            "Insight系（学び・気づき）",
+                            "Next step系（次への行動）",
+                          ]
+                          return (
+                            <Button
+                              key={index}
+                              onClick={() => setReflection(reflectionText)}
+                              variant={reflection === reflectionText ? "default" : "outline"}
+                              className="h-auto p-4 text-left w-full"
+                            >
+                              <div className="space-y-1">
+                                <div className="text-xs text-muted-foreground">{types[index]}</div>
+                                <div className="text-sm">{reflectionText}</div>
                               </div>
-                            </div>
-                          ) : (
-                            <div className="space-y-2">
-                              {aiReflections.map((reflectionOption, index) => {
-                                const types = ["Celebrate系", "Insight系", "Next step系"]
-                                return (
-                                  <button
-                                    key={index}
-                                    onClick={() => setReflection(reflectionOption)}
-                                    className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
-                                      reflection === reflectionOption
-                                        ? "border-primary bg-primary/5"
-                                        : "border-border bg-background hover:border-primary/50"
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <Badge variant="outline" className="text-xs">
-                                        {types[index]}
-                                      </Badge>
-                                    </div>
-                                    <div className="text-sm leading-relaxed">{reflectionOption}</div>
-                                  </button>
-                                )
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <Button
-                        onClick={() => {
-                          setShowReflectionOptions(false)
-                          setAiReflections([])
-                        }}
-                        variant="ghost"
-                        size="sm"
-                      >
-                        選択に戻る
-                      </Button>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {currentLevel === "blaze" && (
-                <>
-                  {!blazeReflectionType ? (
-                    <div className="grid grid-cols-1 gap-3">
-                      <Button
-                        onClick={() => {
-                          setBlazeReflectionType("generate")
-                          generateAIReflections()
-                        }}
-                        variant="outline"
-                        className="h-auto p-4 text-left"
-                      >
-                        <div>
-                          <div className="font-medium">今日の振り返りを私（AIコーチ）に生成してもらいたい</div>
-                          <div className="text-sm text-muted-foreground mt-1">
-                            学習記録に基づいた3つの選択肢から選ぶ
-                          </div>
-                        </div>
-                      </Button>
-
-                      <Button
-                        onClick={() => {
-                          setBlazeReflectionType("chat")
-                          generateAIQuestion()
-                        }}
-                        variant="outline"
-                        className="h-auto p-4 text-left"
-                      >
-                        <div>
-                          <div className="font-medium">今日の振り返りを私としたい</div>
-                          <div className="text-sm text-muted-foreground mt-1">AIコーチと一緒に振り返りを深める</div>
-                        </div>
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {blazeReflectionType === "generate" && (
-                        <div className="space-y-3">
-                          {isGeneratingAI ? (
-                            <div className="p-4 bg-muted/50 rounded-lg">
-                              <div className="flex items-center gap-2">
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                                <span className="text-sm">振り返りを生成中...</span>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="space-y-2">
-                              {aiReflections.map((reflectionOption, index) => {
-                                const types = ["Celebrate系", "Insight系", "Next step系"]
-                                return (
-                                  <button
-                                    key={index}
-                                    onClick={() => setReflection(reflectionOption)}
-                                    className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
-                                      reflection === reflectionOption
-                                        ? "border-primary bg-primary/5"
-                                        : "border-border bg-background hover:border-primary/50"
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <Badge variant="outline" className="text-xs">
-                                        {types[index]}
-                                      </Badge>
-                                    </div>
-                                    <div className="text-sm leading-relaxed">{reflectionOption}</div>
-                                  </button>
-                                )
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {blazeReflectionType === "chat" && (
-                        <div className="space-y-4">
-                          <div className="p-4 bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg border border-primary/20">
-                            <p className="text-sm font-medium text-primary">{aiQuestion}</p>
-                          </div>
-
-                          <div className="space-y-2">
-                            <Textarea
-                              placeholder="この質問とは関係なく自由に振り返りを書いてもいいからね！"
-                              value={reflection}
-                              onChange={(e) => setReflection(e.target.value)}
-                              className="min-h-[120px] text-base"
-                              maxLength={400}
-                            />
-                            <div className="flex justify-between items-center">
-                              <span className="text-xs text-muted-foreground">
-                                この質問とは関係なく自由に振り返りを書いてもいいからね！
-                              </span>
-                              <span className="text-xs text-muted-foreground">{reflection.length}/400文字</span>
-                            </div>
-                          </div>
-
-                          {reflection.trim() && !aiResponse && (
-                            <Button onClick={generateAIResponse} disabled={isGeneratingResponse} className="w-full">
-                              {isGeneratingResponse ? (
-                                <>
-                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                  AIコーチが返信を作成中...
-                                </>
-                              ) : (
-                                "AIコーチに返信してもらう"
-                              )}
                             </Button>
-                          )}
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
 
-                          {aiResponse && (
-                            <div className="space-y-3">
-                              <div className="p-4 bg-gradient-to-r from-accent/10 to-primary/10 rounded-lg border border-accent/20">
-                                <p className="text-sm leading-relaxed">{aiResponse}</p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <Button
-                        onClick={() => {
-                          setBlazeReflectionType(null)
-                          setAiReflections([])
-                          setAiQuestion("")
-                          setAiResponse("")
-                          setReflection("")
-                        }}
-                        variant="ghost"
-                        size="sm"
-                      >
-                        選択に戻る
-                      </Button>
-                    </div>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
-        )}
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => {
+                      setShowReflectionOptions(false)
+                      setReflectionMode(null)
+                      setReflection("")
+                      setAiReflections([])
+                    }}
+                    variant="outline"
+                    size="sm"
+                  >
+                    戻る
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Submit Button */}
         <div className="sticky bottom-24 md:bottom-6">
