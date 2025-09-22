@@ -13,10 +13,38 @@ import { Slider } from "@/components/ui/slider"
 import { Input } from "@/components/ui/input"
 
 const subjects = [
-  { id: "math", name: "算数", color: "bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200" },
-  { id: "japanese", name: "国語", color: "bg-green-100 text-green-800 border-green-200 hover:bg-green-200" },
-  { id: "science", name: "理科", color: "bg-purple-100 text-purple-800 border-purple-200 hover:bg-purple-200" },
-  { id: "social", name: "社会", color: "bg-sky-100 text-sky-800 border-sky-200 hover:bg-sky-200" },
+  {
+    id: "math",
+    name: "算数",
+    color:
+      "bg-gradient-to-r from-blue-50 to-blue-100 text-blue-900 border-blue-300 hover:from-blue-100 hover:to-blue-200",
+    accent: "border-l-blue-500",
+    badge: "bg-blue-500 text-white",
+  },
+  {
+    id: "japanese",
+    name: "国語",
+    color:
+      "bg-gradient-to-r from-emerald-50 to-emerald-100 text-emerald-900 border-emerald-300 hover:from-emerald-100 hover:to-emerald-200",
+    accent: "border-l-emerald-500",
+    badge: "bg-emerald-500 text-white",
+  },
+  {
+    id: "science",
+    name: "理科",
+    color:
+      "bg-gradient-to-r from-purple-50 to-purple-100 text-purple-900 border-purple-300 hover:from-purple-100 hover:to-purple-200",
+    accent: "border-l-purple-500",
+    badge: "bg-purple-500 text-white",
+  },
+  {
+    id: "social",
+    name: "社会",
+    color:
+      "bg-gradient-to-r from-amber-50 to-amber-100 text-amber-900 border-amber-300 hover:from-amber-100 hover:to-amber-200",
+    accent: "border-l-amber-500",
+    badge: "bg-amber-500 text-white",
+  },
 ]
 
 const grade5LearningContent = {
@@ -536,40 +564,38 @@ export default function SparkPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-20">
-      {/* Header */}
-      <div className="bg-card/80 backdrop-blur-sm border-b border-border/50 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 pb-20">
+      <div className="bg-white/90 backdrop-blur-md border-b border-slate-200/60 shadow-sm p-6">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-                <CurrentLevelIcon className={`h-6 w-6 ${levels[currentLevel].color}`} />
+              <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
+                <CurrentLevelIcon className={`h-7 w-7 ${levels[currentLevel].color}`} />
                 スパーク - {getLevelDisplayName()}
               </h1>
-              <p className="text-sm text-muted-foreground">コース: {currentCourse}コース</p>
+              <p className="text-sm text-slate-600 mt-1 font-medium">コース: {currentCourse}コース</p>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto p-4 space-y-6">
-        {/* Learning Session Selection */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-primary" />
+      <div className="max-w-4xl mx-auto p-6 space-y-8">
+        <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-3 text-lg font-semibold text-slate-800">
+              <Calendar className="h-6 w-6 text-blue-600" />
               学習回 *
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
+            <div className="space-y-4">
               <Select value={selectedSession} onValueChange={setSelectedSession}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full h-12 text-base border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
                   <SelectValue placeholder="学習回を選択してください" />
                 </SelectTrigger>
                 <SelectContent>
                   {getAvailableSessions().map((session) => (
-                    <SelectItem key={session.id} value={session.id}>
+                    <SelectItem key={session.id} value={session.id} className="text-base py-3">
                       {session.name} ({session.period})
                     </SelectItem>
                   ))}
@@ -577,51 +603,48 @@ export default function SparkPage() {
               </Select>
 
               {selectedSession && (
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs">
+                <div className="flex items-center gap-3">
+                  <Badge variant="outline" className="text-sm px-3 py-1 bg-slate-50 border-slate-300">
                     {getAvailableSessions().find((s) => s.id === selectedSession)?.period}
                   </Badge>
                   {(() => {
                     const currentSession = getCurrentLearningSession(studentGrade)
                     return (
                       selectedSession === currentSession && (
-                        <Badge variant="default" className="bg-primary text-primary-foreground text-xs">
-                          今回
-                        </Badge>
+                        <Badge className="bg-blue-600 text-white text-sm px-3 py-1">今回</Badge>
                       )
                     )
                   })()}
                 </div>
               )}
 
-              <p className="text-xs text-muted-foreground">小学{studentGrade}年生の学習回が表示されています</p>
+              <p className="text-sm text-slate-600">小学{studentGrade}年生の学習回が表示されています</p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Subject Selection */}
         {selectedSession && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-primary" />
+          <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-3 text-lg font-semibold text-slate-800">
+                <BookOpen className="h-6 w-6 text-blue-600" />
                 学習した科目 *
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {subjects.map((subject) => (
                   <button
                     key={subject.id}
                     onClick={() => handleSubjectToggle(subject.id)}
-                    className={`p-4 rounded-lg border-2 transition-all duration-200 ${
+                    className={`p-6 rounded-xl border-2 transition-all duration-300 transform ${
                       selectedSubjects.includes(subject.id)
-                        ? "border-primary bg-primary/10 shadow-md scale-105"
-                        : `border-border bg-background hover:border-primary/50`
+                        ? `${subject.color} shadow-lg scale-105 border-opacity-100`
+                        : `bg-white border-slate-200 hover:border-slate-300 hover:shadow-md hover:scale-102`
                     }`}
                   >
                     <div className="flex items-center justify-center">
-                      <span className="font-medium">{subject.name}</span>
+                      <span className="font-semibold text-lg">{subject.name}</span>
                     </div>
                   </button>
                 ))}
@@ -630,23 +653,25 @@ export default function SparkPage() {
           </Card>
         )}
 
-        {/* Subject Details */}
         {selectedSubjects.length > 0 && selectedSession && (
-          <div className="space-y-4">
+          <div className="space-y-6">
             {selectedSubjects.map((subjectId) => {
               const subject = subjects.find((s) => s.id === subjectId)
               const availableContent = getAvailableLearningContent(subjectId)
               if (!subject || availableContent.length === 0) return null
 
               return (
-                <Card key={subjectId} className="border-l-4 border-l-primary">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Badge className={subject.color}>{subject.name}</Badge>
+                <Card
+                  key={subjectId}
+                  className={`shadow-lg border-0 bg-white/90 backdrop-blur-sm border-l-4 ${subject.accent}`}
+                >
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-xl flex items-center gap-3">
+                      <Badge className={`${subject.badge} px-4 py-2 text-base font-semibold`}>{subject.name}</Badge>
                       の正答数入力
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-6">
                     {availableContent.map((content) => {
                       const maxProblems = getProblemCount(subjectId, content.id)
                       const currentValue = subjectDetails[subjectId]?.[content.id] || 0
@@ -654,32 +679,37 @@ export default function SparkPage() {
                       if (maxProblems === 0) return null
 
                       return (
-                        <div key={content.id} className="space-y-3">
+                        <div
+                          key={content.id}
+                          className="space-y-4 p-4 bg-slate-50/50 rounded-lg border border-slate-200"
+                        >
                           <div className="flex items-center justify-between">
-                            <Label className="text-sm font-medium">{content.name}</Label>
-                            <Badge variant="outline" className="text-xs">
+                            <Label className="text-base font-semibold text-slate-800">{content.name}</Label>
+                            <Badge variant="outline" className="text-sm px-3 py-1 bg-white border-slate-300">
                               {currentValue} / {maxProblems}問
                             </Badge>
                           </div>
 
-                          <div className="space-y-3">
-                            <div className="space-y-2">
-                              <Slider
-                                value={[currentValue]}
-                                onValueChange={(value) => handleCorrectAnswersChange(subjectId, content.id, value[0])}
-                                max={maxProblems}
-                                min={0}
-                                step={1}
-                                className="w-full"
-                              />
-                              <div className="flex justify-between text-xs text-muted-foreground">
+                          <div className="space-y-4">
+                            <div className="space-y-3">
+                              <div className="px-2">
+                                <Slider
+                                  value={[currentValue]}
+                                  onValueChange={(value) => handleCorrectAnswersChange(subjectId, content.id, value[0])}
+                                  max={maxProblems}
+                                  min={0}
+                                  step={1}
+                                  className="w-full [&_[role=slider]]:h-5 [&_[role=slider]]:w-5 [&_[role=slider]]:border-2 [&_[role=slider]]:border-white [&_[role=slider]]:shadow-lg [&>span:first-child]:h-3 [&>span:first-child]:bg-gradient-to-r [&>span:first-child]:from-blue-500 [&>span:first-child]:to-blue-600"
+                                />
+                              </div>
+                              <div className="flex justify-between text-sm text-slate-600 font-medium px-2">
                                 <span>0問</span>
                                 <span>{maxProblems}問</span>
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-2">
-                              <Label className="text-sm">直接入力:</Label>
+                            <div className="flex items-center gap-4 p-3 bg-white rounded-lg border border-slate-200">
+                              <Label className="text-base font-medium text-slate-700 min-w-fit">直接入力:</Label>
                               <Input
                                 type="number"
                                 min={0}
@@ -689,9 +719,9 @@ export default function SparkPage() {
                                   const value = Math.min(Math.max(0, Number.parseInt(e.target.value) || 0), maxProblems)
                                   handleCorrectAnswersChange(subjectId, content.id, value)
                                 }}
-                                className="w-20 text-center"
+                                className="w-24 h-10 text-center text-lg font-semibold border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                               />
-                              <span className="text-sm text-muted-foreground">/ {maxProblems}問</span>
+                              <span className="text-base text-slate-600 font-medium">/ {maxProblems}問</span>
                             </div>
                           </div>
                         </div>
@@ -704,16 +734,16 @@ export default function SparkPage() {
           </div>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5 text-accent" />
+        <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-3 text-lg font-semibold text-slate-800">
+              <MessageSquare className="h-6 w-6 text-purple-600" />
               今日の振り返り（任意）
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
             {!showReflectionOptions ? (
-              <div className="grid grid-cols-1 gap-3">
+              <div className="grid grid-cols-1 gap-4">
                 <Button
                   onClick={() => {
                     setShowReflectionOptions(true)
@@ -722,11 +752,11 @@ export default function SparkPage() {
                     setAiReflections([])
                   }}
                   variant="outline"
-                  className="h-auto p-4 text-left"
+                  className="h-auto p-6 text-left border-2 border-slate-200 hover:border-purple-300 hover:bg-purple-50/50 transition-all duration-200"
                 >
                   <div>
-                    <div className="font-medium">今日の振り返りをする</div>
-                    <div className="text-sm text-muted-foreground mt-1">自分の言葉で今日の学習を振り返る</div>
+                    <div className="font-semibold text-base text-slate-800">今日の振り返りをする</div>
+                    <div className="text-sm text-slate-600 mt-2">自分の言葉で今日の学習を振り返る</div>
                   </div>
                 </Button>
 
@@ -738,41 +768,41 @@ export default function SparkPage() {
                     generateAIReflections()
                   }}
                   variant="outline"
-                  className="h-auto p-4 text-left"
+                  className="h-auto p-6 text-left border-2 border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all duration-200"
                 >
                   <div>
-                    <div className="font-medium">今日の振り返りを生成</div>
-                    <div className="text-sm text-muted-foreground mt-1">学習記録に基づいた3つの選択肢から選ぶ</div>
+                    <div className="font-semibold text-base text-slate-800">今日の振り返りを生成</div>
+                    <div className="text-sm text-slate-600 mt-2">学習記録に基づいた3つの選択肢から選ぶ</div>
                   </div>
                 </Button>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {reflectionMode === "manual" && (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     <Textarea
                       placeholder="今日の学習はどうでしたか？感じたことや気づいたことを自由に書いてみましょう。"
                       value={reflection}
                       onChange={(e) => setReflection(e.target.value)}
-                      className="min-h-[120px] text-base"
+                      className="min-h-[140px] text-base border-slate-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 p-4"
                       maxLength={200}
                     />
                     <div className="flex justify-between items-center">
-                      <span className="text-xs text-muted-foreground">目安80-120字</span>
-                      <span className="text-xs text-muted-foreground">{reflection.length}/200文字</span>
+                      <span className="text-sm text-slate-600 font-medium">目安80-120字</span>
+                      <span className="text-sm text-slate-600 font-medium">{reflection.length}/200文字</span>
                     </div>
                   </div>
                 )}
 
                 {reflectionMode === "ai" && (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {isGeneratingAI ? (
                       <div className="flex items-center justify-center py-8">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                         <span className="ml-2 text-sm text-muted-foreground">振り返りを生成中...</span>
                       </div>
                     ) : (
-                      <div className="space-y-3">
+                      <div className="space-y-4">
                         <p className="text-sm text-muted-foreground mb-3">
                           学習内容に基づいて3つの振り返りを生成しました。気に入ったものを選んでください：
                         </p>
@@ -801,7 +831,7 @@ export default function SparkPage() {
                   </div>
                 )}
 
-                <div className="flex gap-2">
+                <div className="flex gap-3">
                   <Button
                     onClick={() => {
                       setShowReflectionOptions(false)
@@ -810,7 +840,7 @@ export default function SparkPage() {
                       setAiReflections([])
                     }}
                     variant="outline"
-                    size="sm"
+                    className="px-6 py-2 border-slate-300 hover:bg-slate-50"
                   >
                     戻る
                   </Button>
@@ -820,22 +850,20 @@ export default function SparkPage() {
           </CardContent>
         </Card>
 
-        {/* Submit Button */}
         <div className="sticky bottom-24 md:bottom-6">
           <Button
             onClick={handleSubmit}
             disabled={!isFormValid() || isSubmitting}
-            className="w-full h-14 text-lg font-medium shadow-lg bg-primary text-primary-foreground hover:bg-primary/90"
+            className="w-full h-16 text-xl font-semibold shadow-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 disabled:from-slate-400 disabled:to-slate-500 transition-all duration-200"
           >
-            <Save className="h-5 w-5 mr-2" />
+            <Save className="h-6 w-6 mr-3" />
             {isSubmitting ? "保存中..." : "学習記録を保存"}
           </Button>
         </div>
 
-        {/* Form Validation Message */}
         {selectedSubjects.length > 0 && !isFormValid() && (
-          <div className="p-4 bg-accent/10 border border-accent/20 rounded-lg">
-            <p className="text-sm text-accent font-medium">
+          <div className="p-4 bg-amber-50 border-l-4 border-amber-400 rounded-lg shadow-sm">
+            <p className="text-base text-amber-800 font-medium">
               {!selectedSession ? "学習回を選択してください" : "選択した科目の正答数を入力してください"}
             </p>
           </div>
