@@ -727,7 +727,15 @@ export default function SparkPage() {
                                   max={maxProblems}
                                   min={0}
                                   step={1}
-                                  className="w-full mt-2 [&_[role=slider]]:h-8 [&_[role=slider]]:w-8 [&_[role=slider]]:border-4 [&_[role=slider]]:border-white [&_[role=slider]]:shadow-2xl [&_[role=slider]]:bg-white [&_[role=slider]]:ring-2 [&_[role=slider]]:ring-blue-200 [&_[role=slider]]:transform [&_[role=slider]]:translate-y-0 [&>span:first-child]:h-0 [&_[role=slider]]:focus:ring-4 [&_[role=slider]]:focus:ring-blue-300"
+                                  className={`w-full mt-2 [&_[role=slider]]:h-8 [&_[role=slider]]:w-8 [&_[role=slider]]:border-4 [&_[role=slider]]:shadow-2xl [&_[role=slider]]:bg-white [&_[role=slider]]:ring-2 [&_[role=slider]]:transform [&_[role=slider]]:translate-y-0 [&>span:first-child]:h-0 [&_[role=slider]]:focus:ring-4 [&_[role=slider]]:focus:ring-opacity-50 ${
+                                    subjectId === "math"
+                                      ? "[&_[role=slider]]:border-blue-500 [&_[role=slider]]:ring-blue-200 [&_[role=slider]]:focus:ring-blue-300"
+                                      : subjectId === "japanese"
+                                        ? "[&_[role=slider]]:border-emerald-500 [&_[role=slider]]:ring-emerald-200 [&_[role=slider]]:focus:ring-emerald-300"
+                                        : subjectId === "science"
+                                          ? "[&_[role=slider]]:border-purple-500 [&_[role=slider]]:ring-purple-200 [&_[role=slider]]:focus:ring-purple-300"
+                                          : "[&_[role=slider]]:border-amber-500 [&_[role=slider]]:ring-amber-200 [&_[role=slider]]:focus:ring-amber-300"
+                                  }`}
                                 />
                               </div>
                               <div className="flex justify-between text-sm text-slate-600 font-bold px-3">
