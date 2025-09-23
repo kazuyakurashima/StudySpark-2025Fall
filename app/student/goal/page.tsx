@@ -900,23 +900,25 @@ export default function GoalSettingPage() {
 
                         <div className="space-y-3 sm:space-y-4">
                           <Label className="text-sm sm:text-base font-medium">目標の組を決めよう</Label>
-                          <div className="px-3 sm:px-4 py-3 sm:py-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border border-blue-200">
-                            <div className="flex items-center justify-between mb-3">
-                              <span className="text-xs sm:text-sm font-medium text-blue-800">目標の組</span>
-                              <div className="px-2 sm:px-3 py-1 bg-blue-600 text-white rounded-full text-xs sm:text-sm font-bold">
+                          <div className="px-4 sm:px-6 py-4 sm:py-5 bg-gradient-to-br from-blue-50 via-blue-50 to-cyan-50 rounded-2xl border-2 border-blue-200/60 shadow-sm">
+                            <div className="flex items-center justify-between mb-4">
+                              <span className="text-sm sm:text-base font-semibold text-blue-900">目標の組</span>
+                              <div className="px-4 sm:px-5 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-full text-sm sm:text-base font-bold shadow-md">
                                 {classNumber[0]}組
                               </div>
                             </div>
-                            <Slider
-                              value={classNumber}
-                              onValueChange={setClassNumber}
-                              max={40}
-                              min={1}
-                              step={1}
-                              className="w-full"
-                              disabled={isGoalSet}
-                            />
-                            <div className="flex justify-between text-xs text-blue-600 mt-2 font-medium">
+                            <div className="px-2 py-1">
+                              <Slider
+                                value={classNumber}
+                                onValueChange={setClassNumber}
+                                max={40}
+                                min={1}
+                                step={1}
+                                className="w-full"
+                                disabled={isGoalSet}
+                              />
+                            </div>
+                            <div className="flex justify-between text-xs sm:text-sm text-blue-700 mt-3 font-semibold">
                               <span>1組</span>
                               <span>40組</span>
                             </div>
@@ -1300,22 +1302,24 @@ export default function GoalSettingPage() {
 
                           <div className="space-y-3 sm:space-y-4">
                             <Label className="text-sm sm:text-base font-medium">実際の組</Label>
-                            <div className="px-3 sm:px-4 py-3 sm:py-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">
-                              <div className="flex items-center justify-between mb-3">
-                                <span className="text-xs sm:text-sm font-medium text-green-800">実際の組</span>
-                                <div className="px-2 sm:px-3 py-1 bg-green-600 text-white rounded-full text-xs sm:text-sm font-bold">
+                            <div className="px-4 sm:px-6 py-4 sm:py-5 bg-gradient-to-br from-emerald-50 via-emerald-50 to-green-50 rounded-2xl border-2 border-emerald-200/60 shadow-sm">
+                              <div className="flex items-center justify-between mb-4">
+                                <span className="text-sm sm:text-base font-semibold text-emerald-900">実際の組</span>
+                                <div className="px-4 sm:px-5 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-full text-sm sm:text-base font-bold shadow-md">
                                   {resultClass[0]}組
                                 </div>
                               </div>
-                              <Slider
-                                value={resultClass}
-                                onValueChange={setResultClass}
-                                max={40}
-                                min={1}
-                                step={1}
-                                className="w-full"
-                              />
-                              <div className="flex justify-between text-xs text-green-600 mt-2 font-medium">
+                              <div className="px-2 py-1">
+                                <Slider
+                                  value={resultClass}
+                                  onValueChange={setResultClass}
+                                  max={40}
+                                  min={1}
+                                  step={1}
+                                  className="w-full [&_[data-orientation=horizontal]_[role=slider]]:border-emerald-500 [&_[data-orientation=horizontal]_[role=slider]]:focus-visible:ring-emerald-500 [&_[data-orientation=horizontal]>span]:bg-gradient-to-r [&_[data-orientation=horizontal]>span]:from-emerald-500 [&_[data-orientation=horizontal]>span]:to-emerald-600"
+                                />
+                              </div>
+                              <div className="flex justify-between text-xs sm:text-sm text-emerald-700 mt-3 font-semibold">
                                 <span>1組</span>
                                 <span>40組</span>
                               </div>
@@ -1353,22 +1357,24 @@ export default function GoalSettingPage() {
 
                           <div className="space-y-3 sm:space-y-4">
                             <Label className="text-sm sm:text-base font-medium">実際の組</Label>
-                            <div className="px-3 sm:px-4 py-3 sm:py-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">
-                              <div className="flex items-center justify-between mb-3">
-                                <span className="text-xs sm:text-sm font-medium text-green-800">実際の組</span>
-                                <div className="px-2 sm:px-3 py-1 bg-green-600 text-white rounded-full text-xs sm:text-sm font-bold">
+                            <div className="px-4 sm:px-6 py-4 sm:py-5 bg-gradient-to-br from-emerald-50 via-emerald-50 to-green-50 rounded-2xl border-2 border-emerald-200/60 shadow-sm">
+                              <div className="flex items-center justify-between mb-4">
+                                <span className="text-sm sm:text-base font-semibold text-emerald-900">実際の組</span>
+                                <div className="px-4 sm:px-5 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-full text-sm sm:text-base font-bold shadow-md">
                                   {resultClass[0]}組
                                 </div>
                               </div>
-                              <Slider
-                                value={resultClass}
-                                onValueChange={setResultClass}
-                                max={40}
-                                min={1}
-                                step={1}
-                                className="w-full"
-                              />
-                              <div className="flex justify-between text-xs text-green-600 mt-2 font-medium">
+                              <div className="px-2 py-1">
+                                <Slider
+                                  value={resultClass}
+                                  onValueChange={setResultClass}
+                                  max={40}
+                                  min={1}
+                                  step={1}
+                                  className="w-full [&_[data-orientation=horizontal]_[role=slider]]:border-emerald-500 [&_[data-orientation=horizontal]_[role=slider]]:focus-visible:ring-emerald-500 [&_[data-orientation=horizontal]>span]:bg-gradient-to-r [&_[data-orientation=horizontal]>span]:from-emerald-500 [&_[data-orientation=horizontal]>span]:to-emerald-600"
+                                />
+                              </div>
+                              <div className="flex justify-between text-xs sm:text-sm text-emerald-700 mt-3 font-semibold">
                                 <span>1組</span>
                                 <span>40組</span>
                               </div>
