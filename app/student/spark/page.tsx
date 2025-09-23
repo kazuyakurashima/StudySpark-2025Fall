@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge"
 import { BottomNavigation } from "@/components/bottom-navigation"
 import { Calendar, BookOpen, MessageSquare, Save, Sparkles, Flame, Crown, Bot } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Slider } from "@/components/ui/slider"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
@@ -721,22 +720,6 @@ export default function SparkPage() {
                                     style={{ width: `${(currentValue / maxProblems) * 100}%` }}
                                   />
                                 </div>
-                                <Slider
-                                  value={[currentValue]}
-                                  onValueChange={(value) => handleCorrectAnswersChange(subjectId, content.id, value[0])}
-                                  max={maxProblems}
-                                  min={0}
-                                  step={1}
-                                  className={`w-full mt-2 [&_[role=slider]]:h-8 [&_[role=slider]]:w-8 [&_[role=slider]]:border-4 [&_[role=slider]]:shadow-2xl [&_[role=slider]]:bg-white [&_[role=slider]]:ring-2 [&_[role=slider]]:transform [&_[role=slider]]:translate-y-0 [&_[role=slider]]:relative [&_[role=slider]]:top-0 [&>span:first-child]:h-4 [&>span:first-child]:bg-transparent [&_[role=slider]]:focus:ring-4 [&_[role=slider]]:focus:ring-opacity-50 ${
-                                    subjectId === "math"
-                                      ? "[&_[role=slider]]:border-blue-500 [&_[role=slider]]:ring-blue-200 [&_[role=slider]]:focus:ring-blue-300"
-                                      : subjectId === "japanese"
-                                        ? "[&_[role=slider]]:border-emerald-500 [&_[role=slider]]:ring-emerald-200 [&_[role=slider]]:focus:ring-emerald-300"
-                                        : subjectId === "science"
-                                          ? "[&_[role=slider]]:border-purple-500 [&_[role=slider]]:ring-purple-200 [&_[role=slider]]:focus:ring-purple-300"
-                                          : "[&_[role=slider]]:border-amber-500 [&_[role=slider]]:ring-amber-200 [&_[role=slider]]:focus:ring-amber-300"
-                                  }`}
-                                />
                               </div>
                               <div className="flex justify-between text-sm text-slate-600 font-bold px-3">
                                 <span>0問</span>
