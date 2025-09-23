@@ -699,49 +699,78 @@ export default function SparkPage() {
                           key={content.id}
                           className="space-y-6 p-6 bg-gradient-to-br from-slate-50/80 to-white rounded-2xl border-2 border-slate-100 shadow-lg"
                         >
-                          <div className="flex items-center justify-between">
-                            <Label className="text-lg font-bold text-slate-800">{content.name}</Label>
-                            <Badge
-                              variant="outline"
-                              className="text-base px-4 py-2 bg-white border-slate-300 font-bold shadow-sm"
-                            >
-                              {currentValue} / {maxProblems}問
-                            </Badge>
+                          <div className="space-y-4">
+                            <div className="px-3">
+                              <div className="relative">
+                                <input
+                                  type="range"
+                                  min={0}
+                                  max={maxProblems}
+                                  value={currentValue}
+                                  onChange={(e) => {
+                                    const value = Number.parseInt(e.target.value)
+                                    handleCorrectAnswersChange(subjectId, content.id, value)
+                                  }}
+                                  className={`w-full h-4 rounded-full appearance-none cursor-pointer shadow-inner
+                                    ${subject.progressBg}
+                                    [&::-webkit-slider-track]:h-4 [&::-webkit-slider-track]:rounded-full [&::-webkit-slider-track]:${subject.progressBg} [&::-webkit-slider-track]:shadow-inner
+                                    [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-8 [&::-webkit-slider-thumb]:w-8 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-xl [&::-webkit-slider-thumb]:cursor-pointer
+                                    [&::-webkit-slider-thumb]:border-4 [&::-webkit-slider-thumb]:${
+                                      subjectId === "math"
+                                        ? "border-blue-500"
+                                        : subjectId === "japanese"
+                                          ? "border-emerald-500"
+                                          : subjectId === "science"
+                                            ? "border-purple-500"
+                                            : "border-amber-500"
+                                    }
+                                    [&::-moz-range-track]:h-4 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:${subject.progressBg} [&::-moz-range-track]:border-0
+                                    [&::-moz-range-thumb]:h-8 [&::-moz-range-thumb]:w-8 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-xl [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0
+                                    [&::-moz-range-thumb]:border-4 [&::-moz-range-thumb]:${
+                                      subjectId === "math"
+                                        ? "border-blue-500"
+                                        : subjectId === "japanese"
+                                          ? "border-emerald-500"
+                                          : subjectId === "science"
+                                            ? "border-purple-500"
+                                            : "border-amber-500"
+                                    }
+                                    focus:outline-none focus:ring-4 focus:${
+                                      subjectId === "math"
+                                        ? "ring-blue-200"
+                                        : subjectId === "japanese"
+                                          ? "ring-emerald-200"
+                                          : subjectId === "science"
+                                            ? "ring-purple-200"
+                                            : "ring-amber-200"
+                                    }`}
+                                />
+                                <div
+                                  className={`absolute top-0 left-0 h-4 ${subject.progressFill} rounded-full transition-all duration-500 ease-out shadow-sm pointer-events-none`}
+                                  style={{ width: `${(currentValue / maxProblems) * 100}%` }}
+                                />
+                              </div>
+                            </div>
+                            <div className="flex justify-between text-sm text-slate-600 font-bold px-3">
+                              <span>0問</span>
+                              <span>{maxProblems}問</span>
+                            </div>
                           </div>
 
-                          <div className="space-y-6">
-                            <div className="space-y-4">
-                              <div className="px-3">
-                                <div
-                                  className={`h-4 rounded-full ${subject.progressBg} relative overflow-hidden shadow-inner`}
-                                >
-                                  <div
-                                    className={`h-full ${subject.progressFill} rounded-full transition-all duration-500 ease-out shadow-sm`}
-                                    style={{ width: `${(currentValue / maxProblems) * 100}%` }}
-                                  />
-                                </div>
-                              </div>
-                              <div className="flex justify-between text-sm text-slate-600 font-bold px-3">
-                                <span>0問</span>
-                                <span>{maxProblems}問</span>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-6 p-4 bg-white rounded-xl border-2 border-slate-200 shadow-lg">
-                              <Label className="text-lg font-bold text-slate-700 min-w-fit">直接入力:</Label>
-                              <Input
-                                type="number"
-                                min={0}
-                                max={maxProblems}
-                                value={currentValue}
-                                onChange={(e) => {
-                                  const value = Math.min(Math.max(0, Number.parseInt(e.target.value) || 0), maxProblems)
-                                  handleCorrectAnswersChange(subjectId, content.id, value)
-                                }}
-                                className="w-32 h-12 text-center text-xl font-bold border-2 border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 rounded-xl shadow-sm"
-                              />
-                              <span className="text-lg text-slate-600 font-bold">/ {maxProblems}問</span>
-                            </div>
+                          <div className="flex items-center gap-6 p-4 bg-white rounded-xl border-2 border-slate-200 shadow-lg">
+                            <Label className="text-lg font-bold text-slate-700 min-w-fit">数値で入力:</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              max={maxProblems}
+                              value={currentValue}
+                              onChange={(e) => {
+                                const value = Math.min(Math.max(0, Number.parseInt(e.target.value) || 0), maxProblems)
+                                handleCorrectAnswersChange(subjectId, content.id, value)
+                              }}
+                              className="w-32 h-12 text-center text-xl font-bold border-2 border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 rounded-xl shadow-sm"
+                            />
+                            <span className="text-lg text-slate-600 font-bold">/ {maxProblems}問</span>
                           </div>
                         </div>
                       )
