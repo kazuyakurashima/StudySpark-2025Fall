@@ -602,22 +602,22 @@ export default function ParentDashboard() {
           ))}
         </div>
 
-        <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl p-6 shadow-2xl">
+        <div className="ai-coach-gradient rounded-2xl p-6 shadow-2xl ai-coach-glow">
           <div className="pb-4 sm:pb-6">
             <div className="text-lg sm:text-xl font-bold flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
               <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10 sm:h-12 sm:w-12 border-3 border-white/40 shadow-xl">
+                <Avatar className="h-10 w-10 sm:h-12 sm:w-12 border-3 border-white/40 shadow-xl ai-coach-glow">
                   <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
                   <AvatarFallback className="bg-white/20 text-white font-bold">AI</AvatarFallback>
                 </Avatar>
-                <span className="text-slate-900 font-bold text-base sm:text-lg bg-white px-4 py-2 rounded-full shadow-lg">
+                <span className="text-white font-bold text-base sm:text-lg bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg border border-white/30">
                   今日の声かけTip
                 </span>
               </div>
-              <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-white animate-pulse" />
+              <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-white animate-pulse sparkle" />
             </div>
           </div>
-          <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-xl">
+          <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-xl border border-white/30">
             <p className="text-base sm:text-lg leading-relaxed text-slate-700 font-medium">{generateParentTip()}</p>
           </div>
         </div>
@@ -631,14 +631,14 @@ export default function ParentDashboard() {
         </div>
 
         <div className="xl:col-span-2">
-          <Card className="bg-gradient-to-br from-accent/8 to-primary/8 border-accent/30 shadow-xl">
+          <Card className="ai-coach-gradient-subtle border-primary/30 shadow-xl mission-pulse">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg sm:text-xl font-bold flex flex-col sm:flex-row items-start sm:items-center gap-3">
                 <div className="flex items-center gap-3">
-                  <Flame className="h-6 w-6 sm:h-7 sm:w-7 text-accent" />
+                  <Flame className="h-6 w-6 sm:h-7 sm:w-7 text-primary status-glow" />
                   <span className="text-slate-800">今日のミッション！</span>
                 </div>
-                <Badge className="bg-accent text-accent-foreground border-accent font-bold text-sm sm:text-base px-3 sm:px-4 py-1 sm:py-2 shadow-md">
+                <Badge className="bg-primary text-primary-foreground border-primary font-bold text-sm sm:text-base px-3 sm:px-4 py-1 sm:py-2 shadow-md status-glow">
                   要対応 {currentChildData.todayMissions.needsAttention}/{currentChildData.todayMissions.total}
                 </Badge>
               </CardTitle>

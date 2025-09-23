@@ -658,11 +658,10 @@ export default function CoachDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-20">
-      {/* Header */}
-      <div className="bg-card/80 backdrop-blur-sm border-b border-border/50 p-4">
+      <div className="ai-coach-gradient-subtle backdrop-blur-sm border-b border-primary/30 p-4 shadow-lg">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-            <Users className="h-6 w-6 text-primary" />
+            <Users className="h-6 w-6 text-primary status-glow" />
             指導者ダッシュボード
           </h1>
           <p className="text-sm text-muted-foreground">毎日これだけ見れば動ける - 行動ファースト設計</p>
@@ -670,16 +669,16 @@ export default function CoachDashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto p-4 space-y-6">
-        <Card>
+        <Card className="ai-coach-gradient-subtle border-primary/30 shadow-xl ai-coach-glow">
           <CardContent className="p-4">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold">主KPI（毎日これだけ見れば動ける）</h2>
+                <h2 className="text-lg font-semibold text-slate-800">主KPI（毎日これだけ見れば動ける）</h2>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowSubKPIs(!showSubKPIs)}
-                  className="flex items-center gap-1"
+                  className="flex items-center gap-1 hover:bg-white/50"
                 >
                   {showSubKPIs ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                   詳しく
@@ -690,55 +689,55 @@ export default function CoachDashboard() {
                 <Button
                   variant={filterStatus === "emergency" ? "default" : "outline"}
                   onClick={() => handleKPIClick("emergency")}
-                  className={`flex items-center gap-2 ${
-                    emergencyCount > 0 ? "border-red-500 text-red-700 hover:bg-red-50" : ""
+                  className={`flex items-center gap-2 transition-all duration-300 ${
+                    emergencyCount > 0 ? "border-red-500 text-red-700 hover:bg-red-50 shadow-lg" : ""
                   }`}
                 >
-                  <Flame className="h-4 w-4" />🧯 緊急
-                  <Badge className="bg-red-600 text-white ml-1">{emergencyCount}</Badge>
+                  <Flame className="h-4 w-4 status-glow" />🧯 緊急
+                  <Badge className="bg-red-600 text-white ml-1 shadow-md">{emergencyCount}</Badge>
                 </Button>
 
                 <Button
                   variant={filterStatus === "unrecorded48h" ? "default" : "outline"}
                   onClick={() => handleKPIClick("unrecorded48h")}
-                  className={`flex items-center gap-2 ${
-                    unrecorded48hCount > 0 ? "border-orange-500 text-orange-700 hover:bg-orange-50" : ""
+                  className={`flex items-center gap-2 transition-all duration-300 ${
+                    unrecorded48hCount > 0 ? "border-orange-500 text-orange-700 hover:bg-orange-50 shadow-lg" : ""
                   }`}
                 >
-                  <Bell className="h-4 w-4" />🔔 未記録48h
-                  <Badge className="bg-orange-600 text-white ml-1">{unrecorded48hCount}</Badge>
+                  <Bell className="h-4 w-4 status-glow" />🔔 未記録48h
+                  <Badge className="bg-orange-600 text-white ml-1 shadow-md">{unrecorded48hCount}</Badge>
                 </Button>
 
                 <Button
                   variant={filterStatus === "attention" ? "default" : "outline"}
                   onClick={() => handleKPIClick("attention")}
-                  className={`flex items-center gap-2 ${
-                    attentionCount > 0 ? "border-yellow-500 text-yellow-700 hover:bg-yellow-50" : ""
+                  className={`flex items-center gap-2 transition-all duration-300 ${
+                    attentionCount > 0 ? "border-yellow-500 text-yellow-700 hover:bg-yellow-50 shadow-lg" : ""
                   }`}
                 >
-                  <AlertTriangle className="h-4 w-4" />⚠ 要注意
-                  <Badge className="bg-yellow-600 text-white ml-1">{attentionCount}</Badge>
+                  <AlertTriangle className="h-4 w-4 status-glow" />⚠ 要注意
+                  <Badge className="bg-yellow-600 text-white ml-1 shadow-md">{attentionCount}</Badge>
                 </Button>
               </div>
 
               {showSubKPIs && (
-                <div className="border-t pt-4 mt-4">
+                <div className="border-t border-white/30 pt-4 mt-4">
                   <h3 className="text-sm font-medium text-muted-foreground mb-3">副KPI（必要に応じて展開）</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 bg-white/50 rounded-lg p-3 shadow-sm">
                       <RotateCcw className="h-4 w-4 text-blue-500" />
                       <span>🔁 連続日2日以下: </span>
-                      <Badge className="bg-slate-100 text-slate-700">{lowStreakCount}名</Badge>
+                      <Badge className="bg-slate-100 text-slate-700 shadow-sm">{lowStreakCount}名</Badge>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 bg-white/50 rounded-lg p-3 shadow-sm">
                       <UserCheck className="h-4 w-4 text-purple-500" />
                       <span>👪 保護者未既読: </span>
-                      <Badge className="bg-slate-100 text-slate-700">{parentUnreadCount}名</Badge>
+                      <Badge className="bg-slate-100 text-slate-700 shadow-sm">{parentUnreadCount}名</Badge>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 bg-white/50 rounded-lg p-3 shadow-sm">
                       <Target className="h-4 w-4 text-green-500" />
                       <span>🎯 今週リング中央値: </span>
-                      <Badge className="bg-slate-100 text-slate-700">{weekRingMedian.toFixed(1)}</Badge>
+                      <Badge className="bg-slate-100 text-slate-700 shadow-sm">{weekRingMedian.toFixed(1)}</Badge>
                     </div>
                   </div>
                 </div>
@@ -748,12 +747,14 @@ export default function CoachDashboard() {
         </Card>
 
         {priorityActions.length > 0 && (
-          <Card>
+          <Card className="ai-coach-gradient-subtle border-primary/30 shadow-xl">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Target className="h-5 w-5 text-primary" />
+                <Target className="h-5 w-5 text-primary status-glow" />
                 今日の優先アクション
-                <Badge className="bg-slate-100 text-slate-700">{priorityActions.length}/10</Badge>
+                <Badge className="bg-primary/20 text-primary border-primary/30 shadow-md">
+                  {priorityActions.length}/10
+                </Badge>
               </CardTitle>
               <p className="text-sm text-muted-foreground">アラート予算: 1日上位10件まで・1生徒1日1アクション</p>
             </CardHeader>
@@ -762,23 +763,23 @@ export default function CoachDashboard() {
                 {priorityActions.map((action, index) => (
                   <div
                     key={action.studentId}
-                    className={`p-4 rounded-lg border-l-4 ${
+                    className={`p-4 rounded-lg border-l-4 shadow-lg transition-all duration-300 hover:shadow-xl ${
                       action.type === "emergency"
-                        ? "border-l-red-500 bg-red-50"
+                        ? "border-l-red-500 bg-gradient-to-r from-red-50 to-red-50/50"
                         : action.type === "unrecorded"
-                          ? "border-l-orange-500 bg-orange-50"
-                          : "border-l-yellow-500 bg-yellow-50"
+                          ? "border-l-orange-500 bg-gradient-to-r from-orange-50 to-orange-50/50"
+                          : "border-l-yellow-500 bg-gradient-to-r from-yellow-50 to-yellow-50/50"
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-1">
-                          {action.type === "emergency" && "🧯"}
-                          {action.type === "unrecorded" && "🔔"}
-                          {action.type === "attention" && "⚠"}
+                          {action.type === "emergency" && <span className="text-lg animate-pulse">🧯</span>}
+                          {action.type === "unrecorded" && <span className="text-lg animate-pulse">🔔</span>}
+                          {action.type === "attention" && <span className="text-lg animate-pulse">⚠</span>}
                           <span className="text-sm font-medium">#{index + 1}</span>
                         </div>
-                        <Avatar className="h-8 w-8">
+                        <Avatar className="h-8 w-8 border-2 border-white shadow-md">
                           <AvatarImage
                             src={getAvatarSrc(action.studentAvatar) || "/placeholder.svg"}
                             alt={action.studentName}
@@ -789,11 +790,13 @@ export default function CoachDashboard() {
                           <div className="font-medium">{action.studentName}</div>
                           <div className="text-sm text-muted-foreground">{action.reason}</div>
                         </div>
-                        <Badge className="bg-slate-100 text-slate-700 text-xs">週リング{action.weekRing}</Badge>
+                        <Badge className="bg-white/80 text-slate-700 text-xs shadow-sm border">
+                          週リング{action.weekRing}
+                        </Badge>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground max-w-xs">{action.action}</span>
-                        <Button size="sm" className="bg-primary hover:bg-primary/90">
+                        <Button size="sm" className="bg-primary hover:bg-primary/90 shadow-md">
                           <Send className="h-4 w-4 mr-1" />
                           送信
                         </Button>
@@ -808,20 +811,32 @@ export default function CoachDashboard() {
 
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="overview">生徒一覧</TabsTrigger>
-            <TabsTrigger value="unresponded" className="relative">
+          <TabsList className="bg-white/80 backdrop-blur-sm shadow-lg border border-primary/20">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-white">
+              生徒一覧
+            </TabsTrigger>
+            <TabsTrigger
+              value="unresponded"
+              className="relative data-[state=active]:bg-primary data-[state=active]:text-white"
+            >
               未応援記録
               {totalUnresponded > 0 && (
-                <Badge className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5">{totalUnresponded}</Badge>
+                <Badge className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 shadow-md">{totalUnresponded}</Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="feedback">一括応援</TabsTrigger>
-            <TabsTrigger value="analytics">分析</TabsTrigger>
-            <TabsTrigger value="parent-engagement" className="relative">
+            <TabsTrigger value="feedback" className="data-[state=active]:bg-primary data-[state=active]:text-white">
+              一括応援
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="data-[state=active]:bg-primary data-[state=active]:text-white">
+              分析
+            </TabsTrigger>
+            <TabsTrigger
+              value="parent-engagement"
+              className="relative data-[state=active]:bg-primary data-[state=active]:text-white"
+            >
               保護者連携
               {parentEngagementSummary.alertsCount > 0 && (
-                <Badge className="ml-2 bg-orange-500 text-white text-xs px-1.5 py-0.5">
+                <Badge className="ml-2 bg-orange-500 text-white text-xs px-1.5 py-0.5 shadow-md">
                   {parentEngagementSummary.alertsCount}
                 </Badge>
               )}
@@ -830,12 +845,12 @@ export default function CoachDashboard() {
 
           {/* Student Overview Tab */}
           <TabsContent value="overview" className="space-y-4">
-            <Card>
+            <Card className="ai-coach-gradient-subtle border-primary/20 shadow-lg">
               <CardContent className="p-4">
                 <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
                   <div className="flex flex-col sm:flex-row gap-2">
                     <Select value={filterClass} onValueChange={setFilterClass}>
-                      <SelectTrigger className="w-32">
+                      <SelectTrigger className="w-32 bg-white/80 backdrop-blur-sm shadow-sm">
                         <SelectValue placeholder="クラス" />
                       </SelectTrigger>
                       <SelectContent>
@@ -846,7 +861,7 @@ export default function CoachDashboard() {
                     </Select>
 
                     <Select value={filterStatus} onValueChange={setFilterStatus}>
-                      <SelectTrigger className="w-40">
+                      <SelectTrigger className="w-40 bg-white/80 backdrop-blur-sm shadow-sm">
                         <SelectValue placeholder="状態" />
                       </SelectTrigger>
                       <SelectContent>
@@ -863,7 +878,7 @@ export default function CoachDashboard() {
                     </Select>
 
                     <Select value={sortBy} onValueChange={setSortBy}>
-                      <SelectTrigger className="w-40">
+                      <SelectTrigger className="w-40 bg-white/80 backdrop-blur-sm shadow-sm">
                         <SelectValue placeholder="並び順" />
                       </SelectTrigger>
                       <SelectContent>
@@ -876,7 +891,7 @@ export default function CoachDashboard() {
                     </Select>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 bg-white/50 rounded-lg p-2 shadow-sm">
                     <Checkbox
                       checked={selectedStudents.length === filteredStudents.length && filteredStudents.length > 0}
                       onCheckedChange={(checked) => {
@@ -894,9 +909,12 @@ export default function CoachDashboard() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="ai-coach-gradient-subtle border-primary/20 shadow-xl">
               <CardHeader>
-                <CardTitle>生徒一覧（優先度順・アラート疲れ防止）</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-primary status-glow" />
+                  生徒一覧（優先度順・アラート疲れ防止）
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -906,27 +924,27 @@ export default function CoachDashboard() {
 
                     if (student.daysToTest <= 3 && student.weekRing < 6) {
                       priorityLabel = "🧯"
-                      priorityColor = "border-l-red-500 bg-red-50"
+                      priorityColor = "border-l-red-500 bg-gradient-to-r from-red-50 to-red-50/30"
                     } else if (student.hoursWithoutRecord >= 48) {
                       priorityLabel = "🔔"
-                      priorityColor = "border-l-orange-500 bg-orange-50"
+                      priorityColor = "border-l-orange-500 bg-gradient-to-r from-orange-50 to-orange-50/30"
                     } else if (
                       (student.weekRing >= 6 && student.weekRing < 8) ||
                       !student.mathMastered ||
                       student.untouchedSubjects.length > 0
                     ) {
                       priorityLabel = "⚠"
-                      priorityColor = "border-l-yellow-500 bg-yellow-50"
+                      priorityColor = "border-l-yellow-500 bg-gradient-to-r from-yellow-50 to-yellow-50/30"
                     }
 
                     return (
                       <div
                         key={student.id}
-                        className={`p-4 rounded-lg border-2 transition-all ${
+                        className={`p-4 rounded-lg border-2 transition-all duration-300 hover:shadow-lg ${
                           selectedStudents.includes(student.id)
-                            ? "border-primary bg-primary/5"
-                            : "border-border bg-background"
-                        } ${priorityColor ? `border-l-4 ${priorityColor}` : ""}`}
+                            ? "border-primary bg-primary/5 shadow-md"
+                            : "border-border bg-white/80 backdrop-blur-sm"
+                        } ${priorityColor ? `border-l-4 ${priorityColor} shadow-lg` : ""}`}
                       >
                         <div className="flex items-center gap-4">
                           <Checkbox
@@ -940,7 +958,7 @@ export default function CoachDashboard() {
                             }}
                           />
 
-                          <Avatar className="h-12 w-12">
+                          <Avatar className="h-12 w-12 border-2 border-white shadow-md">
                             <AvatarImage src={getAvatarSrc(student.avatar) || "/placeholder.svg"} alt={student.name} />
                             <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
                           </Avatar>
@@ -948,7 +966,7 @@ export default function CoachDashboard() {
                           <div className="flex-1 grid grid-cols-1 md:grid-cols-8 gap-4">
                             <div>
                               <div className="font-medium flex items-center gap-2">
-                                {priorityLabel && <span className="text-lg">{priorityLabel}</span>}
+                                {priorityLabel && <span className="text-lg animate-pulse">{priorityLabel}</span>}
                                 {student.name}
                               </div>
                               <div className="text-sm text-muted-foreground">ニックネーム: {student.nickname}</div>
@@ -958,7 +976,9 @@ export default function CoachDashboard() {
                             <div>
                               <div className="text-sm font-medium">週リング</div>
                               <div className="flex items-center gap-2">
-                                <Badge className="bg-slate-100 text-slate-700 text-xs">{student.weekRing}/10</Badge>
+                                <Badge className="bg-white/80 text-slate-700 text-xs shadow-sm border">
+                                  {student.weekRing}/10
+                                </Badge>
                                 <div
                                   className={`w-6 h-6 rounded-full border-2 ${
                                     student.weekRing >= 8
