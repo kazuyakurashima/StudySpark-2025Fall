@@ -727,7 +727,7 @@ export default function SparkPage() {
                                   max={maxProblems}
                                   min={0}
                                   step={1}
-                                  className={`w-full mt-2 [&_[role=slider]]:h-8 [&_[role=slider]]:w-8 [&_[role=slider]]:border-4 [&_[role=slider]]:shadow-2xl [&_[role=slider]]:bg-white [&_[role=slider]]:ring-2 [&_[role=slider]]:transform [&_[role=slider]]:translate-y-0 [&>span:first-child]:h-0 [&_[role=slider]]:focus:ring-4 [&_[role=slider]]:focus:ring-opacity-50 ${
+                                  className={`w-full mt-2 [&_[role=slider]]:h-8 [&_[role=slider]]:w-8 [&_[role=slider]]:border-4 [&_[role=slider]]:shadow-2xl [&_[role=slider]]:bg-white [&_[role=slider]]:ring-2 [&_[role=slider]]:transform [&_[role=slider]]:translate-y-0 [&_[role=slider]]:relative [&_[role=slider]]:top-0 [&>span:first-child]:h-4 [&>span:first-child]:bg-transparent [&_[role=slider]]:focus:ring-4 [&_[role=slider]]:focus:ring-opacity-50 ${
                                     subjectId === "math"
                                       ? "[&_[role=slider]]:border-blue-500 [&_[role=slider]]:ring-blue-200 [&_[role=slider]]:focus:ring-blue-300"
                                       : subjectId === "japanese"
