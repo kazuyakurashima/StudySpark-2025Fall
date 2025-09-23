@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { BottomNavigation } from "@/components/bottom-navigation"
-import { Flame, Calendar, Sparkles, Target, BookOpen } from "lucide-react"
+import { Flame, Calendar, BookOpen, Home, Flag, Zap, MessageCircle } from "lucide-react"
 
 const mockData = {
   user: {
@@ -309,7 +309,7 @@ const WeeklyGoalCard = () => {
     <Card className="bg-gradient-to-br from-primary/10 to-accent/10 border-primary/30 shadow-xl">
       <CardHeader className="pb-4">
         <CardTitle className="text-xl font-bold flex items-center gap-3">
-          <Target className="h-7 w-7 text-primary" />
+          <Flag className="h-7 w-7 text-primary" />
           <span className="text-slate-800">今週の目標</span>
         </CardTitle>
       </CardHeader>
@@ -380,26 +380,6 @@ const WeeklyGoalCard = () => {
   )
 }
 
-const getAvatarSrc = (avatarId: string) => {
-  const avatarMap: { [key: string]: string } = {
-    student1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student1-xZFJU5uXJO4DEfUbq1jbTMQUXReyM0.png",
-    student2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student2-mZ9Q9oVm43IQoRyxSYytVFYgp3JS1V.png",
-    student3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student3-teUpOKnopXNhE2vGFtvz9RWtC7O6kv.png",
-    student4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student4-pKazGXekCT1H5kzHBqmfOrM1968hML.png",
-    student5: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student5-kehwNSIKsgkTL6EkAPO2evB3qJWnRM.png",
-    student6: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student6-dJrMk7uUxYSRMp5tMJ3t4KYDOEIuNl.png",
-    coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/coach-LENT7C1nR9yWT7UBNTHgxnWakF66Pr.png",
-    ai_coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png",
-    parent1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent1-HbhESuJlC27LuGOGupullRXyEUzFLy.png",
-    parent2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent2-zluk4uVJLfzP8dBe0I7v5fVGSn5QfU.png",
-    parent3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent3-EzBDrjsFP5USAgnSPTXjcdNeq1bzSm.png",
-    parent4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent4-YHYTNRnNQ7bRb6aAfTNEFMozjGRlZq.png",
-    parent5: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent5-dGCLocpgcZw4lXWRiPmTHkXURBXXoH.png",
-    parent6: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent6-gKoeUywhHoKWJ4BPEk69iW6idztaLl.png",
-  }
-  return avatarMap[avatarId] || avatarMap["student1"]
-}
-
 const LearningDashboard = () => {
   const getTodayWeekday = () => {
     const today = new Date()
@@ -457,7 +437,7 @@ const LearningDashboard = () => {
     <Card className="bg-white border-slate-200 shadow-xl">
       <CardHeader className="pb-4">
         <CardTitle className="text-xl font-bold flex items-center gap-3 text-slate-800">
-          <Sparkles className="h-7 w-7 text-primary" />
+          <Zap className="h-7 w-7 text-primary" />
           学習ダッシュボード
         </CardTitle>
       </CardHeader>
@@ -686,7 +666,7 @@ const TodayMissionCard = () => {
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-xl font-bold flex items-center gap-3">
-            <Flame className="h-7 w-7 text-primary" />
+            <Home className="h-7 w-7 text-primary" />
             <span className="text-slate-800">{getModeTitle()}</span>
           </CardTitle>
           <Badge className="bg-primary text-primary-foreground border-primary font-bold text-base px-4 py-2 shadow-md">
@@ -766,6 +746,26 @@ const TodayMissionCard = () => {
   )
 }
 
+const getAvatarSrc = (avatarId: string) => {
+  const avatarMap: { [key: string]: string } = {
+    student1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student1-xZFJU5uXJO4DEfUbq1jbTMQUXReyM0.png",
+    student2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student2-mZ9Q9oVm43IQoRyxSYytVFYgp3JS1V.png",
+    student3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student3-teUpOKnopXNhE2vGFtvz9RWtC7O6kv.png",
+    student4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student4-pKazGXekCT1H5kzHBqmfOrM1968hML.png",
+    student5: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student5-kehwNSIKsgkTL6EkAPO2evB3qJWnRM.png",
+    student6: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student6-dJrMk7uUxYSRMp5tMJ3t4KYDOEIuNl.png",
+    coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/coach-LENT7C1nR9yWT7UBNTHgxnWakF66Pr.png",
+    ai_coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png",
+    parent1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent1-HbhESuJlC27LuGOGupullRXyEUzFLy.png",
+    parent2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent2-zluk4uVJLfzP8dBe0I7v5fVGSn5QfU.png",
+    parent3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent3-EzBDrjsFP5USAgnSPTXjcdNeq1bzSm.png",
+    parent4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent4-YHYTNRnNQ7bRb6aAfTNEFMozjGRlZq.png",
+    parent5: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent5-dGCLocpgcZw4lXWRiPmTHkXURBXXoH.png",
+    parent6: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent6-gKoeUywhHoKWJ4BPEk69iW6idztaLl.png",
+  }
+  return avatarMap[avatarId] || avatarMap["student1"]
+}
+
 export default function StudentDashboard() {
   const [userName, setUserName] = useState("")
   const [selectedAvatar, setSelectedAvatar] = useState("")
@@ -818,7 +818,7 @@ export default function StudentDashboard() {
                       AIコーチからのメッセージ
                     </span>
                   </div>
-                  <Sparkles className="h-7 w-7 text-white animate-pulse" />
+                  <MessageCircle className="h-7 w-7 text-white animate-pulse" />
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
