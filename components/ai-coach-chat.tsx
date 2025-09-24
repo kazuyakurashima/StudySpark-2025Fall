@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Send, Bot, User, Sparkles, CheckCircle } from "lucide-react"
+import { ArrowLeft, Send, Bot, User, Sparkles, CheckCircle, MessageCircle } from "lucide-react"
 
 interface Message {
   id: string
@@ -257,70 +257,101 @@ export function AICoachChat({ onClose }: AICoachChatProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex flex-col">
-      {/* Header */}
-      <div className="bg-card/80 backdrop-blur-sm border-b border-border/50 p-4">
-        <div className="max-w-2xl mx-auto flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={onClose} className="p-2">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={getAvatarSrc("ai") || "/placeholder.svg"} alt="AIコーチ" />
-                <AvatarFallback>
-                  <Bot className="h-5 w-5" />
-                </AvatarFallback>
-              </Avatar>
-              <Sparkles className="absolute -top-1 -right-1 h-4 w-4 text-accent animate-bounce" />
-            </div>
-            <div>
-              <h1 className="font-bold text-foreground">AIコーチ</h1>
-              <div className="flex items-center gap-2">
-                <p className="text-xs text-muted-foreground">週間振り返りサポート</p>
-                <Badge className={weekTypeColors[weekType as keyof typeof weekTypeColors]}>{weekType}</Badge>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 flex flex-col">
+      <div className="bg-white/95 backdrop-blur-md border-b border-slate-200/60 shadow-sm">
+        <div className="max-w-4xl mx-auto p-6">
+          <div className="flex items-center gap-6">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="p-3 hover:bg-slate-100 rounded-xl transition-all duration-200"
+            >
+              <ArrowLeft className="h-5 w-5 text-slate-600" />
+            </Button>
+
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <Avatar className="h-16 w-16 border-3 border-white shadow-xl">
+                  <AvatarImage src={getAvatarSrc("ai") || "/placeholder.svg"} alt="AIコーチ" />
+                  <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                    <Bot className="h-7 w-7" />
+                  </AvatarFallback>
+                </Avatar>
+                <div className="absolute -top-1 -right-1 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full p-1.5 shadow-lg animate-pulse">
+                  <Sparkles className="h-4 w-4 text-white" />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                  AIコーチ
+                  <MessageCircle className="h-6 w-6 text-blue-500" />
+                </h1>
+                <div className="flex items-center gap-3">
+                  <p className="text-sm text-slate-600 font-medium">週間振り返りサポート</p>
+                  <Badge
+                    className={`${weekTypeColors[weekType as keyof typeof weekTypeColors]} font-semibold px-3 py-1.5 shadow-sm`}
+                  >
+                    {weekType}
+                  </Badge>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="ml-auto text-right">
-            <div className="text-sm font-medium text-primary">
-              {turnCount}/{maxTurns}
+
+            <div className="ml-auto text-right bg-slate-50 rounded-xl p-4 border border-slate-200">
+              <div className="text-2xl font-bold text-blue-600">
+                {turnCount}/{maxTurns}
+              </div>
+              <div className="text-sm text-slate-500 font-medium">ターン</div>
             </div>
-            <div className="text-xs text-muted-foreground">ターン</div>
           </div>
         </div>
       </div>
 
-      {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="max-w-2xl mx-auto space-y-4">
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-4xl mx-auto p-6 space-y-6">
           {messages.map((message) => (
             <div
               key={message.id}
-              className={`flex gap-3 ${message.sender === "user" ? "flex-row-reverse" : "flex-row"}`}
+              className={`flex gap-4 ${message.sender === "user" ? "flex-row-reverse" : "flex-row"}`}
             >
-              <Avatar className="h-8 w-8 flex-shrink-0">
+              <Avatar className="h-12 w-12 flex-shrink-0 shadow-lg border-2 border-white">
                 <AvatarImage src={getAvatarSrc(message.sender) || "/placeholder.svg"} alt={message.sender} />
-                <AvatarFallback>
-                  {message.sender === "user" ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+                <AvatarFallback
+                  className={
+                    message.sender === "user"
+                      ? "bg-blue-500 text-white"
+                      : "bg-gradient-to-br from-blue-500 to-purple-600 text-white"
+                  }
+                >
+                  {message.sender === "user" ? <User className="h-5 w-5" /> : <Bot className="h-5 w-5" />}
                 </AvatarFallback>
               </Avatar>
+
               <div
-                className={`max-w-[80%] p-3 rounded-2xl ${
+                className={`max-w-[75%] ${
                   message.sender === "user"
-                    ? "bg-primary text-primary-foreground rounded-br-md"
-                    : "bg-card border border-border rounded-bl-md"
-                }`}
+                    ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-3xl rounded-br-lg shadow-lg"
+                    : "bg-white border border-slate-200 rounded-3xl rounded-bl-lg shadow-lg"
+                } p-5 transition-all duration-200 hover:shadow-xl`}
               >
-                <p className="text-sm whitespace-pre-line">{message.content}</p>
+                <p
+                  className={`text-base leading-relaxed whitespace-pre-line ${
+                    message.sender === "user" ? "text-white" : "text-slate-700"
+                  }`}
+                >
+                  {message.content}
+                </p>
+
                 {message.options && (
-                  <div className="mt-2 space-y-1">
+                  <div className="mt-4 space-y-2">
                     {message.options.map((option, index) => (
                       <Button
                         key={index}
                         variant="outline"
                         size="sm"
-                        className="w-full text-left justify-start text-xs bg-transparent"
+                        className="w-full text-left justify-start bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700 rounded-xl transition-all duration-200"
                         onClick={() => setInputMessage(option)}
                       >
                         {option}
@@ -328,7 +359,8 @@ export function AICoachChat({ onClose }: AICoachChatProps) {
                     ))}
                   </div>
                 )}
-                <div className="text-xs opacity-70 mt-1">
+
+                <div className={`text-xs mt-3 ${message.sender === "user" ? "text-blue-100" : "text-slate-400"}`}>
                   {message.timestamp.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}
                 </div>
               </div>
@@ -336,22 +368,22 @@ export function AICoachChat({ onClose }: AICoachChatProps) {
           ))}
 
           {isTyping && (
-            <div className="flex gap-3">
-              <Avatar className="h-8 w-8">
+            <div className="flex gap-4">
+              <Avatar className="h-12 w-12 shadow-lg border-2 border-white">
                 <AvatarImage src={getAvatarSrc("ai") || "/placeholder.svg"} alt="AIコーチ" />
-                <AvatarFallback>
-                  <Bot className="h-4 w-4" />
+                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                  <Bot className="h-5 w-5" />
                 </AvatarFallback>
               </Avatar>
-              <div className="bg-card border border-border p-3 rounded-2xl rounded-bl-md">
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
+              <div className="bg-white border border-slate-200 p-5 rounded-3xl rounded-bl-lg shadow-lg">
+                <div className="flex gap-2">
+                  <div className="w-3 h-3 bg-slate-400 rounded-full animate-bounce" />
                   <div
-                    className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
+                    className="w-3 h-3 bg-slate-400 rounded-full animate-bounce"
                     style={{ animationDelay: "0.1s" }}
                   />
                   <div
-                    className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
+                    className="w-3 h-3 bg-slate-400 rounded-full animate-bounce"
                     style={{ animationDelay: "0.2s" }}
                   />
                 </div>
@@ -363,51 +395,63 @@ export function AICoachChat({ onClose }: AICoachChatProps) {
         </div>
       </div>
 
-      {/* Input Area */}
-      <div className="border-t border-border/50 bg-card/80 backdrop-blur-sm p-4">
-        <div className="max-w-2xl mx-auto">
+      <div className="border-t border-slate-200/60 bg-white/95 backdrop-blur-md shadow-lg">
+        <div className="max-w-4xl mx-auto p-6">
           {turnCount >= maxTurns ? (
-            <Card className="bg-accent/10 border-accent/20">
-              <CardContent className="p-4 text-center">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <CheckCircle className="h-5 w-5 text-accent" />
-                  <p className="text-sm text-accent font-medium">今週の振り返りは終了です</p>
+            <Card className="bg-gradient-to-r from-green-50 to-blue-50 border-green-200/60 shadow-lg">
+              <CardContent className="p-8 text-center">
+                <div className="flex items-center justify-center gap-3 mb-4">
+                  <div className="bg-green-500 rounded-full p-2">
+                    <CheckCircle className="h-6 w-6 text-white" />
+                  </div>
+                  <p className="text-xl font-bold text-green-700">今週の振り返りは終了です</p>
                 </div>
-                <p className="text-xs text-muted-foreground mb-3">
-                  GROWモデルに基づいた振り返りが完了しました。来週も一緒に頑張りましょう！
+                <p className="text-base text-slate-600 mb-6 leading-relaxed">
+                  GROWモデルに基づいた振り返りが完了しました。
+                  <br />
+                  来週も一緒に頑張りましょう！
                 </p>
-                <div className="flex items-center justify-center gap-2 mb-3">
-                  <Badge className="bg-accent/20 text-accent border-accent/30">振り返り完了バッジ獲得！</Badge>
+                <div className="flex items-center justify-center gap-2 mb-6">
+                  <Badge className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white border-0 px-4 py-2 text-base font-bold shadow-lg">
+                    🏆 振り返り完了バッジ獲得！
+                  </Badge>
                 </div>
-                <Button onClick={onClose} className="w-full">
+                <Button
+                  onClick={onClose}
+                  className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-8 py-3 text-lg font-semibold rounded-xl shadow-lg transition-all duration-200"
+                >
                   リフレクトに戻る
                 </Button>
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-2">
-              <div className="flex gap-2">
+            <div className="space-y-4">
+              <div className="flex gap-4">
                 <Input
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="メッセージを入力..."
+                  placeholder="メッセージを入力してください..."
                   maxLength={maxCharacters}
-                  className="flex-1"
+                  className="flex-1 h-14 text-base rounded-2xl border-slate-200 focus:border-blue-400 focus:ring-blue-400/20 shadow-sm"
                   disabled={isTyping}
                 />
                 <Button
                   onClick={handleSendMessage}
                   disabled={!inputMessage.trim() || isTyping}
-                  size="sm"
-                  className="px-3 bg-gradient-to-r from-accent to-primary hover:from-accent/90 hover:to-primary/90"
+                  size="lg"
+                  className="h-14 px-6 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-2xl shadow-lg transition-all duration-200 disabled:opacity-50"
                 >
-                  <Send className="h-4 w-4" />
+                  <Send className="h-5 w-5" />
                 </Button>
               </div>
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>AIコーチと一緒に1週間を振り返ろう（{weekType}）</span>
-                <span>
+
+              <div className="flex justify-between items-center text-sm">
+                <div className="flex items-center gap-2 text-slate-600">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                  <span className="font-medium">AIコーチと一緒に1週間を振り返ろう（{weekType}）</span>
+                </div>
+                <span className="text-slate-500 font-medium">
                   {inputMessage.length}/{maxCharacters}文字
                 </span>
               </div>
