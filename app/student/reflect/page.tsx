@@ -24,6 +24,9 @@ import {
   Eye,
   Lightbulb,
   CheckCircle,
+  ChevronDown,
+  ChevronUp,
+  Filter,
 } from "lucide-react"
 
 // Mock data
@@ -594,45 +597,61 @@ export default function ReflectPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-20">
-      {/* Header */}
-      <div className="bg-card/80 backdrop-blur-sm border-b border-border/50 p-4">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-            <MessageCircle className="h-6 w-6 text-primary" />
-            リフレクト
-          </h1>
-          <p className="text-sm text-muted-foreground">1週間の学習を振り返り、仲間との交流</p>
+      <div className="bg-gradient-to-r from-card/95 to-card/90 backdrop-blur-md border-b border-border/30 shadow-lg">
+        <div className="max-w-6xl mx-auto p-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+                <div className="p-2 bg-primary/10 rounded-xl border border-primary/20">
+                  <MessageCircle className="h-8 w-8 text-primary" />
+                </div>
+                リフレクト
+              </h1>
+              <p className="text-base text-muted-foreground font-medium">
+                1週間の学習を振り返り、成長の軌跡を確認しましょう
+              </p>
+            </div>
+            <div className="text-right">
+              <div className="text-sm text-muted-foreground">今週の振り返り</div>
+              <div className="text-2xl font-bold text-primary">進行中</div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto p-4">
-        {/* AI Coach Button (Saturday 12:00 to Wednesday 23:59) */}
+      <div className="max-w-6xl mx-auto p-6">
         {isAICoachingAvailable() && (
-          <Card className="mb-6 bg-gradient-to-r from-accent/10 via-primary/10 to-accent/10 border-accent/20 relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-accent/5 to-primary/5 animate-pulse" />
-            <CardContent className="p-6 relative">
+          <Card className="mb-8 bg-gradient-to-r from-primary/8 via-accent/8 to-primary/8 border-primary/20 shadow-xl overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 animate-pulse" />
+            <CardContent className="p-8 relative">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-6">
                   <div className="relative">
-                    <Avatar className="w-12 h-12">
+                    <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
+                    <Avatar className="w-16 h-16 border-4 border-white/60 shadow-xl relative z-10">
                       <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
-                      <AvatarFallback>AI</AvatarFallback>
+                      <AvatarFallback className="bg-primary text-white font-bold text-xl">AI</AvatarFallback>
                     </Avatar>
-                    <div className="absolute -top-1 -right-1">
-                      <Sparkles className="h-4 w-4 text-accent animate-bounce" />
+                    <div className="absolute -top-2 -right-2 z-20">
+                      <Sparkles className="h-6 w-6 text-accent animate-bounce" />
                     </div>
                   </div>
-                  <div>
-                    <h3 className="font-bold text-lg">AIコーチング</h3>
-                    <p className="text-sm text-muted-foreground">
-                      土曜日12時〜水曜日23時59分限定！1週間の学習を一緒に振り返ろう
+                  <div className="space-y-2">
+                    <h3 className="font-bold text-2xl text-foreground">AIコーチング</h3>
+                    <p className="text-base text-muted-foreground leading-relaxed">
+                      土曜日12時〜水曜日23時59分限定！
+                      <br />
+                      1週間の学習を一緒に振り返り、成長をサポートします
                     </p>
-                    <Badge className="mt-1 bg-accent/20 text-accent border-accent/30 text-xs">土曜日限定</Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-accent/20 text-accent border-accent/30 font-medium">土曜日限定</Badge>
+                      <Badge className="bg-primary/20 text-primary border-primary/30 font-medium">GROWモデル</Badge>
+                    </div>
                   </div>
                 </div>
                 <Button
                   onClick={() => setShowAIChat(true)}
-                  className="bg-gradient-to-r from-accent to-primary hover:from-accent/90 hover:to-primary/90 text-white font-medium px-6 shadow-lg hover:shadow-xl transition-all duration-300"
+                  className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white font-bold px-8 py-4 text-lg shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
                 >
                   週間振り返りを始める
                 </Button>
@@ -641,74 +660,87 @@ export default function ReflectPage() {
           </Card>
         )}
 
-        {/* Main Content Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="history" className="flex items-center gap-2">
-              <History className="h-4 w-4" />
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+          <TabsList className="grid w-full grid-cols-3 bg-card/60 backdrop-blur-sm border border-border/30 shadow-lg p-2 rounded-xl">
+            <TabsTrigger
+              value="history"
+              className="flex items-center gap-3 data-[state=active]:bg-primary data-[state=active]:text-white font-medium px-6 py-3 rounded-lg transition-all duration-300"
+            >
+              <History className="h-5 w-5" />
               学習履歴
             </TabsTrigger>
-            <TabsTrigger value="messages" className="flex items-center gap-2">
-              <MessageCircle className="h-4 w-4" />
+            <TabsTrigger
+              value="messages"
+              className="flex items-center gap-3 data-[state=active]:bg-primary data-[state=active]:text-white font-medium px-6 py-3 rounded-lg transition-all duration-300"
+            >
+              <MessageCircle className="h-5 w-5" />
               応援メッセージ
             </TabsTrigger>
-            <TabsTrigger value="coaching" className="flex items-center gap-2">
-              <Headphones className="h-4 w-4" />
+            <TabsTrigger
+              value="coaching"
+              className="flex items-center gap-3 data-[state=active]:bg-primary data-[state=active]:text-white font-medium px-6 py-3 rounded-lg transition-all duration-300"
+            >
+              <Headphones className="h-5 w-5" />
               コーチング履歴
             </TabsTrigger>
           </TabsList>
 
-          {/* Learning History Tab */}
-          <TabsContent value="history" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <History className="h-5 w-5 text-primary" />
+          <TabsContent value="history" className="space-y-6">
+            <Card className="bg-gradient-to-br from-card/90 to-card/70 backdrop-blur-sm border-border/30 shadow-xl">
+              <CardHeader className="pb-6">
+                <CardTitle className="flex items-center gap-3 text-2xl">
+                  <div className="p-2 bg-primary/10 rounded-xl border border-primary/20">
+                    <History className="h-6 w-6 text-primary" />
+                  </div>
                   スパーク機能で記録した学習履歴
                 </CardTitle>
+                <p className="text-muted-foreground">日々の学習記録を時系列で確認できます</p>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="space-y-6">
                   {sparkLearningHistory.map((record, index) => (
-                    <div key={index} className="p-4 rounded-lg bg-muted/30 border border-border/50">
-                      <div className="flex items-start justify-between mb-3">
+                    <div
+                      key={index}
+                      className="p-6 rounded-xl bg-gradient-to-r from-background/90 to-muted/30 border border-border/40 shadow-lg hover:shadow-xl transition-all duration-300"
+                    >
+                      <div className="flex items-start justify-between mb-4">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <Clock className="h-4 w-4" />
                             <span>記録日時: {record.recordedAt}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="font-medium text-primary">学習回: {record.studySession}</span>
+                            <span className="font-medium text-primary text-lg">学習回: {record.studySession}</span>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge
-                            className={`${levelColors[record.level as keyof typeof levelColors].bg} ${levelColors[record.level as keyof typeof levelColors].text} ${levelColors[record.level as keyof typeof levelColors].border}`}
+                            className={`${levelColors[record.level as keyof typeof levelColors].bg} ${levelColors[record.level as keyof typeof levelColors].text} ${levelColors[record.level as keyof typeof levelColors].border} font-medium`}
                           >
                             {record.level}
                           </Badge>
                         </div>
                       </div>
 
-                      <div className="mb-3">
+                      <div className="mb-4">
                         <Badge
-                          className={`${subjectColors[record.subject as keyof typeof subjectColors].bg} ${subjectColors[record.subject as keyof typeof subjectColors].text} ${subjectColors[record.subject as keyof typeof subjectColors].border} text-base px-3 py-1`}
+                          className={`${subjectColors[record.subject as keyof typeof subjectColors].bg} ${subjectColors[record.subject as keyof typeof subjectColors].text} ${subjectColors[record.subject as keyof typeof subjectColors].border} text-base px-4 py-2 font-semibold`}
                         >
                           {record.subject}
                         </Badge>
                       </div>
 
-                      <div className="mb-3">
+                      <div className="mb-4">
                         <div className="flex items-center gap-2 mb-2">
                           <BookOpen className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm font-medium">学習内容</span>
+                          <span className="text-sm font-medium text-foreground">学習内容</span>
                         </div>
                         <div className="flex flex-wrap gap-2">
                           {record.learningContent.map((content) => (
                             <Badge
                               key={content}
                               variant="outline"
-                              className={`${learningContentColors[content as keyof typeof learningContentColors].bg} ${learningContentColors[content as keyof typeof learningContentColors].text} ${learningContentColors[content as keyof typeof learningContentColors].border}`}
+                              className={`${learningContentColors[content as keyof typeof learningContentColors].bg} ${learningContentColors[content as keyof typeof learningContentColors].text} ${learningContentColors[content as keyof typeof learningContentColors].border} text-xs px-3 py-1`}
                             >
                               {content}
                             </Badge>
@@ -716,42 +748,42 @@ export default function ReflectPage() {
                         </div>
                       </div>
 
-                      <div className="mb-3">
+                      <div className="mb-4">
                         <div className="flex items-center gap-2 mb-2">
                           <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm font-medium">正答率</span>
+                          <span className="text-sm font-medium text-foreground">正答率</span>
                         </div>
                         <div className="flex items-center gap-3">
-                          <div className="flex items-center gap-1">
-                            <span className="text-lg font-bold text-primary">{record.correctRate}%</span>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-2xl font-bold text-primary">{record.correctRate}%</span>
                             <span className="text-sm text-muted-foreground">
                               ({record.correctAnswers}/{record.totalQuestions}問正解)
                             </span>
                           </div>
-                          <div className="flex-1 bg-muted rounded-full h-2">
+                          <div className="flex-1 bg-muted rounded-full h-2.5">
                             <div
-                              className="bg-primary rounded-full h-2 transition-all duration-300"
+                              className="bg-primary rounded-full h-2.5 transition-all duration-300"
                               style={{ width: `${record.correctRate}%` }}
                             />
                           </div>
                         </div>
                       </div>
 
-                      <div className="mb-3">
+                      <div className="mb-4">
                         <div className="flex items-center gap-2 mb-2">
                           <Brain className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm font-medium">理解度</span>
+                          <span className="text-sm font-medium text-foreground">理解度</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-2xl">{record.understandingEmoji}</span>
-                          <span className="font-medium">{record.understanding}</span>
+                          <span className="text-3xl">{record.understandingEmoji}</span>
+                          <span className="font-medium text-lg">{record.understanding}</span>
                         </div>
                       </div>
 
                       {record.reflection && (
-                        <div className="p-3 bg-background rounded-lg">
+                        <div className="p-3 bg-background/70 rounded-lg border border-border/30">
                           <div className="text-xs text-muted-foreground mb-1">今日の振り返り</div>
-                          <p className="text-sm">{record.reflection}</p>
+                          <p className="text-sm text-foreground leading-relaxed">{record.reflection}</p>
                         </div>
                       )}
                     </div>
@@ -761,96 +793,108 @@ export default function ReflectPage() {
             </Card>
           </TabsContent>
 
-          {/* Encouragement Messages Tab */}
-          <TabsContent value="messages" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageCircle className="h-5 w-5 text-accent" />
+          <TabsContent value="messages" className="space-y-6">
+            <Card className="bg-gradient-to-br from-card/90 to-card/70 backdrop-blur-sm border-border/30 shadow-xl">
+              <CardHeader className="pb-6">
+                <CardTitle className="flex items-center gap-3 text-2xl">
+                  <div className="p-2 bg-accent/10 rounded-xl border border-accent/20">
+                    <MessageCircle className="h-6 w-6 text-accent" />
+                  </div>
                   応援メッセージ
                 </CardTitle>
+                <p className="text-muted-foreground">保護者・指導者からの温かいメッセージを確認できます</p>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-wrap gap-4 mb-6 p-4 bg-muted/30 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">科目:</span>
-                    <select
-                      value={subjectFilter}
-                      onChange={(e) => setSubjectFilter(e.target.value)}
-                      className="px-3 py-1 text-sm border rounded-md bg-background"
-                    >
-                      <option value="全科目">全科目</option>
-                      <option value="算数">算数</option>
-                      <option value="国語">国語</option>
-                      <option value="理科">理科</option>
-                      <option value="社会">社会</option>
-                    </select>
+                <div className="bg-gradient-to-r from-muted/40 to-muted/20 rounded-xl p-6 mb-8 border border-border/30 shadow-inner">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Filter className="h-5 w-5 text-primary" />
+                    <span className="font-bold text-lg text-foreground">フィルター・並び替え</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">期間:</span>
-                    <select
-                      value={periodFilter}
-                      onChange={(e) => setPeriodFilter(e.target.value)}
-                      className="px-3 py-1 text-sm border rounded-md bg-background"
-                    >
-                      <option value="1週間">1週間</option>
-                      <option value="1ヶ月">1ヶ月</option>
-                      <option value="全て">全て</option>
-                    </select>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">並び替え:</span>
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value)}
-                      className="px-3 py-1 text-sm border rounded-md bg-background"
-                    >
-                      <option value="記録日時">記録日時</option>
-                      <option value="学習回">学習回</option>
-                      <option value="正答率">正答率</option>
-                    </select>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">科目</label>
+                      <select
+                        value={subjectFilter}
+                        onChange={(e) => setSubjectFilter(e.target.value)}
+                        className="w-full px-4 py-3 text-sm border border-border/40 rounded-lg bg-background/80 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
+                      >
+                        <option value="全科目">全科目</option>
+                        <option value="算数">算数</option>
+                        <option value="国語">国語</option>
+                        <option value="理科">理科</option>
+                        <option value="社会">社会</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">期間</label>
+                      <select
+                        value={periodFilter}
+                        onChange={(e) => setPeriodFilter(e.target.value)}
+                        className="w-full px-4 py-3 text-sm border border-border/40 rounded-lg bg-background/80 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
+                      >
+                        <option value="1週間">1週間</option>
+                        <option value="1ヶ月">1ヶ月</option>
+                        <option value="全て">全て</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">並び替え</label>
+                      <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        className="w-full px-4 py-3 text-sm border border-border/40 rounded-lg bg-background/80 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
+                      >
+                        <option value="記録日時">記録日時</option>
+                        <option value="学習回">学習回</option>
+                        <option value="正答率">正答率</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-6">
                   {filteredAndSortedMessages.map((message) => (
                     <div
                       key={message.id}
-                      className="p-4 rounded-lg bg-accent/5 border border-accent/10 cursor-pointer hover:bg-accent/10 transition-colors"
+                      className="p-6 rounded-xl bg-gradient-to-r from-accent/5 to-accent/10 border border-accent/20 cursor-pointer hover:from-accent/10 hover:to-accent/15 transition-all duration-300 shadow-lg hover:shadow-xl"
                       onClick={() => toggleMessageExpansion(message.id)}
                     >
                       <div className="flex items-start gap-4">
-                        <Avatar className="h-10 w-10">
+                        <Avatar className="h-12 w-12 border-2 border-accent/30">
                           <AvatarImage src={getAvatarSrc(message.avatar) || "/placeholder.svg"} alt={message.from} />
                           <AvatarFallback>{message.from.charAt(0)}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Clock className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">記録日時: {message.recordedAt}</span>
+                          <div className="flex items-center gap-2 mb-1 text-sm text-muted-foreground">
+                            <Clock className="h-4 w-4" />
+                            <span>記録日時: {message.recordedAt}</span>
                           </div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="font-medium">{message.from}</span>
-                            <Badge variant={message.type === "parent" ? "secondary" : "default"} className="text-xs">
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="font-bold text-lg text-foreground">{message.from}</span>
+                            <Badge
+                              variant={message.type === "parent" ? "secondary" : "default"}
+                              className="text-xs font-medium"
+                            >
                               {message.type === "parent" ? "保護者" : "指導者"}
                             </Badge>
                           </div>
                           <div className="mb-3">
-                            <div className="text-sm font-medium text-muted-foreground mb-1">表示内容</div>
-                            <p className="text-sm text-foreground bg-background p-3 rounded-lg">{message.message}</p>
+                            <p className="text-base text-foreground bg-background/70 p-4 rounded-lg border border-border/30 leading-relaxed">
+                              {message.message}
+                            </p>
                           </div>
 
                           {expandedMessages.has(message.id) && (
-                            <div className="mt-4 pt-4 border-t border-border/50 space-y-3">
-                              <div className="grid grid-cols-2 gap-4">
+                            <div className="mt-4 pt-4 border-t border-accent/20 space-y-4">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                   <div className="text-sm font-medium text-muted-foreground mb-1">学習回</div>
-                                  <span className="text-sm">{message.studySession}</span>
+                                  <span className="text-base font-semibold text-primary">{message.studySession}</span>
                                 </div>
                                 <div>
                                   <div className="text-sm font-medium text-muted-foreground mb-1">科目</div>
                                   <Badge
-                                    className={`${subjectColors[message.subject as keyof typeof subjectColors].bg} ${subjectColors[message.subject as keyof typeof subjectColors].text} ${subjectColors[message.subject as keyof typeof subjectColors].border}`}
+                                    className={`${subjectColors[message.subject as keyof typeof subjectColors].bg} ${subjectColors[message.subject as keyof typeof subjectColors].text} ${subjectColors[message.subject as keyof typeof subjectColors].border} text-base px-3 py-1 font-semibold`}
                                   >
                                     {message.subject}
                                   </Badge>
@@ -864,7 +908,7 @@ export default function ReflectPage() {
                                     <Badge
                                       key={content}
                                       variant="outline"
-                                      className={`${learningContentColors[content as keyof typeof learningContentColors].bg} ${learningContentColors[content as keyof typeof learningContentColors].text} ${learningContentColors[content as keyof typeof learningContentColors].border}`}
+                                      className={`${learningContentColors[content as keyof typeof learningContentColors].bg} ${learningContentColors[content as keyof typeof learningContentColors].text} ${learningContentColors[content as keyof typeof learningContentColors].border} text-xs px-3 py-1`}
                                     >
                                       {content}
                                     </Badge>
@@ -875,15 +919,15 @@ export default function ReflectPage() {
                               <div>
                                 <div className="text-sm font-medium text-muted-foreground mb-2">正答率</div>
                                 <div className="flex items-center gap-3">
-                                  <div className="flex items-center gap-1">
-                                    <span className="text-lg font-bold text-primary">{message.correctRate}%</span>
+                                  <div className="flex items-baseline gap-1">
+                                    <span className="text-2xl font-bold text-primary">{message.correctRate}%</span>
                                     <span className="text-sm text-muted-foreground">
                                       ({message.correctAnswers}/{message.totalQuestions}問正解)
                                     </span>
                                   </div>
-                                  <div className="flex-1 bg-muted rounded-full h-2">
+                                  <div className="flex-1 bg-muted rounded-full h-2.5">
                                     <div
-                                      className="bg-primary rounded-full h-2 transition-all duration-300"
+                                      className="bg-primary rounded-full h-2.5 transition-all duration-300"
                                       style={{ width: `${message.correctRate}%` }}
                                     />
                                   </div>
@@ -893,15 +937,28 @@ export default function ReflectPage() {
                               {message.reflection && (
                                 <div>
                                   <div className="text-sm font-medium text-muted-foreground mb-1">今日の振り返り</div>
-                                  <p className="text-sm bg-background p-3 rounded-lg">{message.reflection}</p>
+                                  <p className="text-base text-foreground bg-background/70 p-3 rounded-lg border border-border/30 leading-relaxed">
+                                    {message.reflection}
+                                  </p>
                                 </div>
                               )}
                             </div>
                           )}
-
-                          <div className="mt-2 text-xs text-muted-foreground">
-                            {expandedMessages.has(message.id) ? "クリックして詳細を閉じる" : "クリックして詳細を表示"}
-                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-4 flex items-center justify-center">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background/60 px-4 py-2 rounded-full">
+                          {expandedMessages.has(message.id) ? (
+                            <>
+                              <ChevronUp className="h-4 w-4" />
+                              クリックして詳細を閉じる
+                            </>
+                          ) : (
+                            <>
+                              <ChevronDown className="h-4 w-4" />
+                              クリックして詳細を表示
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -911,118 +968,123 @@ export default function ReflectPage() {
             </Card>
           </TabsContent>
 
-          {/* Coaching History Tab */}
-          <TabsContent value="coaching" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Headphones className="h-5 w-5 text-accent" />
+          <TabsContent value="coaching" className="space-y-6">
+            <Card className="bg-gradient-to-br from-card/90 to-card/70 backdrop-blur-sm border-border/30 shadow-xl">
+              <CardHeader className="pb-6">
+                <CardTitle className="flex items-center gap-3 text-2xl">
+                  <div className="p-2 bg-accent/10 rounded-xl border border-accent/20">
+                    <Headphones className="h-6 w-6 text-accent" />
+                  </div>
                   コーチング履歴
                 </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  過去のAIコーチングの会話記録を時系列で表示し、成長の軌跡を可視化
+                <p className="text-muted-foreground">
+                  過去のAIコーチングの会話記録を時系列で表示し、成長の軌跡を可視化します
                 </p>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center gap-4 mb-6 p-4 bg-muted/30 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">期間:</span>
-                    <select
-                      value={coachingPeriodFilter}
-                      onChange={(e) => setCoachingPeriodFilter(e.target.value)}
-                      className="px-3 py-1 text-sm border rounded-md bg-background"
-                    >
-                      <option value="1週間">1週間</option>
-                      <option value="1ヶ月">1ヶ月</option>
-                      <option value="全て">全て</option>
-                    </select>
+                <div className="bg-gradient-to-r from-muted/40 to-muted/20 rounded-xl p-6 mb-8 border border-border/30 shadow-inner">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Calendar className="h-5 w-5 text-primary" />
+                    <span className="font-bold text-lg text-foreground">期間フィルター</span>
                   </div>
+                  <select
+                    value={coachingPeriodFilter}
+                    onChange={(e) => setCoachingPeriodFilter(e.target.value)}
+                    className="w-full md:w-auto px-4 py-3 text-sm border border-border/40 rounded-lg bg-background/80 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
+                  >
+                    <option value="1週間">1週間</option>
+                    <option value="1ヶ月">1ヶ月</option>
+                    <option value="全て">全て</option>
+                  </select>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-6">
                   {filteredCoachingHistory.map((session, index) => (
-                    <div key={index} className="p-4 rounded-lg bg-accent/5 border border-accent/10">
-                      <div className="flex items-start justify-between mb-3">
+                    <div
+                      key={index}
+                      className="p-6 rounded-xl bg-gradient-to-r from-accent/5 to-accent/10 border border-accent/20 shadow-lg hover:shadow-xl transition-all duration-300"
+                    >
+                      <div className="flex items-start justify-between mb-4">
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-medium">記録日時: {session.date}</span>
+                            <span className="font-medium text-foreground">記録日時: {session.date}</span>
                             <Clock className="h-4 w-4 text-muted-foreground ml-2" />
                             <span className="text-sm text-muted-foreground">{session.time}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Badge
-                              className={`${weekTypeColors[session.weekType as keyof typeof weekTypeColors].bg} ${weekTypeColors[session.weekType as keyof typeof weekTypeColors].text} ${weekTypeColors[session.weekType as keyof typeof weekTypeColors].border}`}
+                              className={`${weekTypeColors[session.weekType as keyof typeof weekTypeColors].bg} ${weekTypeColors[session.weekType as keyof typeof weekTypeColors].text} ${weekTypeColors[session.weekType as keyof typeof weekTypeColors].border} font-medium`}
                             >
                               {session.weekType}
                             </Badge>
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="outline" className="text-xs font-medium">
                               {session.duration}
                             </Badge>
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="outline" className="text-xs font-medium">
                               {session.turnCount}往復
                             </Badge>
                             <Badge
-                              className={`${levelColors[session.level as keyof typeof levelColors].bg} ${levelColors[session.level as keyof typeof levelColors].text} ${levelColors[session.level as keyof typeof levelColors].border}`}
+                              className={`${levelColors[session.level as keyof typeof levelColors].bg} ${levelColors[session.level as keyof typeof levelColors].text} ${levelColors[session.level as keyof typeof levelColors].border} font-medium`}
                             >
                               {session.level}
                             </Badge>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
+                          <Avatar className="h-10 w-10 border-2 border-accent/30">
                             <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt={session.coach} />
                             <AvatarFallback>AI</AvatarFallback>
                           </Avatar>
-                          <span className="text-sm font-medium">{session.coach}</span>
+                          <span className="font-medium text-foreground">{session.coach}</span>
+                        </div>
+                      </div>
+
+                      <div className="mb-6">
+                        <div className="flex items-center gap-3 mb-4">
+                          <Brain className="h-5 w-5 text-primary" />
+                          <span className="text-lg font-bold text-foreground">コーチングサマリー（GROWモデル）</span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border-2 border-green-200 shadow-sm">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Target className="h-5 w-5 text-green-600" />
+                              <span className="text-sm font-bold text-green-700">Goal（目標）</span>
+                            </div>
+                            <p className="text-sm text-foreground leading-relaxed">{session.growSummary.goal}</p>
+                          </div>
+                          <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border-2 border-blue-200 shadow-sm">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Eye className="h-5 w-5 text-blue-600" />
+                              <span className="text-sm font-bold text-blue-700">Reality（現実）</span>
+                            </div>
+                            <p className="text-sm text-foreground leading-relaxed">{session.growSummary.reality}</p>
+                          </div>
+                          <div className="p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl border-2 border-orange-200 shadow-sm">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Lightbulb className="h-5 w-5 text-orange-600" />
+                              <span className="text-sm font-bold text-orange-700">Options（選択肢）</span>
+                            </div>
+                            <p className="text-sm text-foreground leading-relaxed">{session.growSummary.options}</p>
+                          </div>
+                          <div className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border-2 border-purple-200 shadow-sm">
+                            <div className="flex items-center gap-2 mb-3">
+                              <CheckCircle className="h-5 w-5 text-purple-600" />
+                              <span className="text-sm font-bold text-purple-700">Will（意志・行動）</span>
+                            </div>
+                            <p className="text-sm text-foreground leading-relaxed">{session.growSummary.will}</p>
+                          </div>
                         </div>
                       </div>
 
                       <div className="mb-4">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Brain className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm font-medium">コーチングサマリー（GROWモデル）</span>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div className="p-3 bg-background rounded-lg border border-green-200">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Target className="h-4 w-4 text-green-600" />
-                              <span className="text-xs font-medium text-green-700">Goal（目標）</span>
-                            </div>
-                            <p className="text-sm text-foreground">{session.growSummary.goal}</p>
-                          </div>
-                          <div className="p-3 bg-background rounded-lg border border-blue-200">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Eye className="h-4 w-4 text-blue-600" />
-                              <span className="text-xs font-medium text-blue-700">Reality（現実）</span>
-                            </div>
-                            <p className="text-sm text-foreground">{session.growSummary.reality}</p>
-                          </div>
-                          <div className="p-3 bg-background rounded-lg border border-orange-200">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Lightbulb className="h-4 w-4 text-orange-600" />
-                              <span className="text-xs font-medium text-orange-700">Options（選択肢）</span>
-                            </div>
-                            <p className="text-sm text-foreground">{session.growSummary.options}</p>
-                          </div>
-                          <div className="p-3 bg-background rounded-lg border border-purple-200">
-                            <div className="flex items-center gap-2 mb-2">
-                              <CheckCircle className="h-4 w-4 text-purple-600" />
-                              <span className="text-xs font-medium text-purple-700">Will（意志・行動）</span>
-                            </div>
-                            <p className="text-sm text-foreground">{session.growSummary.will}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mb-3">
                         <div className="flex items-center gap-2 mb-2">
                           <BookOpen className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm font-medium">話し合ったトピック</span>
+                          <span className="text-sm font-medium text-foreground">話し合ったトピック</span>
                         </div>
                         <div className="flex flex-wrap gap-2">
                           {session.topics.map((topic, topicIndex) => (
-                            <Badge key={topicIndex} variant="secondary" className="text-xs">
+                            <Badge key={topicIndex} variant="secondary" className="text-xs font-medium">
                               {topic}
                             </Badge>
                           ))}
