@@ -523,6 +523,9 @@ export default function ReflectPage() {
   const [activeTab, setActiveTab] = useState("history")
   const [expandedMessages, setExpandedMessages] = useState<Set<number>>(new Set())
   const [expandedCoaching, setExpandedCoaching] = useState<Set<number>>(new Set())
+  const [learningSubjectFilter, setLearningSubjectFilter] = useState("全科目")
+  const [learningPeriodFilter, setLearningPeriodFilter] = useState("1ヶ月")
+  const [learningSortBy, setLearningSortBy] = useState("記録日時")
   const [subjectFilter, setSubjectFilter] = useState("全科目")
   const [periodFilter, setPeriodFilter] = useState("1ヶ月")
   const [sortBy, setSortBy] = useState("記録日時")
@@ -590,6 +593,34 @@ export default function ReflectPage() {
 
     return true
   })
+
+  const filteredAndSortedLearningHistory = sparkLearningHistory
+    .filter((record) => {
+      if (learningSubjectFilter !== "全科目" && record.subject !== learningSubjectFilter) return false
+
+      const recordDate = new Date(record.recordedAt)
+      const now = new Date()
+
+      if (learningPeriodFilter === "1週間") {
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        return recordDate >= oneWeekAgo
+      } else if (learningPeriodFilter === "1ヶ月") {
+        const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+        return recordDate >= oneMonthAgo
+      }
+
+      return true
+    })
+    .sort((a, b) => {
+      if (learningSortBy === "記録日時") {
+        return new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime()
+      } else if (learningSortBy === "学習回") {
+        return a.studySession.localeCompare(b.studySession)
+      } else if (learningSortBy === "正答率") {
+        return b.correctRate - a.correctRate
+      }
+      return 0
+    })
 
   if (showAIChat) {
     return <AICoachChat onClose={() => setShowAIChat(false)} />
@@ -693,8 +724,55 @@ export default function ReflectPage() {
                 <p className="text-muted-foreground">日々の学習記録を時系列で確認できます</p>
               </CardHeader>
               <CardContent>
+                <div className="bg-gradient-to-r from-muted/40 to-muted/20 rounded-xl p-6 mb-8 border border-border/30 shadow-inner">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Filter className="h-5 w-5 text-primary" />
+                    <span className="font-bold text-lg text-foreground">フィルター・並び替え</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">科目</label>
+                      <select
+                        value={learningSubjectFilter}
+                        onChange={(e) => setLearningSubjectFilter(e.target.value)}
+                        className="w-full px-4 py-3 text-sm border border-border/40 rounded-lg bg-background/80 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
+                      >
+                        <option value="全科目">全科目</option>
+                        <option value="算数">算数</option>
+                        <option value="国語">国語</option>
+                        <option value="理科">理科</option>
+                        <option value="社会">社会</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">期間</label>
+                      <select
+                        value={learningPeriodFilter}
+                        onChange={(e) => setLearningPeriodFilter(e.target.value)}
+                        className="w-full px-4 py-3 text-sm border border-border/40 rounded-lg bg-background/80 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
+                      >
+                        <option value="1週間">1週間</option>
+                        <option value="1ヶ月">1ヶ月</option>
+                        <option value="全て">全て</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-foreground">並び替え</label>
+                      <select
+                        value={learningSortBy}
+                        onChange={(e) => setLearningSortBy(e.target.value)}
+                        className="w-full px-4 py-3 text-sm border border-border/40 rounded-lg bg-background/80 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
+                      >
+                        <option value="記録日時">記録日時（降順）</option>
+                        <option value="学習回">学習回</option>
+                        <option value="正答率">正答率</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="space-y-6">
-                  {sparkLearningHistory.map((record, index) => (
+                  {filteredAndSortedLearningHistory.map((record, index) => (
                     <div
                       key={index}
                       className="p-6 rounded-xl bg-gradient-to-r from-background/90 to-muted/30 border border-border/40 shadow-lg hover:shadow-xl transition-all duration-300"
