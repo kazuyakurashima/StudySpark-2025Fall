@@ -111,25 +111,49 @@ const levelColors = {
 
 const encouragementMessages = [
   {
+    id: 1,
+    recordedAt: "2024-09-06 18:30",
     from: "お母さん",
     avatar: "parent1",
     message: "算数がんばったね！明日もファイト！",
-    time: "今日 18:30",
     type: "parent",
+    studySession: "第3回",
+    subject: "算数",
+    learningContent: ["授業", "宿題"],
+    correctRate: 80,
+    correctAnswers: 8,
+    totalQuestions: 10,
+    reflection: "図形問題が最初は難しかったけど、先生の説明でよく分かりました。宿題も全部解けました！",
   },
   {
+    id: 2,
+    recordedAt: "2024-09-06 15:20",
     from: "田中先生",
     avatar: "coach",
     message: "理科の実験問題、よくできていました。この調子で続けましょう。",
-    time: "今日 15:20",
     type: "teacher",
+    studySession: "第1回",
+    subject: "理科",
+    learningContent: ["宿題", "入試対策・過去問"],
+    correctRate: 60,
+    correctAnswers: 6,
+    totalQuestions: 10,
+    reflection: "実験の問題は理解できたけど、計算問題がまだ少し難しいです。",
   },
   {
+    id: 3,
+    recordedAt: "2024-09-05 20:15",
     from: "お父さん",
     avatar: "parent2",
     message: "毎日コツコツ続けているのが素晴らしい！",
-    time: "昨日 20:15",
     type: "parent",
+    studySession: "第4回",
+    subject: "社会",
+    learningContent: ["授業"],
+    correctRate: 50,
+    correctAnswers: 5,
+    totalQuestions: 10,
+    reflection: "歴史の年号を覚えるのが大変でした。もう少し復習が必要です。",
   },
 ]
 
@@ -420,27 +444,57 @@ const isTestAchieved = (test: any) => {
 
 const displayedTests = testHistory.slice(0, 5)
 
+const isAICoachingAvailable = () => {
+  const now = new Date()
+  const day = now.getDay()
+  return day >= 6 || day <= 4 // Saturday (6) to Sunday (0)
+}
+
 export default function ReflectPage() {
   const [showAIChat, setShowAIChat] = useState(false)
   const [activeTab, setActiveTab] = useState("history")
+  const [expandedMessages, setExpandedMessages] = useState<Set<number>>(new Set())
+  const [subjectFilter, setSubjectFilter] = useState("全科目")
+  const [periodFilter, setPeriodFilter] = useState("1ヶ月")
+  const [sortBy, setSortBy] = useState("記録日時")
 
-  const isAICoachingAvailable = () => {
-    const now = new Date()
-    const day = now.getDay() // 0: 日曜日, 1: 月曜日, ..., 6: 土曜日
-    const hour = now.getHours()
-    const minute = now.getMinutes()
-
-    // 土曜日12時以降
-    if (day === 6 && hour >= 12) return true
-
-    // 日曜日、月曜日、火曜日は終日
-    if (day === 0 || day === 1 || day === 2) return true
-
-    // 水曜日23時59分まで
-    if (day === 3 && (hour < 23 || (hour === 23 && minute <= 59))) return true
-
-    return false
+  const toggleMessageExpansion = (messageId: number) => {
+    const newExpanded = new Set(expandedMessages)
+    if (newExpanded.has(messageId)) {
+      newExpanded.delete(messageId)
+    } else {
+      newExpanded.add(messageId)
+    }
+    setExpandedMessages(newExpanded)
   }
+
+  const filteredAndSortedMessages = encouragementMessages
+    .filter((message) => {
+      if (subjectFilter !== "全科目" && message.subject !== subjectFilter) return false
+
+      const messageDate = new Date(message.recordedAt)
+      const now = new Date()
+
+      if (periodFilter === "1週間") {
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        return messageDate >= oneWeekAgo
+      } else if (periodFilter === "1ヶ月") {
+        const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+        return messageDate >= oneMonthAgo
+      }
+
+      return true
+    })
+    .sort((a, b) => {
+      if (sortBy === "記録日時") {
+        return new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime()
+      } else if (sortBy === "学習回") {
+        return a.studySession.localeCompare(b.studySession)
+      } else if (sortBy === "正答率") {
+        return b.correctRate - a.correctRate
+      }
+      return 0
+    })
 
   if (showAIChat) {
     return <AICoachChat onClose={() => setShowAIChat(false)} />
@@ -624,25 +678,138 @@ export default function ReflectPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {encouragementMessages.map((message, index) => (
-                    <div
-                      key={index}
-                      className="flex items-start gap-4 p-4 rounded-lg bg-accent/5 border border-accent/10"
+                <div className="flex flex-wrap gap-4 mb-6 p-4 bg-muted/30 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">科目:</span>
+                    <select
+                      value={subjectFilter}
+                      onChange={(e) => setSubjectFilter(e.target.value)}
+                      className="px-3 py-1 text-sm border rounded-md bg-background"
                     >
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={getAvatarSrc(message.avatar) || "/placeholder.svg"} alt={message.from} />
-                        <AvatarFallback>{message.from.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium">{message.from}</span>
-                          <Badge variant={message.type === "parent" ? "secondary" : "default"} className="text-xs">
-                            {message.type === "parent" ? "保護者" : "先生"}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">{message.time}</span>
+                      <option value="全科目">全科目</option>
+                      <option value="算数">算数</option>
+                      <option value="国語">国語</option>
+                      <option value="理科">理科</option>
+                      <option value="社会">社会</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">期間:</span>
+                    <select
+                      value={periodFilter}
+                      onChange={(e) => setPeriodFilter(e.target.value)}
+                      className="px-3 py-1 text-sm border rounded-md bg-background"
+                    >
+                      <option value="1週間">1週間</option>
+                      <option value="1ヶ月">1ヶ月</option>
+                      <option value="全て">全て</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">並び替え:</span>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className="px-3 py-1 text-sm border rounded-md bg-background"
+                    >
+                      <option value="記録日時">記録日時</option>
+                      <option value="学習回">学習回</option>
+                      <option value="正答率">正答率</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {filteredAndSortedMessages.map((message) => (
+                    <div
+                      key={message.id}
+                      className="p-4 rounded-lg bg-accent/5 border border-accent/10 cursor-pointer hover:bg-accent/10 transition-colors"
+                      onClick={() => toggleMessageExpansion(message.id)}
+                    >
+                      <div className="flex items-start gap-4">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={getAvatarSrc(message.avatar) || "/placeholder.svg"} alt={message.from} />
+                          <AvatarFallback>{message.from.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Clock className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">記録日時: {message.recordedAt}</span>
+                          </div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="font-medium">{message.from}</span>
+                            <Badge variant={message.type === "parent" ? "secondary" : "default"} className="text-xs">
+                              {message.type === "parent" ? "保護者" : "指導者"}
+                            </Badge>
+                          </div>
+                          <div className="mb-3">
+                            <div className="text-sm font-medium text-muted-foreground mb-1">表示内容</div>
+                            <p className="text-sm text-foreground bg-background p-3 rounded-lg">{message.message}</p>
+                          </div>
+
+                          {expandedMessages.has(message.id) && (
+                            <div className="mt-4 pt-4 border-t border-border/50 space-y-3">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <div className="text-sm font-medium text-muted-foreground mb-1">学習回</div>
+                                  <span className="text-sm">{message.studySession}</span>
+                                </div>
+                                <div>
+                                  <div className="text-sm font-medium text-muted-foreground mb-1">科目</div>
+                                  <Badge
+                                    className={`${subjectColors[message.subject as keyof typeof subjectColors].bg} ${subjectColors[message.subject as keyof typeof subjectColors].text} ${subjectColors[message.subject as keyof typeof subjectColors].border}`}
+                                  >
+                                    {message.subject}
+                                  </Badge>
+                                </div>
+                              </div>
+
+                              <div>
+                                <div className="text-sm font-medium text-muted-foreground mb-2">学習内容</div>
+                                <div className="flex flex-wrap gap-2">
+                                  {message.learningContent.map((content) => (
+                                    <Badge
+                                      key={content}
+                                      variant="outline"
+                                      className={`${learningContentColors[content as keyof typeof learningContentColors].bg} ${learningContentColors[content as keyof typeof learningContentColors].text} ${learningContentColors[content as keyof typeof learningContentColors].border}`}
+                                    >
+                                      {content}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div>
+                                <div className="text-sm font-medium text-muted-foreground mb-2">正答率</div>
+                                <div className="flex items-center gap-3">
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-lg font-bold text-primary">{message.correctRate}%</span>
+                                    <span className="text-sm text-muted-foreground">
+                                      ({message.correctAnswers}/{message.totalQuestions}問正解)
+                                    </span>
+                                  </div>
+                                  <div className="flex-1 bg-muted rounded-full h-2">
+                                    <div
+                                      className="bg-primary rounded-full h-2 transition-all duration-300"
+                                      style={{ width: `${message.correctRate}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+
+                              {message.reflection && (
+                                <div>
+                                  <div className="text-sm font-medium text-muted-foreground mb-1">今日の振り返り</div>
+                                  <p className="text-sm bg-background p-3 rounded-lg">{message.reflection}</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            {expandedMessages.has(message.id) ? "クリックして詳細を閉じる" : "クリックして詳細を表示"}
+                          </div>
                         </div>
-                        <p className="text-sm text-foreground">{message.message}</p>
                       </div>
                     </div>
                   ))}
