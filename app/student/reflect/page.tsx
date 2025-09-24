@@ -27,8 +27,12 @@ const sparkLearningHistory = [
   {
     recordedAt: "2024-09-06 20:30",
     studyDate: "2024-09-06",
+    studySession: "第3回", // 学習回を追加
     subject: "算数",
     learningContent: ["授業", "宿題"],
+    correctAnswers: 8, // 正答数を追加
+    totalQuestions: 10, // 総問題数を追加
+    correctRate: 80, // 正答率を追加（パーセント）
     understanding: "バッチリ理解",
     understandingEmoji: "😄",
     reflection: "図形問題が最初は難しかったけど、先生の説明でよく分かりました。宿題も全部解けました！",
@@ -37,8 +41,12 @@ const sparkLearningHistory = [
   {
     recordedAt: "2024-09-06 19:45",
     studyDate: "2024-09-06",
+    studySession: "第2回", // 学習回を追加
     subject: "国語",
     learningContent: ["授業", "週テスト・復習ナビ"],
+    correctAnswers: 7, // 正答数を追加
+    totalQuestions: 10, // 総問題数を追加
+    correctRate: 70, // 正答率を追加（パーセント）
     understanding: "できた",
     understandingEmoji: "😊",
     reflection: "漢字の読み方を復習しました。週テスト対策もできて良かったです。",
@@ -47,8 +55,12 @@ const sparkLearningHistory = [
   {
     recordedAt: "2024-09-05 21:15",
     studyDate: "2024-09-05",
+    studySession: "第1回", // 学習回を追加
     subject: "理科",
     learningContent: ["宿題", "入試対策・過去問"],
+    correctAnswers: 6, // 正答数を追加
+    totalQuestions: 10, // 総問題数を追加
+    correctRate: 60, // 正答率を追加（パーセント）
     understanding: "ふつう",
     understandingEmoji: "😐",
     reflection: "実験の問題は理解できたけど、計算問題がまだ少し難しいです。",
@@ -57,8 +69,12 @@ const sparkLearningHistory = [
   {
     recordedAt: "2024-09-05 20:00",
     studyDate: "2024-09-05",
+    studySession: "第4回", // 学習回を追加
     subject: "社会",
     learningContent: ["授業"],
+    correctAnswers: 5, // 正答数を追加
+    totalQuestions: 10, // 総問題数を追加
+    correctRate: 50, // 正答率を追加（パーセント）
     understanding: "ちょっと不安",
     understandingEmoji: "😟",
     reflection: "歴史の年号を覚えるのが大変でした。もう少し復習が必要です。",
@@ -67,8 +83,12 @@ const sparkLearningHistory = [
   {
     recordedAt: "2024-09-04 19:30",
     studyDate: "2024-09-04",
+    studySession: "第5回", // 学習回を追加
     subject: "算数",
     learningContent: ["授業", "宿題", "週テスト・復習ナビ"],
+    correctAnswers: 9, // 正答数を追加
+    totalQuestions: 10, // 総問題数を追加
+    correctRate: 90, // 正答率を追加（パーセント）
     understanding: "できた",
     understandingEmoji: "😊",
     reflection: "分数の計算問題をたくさん練習しました。だんだん慣れてきた感じです。",
@@ -511,8 +531,7 @@ export default function ReflectPage() {
                             <span>記録日時: {record.recordedAt}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-medium">学習日: {record.studyDate}</span>
+                            <span className="font-medium text-primary">学習回: {record.studySession}</span>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -552,6 +571,27 @@ export default function ReflectPage() {
 
                       <div className="mb-3">
                         <div className="flex items-center gap-2 mb-2">
+                          <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">正答率</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-1">
+                            <span className="text-lg font-bold text-primary">{record.correctRate}%</span>
+                            <span className="text-sm text-muted-foreground">
+                              ({record.correctAnswers}/{record.totalQuestions}問正解)
+                            </span>
+                          </div>
+                          <div className="flex-1 bg-muted rounded-full h-2">
+                            <div
+                              className="bg-primary rounded-full h-2 transition-all duration-300"
+                              style={{ width: `${record.correctRate}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mb-3">
+                        <div className="flex items-center gap-2 mb-2">
                           <Brain className="h-4 w-4 text-muted-foreground" />
                           <span className="text-sm font-medium">理解度</span>
                         </div>
@@ -563,7 +603,7 @@ export default function ReflectPage() {
 
                       {record.reflection && (
                         <div className="p-3 bg-background rounded-lg">
-                          <div className="text-xs text-muted-foreground mb-1">振り返り</div>
+                          <div className="text-xs text-muted-foreground mb-1">今日の振り返り</div>
                           <p className="text-sm">{record.reflection}</p>
                         </div>
                       )}
