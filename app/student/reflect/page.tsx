@@ -20,6 +20,10 @@ import {
   BookOpen,
   Brain,
   Headphones,
+  Target,
+  Eye,
+  Lightbulb,
+  CheckCircle,
 } from "lucide-react"
 
 // Mock data
@@ -349,59 +353,112 @@ const coachingHistory = [
   {
     date: "2024-09-06",
     time: "20:45",
-    type: "週間振り返り",
+    type: "成長週",
+    weekType: "成長週",
     duration: "15分",
     topics: ["算数の図形問題", "学習習慣の改善", "次週の目標設定"],
-    summary:
-      "図形問題の理解が深まってきています。毎日の学習習慣も定着してきているので、この調子で続けましょう。来週は理科の実験問題にも挑戦してみましょう。",
+    growSummary: {
+      goal: "算数の図形問題で80%以上の正答率を維持する",
+      reality: "今週は図形問題の正答率が85%に向上。毎日の学習習慣も定着",
+      options: "①他科目への応用 ②理科実験問題への挑戦 ③復習時間の調整",
+      will: "来週は理科の実験問題に毎日15分取り組む",
+    },
     coach: "AIコーチ",
     level: "Blaze",
+    turnCount: 4,
   },
   {
     date: "2024-09-01",
     time: "19:30",
-    type: "学習相談",
+    type: "安定週",
+    weekType: "安定週",
     duration: "12分",
-    topics: ["国語の読解問題", "時間管理", "モチベーション向上"],
-    summary:
-      "読解問題で時間がかかりすぎる傾向があります。まずは問題文を素早く読み取る練習をしましょう。毎日少しずつでも続けることが大切です。",
+    topics: ["国語の読解問題", "時間管理", "新しい挑戦"],
+    growSummary: {
+      goal: "国語の読解問題で安定した成績を保つ",
+      reality: "正答率は70%で安定。時間管理に課題あり",
+      options: "①速読練習 ②問題文の構造分析 ③時間配分の見直し",
+      will: "毎日10分間の速読練習を継続する",
+    },
     coach: "AIコーチ",
     level: "Flame",
+    turnCount: 5,
   },
   {
     date: "2024-08-25",
     time: "18:15",
-    type: "テスト振り返り",
+    type: "挑戦週",
+    weekType: "挑戦週",
     duration: "18分",
-    topics: ["合不合判定テスト結果", "弱点分析", "改善計画"],
-    summary:
-      "テスト結果を詳しく分析しました。算数の計算ミスが目立つので、見直しの習慣をつけましょう。理科は良くできているので、この調子で続けてください。",
+    topics: ["合不合判定テスト結果", "セルフコンパッション", "改善計画"],
+    growSummary: {
+      goal: "合不合判定テストでA組分けを目指していた",
+      reality: "結果はB組分け。算数の計算ミスが多かった",
+      options: "①計算練習の強化 ②見直し習慣の定着 ③基礎固めの徹底",
+      will: "毎日の計算練習を10分間継続し、必ず見直しをする",
+    },
     coach: "AIコーチ",
     level: "Flame",
+    turnCount: 6,
   },
   {
     date: "2024-08-18",
     time: "20:00",
-    type: "学習計画相談",
+    type: "特別週",
+    weekType: "特別週",
     duration: "10分",
-    topics: ["夏休み後の学習計画", "科目バランス", "目標設定"],
-    summary:
-      "夏休み明けの学習リズムを整えるための計画を立てました。各科目のバランスを考えて、無理のないペースで進めていきましょう。",
+    topics: ["組分けテスト対策", "具体的戦略", "メンタル準備"],
+    growSummary: {
+      goal: "第6回公開組分けテストで現在のクラスを維持する",
+      reality: "各科目の準備状況にばらつきがある",
+      options: "①弱点科目の集中対策 ②得意科目の維持 ③体調管理の徹底",
+      will: "理科を重点的に復習し、前日は早めに就寝する",
+    },
     coach: "AIコーチ",
     level: "Spark",
+    turnCount: 4,
   },
   {
     date: "2024-08-11",
     time: "19:45",
-    type: "週間振り返り",
+    type: "成長週",
+    weekType: "成長週",
     duration: "14分",
-    topics: ["夏期講習の振り返り", "理解度確認", "次週の予定"],
-    summary:
-      "夏期講習での学習内容をしっかり振り返りました。特に社会の歴史分野で成長が見られます。来週からは復習に重点を置いて進めましょう。",
+    topics: ["夏期講習の振り返り", "理解度確認", "継続計画"],
+    growSummary: {
+      goal: "夏期講習で学んだ内容を定着させる",
+      reality: "社会の歴史分野で大きな成長が見られる",
+      options: "①他分野への応用 ②復習スケジュールの最適化 ③応用問題への挑戦",
+      will: "歴史の学習方法を地理分野にも応用する",
+    },
     coach: "AIコーチ",
     level: "Flame",
+    turnCount: 3,
   },
 ]
+
+const testSchedule = {
+  grade5: [
+    { name: "第５回公開組分けテスト", date: "2024-08-31" },
+    { name: "第６回公開組分けテスト", date: "2024-10-05" },
+    { name: "第７回公開組分けテスト", date: "2024-11-09" },
+    { name: "第８回公開組分けテスト", date: "2024-12-14" },
+    { name: "新６年公開組分けテスト", date: "2025-01-25" },
+  ],
+  grade6: [
+    { name: "第3回合不合判定テスト", date: "2024-09-07" },
+    { name: "第4回合不合判定テスト", date: "2024-10-05" },
+    { name: "第5回合不合判定テスト", date: "2024-11-16" },
+    { name: "第6回合不合判定テスト", date: "2024-12-07" },
+  ],
+}
+
+const weekTypeColors = {
+  成長週: { bg: "bg-green-50", text: "text-green-700", border: "border-green-200" },
+  安定週: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
+  挑戦週: { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" },
+  特別週: { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" },
+}
 
 const getAvatarSrc = (avatarId: string) => {
   const avatarMap: { [key: string]: string } = {
@@ -446,17 +503,27 @@ const displayedTests = testHistory.slice(0, 5)
 
 const isAICoachingAvailable = () => {
   const now = new Date()
-  const day = now.getDay()
-  return day >= 6 || day <= 4 // Saturday (6) to Sunday (0)
+  const day = now.getDay() // 0=Sunday, 1=Monday, ..., 6=Saturday
+  const hour = now.getHours()
+
+  // Saturday 12:00 to Wednesday 23:59
+  if (day === 6 && hour >= 12) return true // Saturday from 12:00
+  if (day === 0) return true // Sunday all day
+  if (day >= 1 && day <= 3) return true // Monday to Wednesday all day
+  if (day === 4 && hour < 0) return true // Thursday before midnight (never true, but for completeness)
+
+  return false
 }
 
 export default function ReflectPage() {
   const [showAIChat, setShowAIChat] = useState(false)
   const [activeTab, setActiveTab] = useState("history")
   const [expandedMessages, setExpandedMessages] = useState<Set<number>>(new Set())
+  const [expandedCoaching, setExpandedCoaching] = useState<Set<number>>(new Set())
   const [subjectFilter, setSubjectFilter] = useState("全科目")
   const [periodFilter, setPeriodFilter] = useState("1ヶ月")
   const [sortBy, setSortBy] = useState("記録日時")
+  const [coachingPeriodFilter, setCoachingPeriodFilter] = useState("1ヶ月")
 
   const toggleMessageExpansion = (messageId: number) => {
     const newExpanded = new Set(expandedMessages)
@@ -466,6 +533,16 @@ export default function ReflectPage() {
       newExpanded.add(messageId)
     }
     setExpandedMessages(newExpanded)
+  }
+
+  const toggleCoachingExpansion = (sessionIndex: number) => {
+    const newExpanded = new Set(expandedCoaching)
+    if (newExpanded.has(sessionIndex)) {
+      newExpanded.delete(sessionIndex)
+    } else {
+      newExpanded.add(sessionIndex)
+    }
+    setExpandedCoaching(newExpanded)
   }
 
   const filteredAndSortedMessages = encouragementMessages
@@ -496,6 +573,21 @@ export default function ReflectPage() {
       return 0
     })
 
+  const filteredCoachingHistory = coachingHistory.filter((session) => {
+    const sessionDate = new Date(session.date)
+    const now = new Date()
+
+    if (coachingPeriodFilter === "1週間") {
+      const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+      return sessionDate >= oneWeekAgo
+    } else if (coachingPeriodFilter === "1ヶ月") {
+      const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+      return sessionDate >= oneMonthAgo
+    }
+
+    return true
+  })
+
   if (showAIChat) {
     return <AICoachChat onClose={() => setShowAIChat(false)} />
   }
@@ -514,7 +606,7 @@ export default function ReflectPage() {
       </div>
 
       <div className="max-w-4xl mx-auto p-4">
-        {/* AI Coach Button (Weekend Only) */}
+        {/* AI Coach Button (Saturday 12:00 to Wednesday 23:59) */}
         {isAICoachingAvailable() && (
           <Card className="mb-6 bg-gradient-to-r from-accent/10 via-primary/10 to-accent/10 border-accent/20 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-r from-accent/5 to-primary/5 animate-pulse" />
@@ -535,11 +627,12 @@ export default function ReflectPage() {
                     <p className="text-sm text-muted-foreground">
                       土曜日12時〜水曜日23時59分限定！1週間の学習を一緒に振り返ろう
                     </p>
+                    <Badge className="mt-1 bg-accent/20 text-accent border-accent/30 text-xs">土曜日限定</Badge>
                   </div>
                 </div>
                 <Button
                   onClick={() => setShowAIChat(true)}
-                  className="bg-gradient-to-r from-accent to-primary hover:from-accent/90 hover:to-primary/90 text-white font-medium px-6"
+                  className="bg-gradient-to-r from-accent to-primary hover:from-accent/90 hover:to-primary/90 text-white font-medium px-6 shadow-lg hover:shadow-xl transition-all duration-300"
                 >
                   週間振り返りを始める
                 </Button>
@@ -826,25 +919,48 @@ export default function ReflectPage() {
                   <Headphones className="h-5 w-5 text-accent" />
                   コーチング履歴
                 </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  過去のAIコーチングの会話記録を時系列で表示し、成長の軌跡を可視化
+                </p>
               </CardHeader>
               <CardContent>
+                <div className="flex items-center gap-4 mb-6 p-4 bg-muted/30 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">期間:</span>
+                    <select
+                      value={coachingPeriodFilter}
+                      onChange={(e) => setCoachingPeriodFilter(e.target.value)}
+                      className="px-3 py-1 text-sm border rounded-md bg-background"
+                    >
+                      <option value="1週間">1週間</option>
+                      <option value="1ヶ月">1ヶ月</option>
+                      <option value="全て">全て</option>
+                    </select>
+                  </div>
+                </div>
+
                 <div className="space-y-4">
-                  {coachingHistory.map((session, index) => (
+                  {filteredCoachingHistory.map((session, index) => (
                     <div key={index} className="p-4 rounded-lg bg-accent/5 border border-accent/10">
                       <div className="flex items-start justify-between mb-3">
-                        <div className="space-y-1">
+                        <div className="space-y-2">
                           <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-medium">{session.date}</span>
+                            <span className="font-medium">記録日時: {session.date}</span>
                             <Clock className="h-4 w-4 text-muted-foreground ml-2" />
                             <span className="text-sm text-muted-foreground">{session.time}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
-                              {session.type}
+                            <Badge
+                              className={`${weekTypeColors[session.weekType as keyof typeof weekTypeColors].bg} ${weekTypeColors[session.weekType as keyof typeof weekTypeColors].text} ${weekTypeColors[session.weekType as keyof typeof weekTypeColors].border}`}
+                            >
+                              {session.weekType}
                             </Badge>
                             <Badge variant="outline" className="text-xs">
                               {session.duration}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              {session.turnCount}往復
                             </Badge>
                             <Badge
                               className={`${levelColors[session.level as keyof typeof levelColors].bg} ${levelColors[session.level as keyof typeof levelColors].text} ${levelColors[session.level as keyof typeof levelColors].border}`}
@@ -862,6 +978,43 @@ export default function ReflectPage() {
                         </div>
                       </div>
 
+                      <div className="mb-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Brain className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">コーチングサマリー（GROWモデル）</span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="p-3 bg-background rounded-lg border border-green-200">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Target className="h-4 w-4 text-green-600" />
+                              <span className="text-xs font-medium text-green-700">Goal（目標）</span>
+                            </div>
+                            <p className="text-sm text-foreground">{session.growSummary.goal}</p>
+                          </div>
+                          <div className="p-3 bg-background rounded-lg border border-blue-200">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Eye className="h-4 w-4 text-blue-600" />
+                              <span className="text-xs font-medium text-blue-700">Reality（現実）</span>
+                            </div>
+                            <p className="text-sm text-foreground">{session.growSummary.reality}</p>
+                          </div>
+                          <div className="p-3 bg-background rounded-lg border border-orange-200">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Lightbulb className="h-4 w-4 text-orange-600" />
+                              <span className="text-xs font-medium text-orange-700">Options（選択肢）</span>
+                            </div>
+                            <p className="text-sm text-foreground">{session.growSummary.options}</p>
+                          </div>
+                          <div className="p-3 bg-background rounded-lg border border-purple-200">
+                            <div className="flex items-center gap-2 mb-2">
+                              <CheckCircle className="h-4 w-4 text-purple-600" />
+                              <span className="text-xs font-medium text-purple-700">Will（意志・行動）</span>
+                            </div>
+                            <p className="text-sm text-foreground">{session.growSummary.will}</p>
+                          </div>
+                        </div>
+                      </div>
+
                       <div className="mb-3">
                         <div className="flex items-center gap-2 mb-2">
                           <BookOpen className="h-4 w-4 text-muted-foreground" />
@@ -874,11 +1027,6 @@ export default function ReflectPage() {
                             </Badge>
                           ))}
                         </div>
-                      </div>
-
-                      <div className="p-3 bg-background rounded-lg">
-                        <div className="text-xs text-muted-foreground mb-1">コーチングサマリー</div>
-                        <p className="text-sm">{session.summary}</p>
                       </div>
                     </div>
                   ))}
