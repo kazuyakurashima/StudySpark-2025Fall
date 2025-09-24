@@ -661,26 +661,26 @@ export default function ReflectPage() {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-          <TabsList className="grid w-full grid-cols-3 bg-card/60 backdrop-blur-sm border border-border/30 shadow-lg p-2 rounded-xl">
+          <TabsList className="grid w-full grid-cols-3 bg-card/80 backdrop-blur-md border border-border/20 shadow-xl p-1.5 rounded-2xl h-16">
             <TabsTrigger
               value="history"
-              className="flex items-center gap-3 data-[state=active]:bg-primary data-[state=active]:text-white font-medium px-6 py-3 rounded-lg transition-all duration-300"
+              className="flex items-center justify-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-primary/90 data-[state=active]:text-white data-[state=active]:shadow-lg font-medium px-4 py-3 rounded-xl transition-all duration-300 hover:bg-muted/50 text-sm"
             >
-              <History className="h-5 w-5" />
+              <History className="h-4 w-4" />
               学習履歴
             </TabsTrigger>
             <TabsTrigger
               value="messages"
-              className="flex items-center gap-3 data-[state=active]:bg-primary data-[state=active]:text-white font-medium px-6 py-3 rounded-lg transition-all duration-300"
+              className="flex items-center justify-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-primary/90 data-[state=active]:text-white data-[state=active]:shadow-lg font-medium px-4 py-3 rounded-xl transition-all duration-300 hover:bg-muted/50 text-sm"
             >
-              <MessageCircle className="h-5 w-5" />
+              <MessageCircle className="h-4 w-4" />
               応援メッセージ
             </TabsTrigger>
             <TabsTrigger
               value="coaching"
-              className="flex items-center gap-3 data-[state=active]:bg-primary data-[state=active]:text-white font-medium px-6 py-3 rounded-lg transition-all duration-300"
+              className="flex items-center justify-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-primary/90 data-[state=active]:text-white data-[state=active]:shadow-lg font-medium px-4 py-3 rounded-xl transition-all duration-300 hover:bg-muted/50 text-sm"
             >
-              <Headphones className="h-5 w-5" />
+              <Headphones className="h-4 w-4" />
               コーチング履歴
             </TabsTrigger>
           </TabsList>
