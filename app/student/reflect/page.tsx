@@ -772,96 +772,187 @@ export default function ReflectPage() {
                 </div>
 
                 <div className="space-y-6">
-                  {filteredAndSortedLearningHistory.map((record, index) => (
-                    <div
-                      key={index}
-                      className="p-6 rounded-xl bg-gradient-to-r from-background/90 to-muted/30 border border-border/40 shadow-lg hover:shadow-xl transition-all duration-300"
-                    >
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Clock className="h-4 w-4" />
-                            <span>記録日時: {record.recordedAt}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-primary text-lg">学習回: {record.studySession}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge
-                            className={`${levelColors[record.level as keyof typeof levelColors].bg} ${levelColors[record.level as keyof typeof levelColors].text} ${levelColors[record.level as keyof typeof levelColors].border} font-medium`}
-                          >
-                            {record.level}
-                          </Badge>
-                        </div>
-                      </div>
-
-                      <div className="mb-4">
-                        <Badge
-                          className={`${subjectColors[record.subject as keyof typeof subjectColors].bg} ${subjectColors[record.subject as keyof typeof subjectColors].text} ${subjectColors[record.subject as keyof typeof subjectColors].border} text-base px-4 py-2 font-semibold`}
+                  {filteredAndSortedLearningHistory.length < 5
+                    ? filteredAndSortedLearningHistory.map((record, index) => (
+                        <div
+                          key={index}
+                          className="p-6 rounded-xl bg-gradient-to-r from-background/90 to-muted/30 border border-border/40 shadow-lg hover:shadow-xl transition-all duration-300"
                         >
-                          {record.subject}
-                        </Badge>
-                      </div>
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Clock className="h-4 w-4" />
+                                <span>記録日時: {record.recordedAt}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-primary text-lg">学習回: {record.studySession}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                className={`${levelColors[record.level as keyof typeof levelColors].bg} ${levelColors[record.level as keyof typeof levelColors].text} ${levelColors[record.level as keyof typeof levelColors].border} font-medium`}
+                              >
+                                {record.level}
+                              </Badge>
+                            </div>
+                          </div>
 
-                      <div className="mb-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <BookOpen className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm font-medium text-foreground">学習内容</span>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {record.learningContent.map((content) => (
+                          <div className="mb-4">
                             <Badge
-                              key={content}
-                              variant="outline"
-                              className={`${learningContentColors[content as keyof typeof learningContentColors].bg} ${learningContentColors[content as keyof typeof learningContentColors].text} ${learningContentColors[content as keyof typeof learningContentColors].border} text-xs px-3 py-1`}
+                              className={`${subjectColors[record.subject as keyof typeof subjectColors].bg} ${subjectColors[record.subject as keyof typeof subjectColors].text} ${subjectColors[record.subject as keyof typeof subjectColors].border} text-base px-4 py-2 font-semibold`}
                             >
-                              {content}
+                              {record.subject}
                             </Badge>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="mb-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm font-medium text-foreground">正答率</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-baseline gap-1">
-                            <span className="text-2xl font-bold text-primary">{record.correctRate}%</span>
-                            <span className="text-sm text-muted-foreground">
-                              ({record.correctAnswers}/{record.totalQuestions}問正解)
-                            </span>
                           </div>
-                          <div className="flex-1 bg-muted rounded-full h-2.5">
-                            <div
-                              className="bg-primary rounded-full h-2.5 transition-all duration-300"
-                              style={{ width: `${record.correctRate}%` }}
-                            />
+
+                          <div className="mb-4">
+                            <div className="flex items-center gap-2 mb-2">
+                              <BookOpen className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm font-medium text-foreground">学習内容</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {record.learningContent.map((content) => (
+                                <Badge
+                                  key={content}
+                                  variant="outline"
+                                  className={`${learningContentColors[content as keyof typeof learningContentColors].bg} ${learningContentColors[content as keyof typeof learningContentColors].text} ${learningContentColors[content as keyof typeof learningContentColors].border} text-xs px-3 py-1`}
+                                >
+                                  {content}
+                                </Badge>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      </div>
 
-                      <div className="mb-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Brain className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm font-medium text-foreground">理解度</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-3xl">{record.understandingEmoji}</span>
-                          <span className="font-medium text-lg">{record.understanding}</span>
-                        </div>
-                      </div>
+                          <div className="mb-4">
+                            <div className="flex items-center gap-2 mb-2">
+                              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm font-medium text-foreground">正答率</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-baseline gap-1">
+                                <span className="text-2xl font-bold text-primary">{record.correctRate}%</span>
+                                <span className="text-sm text-muted-foreground">
+                                  ({record.correctAnswers}/{record.totalQuestions}問正解)
+                                </span>
+                              </div>
+                              <div className="flex-1 bg-muted rounded-full h-2.5">
+                                <div
+                                  className="bg-primary rounded-full h-2.5 transition-all duration-300"
+                                  style={{ width: `${record.correctRate}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
 
-                      {record.reflection && (
-                        <div className="p-3 bg-background/70 rounded-lg border border-border/30">
-                          <div className="text-xs text-muted-foreground mb-1">今日の振り返り</div>
-                          <p className="text-sm text-foreground leading-relaxed">{record.reflection}</p>
+                          <div className="mb-4">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Brain className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm font-medium text-foreground">理解度</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-3xl">{record.understandingEmoji}</span>
+                              <span className="font-medium text-lg">{record.understanding}</span>
+                            </div>
+                          </div>
+
+                          {record.reflection && (
+                            <div className="p-3 bg-background/70 rounded-lg border border-border/30">
+                              <div className="text-xs text-muted-foreground mb-1">今日の振り返り</div>
+                              <p className="text-sm text-foreground leading-relaxed">{record.reflection}</p>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  ))}
+                      ))
+                    : filteredAndSortedLearningHistory.slice(0, 5).map((record, index) => (
+                        <div
+                          key={index}
+                          className="p-6 rounded-xl bg-gradient-to-r from-background/90 to-muted/30 border border-border/40 shadow-lg hover:shadow-xl transition-all duration-300"
+                        >
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Clock className="h-4 w-4" />
+                                <span>記録日時: {record.recordedAt}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-primary text-lg">学習回: {record.studySession}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                className={`${levelColors[record.level as keyof typeof levelColors].bg} ${levelColors[record.level as keyof typeof levelColors].text} ${levelColors[record.level as keyof typeof levelColors].border} font-medium`}
+                              >
+                                {record.level}
+                              </Badge>
+                            </div>
+                          </div>
+
+                          <div className="mb-4">
+                            <Badge
+                              className={`${subjectColors[record.subject as keyof typeof subjectColors].bg} ${subjectColors[record.subject as keyof typeof subjectColors].text} ${subjectColors[record.subject as keyof typeof subjectColors].border} text-base px-4 py-2 font-semibold`}
+                            >
+                              {record.subject}
+                            </Badge>
+                          </div>
+
+                          <div className="mb-4">
+                            <div className="flex items-center gap-2 mb-2">
+                              <BookOpen className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm font-medium text-foreground">学習内容</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {record.learningContent.map((content) => (
+                                <Badge
+                                  key={content}
+                                  variant="outline"
+                                  className={`${learningContentColors[content as keyof typeof learningContentColors].bg} ${learningContentColors[content as keyof typeof learningContentColors].text} ${learningContentColors[content as keyof typeof learningContentColors].border} text-xs px-3 py-1`}
+                                >
+                                  {content}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="mb-4">
+                            <div className="flex items-center gap-2 mb-2">
+                              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm font-medium text-foreground">正答率</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-baseline gap-1">
+                                <span className="text-2xl font-bold text-primary">{record.correctRate}%</span>
+                                <span className="text-sm text-muted-foreground">
+                                  ({record.correctAnswers}/{record.totalQuestions}問正解)
+                                </span>
+                              </div>
+                              <div className="flex-1 bg-muted rounded-full h-2.5">
+                                <div
+                                  className="bg-primary rounded-full h-2.5 transition-all duration-300"
+                                  style={{ width: `${record.correctRate}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mb-4">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Brain className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm font-medium text-foreground">理解度</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-3xl">{record.understandingEmoji}</span>
+                              <span className="font-medium text-lg">{record.understanding}</span>
+                            </div>
+                          </div>
+
+                          {record.reflection && (
+                            <div className="p-3 bg-background/70 rounded-lg border border-border/30">
+                              <div className="text-xs text-muted-foreground mb-1">今日の振り返り</div>
+                              <p className="text-sm text-foreground leading-relaxed">{record.reflection}</p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
                 </div>
               </CardContent>
             </Card>
@@ -927,116 +1018,241 @@ export default function ReflectPage() {
                 </div>
 
                 <div className="space-y-6">
-                  {filteredAndSortedMessages.map((message) => (
-                    <div
-                      key={message.id}
-                      className="p-6 rounded-xl bg-gradient-to-r from-accent/5 to-accent/10 border border-accent/20 cursor-pointer hover:from-accent/10 hover:to-accent/15 transition-all duration-300 shadow-lg hover:shadow-xl"
-                      onClick={() => toggleMessageExpansion(message.id)}
-                    >
-                      <div className="flex items-start gap-4">
-                        <Avatar className="h-12 w-12 border-2 border-accent/30">
-                          <AvatarImage src={getAvatarSrc(message.avatar) || "/placeholder.svg"} alt={message.from} />
-                          <AvatarFallback>{message.from.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1 text-sm text-muted-foreground">
-                            <Clock className="h-4 w-4" />
-                            <span>記録日時: {message.recordedAt}</span>
-                          </div>
-                          <div className="flex items-center gap-2 mb-3">
-                            <span className="font-bold text-lg text-foreground">{message.from}</span>
-                            <Badge
-                              variant={message.type === "parent" ? "secondary" : "default"}
-                              className="text-xs font-medium"
-                            >
-                              {message.type === "parent" ? "保護者" : "指導者"}
-                            </Badge>
-                          </div>
-                          <div className="mb-3">
-                            <p className="text-base text-foreground bg-background/70 p-4 rounded-lg border border-border/30 leading-relaxed">
-                              {message.message}
-                            </p>
-                          </div>
-
-                          {expandedMessages.has(message.id) && (
-                            <div className="mt-4 pt-4 border-t border-accent/20 space-y-4">
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                  <div className="text-sm font-medium text-muted-foreground mb-1">学習回</div>
-                                  <span className="text-base font-semibold text-primary">{message.studySession}</span>
-                                </div>
-                                <div>
-                                  <div className="text-sm font-medium text-muted-foreground mb-1">科目</div>
-                                  <Badge
-                                    className={`${subjectColors[message.subject as keyof typeof subjectColors].bg} ${subjectColors[message.subject as keyof typeof subjectColors].text} ${subjectColors[message.subject as keyof typeof subjectColors].border} text-base px-3 py-1 font-semibold`}
-                                  >
-                                    {message.subject}
-                                  </Badge>
-                                </div>
+                  {filteredAndSortedMessages.length < 5
+                    ? filteredAndSortedMessages.map((message) => (
+                        <div
+                          key={message.id}
+                          className="p-6 rounded-xl bg-gradient-to-r from-accent/5 to-accent/10 border border-accent/20 cursor-pointer hover:from-accent/10 hover:to-accent/15 transition-all duration-300 shadow-lg hover:shadow-xl"
+                          onClick={() => toggleMessageExpansion(message.id)}
+                        >
+                          <div className="flex items-start gap-4">
+                            <Avatar className="h-12 w-12 border-2 border-accent/30">
+                              <AvatarImage
+                                src={getAvatarSrc(message.avatar) || "/placeholder.svg"}
+                                alt={message.from}
+                              />
+                              <AvatarFallback>{message.from.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1 text-sm text-muted-foreground">
+                                <Clock className="h-4 w-4" />
+                                <span>記録日時: {message.recordedAt}</span>
+                              </div>
+                              <div className="flex items-center gap-2 mb-3">
+                                <span className="font-bold text-lg text-foreground">{message.from}</span>
+                                <Badge
+                                  variant={message.type === "parent" ? "secondary" : "default"}
+                                  className="text-xs font-medium"
+                                >
+                                  {message.type === "parent" ? "保護者" : "指導者"}
+                                </Badge>
+                              </div>
+                              <div className="mb-3">
+                                <p className="text-base text-foreground bg-background/70 p-4 rounded-lg border border-border/30 leading-relaxed">
+                                  {message.message}
+                                </p>
                               </div>
 
-                              <div>
-                                <div className="text-sm font-medium text-muted-foreground mb-2">学習内容</div>
-                                <div className="flex flex-wrap gap-2">
-                                  {message.learningContent.map((content) => (
-                                    <Badge
-                                      key={content}
-                                      variant="outline"
-                                      className={`${learningContentColors[content as keyof typeof learningContentColors].bg} ${learningContentColors[content as keyof typeof learningContentColors].text} ${learningContentColors[content as keyof typeof learningContentColors].border} text-xs px-3 py-1`}
-                                    >
-                                      {content}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              </div>
-
-                              <div>
-                                <div className="text-sm font-medium text-muted-foreground mb-2">正答率</div>
-                                <div className="flex items-center gap-3">
-                                  <div className="flex items-baseline gap-1">
-                                    <span className="text-2xl font-bold text-primary">{message.correctRate}%</span>
-                                    <span className="text-sm text-muted-foreground">
-                                      ({message.correctAnswers}/{message.totalQuestions}問正解)
-                                    </span>
+                              {expandedMessages.has(message.id) && (
+                                <div className="mt-4 pt-4 border-t border-accent/20 space-y-4">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                      <div className="text-sm font-medium text-muted-foreground mb-1">学習回</div>
+                                      <span className="text-base font-semibold text-primary">
+                                        {message.studySession}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <div className="text-sm font-medium text-muted-foreground mb-1">科目</div>
+                                      <Badge
+                                        className={`${subjectColors[message.subject as keyof typeof subjectColors].bg} ${subjectColors[message.subject as keyof typeof subjectColors].text} ${subjectColors[message.subject as keyof typeof subjectColors].border} text-base px-3 py-1 font-semibold`}
+                                      >
+                                        {message.subject}
+                                      </Badge>
+                                    </div>
                                   </div>
-                                  <div className="flex-1 bg-muted rounded-full h-2.5">
-                                    <div
-                                      className="bg-primary rounded-full h-2.5 transition-all duration-300"
-                                      style={{ width: `${message.correctRate}%` }}
-                                    />
-                                  </div>
-                                </div>
-                              </div>
 
-                              {message.reflection && (
-                                <div>
-                                  <div className="text-sm font-medium text-muted-foreground mb-1">今日の振り返り</div>
-                                  <p className="text-base text-foreground bg-background/70 p-3 rounded-lg border border-border/30 leading-relaxed">
-                                    {message.reflection}
-                                  </p>
+                                  <div>
+                                    <div className="text-sm font-medium text-muted-foreground mb-2">学習内容</div>
+                                    <div className="flex flex-wrap gap-2">
+                                      {message.learningContent.map((content) => (
+                                        <Badge
+                                          key={content}
+                                          variant="outline"
+                                          className={`${learningContentColors[content as keyof typeof learningContentColors].bg} ${learningContentColors[content as keyof typeof learningContentColors].text} ${learningContentColors[content as keyof typeof learningContentColors].border} text-xs px-3 py-1`}
+                                        >
+                                          {content}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <div className="text-sm font-medium text-muted-foreground mb-2">正答率</div>
+                                    <div className="flex items-center gap-3">
+                                      <div className="flex items-baseline gap-1">
+                                        <span className="text-2xl font-bold text-primary">{message.correctRate}%</span>
+                                        <span className="text-sm text-muted-foreground">
+                                          ({message.correctAnswers}/{message.totalQuestions}問正解)
+                                        </span>
+                                      </div>
+                                      <div className="flex-1 bg-muted rounded-full h-2.5">
+                                        <div
+                                          className="bg-primary rounded-full h-2.5 transition-all duration-300"
+                                          style={{ width: `${message.correctRate}%` }}
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {message.reflection && (
+                                    <div>
+                                      <div className="text-sm font-medium text-muted-foreground mb-1">
+                                        今日の振り返り
+                                      </div>
+                                      <p className="text-base text-foreground bg-background/70 p-3 rounded-lg border border-border/30 leading-relaxed">
+                                        {message.reflection}
+                                      </p>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
-                          )}
+                          </div>
+                          <div className="mt-4 flex items-center justify-center">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background/60 px-4 py-2 rounded-full">
+                              {expandedMessages.has(message.id) ? (
+                                <>
+                                  <ChevronUp className="h-4 w-4" />
+                                  クリックして詳細を閉じる
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDown className="h-4 w-4" />
+                                  クリックして詳細を表示
+                                </>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      <div className="mt-4 flex items-center justify-center">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background/60 px-4 py-2 rounded-full">
-                          {expandedMessages.has(message.id) ? (
-                            <>
-                              <ChevronUp className="h-4 w-4" />
-                              クリックして詳細を閉じる
-                            </>
-                          ) : (
-                            <>
-                              <ChevronDown className="h-4 w-4" />
-                              クリックして詳細を表示
-                            </>
-                          )}
+                      ))
+                    : filteredAndSortedMessages.slice(0, 5).map((message) => (
+                        <div
+                          key={message.id}
+                          className="p-6 rounded-xl bg-gradient-to-r from-accent/5 to-accent/10 border border-accent/20 cursor-pointer hover:from-accent/10 hover:to-accent/15 transition-all duration-300 shadow-lg hover:shadow-xl"
+                          onClick={() => toggleMessageExpansion(message.id)}
+                        >
+                          <div className="flex items-start gap-4">
+                            <Avatar className="h-12 w-12 border-2 border-accent/30">
+                              <AvatarImage
+                                src={getAvatarSrc(message.avatar) || "/placeholder.svg"}
+                                alt={message.from}
+                              />
+                              <AvatarFallback>{message.from.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1 text-sm text-muted-foreground">
+                                <Clock className="h-4 w-4" />
+                                <span>記録日時: {message.recordedAt}</span>
+                              </div>
+                              <div className="flex items-center gap-2 mb-3">
+                                <span className="font-bold text-lg text-foreground">{message.from}</span>
+                                <Badge
+                                  variant={message.type === "parent" ? "secondary" : "default"}
+                                  className="text-xs font-medium"
+                                >
+                                  {message.type === "parent" ? "保護者" : "指導者"}
+                                </Badge>
+                              </div>
+                              <div className="mb-3">
+                                <p className="text-base text-foreground bg-background/70 p-4 rounded-lg border border-border/30 leading-relaxed">
+                                  {message.message}
+                                </p>
+                              </div>
+
+                              {expandedMessages.has(message.id) && (
+                                <div className="mt-4 pt-4 border-t border-accent/20 space-y-4">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                      <div className="text-sm font-medium text-muted-foreground mb-1">学習回</div>
+                                      <span className="text-base font-semibold text-primary">
+                                        {message.studySession}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <div className="text-sm font-medium text-muted-foreground mb-1">科目</div>
+                                      <Badge
+                                        className={`${subjectColors[message.subject as keyof typeof subjectColors].bg} ${subjectColors[message.subject as keyof typeof subjectColors].text} ${subjectColors[message.subject as keyof typeof subjectColors].border} text-base px-3 py-1 font-semibold`}
+                                      >
+                                        {message.subject}
+                                      </Badge>
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <div className="text-sm font-medium text-muted-foreground mb-2">学習内容</div>
+                                    <div className="flex flex-wrap gap-2">
+                                      {message.learningContent.map((content) => (
+                                        <Badge
+                                          key={content}
+                                          variant="outline"
+                                          className={`${learningContentColors[content as keyof typeof learningContentColors].bg} ${learningContentColors[content as keyof typeof learningContentColors].text} ${learningContentColors[content as keyof typeof learningContentColors].border} text-xs px-3 py-1`}
+                                        >
+                                          {content}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <div className="text-sm font-medium text-muted-foreground mb-2">正答率</div>
+                                    <div className="flex items-center gap-3">
+                                      <div className="flex items-baseline gap-1">
+                                        <span className="text-2xl font-bold text-primary">{message.correctRate}%</span>
+                                        <span className="text-sm text-muted-foreground">
+                                          ({message.correctAnswers}/{message.totalQuestions}問正解)
+                                        </span>
+                                      </div>
+                                      <div className="flex-1 bg-muted rounded-full h-2.5">
+                                        <div
+                                          className="bg-primary rounded-full h-2.5 transition-all duration-300"
+                                          style={{ width: `${message.correctRate}%` }}
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {message.reflection && (
+                                    <div>
+                                      <div className="text-sm font-medium text-muted-foreground mb-1">
+                                        今日の振り返り
+                                      </div>
+                                      <p className="text-base text-foreground bg-background/70 p-3 rounded-lg border border-border/30 leading-relaxed">
+                                        {message.reflection}
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="mt-4 flex items-center justify-center">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background/60 px-4 py-2 rounded-full">
+                              {expandedMessages.has(message.id) ? (
+                                <>
+                                  <ChevronUp className="h-4 w-4" />
+                                  クリックして詳細を閉じる
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDown className="h-4 w-4" />
+                                  クリックして詳細を表示
+                                </>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  ))}
+                      ))}
                 </div>
               </CardContent>
             </Card>
@@ -1073,99 +1289,197 @@ export default function ReflectPage() {
                 </div>
 
                 <div className="space-y-6">
-                  {filteredCoachingHistory.map((session, index) => (
-                    <div
-                      key={index}
-                      className="p-6 rounded-xl bg-gradient-to-r from-accent/5 to-accent/10 border border-accent/20 shadow-lg hover:shadow-xl transition-all duration-300"
-                    >
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-medium text-foreground">記録日時: {session.date}</span>
-                            <Clock className="h-4 w-4 text-muted-foreground ml-2" />
-                            <span className="text-sm text-muted-foreground">{session.time}</span>
+                  {filteredCoachingHistory.length < 5
+                    ? filteredCoachingHistory.map((session, index) => (
+                        <div
+                          key={index}
+                          className="p-6 rounded-xl bg-gradient-to-r from-accent/5 to-accent/10 border border-accent/20 shadow-lg hover:shadow-xl transition-all duration-300"
+                        >
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-medium text-foreground">記録日時: {session.date}</span>
+                                <Clock className="h-4 w-4 text-muted-foreground ml-2" />
+                                <span className="text-sm text-muted-foreground">{session.time}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge
+                                  className={`${weekTypeColors[session.weekType as keyof typeof weekTypeColors].bg} ${weekTypeColors[session.weekType as keyof typeof weekTypeColors].text} ${weekTypeColors[session.weekType as keyof typeof weekTypeColors].border} font-medium`}
+                                >
+                                  {session.weekType}
+                                </Badge>
+                                <Badge variant="outline" className="text-xs font-medium">
+                                  {session.duration}
+                                </Badge>
+                                <Badge variant="outline" className="text-xs font-medium">
+                                  {session.turnCount}往復
+                                </Badge>
+                                <Badge
+                                  className={`${levelColors[session.level as keyof typeof levelColors].bg} ${levelColors[session.level as keyof typeof levelColors].text} ${levelColors[session.level as keyof typeof levelColors].border} font-medium`}
+                                >
+                                  {session.level}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-10 w-10 border-2 border-accent/30">
+                                <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt={session.coach} />
+                                <AvatarFallback>AI</AvatarFallback>
+                              </Avatar>
+                              <span className="font-medium text-foreground">{session.coach}</span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Badge
-                              className={`${weekTypeColors[session.weekType as keyof typeof weekTypeColors].bg} ${weekTypeColors[session.weekType as keyof typeof weekTypeColors].text} ${weekTypeColors[session.weekType as keyof typeof weekTypeColors].border} font-medium`}
-                            >
-                              {session.weekType}
-                            </Badge>
-                            <Badge variant="outline" className="text-xs font-medium">
-                              {session.duration}
-                            </Badge>
-                            <Badge variant="outline" className="text-xs font-medium">
-                              {session.turnCount}往復
-                            </Badge>
-                            <Badge
-                              className={`${levelColors[session.level as keyof typeof levelColors].bg} ${levelColors[session.level as keyof typeof levelColors].text} ${levelColors[session.level as keyof typeof levelColors].border} font-medium`}
-                            >
-                              {session.level}
-                            </Badge>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-10 w-10 border-2 border-accent/30">
-                            <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt={session.coach} />
-                            <AvatarFallback>AI</AvatarFallback>
-                          </Avatar>
-                          <span className="font-medium text-foreground">{session.coach}</span>
-                        </div>
-                      </div>
 
-                      <div className="mb-6">
-                        <div className="flex items-center gap-3 mb-4">
-                          <Brain className="h-5 w-5 text-primary" />
-                          <span className="text-lg font-bold text-foreground">コーチングサマリー（GROWモデル）</span>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border-2 border-green-200 shadow-sm">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Target className="h-5 w-5 text-green-600" />
-                              <span className="text-sm font-bold text-green-700">Goal（目標）</span>
+                          <div className="mb-6">
+                            <div className="flex items-center gap-3 mb-4">
+                              <Brain className="h-5 w-5 text-primary" />
+                              <span className="text-lg font-bold text-foreground">
+                                コーチングサマリー（GROWモデル）
+                              </span>
                             </div>
-                            <p className="text-sm text-foreground leading-relaxed">{session.growSummary.goal}</p>
-                          </div>
-                          <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border-2 border-blue-200 shadow-sm">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Eye className="h-5 w-5 text-blue-600" />
-                              <span className="text-sm font-bold text-blue-700">Reality（現実）</span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border-2 border-green-200 shadow-sm">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <Target className="h-5 w-5 text-green-600" />
+                                  <span className="text-sm font-bold text-green-700">Goal（目標）</span>
+                                </div>
+                                <p className="text-sm text-foreground leading-relaxed">{session.growSummary.goal}</p>
+                              </div>
+                              <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border-2 border-blue-200 shadow-sm">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <Eye className="h-5 w-5 text-blue-600" />
+                                  <span className="text-sm font-bold text-blue-700">Reality（現実）</span>
+                                </div>
+                                <p className="text-sm text-foreground leading-relaxed">{session.growSummary.reality}</p>
+                              </div>
+                              <div className="p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl border-2 border-orange-200 shadow-sm">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <Lightbulb className="h-5 w-5 text-orange-600" />
+                                  <span className="text-sm font-bold text-orange-700">Options（選択肢）</span>
+                                </div>
+                                <p className="text-sm text-foreground leading-relaxed">{session.growSummary.options}</p>
+                              </div>
+                              <div className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border-2 border-purple-200 shadow-sm">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <CheckCircle className="h-5 w-5 text-purple-600" />
+                                  <span className="text-sm font-bold text-purple-700">Will（意志・行動）</span>
+                                </div>
+                                <p className="text-sm text-foreground leading-relaxed">{session.growSummary.will}</p>
+                              </div>
                             </div>
-                            <p className="text-sm text-foreground leading-relaxed">{session.growSummary.reality}</p>
                           </div>
-                          <div className="p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl border-2 border-orange-200 shadow-sm">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Lightbulb className="h-5 w-5 text-orange-600" />
-                              <span className="text-sm font-bold text-orange-700">Options（選択肢）</span>
-                            </div>
-                            <p className="text-sm text-foreground leading-relaxed">{session.growSummary.options}</p>
-                          </div>
-                          <div className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border-2 border-purple-200 shadow-sm">
-                            <div className="flex items-center gap-2 mb-3">
-                              <CheckCircle className="h-5 w-5 text-purple-600" />
-                              <span className="text-sm font-bold text-purple-700">Will（意志・行動）</span>
-                            </div>
-                            <p className="text-sm text-foreground leading-relaxed">{session.growSummary.will}</p>
-                          </div>
-                        </div>
-                      </div>
 
-                      <div className="mb-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <BookOpen className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm font-medium text-foreground">話し合ったトピック</span>
+                          <div className="mb-4">
+                            <div className="flex items-center gap-2 mb-2">
+                              <BookOpen className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm font-medium text-foreground">話し合ったトピック</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {session.topics.map((topic, topicIndex) => (
+                                <Badge key={topicIndex} variant="secondary" className="text-xs font-medium">
+                                  {topic}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                          {session.topics.map((topic, topicIndex) => (
-                            <Badge key={topicIndex} variant="secondary" className="text-xs font-medium">
-                              {topic}
-                            </Badge>
-                          ))}
+                      ))
+                    : filteredCoachingHistory.slice(0, 5).map((session, index) => (
+                        <div
+                          key={index}
+                          className="p-6 rounded-xl bg-gradient-to-r from-accent/5 to-accent/10 border border-accent/20 shadow-lg hover:shadow-xl transition-all duration-300"
+                        >
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-medium text-foreground">記録日時: {session.date}</span>
+                                <Clock className="h-4 w-4 text-muted-foreground ml-2" />
+                                <span className="text-sm text-muted-foreground">{session.time}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge
+                                  className={`${weekTypeColors[session.weekType as keyof typeof weekTypeColors].bg} ${weekTypeColors[session.weekType as keyof typeof weekTypeColors].text} ${weekTypeColors[session.weekType as keyof typeof weekTypeColors].border} font-medium`}
+                                >
+                                  {session.weekType}
+                                </Badge>
+                                <Badge variant="outline" className="text-xs font-medium">
+                                  {session.duration}
+                                </Badge>
+                                <Badge variant="outline" className="text-xs font-medium">
+                                  {session.turnCount}往復
+                                </Badge>
+                                <Badge
+                                  className={`${levelColors[session.level as keyof typeof levelColors].bg} ${levelColors[session.level as keyof typeof levelColors].text} ${levelColors[session.level as keyof typeof levelColors].border} font-medium`}
+                                >
+                                  {session.level}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-10 w-10 border-2 border-accent/30">
+                                <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt={session.coach} />
+                                <AvatarFallback>AI</AvatarFallback>
+                              </Avatar>
+                              <span className="font-medium text-foreground">{session.coach}</span>
+                            </div>
+                          </div>
+
+                          <div className="mb-6">
+                            <div className="flex items-center gap-3 mb-4">
+                              <Brain className="h-5 w-5 text-primary" />
+                              <span className="text-lg font-bold text-foreground">
+                                コーチングサマリー（GROWモデル）
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border-2 border-green-200 shadow-sm">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <Target className="h-5 w-5 text-green-600" />
+                                  <span className="text-sm font-bold text-green-700">Goal（目標）</span>
+                                </div>
+                                <p className="text-sm text-foreground leading-relaxed">{session.growSummary.goal}</p>
+                              </div>
+                              <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border-2 border-blue-200 shadow-sm">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <Eye className="h-5 w-5 text-blue-600" />
+                                  <span className="text-sm font-bold text-blue-700">Reality（現実）</span>
+                                </div>
+                                <p className="text-sm text-foreground leading-relaxed">{session.growSummary.reality}</p>
+                              </div>
+                              <div className="p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl border-2 border-orange-200 shadow-sm">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <Lightbulb className="h-5 w-5 text-orange-600" />
+                                  <span className="text-sm font-bold text-orange-700">Options（選択肢）</span>
+                                </div>
+                                <p className="text-sm text-foreground leading-relaxed">{session.growSummary.options}</p>
+                              </div>
+                              <div className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border-2 border-purple-200 shadow-sm">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <CheckCircle className="h-5 w-5 text-purple-600" />
+                                  <span className="text-sm font-bold text-purple-700">Will（意志・行動）</span>
+                                </div>
+                                <p className="text-sm text-foreground leading-relaxed">{session.growSummary.will}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="mb-4">
+                            <div className="flex items-center gap-2 mb-2">
+                              <BookOpen className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm font-medium text-foreground">話し合ったトピック</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {session.topics.map((topic, topicIndex) => (
+                                <Badge key={topicIndex} variant="secondary" className="text-xs font-medium">
+                                  {topic}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  ))}
+                      ))}
                 </div>
               </CardContent>
             </Card>
