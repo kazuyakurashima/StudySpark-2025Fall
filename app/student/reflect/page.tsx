@@ -643,10 +643,6 @@ export default function ReflectPage() {
                       <br />
                       1週間の学習を一緒に振り返り、成長をサポートします
                     </p>
-                    <div className="flex items-center gap-2">
-                      <Badge className="bg-accent/20 text-accent border-accent/30 font-medium">土曜日限定</Badge>
-                      <Badge className="bg-primary/20 text-primary border-primary/30 font-medium">GROWモデル</Badge>
-                    </div>
                   </div>
                 </div>
                 <Button
