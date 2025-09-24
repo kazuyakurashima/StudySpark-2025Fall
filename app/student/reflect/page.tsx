@@ -524,12 +524,12 @@ export default function ReflectPage() {
   const [expandedMessages, setExpandedMessages] = useState<Set<number>>(new Set())
   const [expandedCoaching, setExpandedCoaching] = useState<Set<number>>(new Set())
   const [learningSubjectFilter, setLearningSubjectFilter] = useState("全科目")
-  const [learningPeriodFilter, setLearningPeriodFilter] = useState("1ヶ月")
+  const [learningPeriodFilter, setLearningPeriodFilter] = useState("全て")
   const [learningSortBy, setLearningSortBy] = useState("記録日時")
   const [subjectFilter, setSubjectFilter] = useState("全科目")
-  const [periodFilter, setPeriodFilter] = useState("1ヶ月")
+  const [periodFilter, setPeriodFilter] = useState("全て")
   const [sortBy, setSortBy] = useState("記録日時")
-  const [coachingPeriodFilter, setCoachingPeriodFilter] = useState("1ヶ月")
+  const [coachingPeriodFilter, setCoachingPeriodFilter] = useState("全て")
 
   const toggleMessageExpansion = (messageId: number) => {
     const newExpanded = new Set(expandedMessages)
