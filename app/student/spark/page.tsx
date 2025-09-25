@@ -699,6 +699,25 @@ export default function SparkPage() {
                           key={content.id}
                           className="space-y-6 p-6 bg-gradient-to-br from-slate-50/80 to-white rounded-2xl border-2 border-slate-100 shadow-lg"
                         >
+                          <div className="space-y-3 p-4 bg-gradient-to-r from-slate-50 to-white rounded-xl border border-slate-200 shadow-sm">
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-lg font-bold text-slate-800">{content.name}</h4>
+                              <Badge
+                                variant="outline"
+                                className={`px-3 py-1 text-sm font-bold ${
+                                  content.course === "A"
+                                    ? "bg-green-50 text-green-700 border-green-300"
+                                    : content.course === "B"
+                                      ? "bg-blue-50 text-blue-700 border-blue-300"
+                                      : "bg-purple-50 text-purple-700 border-purple-300"
+                                }`}
+                              >
+                                {content.course}コース
+                              </Badge>
+                            </div>
+                            <div className="text-sm text-slate-600 font-medium">問題数: {maxProblems}問</div>
+                          </div>
+
                           <div className="space-y-4">
                             <div className="px-3">
                               <div className="relative">
