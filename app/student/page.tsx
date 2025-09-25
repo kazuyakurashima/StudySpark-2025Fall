@@ -64,26 +64,26 @@ function getGreetingMessage(userName: string, streak: number) {
   return `おかえりなさい、${userName}さん`
 }
 
-function getAICoachMessage(userName: string, streak: number) {
+function getEnhancedAICoachMessage(userName: string, streak: number) {
   const messages = [
     {
       encouragement: `${userName}さん、${streak}日連続の学習、本当に素晴らしいです！`,
-      currentStatus: "今日は算数の図形問題に取り組む予定ですね。",
-      nextAction: "まずは基本問題から始めて、理解を深めてから応用問題に挑戦しましょう。",
+      currentStatus: "算数の図形問題で少し苦戦していますが、基本は理解できています。",
+      todayMission: "まずは基本問題で確実に理解を深めてから、応用問題に挑戦しましょう。",
     },
     {
       encouragement: `${userName}さん、毎日の積み重ねが確実に力になっています。`,
-      currentStatus: "昨日の国語の読解問題、よくできていました。",
-      nextAction: "今日は漢字の復習から始めて、新しい文章問題にチャレンジしてみましょう。",
+      currentStatus: "国語の読解問題の正答率が上がってきました。",
+      todayMission: "今日は漢字の復習から始めて、新しい文章問題にチャレンジしてみましょう。",
     },
     {
       encouragement: `${userName}さん、継続する力が本当に素晴らしいです。`,
-      currentStatus: "理科の実験問題で少し苦戦していましたね。",
-      nextAction: "今日は基本的な実験の流れを確認してから、類似問題に取り組んでみましょう。",
+      currentStatus: "理科の実験問題で理解が深まってきています。",
+      todayMission: "今日は基本的な実験の流れを確認してから、類似問題に取り組んでみましょう。",
     },
   ]
 
-  // 日付ベースでメッセージを選択（実際の実装では1日1回更新）
+  // 日付ベースでメッセージを選択（1日1回更新の想定）
   const messageIndex = new Date().getDate() % messages.length
   return messages[messageIndex]
 }
@@ -807,6 +807,24 @@ const getAvatarSrc = (avatarId: string) => {
   return avatarMap[avatarId] || avatarMap["student1"]
 }
 
+const getWeeklyAccuracyRate = () => {
+  // サンプルデータ（実際にはAPIから取得）
+  const weeklySubjectData = {
+    算数: { correct: 45, total: 60 },
+    国語: { correct: 38, total: 50 },
+    理科: { correct: 42, total: 55 },
+    社会: { correct: 35, total: 45 },
+  }
+
+  const totalCorrect = Object.values(weeklySubjectData).reduce((sum, subject) => sum + subject.correct, 0)
+  const totalQuestions = Object.values(weeklySubjectData).reduce((sum, subject) => sum + subject.total, 0)
+
+  return {
+    rate: Math.round((totalCorrect / totalQuestions) * 100),
+    subjects: weeklySubjectData,
+  }
+}
+
 export default function StudentDashboard() {
   const [userName, setUserName] = useState("")
   const [selectedAvatar, setSelectedAvatar] = useState("")
@@ -819,7 +837,8 @@ export default function StudentDashboard() {
   }, [])
 
   const greetingMessage = getGreetingMessage(userName, mockData.user.streak)
-  const aiCoachMessage = getAICoachMessage(userName, mockData.user.streak)
+  const enhancedAICoachMessage = getEnhancedAICoachMessage(userName, mockData.user.streak)
+  const weeklyAccuracy = getWeeklyAccuracyRate()
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-20">
@@ -845,6 +864,26 @@ export default function StudentDashboard() {
             <p className="text-sm text-muted-foreground font-medium">連続学習日数</p>
           </div>
         </div>
+
+        <div className="max-w-6xl mx-auto mt-4">
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-primary/20 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-semibold text-slate-700">今週の全科目正答率</span>
+              <span className="text-lg font-bold text-primary">{weeklyAccuracy.rate}%</span>
+            </div>
+            <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-primary to-primary/80 transition-all duration-700 ease-out"
+                style={{ width: `${weeklyAccuracy.rate}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-xs text-slate-500 mt-2">
+              <span>0%</span>
+              <span>50%</span>
+              <span>100%</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="max-w-6xl mx-auto p-6 space-y-8">
@@ -859,7 +898,7 @@ export default function StudentDashboard() {
                       <AvatarFallback className="bg-white/20 text-white font-bold text-lg">AI</AvatarFallback>
                     </Avatar>
                     <span className="text-slate-900 font-bold text-xl bg-white/95 px-4 py-2 rounded-xl shadow-lg">
-                      AIコーチからのメッセージ
+                      デイリーメッセージ
                     </span>
                   </div>
                   <MessageCircle className="h-7 w-7 text-white animate-pulse" />
@@ -868,17 +907,26 @@ export default function StudentDashboard() {
               <CardContent className="space-y-6">
                 <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border border-white/60 shadow-xl relative">
                   <div className="space-y-6">
-                    {/* 承認・励まし */}
-                    <p className="text-xl leading-relaxed text-slate-700 font-medium">{aiCoachMessage.encouragement}</p>
-
-                    {/* 現状の要点 */}
-                    <p className="text-lg leading-relaxed text-slate-600">{aiCoachMessage.currentStatus}</p>
-
-                    {/* 次の一手 */}
-                    <div className="bg-primary/10 rounded-xl p-4 border border-primary/20">
+                    {/* 承認・励まし（1行） */}
+                    <div className="bg-green-50/80 rounded-xl p-4 border-l-4 border-green-500">
                       <p className="text-lg leading-relaxed text-slate-700 font-medium">
-                        <span className="font-bold text-primary">次の一手：</span>
-                        {aiCoachMessage.nextAction}
+                        {enhancedAICoachMessage.encouragement}
+                      </p>
+                    </div>
+
+                    {/* 現状の要点（不足・残量・期日 いずれか1点） */}
+                    <div className="bg-blue-50/80 rounded-xl p-4 border-l-4 border-blue-500">
+                      <p className="text-base leading-relaxed text-slate-600">
+                        <span className="font-semibold text-blue-700">現状：</span>
+                        {enhancedAICoachMessage.currentStatus}
+                      </p>
+                    </div>
+
+                    {/* 今日のミッション（If-Then形式で具体化） */}
+                    <div className="bg-primary/10 rounded-xl p-4 border-l-4 border-primary">
+                      <p className="text-base leading-relaxed text-slate-700 font-medium">
+                        <span className="font-bold text-primary">今日のミッション：</span>
+                        {enhancedAICoachMessage.todayMission}
                       </p>
                     </div>
                   </div>
