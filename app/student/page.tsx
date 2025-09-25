@@ -17,7 +17,7 @@ const mockData = {
   aiCoachMessage: {
     message:
       "太郎さん、今日もStudySparkを開いてくれてありがとう！7日連続の学習、本当に素晴らしいです。君の頑張りをいつも見守っています。今日も一歩ずつ、自分のペースで進んでいきましょう。",
-    timeBasedGreeting: getTimeBasedGreeting(),
+    timeBasedGreeting: "",
   },
   encouragementMessages: [
     { date: "今日", from: "お母さん", message: "算数がんばったね！明日もファイト！", avatar: "parent1" },
@@ -45,6 +45,47 @@ function getTimeBasedGreeting() {
   } else {
     return "お疲れさまです！今日も一日よく頑張りましたね"
   }
+}
+
+function getGreetingMessage(userName: string, streak: number) {
+  // 初回ユーザー（連続日数が1日）
+  if (streak === 1) {
+    return `はじめまして、${userName}さん`
+  }
+
+  // 久しぶりのユーザー（連続日数が1日で、過去に学習履歴がある場合の想定）
+  // 実際の実装では最終学習日からの経過日数を確認する必要があります
+  const lastLoginDays = 0 // 仮の値、実際はAPIから取得
+  if (lastLoginDays > 7) {
+    return `お久しぶり、${userName}さん`
+  }
+
+  // 通常のユーザー
+  return `おかえりなさい、${userName}さん`
+}
+
+function getAICoachMessage(userName: string, streak: number) {
+  const messages = [
+    {
+      encouragement: `${userName}さん、${streak}日連続の学習、本当に素晴らしいです！`,
+      currentStatus: "今日は算数の図形問題に取り組む予定ですね。",
+      nextAction: "まずは基本問題から始めて、理解を深めてから応用問題に挑戦しましょう。",
+    },
+    {
+      encouragement: `${userName}さん、毎日の積み重ねが確実に力になっています。`,
+      currentStatus: "昨日の国語の読解問題、よくできていました。",
+      nextAction: "今日は漢字の復習から始めて、新しい文章問題にチャレンジしてみましょう。",
+    },
+    {
+      encouragement: `${userName}さん、継続する力が本当に素晴らしいです。`,
+      currentStatus: "理科の実験問題で少し苦戦していましたね。",
+      nextAction: "今日は基本的な実験の流れを確認してから、類似問題に取り組んでみましょう。",
+    },
+  ]
+
+  // 日付ベースでメッセージを選択（実際の実装では1日1回更新）
+  const messageIndex = new Date().getDate() % messages.length
+  return messages[messageIndex]
 }
 
 const generateLearningHistory = () => {
@@ -777,6 +818,9 @@ export default function StudentDashboard() {
     setSelectedAvatar(avatar)
   }, [])
 
+  const greetingMessage = getGreetingMessage(userName, mockData.user.streak)
+  const aiCoachMessage = getAICoachMessage(userName, mockData.user.streak)
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-20">
       <div className="bg-card/90 backdrop-blur-sm border-b border-border/60 p-6 shadow-sm">
@@ -789,7 +833,7 @@ export default function StudentDashboard() {
               </AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">おかえり、{userName}さん</h1>
+              <h1 className="text-2xl font-bold text-foreground">{greetingMessage}</h1>
               <p className="text-base text-muted-foreground mt-1">今日も一緒にがんばろう！</p>
             </div>
           </div>
@@ -798,7 +842,7 @@ export default function StudentDashboard() {
               <Flame className="h-6 w-6" />
               <span className="font-bold text-2xl">{mockData.user.streak}</span>
             </div>
-            <p className="text-sm text-muted-foreground font-medium">連続日数</p>
+            <p className="text-sm text-muted-foreground font-medium">連続学習日数</p>
           </div>
         </div>
       </div>
@@ -822,20 +866,44 @@ export default function StudentDashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border border-white/60 shadow-xl">
+                <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border border-white/60 shadow-xl relative">
                   <div className="space-y-6">
-                    <p className="text-xl leading-relaxed text-slate-700 font-medium">
-                      {mockData.aiCoachMessage.timeBasedGreeting}
-                    </p>
-                    <p className="text-xl leading-relaxed text-slate-700 font-medium">
-                      {mockData.aiCoachMessage.message}
-                    </p>
+                    {/* 承認・励まし */}
+                    <p className="text-xl leading-relaxed text-slate-700 font-medium">{aiCoachMessage.encouragement}</p>
+
+                    {/* 現状の要点 */}
+                    <p className="text-lg leading-relaxed text-slate-600">{aiCoachMessage.currentStatus}</p>
+
+                    {/* 次の一手 */}
+                    <div className="bg-primary/10 rounded-xl p-4 border border-primary/20">
+                      <p className="text-lg leading-relaxed text-slate-700 font-medium">
+                        <span className="font-bold text-primary">次の一手：</span>
+                        {aiCoachMessage.nextAction}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="absolute bottom-6 right-6">
+                    <button
+                      className="bg-primary text-white px-6 py-3 rounded-xl font-bold text-base shadow-lg hover:bg-primary/90 transition-all duration-300 hover:scale-105"
+                      onClick={() => {
+                        // スムーススクロールでミッションセクションへ移動
+                        const missionSection = document.querySelector("[data-mission-section]")
+                        if (missionSection) {
+                          missionSection.scrollIntoView({ behavior: "smooth" })
+                        }
+                      }}
+                    >
+                      今日のミッションへ
+                    </button>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <TodayMissionCard />
+            <div data-mission-section>
+              <TodayMissionCard />
+            </div>
           </div>
 
           <div className="lg:col-span-2">
