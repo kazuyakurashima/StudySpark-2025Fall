@@ -940,21 +940,9 @@ export default function StudentDashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border border-white/60 shadow-xl relative">
-                  <p className="text-lg leading-relaxed text-slate-700 mb-6">{mockData.aiCoachMessage.message}</p>
-                  <div className="absolute bottom-6 right-6">
-                    <button
-                      className="bg-primary text-white px-6 py-3 rounded-xl font-bold text-base shadow-lg hover:bg-primary/90 transition-all duration-300 hover:scale-105"
-                      onClick={() => {
-                        const missionSection = document.querySelector("[data-mission-section]")
-                        if (missionSection) {
-                          missionSection.scrollIntoView({ behavior: "smooth" })
-                        }
-                      }}
-                    >
-                      今日のミッションへ
-                    </button>
-                  </div>
+                {/* Removed the CTA button from AI coach message */}
+                <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border border-white/60 shadow-xl">
+                  <p className="text-lg leading-relaxed text-slate-700">{mockData.aiCoachMessage.message}</p>
                 </div>
               </CardContent>
             </Card>
