@@ -594,112 +594,187 @@ const TodayMissionCard = () => {
     return today.getDay() // 0: 日曜日, 1: 月曜日, ..., 6: 土曜日
   }
 
-  const getMissionData = (weekday: number) => {
-    const subjectBlocks = {
-      1: ["算数", "理科", "社会"], // 月曜日
-      2: ["算数", "理科", "社会"], // 火曜日
-      3: ["算数", "国語", "社会"], // 水曜日
-      4: ["算数", "国語", "社会"], // 木曜日
-      5: ["算数", "国語", "理科"], // 金曜日
-      6: ["算数", "国語", "理科"], // 土曜日
+  const getCurrentHour = () => {
+    const now = new Date()
+    return now.getHours()
+  }
+
+  const getSubjectBlock = (weekday: number) => {
+    // ブロック定義
+    const blocks = {
+      1: ["算数", "国語", "社会"], // 月曜日 - ブロックA
+      2: ["算数", "国語", "社会"], // 火曜日 - ブロックA
+      3: ["算数", "国語", "理科"], // 水曜日 - ブロックB
+      4: ["算数", "国語", "理科"], // 木曜日 - ブロックB
+      5: ["算数", "理科", "社会"], // 金曜日 - ブロックC
+      6: ["算数", "理科", "社会"], // 土曜日 - ブロックC
+    }
+    return blocks[weekday as keyof typeof blocks] || []
+  }
+
+  const getMissionMode = (weekday: number, hour: number) => {
+    if (weekday === 0) return "sunday" // 日曜日
+    if (weekday === 6 && hour >= 12) return "special" // 土曜日12時以降
+    if ([1, 3, 5].includes(weekday)) return "input" // 月・水・金：入力促進モード
+    if ([2, 4, 6].includes(weekday)) return "review" // 火・木・土：復習促進モード
+    return "input"
+  }
+
+  const getMissionData = (weekday: number, hour: number) => {
+    const mode = getMissionMode(weekday, hour)
+    const subjects = getSubjectBlock(weekday)
+
+    // サンプルデータ（実際にはAPIやlocalStorageから取得）
+    const weeklySubjectData = {
+      算数: { inputCount: 2, correctRate: 75, needsReview: true },
+      国語: { inputCount: 1, correctRate: 85, needsReview: false },
+      理科: { inputCount: 0, correctRate: 0, needsReview: true },
+      社会: { inputCount: 1, correctRate: 60, needsReview: true },
     }
 
-    const isInputMode = [1, 3, 5].includes(weekday) // 月・水・金
-    const isReviewMode = [2, 4, 6].includes(weekday) // 火・木・土
-    const isSunday = weekday === 0
-
-    if (isSunday) {
+    if (mode === "sunday") {
       return {
         mode: "sunday",
         subjects: [],
-        panels: [],
-        specialTasks: [
-          { name: "ゴールナビ", status: "未完了", description: "次回テストの目標設定" },
-          { name: "リフレクト", status: "完了", description: "週間振り返り" },
-        ],
+        panels: [{ name: "リフレクト", status: "完了", description: "週間振り返り", type: "reflect" }],
+        statusMessage: "今週もお疲れさまでした！",
       }
     }
 
-    const subjects = subjectBlocks[weekday as keyof typeof subjectBlocks] || []
-    const panels = []
-
-    for (const subject of subjects) {
-      for (const type of ["授業", "宿題"]) {
-        // サンプルデータ（実際にはAPIやlocalStorageから取得）
-        const status = Math.random() > 0.5 ? "未入力" : Math.random() > 0.5 ? "入力のみ" : "できた"
-        panels.push({
+    if (mode === "special") {
+      // 土曜日12時以降：リフレクト + 正答率80%未満の2科目
+      const lowAccuracySubjects = Object.entries(weeklySubjectData)
+        .filter(([_, data]) => data.correctRate < 80 && data.inputCount > 0)
+        .slice(0, 2)
+        .map(([subject, data]) => ({
           subject,
-          type,
-          status,
-          needsAction: isInputMode ? status === "未入力" : !["できた", "バッチリ理解"].includes(status),
-        })
+          correctRate: data.correctRate,
+          needsAction: true,
+          type: "review",
+        }))
+
+      return {
+        mode: "special",
+        subjects: lowAccuracySubjects.map((item) => item.subject),
+        panels: [
+          { name: "リフレクト", status: "未完了", description: "週間振り返り", type: "reflect" },
+          ...lowAccuracySubjects.map((item) => ({
+            subject: item.subject,
+            correctRate: item.correctRate,
+            status: `進捗率${item.correctRate}%`,
+            needsAction: item.needsAction,
+            type: "review",
+          })),
+        ],
+        statusMessage: "週間振り返りと復習で今週を締めくくろう！",
       }
+    }
+
+    // 平日のミッション
+    const panels = subjects.map((subject) => {
+      const data = weeklySubjectData[subject as keyof typeof weeklySubjectData]
+      let status = "未入力"
+      let needsAction = false
+
+      if (mode === "input") {
+        // 入力促進モード：未入力の場合は強調
+        if (data.inputCount > 0) {
+          status = `進捗率${data.correctRate}%`
+        }
+        needsAction = data.inputCount === 0
+      } else if (mode === "review") {
+        // 復習促進モード：一度しか入力されておらず正答率80%未満の場合は強調
+        if (data.inputCount > 0) {
+          status = `進捗率${data.correctRate}%`
+        }
+        needsAction = data.inputCount === 1 && data.correctRate < 80
+      }
+
+      return {
+        subject,
+        status,
+        needsAction,
+        correctRate: data.correctRate,
+        inputCount: data.inputCount,
+      }
+    })
+
+    // 状況表示パネル用のメッセージ
+    const actionNeededCount = panels.filter((p) => p.needsAction).length
+    const completedCount = panels.length - actionNeededCount
+
+    let statusMessage = ""
+    if (actionNeededCount === 0) {
+      statusMessage = mode === "input" ? "全て入力完了！素晴らしいです！" : "全て復習完了！今日もよく頑張りました！"
+    } else if (actionNeededCount === 1) {
+      const remainingSubject = panels.find((p) => p.needsAction)?.subject
+      statusMessage =
+        mode === "input"
+          ? `あと${remainingSubject}だけ入力すれば完了だよ！`
+          : `あと${remainingSubject}だけ復習すれば完了だよ！`
+    } else {
+      statusMessage =
+        mode === "input"
+          ? `あと${actionNeededCount}科目入力して今日のミッション達成！`
+          : `あと${actionNeededCount}科目復習して今日のミッション達成！`
     }
 
     return {
-      mode: isInputMode ? "input" : "review",
+      mode,
       subjects,
       panels,
-      specialTasks: [],
+      statusMessage,
+      completionStatus: `${completedCount}/${panels.length}完了`,
     }
   }
 
   const todayWeekday = getTodayWeekday()
-  const missionData = getMissionData(todayWeekday)
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "未入力":
-        return "bg-slate-100 text-slate-700 border-slate-300 font-medium"
-      case "入力のみ":
-        return "bg-blue-50 text-blue-800 border-blue-200 font-medium"
-      case "できた":
-        return "bg-primary text-white border-primary font-medium"
-      case "バッチリ理解":
-        return "bg-secondary text-white border-secondary font-bold status-glow"
-      default:
-        return "bg-slate-100 text-slate-700 border-slate-300 font-medium"
-    }
-  }
+  const currentHour = getCurrentHour()
+  const missionData = getMissionData(todayWeekday, currentHour)
 
   const getSubjectColor = (subject: string) => {
-    switch (subject) {
-      case "算数":
-        return "border-l-4 border-l-primary bg-blue-50/80"
-      case "国語":
-        return "border-l-4 border-l-green-600 bg-green-50/80"
-      case "理科":
-        return "border-l-4 border-l-purple-600 bg-purple-50/80"
-      case "社会":
-        return "border-l-4 border-l-red-600 bg-red-50/80"
-      default:
-        return "border-l-4 border-l-slate-400 bg-slate-50/80"
+    const colors = {
+      算数: "border-l-4 border-l-blue-500 bg-blue-50/80",
+      国語: "border-l-4 border-l-emerald-500 bg-emerald-50/80",
+      理科: "border-l-4 border-l-purple-500 bg-purple-50/80",
+      社会: "border-l-4 border-l-red-500 bg-red-50/80",
     }
+    return colors[subject as keyof typeof colors] || "border-l-4 border-l-slate-400 bg-slate-50/80"
   }
 
-  const getActionText = (panel: any) => {
-    if (missionData.mode === "sunday") {
-      return panel.status === "未完了" ? "開始" : ""
-    } else {
-      return !["できた", "バッチリ理解"].includes(panel.status) ? "復習する" : "定着済み"
+  const getStatusBadgeColor = (status: string, needsAction: boolean) => {
+    if (status === "未入力") {
+      return needsAction
+        ? "bg-red-100 text-red-800 border-red-200 font-bold animate-pulse"
+        : "bg-slate-100 text-slate-700 border-slate-300"
     }
+    if (status.includes("進捗率")) {
+      const rate = Number.parseInt(status.match(/\d+/)?.[0] || "0")
+      if (rate >= 80) return "bg-primary text-white border-primary font-bold"
+      if (rate >= 60) return "bg-blue-100 text-blue-800 border-blue-200"
+      return "bg-yellow-100 text-yellow-800 border-yellow-200"
+    }
+    return "bg-slate-100 text-slate-700 border-slate-300"
   }
 
   const getModeTitle = () => {
-    if (missionData.mode === "sunday") return "今週の振り返り"
-    if (missionData.mode === "input") return "今日のミッション！（入力促進）"
-    return "今日のミッション！（復習促進）"
+    const titles = {
+      sunday: "今週の振り返り",
+      special: "週末スペシャル",
+      input: "今日のミッション！（入力促進）",
+      review: "今日のミッション！（復習促進）",
+    }
+    return titles[missionData.mode as keyof typeof titles] || "今日のミッション！"
   }
 
-  const getCompletionStatus = () => {
-    if (missionData.mode === "sunday") {
-      const completed = missionData.specialTasks.filter((task) => task.status === "完了").length
-      return `${completed}/${missionData.specialTasks.length} 完了`
-    }
+  const handleSparkNavigation = (subject?: string) => {
+    // スパーク機能への遷移（実際の実装では適切なルーティング）
+    console.log(`Navigate to spark for subject: ${subject || "general"}`)
+  }
 
-    const actionNeeded = missionData.panels.filter((panel) => panel.needsAction).length
-    const total = missionData.panels.length
-    return `${total - actionNeeded}/${total} 完了`
+  const handleReflectNavigation = () => {
+    // リフレクト機能への遷移
+    console.log("Navigate to reflect")
   }
 
   return (
@@ -710,75 +785,99 @@ const TodayMissionCard = () => {
             <Home className="h-7 w-7 text-primary" />
             <span className="text-slate-800">{getModeTitle()}</span>
           </CardTitle>
-          <Badge className="bg-primary text-primary-foreground border-primary font-bold text-base px-4 py-2 shadow-md">
-            {getCompletionStatus()}
-          </Badge>
+          {missionData.completionStatus && (
+            <Badge className="bg-primary text-primary-foreground border-primary font-bold text-base px-4 py-2 shadow-md">
+              {missionData.completionStatus}
+            </Badge>
+          )}
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {missionData.mode === "sunday" ? (
-          // 日曜日の特別タスク
+        {missionData.mode === "sunday" || missionData.mode === "special" ? (
+          // 日曜日・特別モード
           <div className="space-y-4">
-            {missionData.specialTasks.map((task, index) => (
+            {missionData.panels.map((panel, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between p-6 rounded-xl bg-white/90 border border-primary/20 shadow-sm"
+                className={`flex items-center justify-between p-6 rounded-xl bg-white/90 border-2 shadow-sm transition-all duration-300 hover:shadow-md ${
+                  panel.type === "reflect" ? "border-primary/30" : getSubjectColor(panel.subject || "")
+                }`}
               >
                 <div>
-                  <h3 className="font-bold text-lg text-slate-800">{task.name}</h3>
-                  <p className="text-sm text-slate-600 mt-1">{task.description}</p>
+                  <h3 className="font-bold text-lg text-slate-800">
+                    {panel.type === "reflect" ? panel.name : panel.subject}
+                  </h3>
+                  {panel.description && <p className="text-sm text-slate-600 mt-1">{panel.description}</p>}
+                  {panel.correctRate && (
+                    <p className="text-sm text-slate-600 mt-1">現在の正答率: {panel.correctRate}%</p>
+                  )}
                 </div>
                 <div className="flex items-center gap-3">
-                  <Badge
-                    className={`${task.status === "完了" ? "bg-primary text-white" : "bg-slate-200 text-slate-600"} font-semibold px-3 py-1`}
-                  >
-                    {task.status}
+                  <Badge className={getStatusBadgeColor(panel.status, panel.needsAction || false)}>
+                    {panel.status}
                   </Badge>
-                  {task.status === "未完了" && (
-                    <button className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors">
-                      開始
-                    </button>
-                  )}
+                  <button
+                    onClick={() =>
+                      panel.type === "reflect" ? handleReflectNavigation() : handleSparkNavigation(panel.subject)
+                    }
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      panel.needsAction || panel.status === "未完了"
+                        ? "bg-primary text-white hover:bg-primary/90"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {panel.type === "reflect" ? "振り返る" : "復習する"}
+                  </button>
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          // 平日のミッションパネル
+          // 平日のミッション（3科目パネル + 状況表示パネル）
           <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {missionData.panels.map((panel, index) => (
                 <div
                   key={index}
-                  className={`p-4 rounded-xl border-2 shadow-sm transition-all duration-300 hover:shadow-md ${getSubjectColor(panel.subject)} ${panel.needsAction ? "mission-pulse" : ""}`}
+                  className={`p-4 rounded-xl border-2 shadow-sm transition-all duration-300 hover:shadow-md ${getSubjectColor(panel.subject)} ${
+                    panel.needsAction ? "ring-2 ring-primary/50 animate-pulse" : ""
+                  }`}
                 >
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-base text-slate-800">{panel.subject}</span>
-                      <Badge className={`text-xs px-2 py-1 border ${getStatusColor(panel.status)}`}>
+                      <span className="font-bold text-lg text-slate-800">{panel.subject}</span>
+                      <Badge
+                        className={`text-xs px-2 py-1 border ${getStatusBadgeColor(panel.status, panel.needsAction)}`}
+                      >
                         {panel.status}
                       </Badge>
                     </div>
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium text-slate-700">{panel.type}</p>
-                      <button
-                        className={`w-full py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                          panel.needsAction
-                            ? "bg-primary text-white hover:bg-primary/90"
-                            : "bg-slate-100 text-slate-600"
-                        }`}
-                        disabled={!panel.needsAction}
-                      >
-                        {getActionText(panel)}
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => handleSparkNavigation(panel.subject)}
+                      className={`w-full py-3 px-4 rounded-lg text-sm font-bold transition-all duration-300 ${
+                        panel.needsAction
+                          ? "bg-primary text-white hover:bg-primary/90 shadow-lg hover:scale-105"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      今すぐ記録する
+                    </button>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="text-center p-4 bg-primary/10 rounded-xl border border-primary/20">
-              <p className="text-base font-medium text-slate-700">すべて「できた」以上になると今日のミッション達成！</p>
+            {/* 4枚目のパネル：状況表示 */}
+            <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 border-2 border-primary/20 shadow-lg">
+              <div className="text-center">
+                <div className="mb-4">
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full mb-3">
+                    <Flag className="h-8 w-8 text-primary" />
+                  </div>
+                </div>
+                <h3 className="font-bold text-lg text-slate-800 mb-2">ミッション状況</h3>
+                <p className="text-base text-slate-700 leading-relaxed">{missionData.statusMessage}</p>
+              </div>
             </div>
           </div>
         )}
