@@ -43,6 +43,26 @@ function getGreetingMessage(userName: string, streak: number) {
   return `おかえりなさい、${userName}さん`
 }
 
+const getAvatarSrc = (avatarId: string) => {
+  const avatarMap: { [key: string]: string } = {
+    student1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student1-xZFJU5uXJO4DEfUbq1jbTMQUXReyM0.png",
+    student2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student2-mZ9Q9oVm43IQoRyxSYytVFYgp3JS1V.png",
+    student3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student3-teUpOKnopXNhE2vGFtvz9RWtC7O6kv.png",
+    student4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student4-pKazGXekCT1H5kzHBqmfOrM1968hML.png",
+    student5: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student5-kehwNSIKsgkTL6EkAPO2evB3qJWnRM.png",
+    student6: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student6-dJrMk7uUxYSRMp5tMJ3t4KYDOEIuNl.png",
+    coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/coach-LENT7C1nR9yWT7UBNTHgxnWakF66Pr.png",
+    ai_coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png",
+    parent1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent1-HbhESuJlC27LuGOGupullRXyEUzFLy.png",
+    parent2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent2-zluk4uVJLfzP8dBe0I7v5fVGSn5QfU.png",
+    parent3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent3-EzBDrjsFP5USAgnSPTXjcdNeq1bzSm.png",
+    parent4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent4-YHYTNRnNQ7bRb6aAfTNEFMozjGRlZq.png",
+    parent5: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent5-dGCLocpgcZw4lXWRiPmTHkXURBXXoH.png",
+    parent6: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent6-gKoeUywhHoKWJ4BPEk69iW6idztaLl.png",
+  }
+  return avatarMap[avatarId] || avatarMap["student1"]
+}
+
 const generateLearningHistory = () => {
   const history: { [key: string]: { subjects: string[]; understandingLevels: string[] } } = {}
   const today = new Date()
@@ -759,26 +779,6 @@ const RecentEncouragementCard = () => {
   )
 }
 
-const getAvatarSrc = (avatarId: string) => {
-  const avatarMap: { [key: string]: string } = {
-    student1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student1-xZFJU5uXJO4DEfUbq1jbTMQUXReyM0.png",
-    student2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student2-mZ9Q9oVm43IQoRyxSYytVFYgp3JS1V.png",
-    student3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student3-teUpOKnopXNhE2vGFtvz9RWtC7O6kv.png",
-    student4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student4-pKazGXekCT1H5kzHBqmfOrM1968hML.png",
-    student5: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student5-kehwNSIKsgkTL6EkAPO2evB3qJWnRM.png",
-    student6: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student6-dJrMk7uUxYSRMp5tMJ3t4KYDOEIuNl.png",
-    coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/coach-LENT7C1nR9yWT7UBNTHgxnWakF66Pr.png",
-    ai_coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png",
-    parent1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent1-HbhESuJlC27LuGOGupullRXyEUzFLy.png",
-    parent2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent2-zluk4uVJLfzP8dBe0I7v5fVGSn5QfU.png",
-    parent3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent3-EzBDrjsFP5USAgnSPTXjcdNeq1bzSm.png",
-    parent4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent4-YHYTNRnNQ7bRb6aAfTNEFMozjGRlZq.png",
-    parent5: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent5-dGCLocpgcZw4lXWRiPmTHkXURBXXoH.png",
-    parent6: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent6-gKoeUywhHoKWJ4BPEk69iW6idztaLl.png",
-  }
-  return avatarMap[avatarId] || avatarMap["student1"]
-}
-
 export default function StudentDashboard() {
   const [userName, setUserName] = useState("")
   const [selectedAvatar, setSelectedAvatar] = useState("")
@@ -794,6 +794,7 @@ export default function StudentDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-20">
+      {/* ヘッダー */}
       <div className="bg-card/90 backdrop-blur-sm border-b border-border/60 p-6 shadow-sm">
         <div className="flex items-center justify-between max-w-6xl mx-auto">
           <div className="flex items-center gap-4">
@@ -819,10 +820,10 @@ export default function StudentDashboard() {
       </div>
 
       <div className="max-w-6xl mx-auto p-6 space-y-8">
-        {/* タブレット・PC: 2列表示, スマホ: 1列表示 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* 左列 (タブレット・PC) / 上から順番 (スマホ) */}
-          <div className="space-y-8">
+        {/* スマホ: 1列表示, タブレット・PC: 2列表示 */}
+        <div className="space-y-8 lg:space-y-0">
+          {/* スマホでの表示順序 */}
+          <div className="lg:hidden space-y-8">
             {/* 1. AIコーチからのメッセージ */}
             <Card className="ai-coach-gradient border-0 shadow-2xl ai-coach-glow">
               <CardHeader className="pb-6">
@@ -849,20 +850,64 @@ export default function StudentDashboard() {
             {/* 2. 今日のミッション */}
             <TodayMissionCard />
 
-            {/* 5. 直近の応援メッセージ */}
-            <RecentEncouragementCard />
-          </div>
-
-          {/* 右列 (タブレット・PC) / 下から順番 (スマホ) */}
-          <div className="space-y-8">
             {/* 3. 学習カレンダー */}
             <LearningHistoryCalendar />
 
             {/* 4. 今週の科目別進捗バー */}
             <WeeklySubjectProgressCard />
 
+            {/* 5. 直近の応援メッセージ */}
+            <RecentEncouragementCard />
+
             {/* 6. 直近の学習履歴 */}
             <RecentLearningHistoryCard />
+          </div>
+
+          {/* タブレット・PC: 2列表示 */}
+          <div className="hidden lg:grid lg:grid-cols-2 lg:gap-8">
+            {/* 左列 */}
+            <div className="space-y-8">
+              {/* 1. AIコーチからのメッセージ */}
+              <Card className="ai-coach-gradient border-0 shadow-2xl ai-coach-glow">
+                <CardHeader className="pb-6">
+                  <CardTitle className="text-xl font-bold flex items-center gap-4">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-14 w-14 border-3 border-white/40 shadow-xl">
+                        <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
+                        <AvatarFallback className="bg-white/20 text-white font-bold text-lg">AI</AvatarFallback>
+                      </Avatar>
+                      <span className="text-slate-900 font-bold text-xl bg-white/95 px-4 py-2 rounded-xl shadow-lg">
+                        AIコーチからのメッセージ
+                      </span>
+                    </div>
+                    <MessageCircle className="h-7 w-7 text-white animate-pulse" />
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border border-white/60 shadow-xl">
+                    <p className="text-lg leading-relaxed text-slate-700">{mockData.aiCoachMessage.message}</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 2. 今日のミッション */}
+              <TodayMissionCard />
+
+              {/* 5. 直近の応援メッセージ */}
+              <RecentEncouragementCard />
+            </div>
+
+            {/* 右列 */}
+            <div className="space-y-8">
+              {/* 3. 学習カレンダー */}
+              <LearningHistoryCalendar />
+
+              {/* 4. 今週の科目別進捗バー */}
+              <WeeklySubjectProgressCard />
+
+              {/* 6. 直近の学習履歴 */}
+              <RecentLearningHistoryCard />
+            </div>
           </div>
         </div>
       </div>
