@@ -4,8 +4,9 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
 import { BottomNavigation } from "@/components/bottom-navigation"
-import { Flame, Calendar, Home, Flag, MessageCircle } from "lucide-react"
+import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart } from "lucide-react"
 
 const mockData = {
   user: {
@@ -30,19 +31,15 @@ const mockData = {
 }
 
 function getGreetingMessage(userName: string, streak: number) {
-  // 初回ユーザー（連続日数が1日）
   if (streak === 1) {
     return `はじめまして、${userName}さん`
   }
 
-  // 久しぶりのユーザー（連続日数が1日で、過去に学習履歴がある場合の想定）
-  // 実際の実装では最終学習日からの経過日数を確認する必要があります
-  const lastLoginDays = 0 // 仮の値、実際はAPIから取得
+  const lastLoginDays = 0
   if (lastLoginDays > 7) {
     return `お久しぶり、${userName}さん`
   }
 
-  // 通常のユーザー
   return `おかえりなさい、${userName}さん`
 }
 
@@ -50,16 +47,13 @@ const generateLearningHistory = () => {
   const history: { [key: string]: { subjects: string[]; understandingLevels: string[] } } = {}
   const today = new Date()
 
-  // 過去30日分のサンプルデータを生成
   for (let i = 0; i < 30; i++) {
     const date = new Date(today)
     date.setDate(date.getDate() - i)
     const dateStr = date.toISOString().split("T")[0]
 
-    // ランダムに学習データを生成（一部の日は学習なし）
     if (Math.random() > 0.3) {
-      // 70%の確率で学習あり
-      const subjectCount = Math.floor(Math.random() * 4) + 1 // 1-4科目
+      const subjectCount = Math.floor(Math.random() * 4) + 1
       const subjects = ["算数", "国語", "理科", "社会"].slice(0, subjectCount)
       const understandingLevels = subjects.map(() => {
         const levels = ["😄バッチリ理解", "😊できた", "😐ふつう", "😟ちょっと不安", "😥むずかしかった"]
@@ -108,15 +102,12 @@ const LearningHistoryCalendar = () => {
     const firstDay = new Date(targetMonth.getFullYear(), targetMonth.getMonth(), 1)
     const lastDay = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0)
 
-    // 月の最初の週の開始日を計算（日曜日から開始）
     const startDate = new Date(firstDay)
     startDate.setDate(startDate.getDate() - firstDay.getDay())
 
-    // 月の最後の週の終了日を計算
     const endDate = new Date(lastDay)
     endDate.setDate(endDate.getDate() + (6 - lastDay.getDay()))
 
-    // 週ごとにデータを生成
     const currentDate = new Date(startDate)
     while (currentDate <= endDate) {
       const week = []
@@ -216,7 +207,7 @@ const LearningHistoryCalendar = () => {
 const TodayMissionCard = () => {
   const getTodayWeekday = () => {
     const today = new Date()
-    return today.getDay() // 0: 日曜日, 1: 月曜日, ..., 6: 土曜日
+    return today.getDay()
   }
 
   const getCurrentHour = () => {
@@ -225,23 +216,22 @@ const TodayMissionCard = () => {
   }
 
   const getSubjectBlock = (weekday: number) => {
-    // ブロック定義
     const blocks = {
-      1: ["算数", "国語", "社会"], // 月曜日 - ブロックA
-      2: ["算数", "国語", "社会"], // 火曜日 - ブロックA
-      3: ["算数", "国語", "理科"], // 水曜日 - ブロックB
-      4: ["算数", "国語", "理科"], // 木曜日 - ブロックB
-      5: ["算数", "理科", "社会"], // 金曜日 - ブロックC
-      6: ["算数", "理科", "社会"], // 土曜日 - ブロックC
+      1: ["算数", "国語", "社会"],
+      2: ["算数", "国語", "社会"],
+      3: ["算数", "国語", "理科"],
+      4: ["算数", "国語", "理科"],
+      5: ["算数", "理科", "社会"],
+      6: ["算数", "理科", "社会"],
     }
     return blocks[weekday as keyof typeof blocks] || []
   }
 
   const getMissionMode = (weekday: number, hour: number) => {
-    if (weekday === 0) return "sunday" // 日曜日
-    if (weekday === 6 && hour >= 12) return "special" // 土曜日12時以降
-    if ([1, 3, 5].includes(weekday)) return "input" // 月・水・金：入力促進モード
-    if ([2, 4, 6].includes(weekday)) return "review" // 火・木・土：復習促進モード
+    if (weekday === 0) return "sunday"
+    if (weekday === 6 && hour >= 12) return "special"
+    if ([1, 3, 5].includes(weekday)) return "input"
+    if ([2, 4, 6].includes(weekday)) return "review"
     return "input"
   }
 
@@ -249,7 +239,6 @@ const TodayMissionCard = () => {
     const mode = getMissionMode(weekday, hour)
     const subjects = getSubjectBlock(weekday)
 
-    // サンプルデータ（実際にはAPIやlocalStorageから取得）
     const weeklySubjectData = {
       算数: { inputCount: 2, correctRate: 75, needsReview: true },
       国語: { inputCount: 1, correctRate: 85, needsReview: false },
@@ -267,7 +256,6 @@ const TodayMissionCard = () => {
     }
 
     if (mode === "special") {
-      // 土曜日12時以降：リフレクト + 正答率80%未満の2科目
       const lowAccuracySubjects = Object.entries(weeklySubjectData)
         .filter(([_, data]) => data.correctRate < 80 && data.inputCount > 0)
         .slice(0, 2)
@@ -295,20 +283,17 @@ const TodayMissionCard = () => {
       }
     }
 
-    // 平日のミッション
     const panels = subjects.map((subject) => {
       const data = weeklySubjectData[subject as keyof typeof weeklySubjectData]
       let status = "未入力"
       let needsAction = false
 
       if (mode === "input") {
-        // 入力促進モード：未入力の場合は強調
         if (data.inputCount > 0) {
           status = `進捗率${data.correctRate}%`
         }
         needsAction = data.inputCount === 0
       } else if (mode === "review") {
-        // 復習促進モード：一度しか入力されておらず正答率80%未満の場合は強調
         if (data.inputCount > 0) {
           status = `進捗率${data.correctRate}%`
         }
@@ -324,7 +309,6 @@ const TodayMissionCard = () => {
       }
     })
 
-    // 状況表示パネル用のメッセージ
     const actionNeededCount = panels.filter((p) => p.needsAction).length
     const completedCount = panels.length - actionNeededCount
 
@@ -393,12 +377,10 @@ const TodayMissionCard = () => {
   }
 
   const handleSparkNavigation = (subject?: string) => {
-    // スパーク機能への遷移（実際の実装では適切なルーティング）
     console.log(`Navigate to spark for subject: ${subject || "general"}`)
   }
 
   const handleReflectNavigation = () => {
-    // リフレクト機能への遷移
     console.log("Navigate to reflect")
   }
 
@@ -419,7 +401,6 @@ const TodayMissionCard = () => {
       </CardHeader>
       <CardContent className="space-y-6">
         {missionData.mode === "sunday" || missionData.mode === "special" ? (
-          // 日曜日・特別モード
           <div className="space-y-4">
             {missionData.panels.map((panel: any, index: number) => (
               <div
@@ -458,7 +439,6 @@ const TodayMissionCard = () => {
             ))}
           </div>
         ) : (
-          // 平日のミッション（3科目パネル + 状況表示パネル）
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {missionData.panels.map((panel: any, index: number) => (
@@ -492,7 +472,6 @@ const TodayMissionCard = () => {
               ))}
             </div>
 
-            {/* 4枚目のパネル：状況表示 */}
             <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 border-2 border-primary/20 shadow-lg">
               <div className="text-center">
                 <div className="mb-4">
@@ -506,6 +485,275 @@ const TodayMissionCard = () => {
             </div>
           </div>
         )}
+      </CardContent>
+    </Card>
+  )
+}
+
+const WeeklySubjectProgressCard = () => {
+  const [expandedSubject, setExpandedSubject] = useState<string | null>(null)
+
+  const subjectProgress = [
+    {
+      subject: "算数",
+      status: "進行中",
+      correctAnswers: 32,
+      totalQuestions: 50,
+      progressRate: 64,
+      color: "blue",
+      details: [
+        { content: "実験", remaining: 8 },
+        { content: "暗記", remaining: 7 },
+      ],
+    },
+    {
+      subject: "国語",
+      status: "あと少し",
+      correctAnswers: 28,
+      totalQuestions: 35,
+      progressRate: 80,
+      color: "yellow",
+      details: [
+        { content: "読解", remaining: 3 },
+        { content: "漢字", remaining: 4 },
+      ],
+    },
+    {
+      subject: "理科",
+      status: "未着手",
+      correctAnswers: 15,
+      totalQuestions: 30,
+      progressRate: 50,
+      color: "gray",
+      details: [
+        { content: "実験", remaining: 8 },
+        { content: "暗記", remaining: 7 },
+      ],
+    },
+    {
+      subject: "社会",
+      status: "達成",
+      correctAnswers: 25,
+      totalQuestions: 25,
+      progressRate: 100,
+      color: "green",
+      details: [],
+    },
+  ]
+
+  const getStatusColor = (status: string) => {
+    const colors = {
+      進行中: "bg-blue-100 text-blue-800 border-blue-200",
+      あと少し: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      未着手: "bg-gray-100 text-gray-800 border-gray-200",
+      達成: "bg-green-100 text-green-800 border-green-200",
+    }
+    return colors[status as keyof typeof colors] || "bg-gray-100 text-gray-800"
+  }
+
+  const getProgressColor = (color: string) => {
+    const colors = {
+      blue: "bg-blue-500",
+      yellow: "bg-yellow-500",
+      gray: "bg-gray-400",
+      green: "bg-green-500",
+    }
+    return colors[color as keyof typeof colors] || "bg-gray-400"
+  }
+
+  const getProgressBgColor = (color: string) => {
+    const colors = {
+      blue: "bg-blue-100",
+      yellow: "bg-yellow-100",
+      gray: "bg-gray-100",
+      green: "bg-green-100",
+    }
+    return colors[color as keyof typeof colors] || "bg-gray-100"
+  }
+
+  return (
+    <Card className="bg-gradient-to-br from-purple-50 to-blue-50 border-purple/20 shadow-lg">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-lg font-bold flex items-center gap-2">
+          <BarChart3 className="h-6 w-6 text-purple-600" />
+          今週の進捗
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {subjectProgress.map((subject, index) => (
+          <div key={index} className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="font-bold text-lg text-slate-800">{subject.subject}</span>
+                <Badge className={`text-xs px-2 py-1 border ${getStatusColor(subject.status)}`}>{subject.status}</Badge>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-slate-600">
+                  {subject.correctAnswers}/{subject.totalQuestions}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setExpandedSubject(expandedSubject === subject.subject ? null : subject.subject)}
+                  className="text-blue-600 hover:text-blue-800 p-1"
+                >
+                  詳細
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className={`w-full h-3 rounded-full ${getProgressBgColor(subject.color)}`}>
+                <div
+                  className={`h-3 rounded-full transition-all duration-500 ${getProgressColor(subject.color)}`}
+                  style={{ width: `${subject.progressRate}%` }}
+                />
+              </div>
+            </div>
+
+            {expandedSubject === subject.subject && subject.details.length > 0 && (
+              <div className="bg-white/80 rounded-lg p-4 border border-slate-200 space-y-2">
+                <h4 className="font-medium text-slate-700 mb-2">内容別残数</h4>
+                {subject.details.map((detail, detailIndex) => (
+                  <div key={detailIndex} className="flex justify-between items-center text-sm">
+                    <span className="text-slate-600">{detail.content}</span>
+                    <span className="font-medium text-slate-800">{detail.remaining}問</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  )
+}
+
+const RecentLearningHistoryCard = () => {
+  const recentHistory = [
+    {
+      date: "今日 14:30",
+      subject: "算数",
+      content: "分数の計算",
+      correctAnswers: 8,
+      totalQuestions: 10,
+      accuracy: 80,
+    },
+    {
+      date: "今日 10:15",
+      subject: "国語",
+      content: "漢字の読み書き",
+      correctAnswers: 9,
+      totalQuestions: 10,
+      accuracy: 90,
+    },
+    {
+      date: "昨日 16:45",
+      subject: "理科",
+      content: "植物の観察",
+      correctAnswers: 7,
+      totalQuestions: 10,
+      accuracy: 70,
+    },
+  ]
+
+  const getSubjectColor = (subject: string) => {
+    const colors = {
+      算数: "text-blue-600 bg-blue-50",
+      国語: "text-emerald-600 bg-emerald-50",
+      理科: "text-purple-600 bg-purple-50",
+      社会: "text-red-600 bg-red-50",
+    }
+    return colors[subject as keyof typeof colors] || "text-slate-600 bg-slate-50"
+  }
+
+  const getAccuracyColor = (accuracy: number) => {
+    if (accuracy >= 80) return "text-green-600 bg-green-50"
+    if (accuracy >= 60) return "text-yellow-600 bg-yellow-50"
+    return "text-red-600 bg-red-50"
+  }
+
+  return (
+    <Card className="bg-gradient-to-br from-green-50 to-blue-50 border-green/20 shadow-lg">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-lg font-bold flex items-center gap-2">
+          <Clock className="h-6 w-6 text-green-600" />
+          直近の学習履歴
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {recentHistory.map((item, index) => (
+          <div key={index} className="bg-white/80 rounded-lg p-4 border border-slate-200 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Badge className={`text-xs px-2 py-1 ${getSubjectColor(item.subject)}`}>{item.subject}</Badge>
+                <span className="text-sm text-slate-600">{item.date}</span>
+              </div>
+              <Badge className={`text-xs px-2 py-1 ${getAccuracyColor(item.accuracy)}`}>{item.accuracy}%</Badge>
+            </div>
+            <div className="space-y-1">
+              <p className="font-medium text-slate-800">{item.content}</p>
+              <p className="text-sm text-slate-600">
+                正答数: {item.correctAnswers}/{item.totalQuestions}問
+              </p>
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  )
+}
+
+const RecentEncouragementCard = () => {
+  const encouragementMessages = [
+    {
+      date: "今日",
+      from: "お母さん",
+      message: "算数がんばったね！明日もファイト！",
+      avatar: "parent1",
+    },
+    {
+      date: "昨日",
+      from: "田中先生",
+      message: "理科の実験問題、よくできていました",
+      avatar: "coach",
+    },
+    {
+      date: "一昨日",
+      from: "お父さん",
+      message: "毎日コツコツ続けてえらいね",
+      avatar: "parent2",
+    },
+  ]
+
+  return (
+    <Card className="bg-gradient-to-br from-pink-50 to-red-50 border-pink/20 shadow-lg">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-lg font-bold flex items-center gap-2">
+          <Heart className="h-6 w-6 text-pink-600" />
+          直近の応援メッセージ
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {encouragementMessages.map((message, index) => (
+          <div key={index} className="bg-white/80 rounded-lg p-4 border border-slate-200">
+            <div className="flex items-start gap-3">
+              <Avatar className="h-10 w-10 border-2 border-pink-200">
+                <AvatarImage src={getAvatarSrc(message.avatar) || "/placeholder.svg"} alt={message.from} />
+                <AvatarFallback className="bg-pink-100 text-pink-600 font-bold">
+                  {message.from.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-slate-800">{message.from}</span>
+                  <span className="text-sm text-slate-500">{message.date}</span>
+                </div>
+                <p className="text-sm text-slate-700 leading-relaxed">{message.message}</p>
+              </div>
+            </div>
+          </div>
+        ))}
       </CardContent>
     </Card>
   )
@@ -571,8 +819,11 @@ export default function StudentDashboard() {
       </div>
 
       <div className="max-w-6xl mx-auto p-6 space-y-8">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-          <div className="lg:col-span-3 space-y-8">
+        {/* タブレット・PC: 2列表示, スマホ: 1列表示 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* 左列 (タブレット・PC) / 上から順番 (スマホ) */}
+          <div className="space-y-8">
+            {/* 1. AIコーチからのメッセージ */}
             <Card className="ai-coach-gradient border-0 shadow-2xl ai-coach-glow">
               <CardHeader className="pb-6">
                 <CardTitle className="text-xl font-bold flex items-center gap-4">
@@ -595,13 +846,23 @@ export default function StudentDashboard() {
               </CardContent>
             </Card>
 
-            <div data-mission-section>
-              <TodayMissionCard />
-            </div>
+            {/* 2. 今日のミッション */}
+            <TodayMissionCard />
+
+            {/* 5. 直近の応援メッセージ */}
+            <RecentEncouragementCard />
           </div>
 
-          <div className="lg:col-span-2">
+          {/* 右列 (タブレット・PC) / 下から順番 (スマホ) */}
+          <div className="space-y-8">
+            {/* 3. 学習カレンダー */}
             <LearningHistoryCalendar />
+
+            {/* 4. 今週の科目別進捗バー */}
+            <WeeklySubjectProgressCard />
+
+            {/* 6. 直近の学習履歴 */}
+            <RecentLearningHistoryCard />
           </div>
         </div>
       </div>
