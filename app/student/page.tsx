@@ -865,7 +865,7 @@ export default function StudentDashboard() {
 
           {/* タブレット・PC: 2列表示 */}
           <div className="hidden lg:grid lg:grid-cols-2 lg:gap-8">
-            {/* 左列 */}
+            {/* 左列（メイン） */}
             <div className="space-y-8">
               {/* 1. AIコーチからのメッセージ */}
               <Card className="ai-coach-gradient border-0 shadow-2xl ai-coach-glow">
@@ -893,20 +893,20 @@ export default function StudentDashboard() {
               {/* 2. 今日のミッション */}
               <TodayMissionCard />
 
-              {/* 5. 直近の応援メッセージ */}
+              {/* 3. 直近の応援メッセージ */}
               <RecentEncouragementCard />
+
+              {/* 4. 直近の学習履歴 - moved to left column */}
+              <RecentLearningHistoryCard />
             </div>
 
-            {/* 右列 */}
+            {/* 右列（サブ） */}
             <div className="space-y-8">
-              {/* 3. 学習カレンダー */}
+              {/* 1. 学習カレンダー */}
               <LearningHistoryCalendar />
 
-              {/* 4. 今週の科目別進捗バー */}
+              {/* 2. 今週の科目別進捗バー */}
               <WeeklySubjectProgressCard />
-
-              {/* 6. 直近の学習履歴 */}
-              <RecentLearningHistoryCard />
             </div>
           </div>
         </div>
