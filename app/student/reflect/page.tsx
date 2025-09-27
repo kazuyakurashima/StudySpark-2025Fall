@@ -320,10 +320,24 @@ export default function ReflectPage() {
         return messageDate >= oneWeekAgo
       } else if (periodFilter === "1ヶ月") {
         const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-        if (oneMonthAgo.getTime() < 5) {
+        const filteredByMonth = encouragementMessages.filter(
+          (msg) =>
+            (subjectFilter === "全科目" || msg.subject === subjectFilter) && new Date(msg.recordedAt) >= oneMonthAgo,
+        )
+        if (filteredByMonth.length < 5) {
           return true // Show all if less than 5 records in 1 month
         }
         return messageDate >= oneMonthAgo
+      } else if (periodFilter === "3ヶ月") {
+        const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+        const filteredByThreeMonths = encouragementMessages.filter(
+          (msg) =>
+            (subjectFilter === "全科目" || msg.subject === subjectFilter) && new Date(msg.recordedAt) >= threeMonthsAgo,
+        )
+        if (filteredByThreeMonths.length < 5) {
+          return true // Show all if less than 5 records in 3 months
+        }
+        return messageDate >= threeMonthsAgo
       }
 
       return true
@@ -348,7 +362,18 @@ export default function ReflectPage() {
       return sessionDate >= oneWeekAgo
     } else if (coachingPeriodFilter === "1ヶ月") {
       const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+      const filteredByMonth = coachingHistory.filter((session) => new Date(session.recordedAt) >= oneMonthAgo)
+      if (filteredByMonth.length < 5) {
+        return true // Show all if less than 5 records in 1 month
+      }
       return sessionDate >= oneMonthAgo
+    } else if (coachingPeriodFilter === "3ヶ月") {
+      const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+      const filteredByThreeMonths = coachingHistory.filter((session) => new Date(session.recordedAt) >= threeMonthsAgo)
+      if (filteredByThreeMonths.length < 5) {
+        return true // Show all if less than 5 records in 3 months
+      }
+      return sessionDate >= threeMonthsAgo
     }
 
     return true
@@ -366,10 +391,26 @@ export default function ReflectPage() {
         return recordDate >= oneWeekAgo
       } else if (learningPeriodFilter === "1ヶ月") {
         const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-        if (oneMonthAgo.getTime() < 5) {
+        const filteredByMonth = sparkLearningHistory.filter(
+          (record) =>
+            (learningSubjectFilter === "全科目" || record.subject === learningSubjectFilter) &&
+            new Date(record.recordedAt) >= oneMonthAgo,
+        )
+        if (filteredByMonth.length < 5) {
           return true // Show all if less than 5 records in 1 month
         }
         return recordDate >= oneMonthAgo
+      } else if (learningPeriodFilter === "3ヶ月") {
+        const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+        const filteredByThreeMonths = sparkLearningHistory.filter(
+          (record) =>
+            (learningSubjectFilter === "全科目" || record.subject === learningSubjectFilter) &&
+            new Date(record.recordedAt) >= threeMonthsAgo,
+        )
+        if (filteredByThreeMonths.length < 5) {
+          return true // Show all if less than 5 records in 3 months
+        }
+        return recordDate >= threeMonthsAgo
       }
 
       return true
@@ -454,7 +495,7 @@ export default function ReflectPage() {
           </Card>
         )}
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 sm:space-y-8">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 sm:space-8">
           <TabsList className="grid w-full grid-cols-3 bg-white/90 backdrop-blur-md border border-slate-200/60 shadow-xl p-1.5 rounded-2xl h-14 sm:h-16 lg:h-18">
             <TabsTrigger
               value="history"
@@ -527,6 +568,7 @@ export default function ReflectPage() {
                       >
                         <option value="1週間">1週間</option>
                         <option value="1ヶ月">1ヶ月</option>
+                        <option value="3ヶ月">3ヶ月</option>
                         <option value="全て">全て</option>
                       </select>
                     </div>
@@ -742,6 +784,7 @@ export default function ReflectPage() {
                       >
                         <option value="1週間">1週間</option>
                         <option value="1ヶ月">1ヶ月</option>
+                        <option value="3ヶ月">3ヶ月</option>
                         <option value="全て">全て</option>
                       </select>
                     </div>
@@ -961,6 +1004,7 @@ export default function ReflectPage() {
                   >
                     <option value="1週間">1週間</option>
                     <option value="1ヶ月">1ヶ月</option>
+                    <option value="3ヶ月">3ヶ月</option>
                     <option value="全て">全て</option>
                   </select>
                 </div>
