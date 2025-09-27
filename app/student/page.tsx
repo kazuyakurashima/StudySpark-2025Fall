@@ -227,7 +227,7 @@ const LearningHistoryCalendar = () => {
 const TodayMissionCard = () => {
   const getTodayWeekday = () => {
     const today = new Date()
-    return today.getDay()
+    return today.getDay() // 0=日曜, 1=月曜, ..., 6=土曜
   }
 
   const getCurrentHour = () => {
@@ -237,44 +237,57 @@ const TodayMissionCard = () => {
 
   const getSubjectBlock = (weekday: number) => {
     const blocks = {
-      1: ["算数", "国語", "社会"],
-      2: ["算数", "国語", "社会"],
-      3: ["算数", "国語", "理科"],
-      4: ["算数", "国語", "理科"],
-      5: ["算数", "理科", "社会"],
-      6: ["算数", "理科", "社会"],
+      1: ["算数", "国語", "社会"], // 月曜 - ブロックA
+      2: ["算数", "国語", "社会"], // 火曜 - ブロックA
+      3: ["算数", "国語", "理科"], // 水曜 - ブロックB
+      4: ["算数", "国語", "理科"], // 木曜 - ブロックB
+      5: ["算数", "理科", "社会"], // 金曜 - ブロックC
+      6: ["算数", "理科", "社会"], // 土曜 - ブロックC
     }
     return blocks[weekday as keyof typeof blocks] || []
   }
 
   const getMissionMode = (weekday: number, hour: number) => {
-    if (weekday === 0) return "sunday"
-    if (weekday === 6 && hour >= 12) return "special"
-    if ([1, 3, 5].includes(weekday)) return "input"
-    if ([2, 4, 6].includes(weekday)) return "review"
+    if (weekday === 0) return "sunday" // 日曜日
+    if (weekday === 6 && hour >= 12) return "special" // 土曜12時以降
+    if ([1, 3, 5].includes(weekday)) return "input" // 月・水・金：入力促進モード
+    if ([2, 4, 6].includes(weekday)) return "review" // 火・木・土：復習促進モード
     return "input"
   }
+
+  // モックデータ：実際の実装では外部データソースから取得
+  const getWeeklySubjectData = () => ({
+    算数: { inputCount: 2, correctRate: 75, needsReview: true, sessions: [{ rate: 65 }, { rate: 75 }] },
+    国語: { inputCount: 1, correctRate: 85, needsReview: false, sessions: [{ rate: 85 }] },
+    理科: { inputCount: 0, correctRate: 0, needsReview: true, sessions: [] },
+    社会: { inputCount: 1, correctRate: 60, needsReview: true, sessions: [{ rate: 60 }] },
+  })
 
   const getMissionData = (weekday: number, hour: number) => {
     const mode = getMissionMode(weekday, hour)
     const subjects = getSubjectBlock(weekday)
+    const weeklySubjectData = getWeeklySubjectData()
 
-    const weeklySubjectData = {
-      算数: { inputCount: 2, correctRate: 75, needsReview: true },
-      国語: { inputCount: 1, correctRate: 85, needsReview: false },
-      理科: { inputCount: 0, correctRate: 0, needsReview: true },
-      社会: { inputCount: 1, correctRate: 60, needsReview: true },
-    }
-
+    // 日曜日：リフレクト促進
     if (mode === "sunday") {
       return {
         mode: "sunday",
         subjects: [],
-        panels: [{ name: "リフレクト", status: "完了", description: "週間振り返り", type: "reflect" }],
-        statusMessage: "今週もお疲れさまでした！",
+        panels: [
+          {
+            name: "リフレクト",
+            status: "未完了",
+            description: "週間振り返りを記録しよう",
+            type: "reflect",
+            needsAction: true,
+          },
+        ],
+        statusMessage: "今週の学習を振り返って、来週に向けて準備しよう！",
+        completionStatus: "0/1完了",
       }
     }
 
+    // 土曜12時以降：特別モード
     if (mode === "special") {
       const lowAccuracySubjects = Object.entries(weeklySubjectData)
         .filter(([_, data]) => data.correctRate < 80 && data.inputCount > 0)
@@ -286,54 +299,79 @@ const TodayMissionCard = () => {
           type: "review",
         }))
 
+      const panels = [
+        {
+          name: "リフレクト",
+          status: "未完了",
+          description: "週間振り返り",
+          type: "reflect",
+          needsAction: true,
+        },
+        ...lowAccuracySubjects.map((item) => ({
+          subject: item.subject,
+          correctRate: item.correctRate,
+          status: `進捗率${item.correctRate}%`,
+          needsAction: item.needsAction,
+          type: "review",
+        })),
+      ]
+
+      const completedCount = panels.filter((p) => !p.needsAction).length
+
       return {
         mode: "special",
         subjects: lowAccuracySubjects.map((item) => item.subject),
-        panels: [
-          { name: "リフレクト", status: "未完了", description: "週間振り返り", type: "reflect" },
-          ...lowAccuracySubjects.map((item) => ({
-            subject: item.subject,
-            correctRate: item.correctRate,
-            status: `進捗率${item.correctRate}%`,
-            needsAction: item.needsAction,
-            type: "review",
-          })),
-        ],
+        panels,
         statusMessage: "週間振り返りと復習で今週を締めくくろう！",
+        completionStatus: `${completedCount}/${panels.length}完了`,
       }
     }
 
+    // 通常モード（入力促進・復習促進）
     const panels = subjects.map((subject) => {
       const data = weeklySubjectData[subject as keyof typeof weeklySubjectData]
       let status = "未入力"
       let needsAction = false
+      let isCompleted = false
 
       if (mode === "input") {
+        // 入力促進モード：記録されたら完了
         if (data.inputCount > 0) {
           status = `進捗率${data.correctRate}%`
+          isCompleted = true
+        } else {
+          needsAction = true
         }
-        needsAction = data.inputCount === 0
       } else if (mode === "review") {
+        // 復習促進モード：再入力して正答率向上で完了
         if (data.inputCount > 0) {
           status = `進捗率${data.correctRate}%`
         }
-        needsAction = data.inputCount === 1 && data.correctRate < 80
+        if (data.inputCount === 1 && data.correctRate < 80) {
+          needsAction = true
+        } else if (data.inputCount > 1) {
+          isCompleted = true
+        }
       }
 
       return {
         subject,
         status,
         needsAction,
+        isCompleted,
         correctRate: data.correctRate,
         inputCount: data.inputCount,
       }
     })
 
+    const completedCount = panels.filter((p) => p.isCompleted).length
     const actionNeededCount = panels.filter((p) => p.needsAction).length
-    const completedCount = panels.length - actionNeededCount
+
+    // 全て完了した場合の判定
+    const allCompleted = completedCount === panels.length
 
     let statusMessage = ""
-    if (actionNeededCount === 0) {
+    if (allCompleted) {
       statusMessage = mode === "input" ? "全て入力完了！素晴らしいです！" : "全て復習完了！今日もよく頑張りました！"
     } else if (actionNeededCount === 1) {
       const remainingSubject = panels.find((p) => p.needsAction)?.subject
@@ -354,6 +392,7 @@ const TodayMissionCard = () => {
       panels,
       statusMessage,
       completionStatus: `${completedCount}/${panels.length}完了`,
+      allCompleted,
     }
   }
 
@@ -379,17 +418,18 @@ const TodayMissionCard = () => {
     }
     if (status.includes("進捗率")) {
       const rate = Number.parseInt(status.match(/\d+/)?.[0] || "0")
-      if (rate >= 80) return "bg-primary text-white border-primary font-bold"
-      if (rate >= 60) return "bg-blue-100 text-blue-800 border-blue-200"
-      return "bg-yellow-100 text-yellow-800 border-yellow-200"
+      if (rate >= 80) return "bg-green-100 text-green-800 border-green-200 font-bold"
+      if (rate >= 60) return "bg-yellow-100 text-yellow-800 border-yellow-200"
+      return "bg-red-100 text-red-800 border-red-200"
     }
+    if (status === "完了") return "bg-green-100 text-green-800 border-green-200 font-bold"
     return "bg-slate-100 text-slate-700 border-slate-300"
   }
 
   const getModeTitle = () => {
     const titles = {
-      sunday: "今週の振り返り",
-      special: "週末スペシャル",
+      sunday: "今日のミッション！",
+      special: "今日のミッション！",
       input: "今日のミッション！",
       review: "今日のミッション！",
     }
@@ -398,10 +438,12 @@ const TodayMissionCard = () => {
 
   const handleSparkNavigation = (subject?: string) => {
     console.log(`Navigate to spark for subject: ${subject || "general"}`)
+    // 実際の実装では、スパーク機能への遷移を行う
   }
 
   const handleReflectNavigation = () => {
     console.log("Navigate to reflect")
+    // 実際の実装では、リフレクト機能への遷移を行う
   }
 
   return (
@@ -420,16 +462,32 @@ const TodayMissionCard = () => {
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {missionData.mode === "sunday" || missionData.mode === "special" ? (
+        {/* 完了パネル表示 */}
+        {missionData.allCompleted && (
+          <div className="bg-gradient-to-r from-green-400 to-blue-500 text-white rounded-xl p-6 text-center shadow-lg mb-6">
+            <div className="flex items-center justify-center mb-3">
+              <div className="bg-white/20 rounded-full p-3">
+                <Flag className="h-8 w-8 text-white" />
+              </div>
+            </div>
+            <h3 className="text-xl font-bold mb-2">今日のミッション完了！</h3>
+            <p className="text-white/90">素晴らしい！今日も一日お疲れさまでした！</p>
+          </div>
+        )}
+
+        {/* 日曜日・特別モード */}
+        {(missionData.mode === "sunday" || missionData.mode === "special") && (
           <div className="space-y-4">
             {missionData.panels.map((panel: any, index: number) => (
               <div
                 key={index}
                 className={`flex items-center justify-between p-6 rounded-xl bg-white/90 border-2 shadow-sm transition-all duration-300 hover:shadow-md ${
-                  panel.type === "reflect" ? "border-primary/30" : getSubjectColor(panel.subject || "")
+                  panel.type === "reflect"
+                    ? "border-primary/30 bg-gradient-to-r from-primary/5 to-accent/5"
+                    : getSubjectColor(panel.subject || "")
                 }`}
               >
-                <div>
+                <div className="flex-1">
                   <h3 className="font-bold text-lg text-slate-800">
                     {panel.type === "reflect" ? panel.name : panel.subject}
                   </h3>
@@ -439,26 +497,29 @@ const TodayMissionCard = () => {
                   )}
                 </div>
                 <div className="flex items-center gap-3">
-                  <Badge className={getStatusBadgeColor(panel.status, panel.needsAction || false)}>
+                  <Badge className={`border ${getStatusBadgeColor(panel.status, panel.needsAction || false)}`}>
                     {panel.status}
                   </Badge>
-                  <button
+                  <Button
                     onClick={() =>
                       panel.type === "reflect" ? handleReflectNavigation() : handleSparkNavigation(panel.subject)
                     }
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
                       panel.needsAction || panel.status === "未完了"
-                        ? "bg-primary text-white hover:bg-primary/90"
-                        : "bg-slate-100 text-slate-600"
+                        ? "bg-primary text-white hover:bg-primary/90 shadow-lg hover:scale-105"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                     }`}
                   >
-                    {panel.type === "reflect" ? "振り返る" : "復習する"}
-                  </button>
+                    {panel.type === "reflect" ? "振り返る" : "今すぐ記録する"}
+                  </Button>
                 </div>
               </div>
             ))}
           </div>
-        ) : (
+        )}
+
+        {/* 通常モード（入力促進・復習促進） */}
+        {(missionData.mode === "input" || missionData.mode === "review") && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {missionData.panels.map((panel: any, index: number) => (
@@ -477,7 +538,7 @@ const TodayMissionCard = () => {
                         {panel.status}
                       </Badge>
                     </div>
-                    <button
+                    <Button
                       onClick={() => handleSparkNavigation(panel.subject)}
                       className={`w-full py-3 px-4 rounded-lg text-sm font-bold transition-all duration-300 ${
                         panel.needsAction
@@ -486,12 +547,13 @@ const TodayMissionCard = () => {
                       }`}
                     >
                       今すぐ記録する
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))}
             </div>
 
+            {/* ミッション状況表示 */}
             <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 border-2 border-primary/20 shadow-lg">
               <div className="text-center">
                 <div className="mb-4">
