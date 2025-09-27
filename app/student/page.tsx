@@ -255,12 +255,11 @@ const TodayMissionCard = () => {
     return "input"
   }
 
-  // モックデータ：実際の実装では外部データソースから取得
   const getWeeklySubjectData = () => ({
-    算数: { inputCount: 2, correctRate: 75, needsReview: true, sessions: [{ rate: 65 }, { rate: 75 }] },
-    国語: { inputCount: 1, correctRate: 85, needsReview: false, sessions: [{ rate: 85 }] },
-    理科: { inputCount: 0, correctRate: 0, needsReview: true, sessions: [] },
-    社会: { inputCount: 1, correctRate: 60, needsReview: true, sessions: [{ rate: 60 }] },
+    算数: { inputCount: 2, correctRate: 85, needsReview: false, sessions: [{ rate: 65 }, { rate: 85 }] },
+    国語: { inputCount: 2, correctRate: 90, needsReview: false, sessions: [{ rate: 85 }, { rate: 90 }] },
+    理科: { inputCount: 2, correctRate: 88, needsReview: false, sessions: [{ rate: 70 }, { rate: 88 }] },
+    社会: { inputCount: 2, correctRate: 82, needsReview: false, sessions: [{ rate: 60 }, { rate: 82 }] },
   })
 
   const getMissionData = (weekday: number, hour: number) => {
@@ -270,25 +269,31 @@ const TodayMissionCard = () => {
 
     // 日曜日：リフレクト促進
     if (mode === "sunday") {
+      const isReflectCompleted = false // 実際の実装では外部データから取得
       return {
         mode: "sunday",
         subjects: [],
         panels: [
           {
             name: "リフレクト",
-            status: "未完了",
+            status: isReflectCompleted ? "完了" : "未完了",
             description: "週間振り返りを記録しよう",
             type: "reflect",
-            needsAction: true,
+            needsAction: !isReflectCompleted,
+            isCompleted: isReflectCompleted,
           },
         ],
-        statusMessage: "今週の学習を振り返って、来週に向けて準備しよう！",
-        completionStatus: "0/1完了",
+        statusMessage: isReflectCompleted
+          ? "今週の振り返りが完了しました！素晴らしいです！"
+          : "今週の学習を振り返って、来週に向けて準備しよう！",
+        completionStatus: isReflectCompleted ? "1/1完了" : "0/1完了",
+        allCompleted: isReflectCompleted,
       }
     }
 
     // 土曜12時以降：特別モード
     if (mode === "special") {
+      const isReflectCompleted = false // 実際の実装では外部データから取得
       const lowAccuracySubjects = Object.entries(weeklySubjectData)
         .filter(([_, data]) => data.correctRate < 80 && data.inputCount > 0)
         .slice(0, 2)
@@ -297,15 +302,17 @@ const TodayMissionCard = () => {
           correctRate: data.correctRate,
           needsAction: true,
           type: "review",
+          isCompleted: false,
         }))
 
       const panels = [
         {
           name: "リフレクト",
-          status: "未完了",
+          status: isReflectCompleted ? "完了" : "未完了",
           description: "週間振り返り",
           type: "reflect",
-          needsAction: true,
+          needsAction: !isReflectCompleted,
+          isCompleted: isReflectCompleted,
         },
         ...lowAccuracySubjects.map((item) => ({
           subject: item.subject,
@@ -313,17 +320,22 @@ const TodayMissionCard = () => {
           status: `進捗率${item.correctRate}%`,
           needsAction: item.needsAction,
           type: "review",
+          isCompleted: item.isCompleted,
         })),
       ]
 
-      const completedCount = panels.filter((p) => !p.needsAction).length
+      const completedCount = panels.filter((p) => p.isCompleted).length
+      const allCompleted = completedCount === panels.length
 
       return {
         mode: "special",
         subjects: lowAccuracySubjects.map((item) => item.subject),
         panels,
-        statusMessage: "週間振り返りと復習で今週を締めくくろう！",
+        statusMessage: allCompleted
+          ? "特別ミッション完了！今週もお疲れさまでした！"
+          : "週間振り返りと復習で今週を締めくくろう！",
         completionStatus: `${completedCount}/${panels.length}完了`,
+        allCompleted,
       }
     }
 
@@ -423,17 +435,12 @@ const TodayMissionCard = () => {
       return "bg-red-100 text-red-800 border-red-200"
     }
     if (status === "完了") return "bg-green-100 text-green-800 border-green-200 font-bold"
+    if (status === "未完了") return "bg-slate-100 text-slate-700 border-slate-300"
     return "bg-slate-100 text-slate-700 border-slate-300"
   }
 
   const getModeTitle = () => {
-    const titles = {
-      sunday: "今日のミッション！",
-      special: "今日のミッション！",
-      input: "今日のミッション！",
-      review: "今日のミッション！",
-    }
-    return titles[missionData.mode as keyof typeof titles] || "今日のミッション！"
+    return "今日のミッション！"
   }
 
   const handleSparkNavigation = (subject?: string) => {
@@ -462,7 +469,6 @@ const TodayMissionCard = () => {
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* 完了パネル表示 */}
         {missionData.allCompleted && (
           <div className="bg-gradient-to-r from-green-400 to-blue-500 text-white rounded-xl p-6 text-center shadow-lg mb-6">
             <div className="flex items-center justify-center mb-3">
