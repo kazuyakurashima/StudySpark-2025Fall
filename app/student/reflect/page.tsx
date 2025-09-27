@@ -34,54 +34,58 @@ const sparkLearningHistory = [
   {
     recordedAt: "2024-09-06 20:30",
     studyDate: "2024-09-06",
-    studySession: "第3回", // 学習回を追加
+    studySession: "第3回",
     subject: "算数",
-    learningContent: ["授業", "宿題"],
-    correctAnswers: 8, // 正答数を追加
-    totalQuestions: 10, // 総問題数を追加
-    correctRate: 80, // 正答率を追加（パーセント）
+    learningContent: ["類題", "基本問題"],
+    correctAnswers: 8,
+    totalQuestions: 10,
+    correctRate: 80,
+    previousCorrectRate: 65, // 前回の正答率を追加
     understanding: "バッチリ理解",
     understandingEmoji: "😄",
-    reflection: "図形問題が最初は難しかったけど、先生の説明でよく分かりました。宿題も全部解けました！",
+    reflection: "図形問題が最初は難しかったけど、先生の説明でよく分かりました。基本問題も全部解けました！",
     level: "Blaze",
   },
   {
     recordedAt: "2024-09-06 19:45",
     studyDate: "2024-09-06",
-    studySession: "第2回", // 学習回を追加
+    studySession: "第2回",
     subject: "国語",
-    learningContent: ["授業", "週テスト・復習ナビ"],
-    correctAnswers: 7, // 正答数を追加
-    totalQuestions: 10, // 総問題数を追加
-    correctRate: 70, // 正答率を追加（パーセント）
+    learningContent: ["確認問題", "演習問題集（基本問題）"],
+    correctAnswers: 7,
+    totalQuestions: 10,
+    correctRate: 70,
+    previousCorrectRate: 55,
     understanding: "できた",
     understandingEmoji: "😊",
-    reflection: "漢字の読み方を復習しました。週テスト対策もできて良かったです。",
+    reflection: "漢字の読み方を復習しました。確認問題で基礎を固められて良かったです。",
     level: "Flame",
   },
   {
     recordedAt: "2024-09-05 21:15",
     studyDate: "2024-09-05",
-    studySession: "第1回", // 学習回を追加
+    studySession: "第1回",
     subject: "理科",
-    learningContent: ["宿題", "入試対策・過去問"],
-    correctAnswers: 6, // 正答数を追加
-    totalQuestions: 10, // 総問題数を追加
-    correctRate: 60, // 正答率を追加（パーセント）
+    learningContent: ["演習問題集（練習問題）", "演習問題集（発展問題）"],
+    correctAnswers: 6,
+    totalQuestions: 10,
+    correctRate: 60,
+    previousCorrectRate: 45,
     understanding: "ふつう",
     understandingEmoji: "😐",
-    reflection: "実験の問題は理解できたけど、計算問題がまだ少し難しいです。",
+    reflection: "実験の問題は理解できたけど、発展問題がまだ少し難しいです。",
     level: "Flame",
   },
   {
     recordedAt: "2024-09-05 20:00",
     studyDate: "2024-09-05",
-    studySession: "第4回", // 学習回を追加
+    studySession: "第4回",
     subject: "社会",
-    learningContent: ["授業"],
-    correctAnswers: 5, // 正答数を追加
-    totalQuestions: 10, // 総問題数を追加
-    correctRate: 50, // 正答率を追加（パーセント）
+    learningContent: ["演習問題集（練習問題）"],
+    correctAnswers: 5,
+    totalQuestions: 10,
+    correctRate: 50,
+    previousCorrectRate: 30,
     understanding: "ちょっと不安",
     understandingEmoji: "😟",
     reflection: "歴史の年号を覚えるのが大変でした。もう少し復習が必要です。",
@@ -90,24 +94,45 @@ const sparkLearningHistory = [
   {
     recordedAt: "2024-09-04 19:30",
     studyDate: "2024-09-04",
-    studySession: "第5回", // 学習回を追加
+    studySession: "第5回",
     subject: "算数",
-    learningContent: ["授業", "宿題", "週テスト・復習ナビ"],
-    correctAnswers: 9, // 正答数を追加
-    totalQuestions: 10, // 総問題数を追加
-    correctRate: 90, // 正答率を追加（パーセント）
+    learningContent: ["練習問題", "演習問題集（実戦演習）"],
+    correctAnswers: 9,
+    totalQuestions: 10,
+    correctRate: 90,
+    previousCorrectRate: 75,
     understanding: "できた",
     understandingEmoji: "😊",
-    reflection: "分数の計算問題をたくさん練習しました。だんだん慣れてきた感じです。",
+    reflection: "分数の計算問題をたくさん練習しました。実戦演習でも良い結果が出せました。",
     level: "Flame",
+  },
+  {
+    recordedAt: "2024-09-03 18:15",
+    studyDate: "2024-09-03",
+    studySession: "第1回",
+    subject: "算数",
+    learningContent: ["類題"],
+    correctAnswers: 6,
+    totalQuestions: 10,
+    correctRate: 60,
+    previousCorrectRate: null, // 初回なので前回データなし
+    understanding: "ふつう",
+    understandingEmoji: "😐",
+    reflection: "新しい単元の類題に取り組みました。基本的な考え方は理解できました。",
+    level: "Spark",
   },
 ]
 
 const learningContentColors = {
-  授業: { bg: "bg-red-50", text: "text-red-700", border: "border-red-200" },
-  宿題: { bg: "bg-red-50", text: "text-red-700", border: "border-red-200" },
-  週テスト・復習ナビ: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
-  入試対策・過去問: { bg: "bg-gray-50", text: "text-gray-700", border: "border-gray-200" },
+  類題: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
+  基本問題: { bg: "bg-green-50", text: "text-green-700", border: "border-green-200" },
+  練習問題: { bg: "bg-yellow-50", text: "text-yellow-700", border: "border-yellow-200" },
+  確認問題: { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" },
+  "演習問題集（基本問題）": { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
+  "演習問題集（練習問題）": { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" },
+  "演習問題集（発展問題）": { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" },
+  "演習問題集（実戦演習）": { bg: "bg-red-50", text: "text-red-700", border: "border-red-200" },
+  "演習問題集（発展問題・記述問題）": { bg: "bg-pink-50", text: "text-pink-700", border: "border-pink-200" },
 }
 
 const levelColors = {
@@ -122,44 +147,47 @@ const encouragementMessages = [
     recordedAt: "2024-09-06 18:30",
     from: "お母さん",
     avatar: "parent1",
-    message: "算数がんばったね！明日もファイト！",
+    message: "算数の類題と基本問題、よくがんばったね！明日もファイト！",
     type: "parent",
     studySession: "第3回",
     subject: "算数",
-    learningContent: ["授業", "宿題"],
+    learningContent: ["類題", "基本問題"],
     correctRate: 80,
     correctAnswers: 8,
     totalQuestions: 10,
-    reflection: "図形問題が最初は難しかったけど、先生の説明でよく分かりました。宿題も全部解けました！",
+    previousCorrectRate: 65,
+    reflection: "図形問題が最初は難しかったけど、先生の説明でよく分かりました。基本問題も全部解けました！",
   },
   {
     id: 2,
     recordedAt: "2024-09-06 15:20",
     from: "田中先生",
     avatar: "coach",
-    message: "理科の実験問題、よくできていました。この調子で続けましょう。",
+    message: "理科の演習問題、着実に力がついていますね。この調子で続けましょう。",
     type: "teacher",
     studySession: "第1回",
     subject: "理科",
-    learningContent: ["宿題", "入試対策・過去問"],
+    learningContent: ["演習問題集（練習問題）", "演習問題集（発展問題）"],
     correctRate: 60,
     correctAnswers: 6,
     totalQuestions: 10,
-    reflection: "実験の問題は理解できたけど、計算問題がまだ少し難しいです。",
+    previousCorrectRate: 45,
+    reflection: "実験の問題は理解できたけど、発展問題がまだ少し難しいです。",
   },
   {
     id: 3,
     recordedAt: "2024-09-05 20:15",
     from: "お父さん",
     avatar: "parent2",
-    message: "毎日コツコツ続けているのが素晴らしい！",
+    message: "社会の演習問題、前回より20%も上がったね！素晴らしい成長です！",
     type: "parent",
     studySession: "第4回",
     subject: "社会",
-    learningContent: ["授業"],
+    learningContent: ["演習問題集（練習問題）"],
     correctRate: 50,
     correctAnswers: 5,
     totalQuestions: 10,
+    previousCorrectRate: 30,
     reflection: "歴史の年号を覚えるのが大変でした。もう少し復習が必要です。",
   },
 ]
@@ -518,6 +546,40 @@ const isAICoachingAvailable = () => {
   return false
 }
 
+const getProgressChange = (currentRate: number, previousRate: number | null) => {
+  if (previousRate === null) return null
+
+  const change = currentRate - previousRate
+  if (change > 0) {
+    return {
+      text: `${previousRate}% → ${currentRate}%`,
+      change: `+${change}%`,
+      color: "text-green-600",
+      bgColor: "bg-green-50",
+      borderColor: "border-green-200",
+      icon: TrendingUp,
+    }
+  } else if (change < 0) {
+    return {
+      text: `${previousRate}% → ${currentRate}%`,
+      change: `${change}%`,
+      color: "text-red-600",
+      bgColor: "bg-red-50",
+      borderColor: "border-red-200",
+      icon: TrendingDown,
+    }
+  } else {
+    return {
+      text: `${previousRate}% → ${currentRate}%`,
+      change: "±0%",
+      color: "text-gray-600",
+      bgColor: "bg-gray-50",
+      borderColor: "border-gray-200",
+      icon: Minus,
+    }
+  }
+}
+
 export default function ReflectPage() {
   const [showAIChat, setShowAIChat] = useState(false)
   const [activeTab, setActiveTab] = useState("history")
@@ -776,181 +838,267 @@ export default function ReflectPage() {
                     ? filteredAndSortedLearningHistory.map((record, index) => (
                         <div
                           key={index}
-                          className="p-6 rounded-xl bg-gradient-to-r from-background/90 to-muted/30 border border-border/40 shadow-lg hover:shadow-xl transition-all duration-300"
+                          className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-white/90 via-white/80 to-gray-50/90 border border-gray-200/60 shadow-lg hover:shadow-xl transition-all duration-500 hover:scale-[1.02]"
                         >
-                          <div className="flex items-start justify-between mb-4">
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <Clock className="h-4 w-4" />
-                                <span>記録日時: {record.recordedAt}</span>
+                          <div className="absolute inset-0 bg-gradient-to-br from-primary/2 via-transparent to-accent/2 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+                          <div className="relative p-8">
+                            <div className="flex items-start justify-between mb-6">
+                              <div className="space-y-3">
+                                <div className="flex items-center gap-3 text-sm text-gray-600">
+                                  <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100/80 rounded-full">
+                                    <Clock className="h-4 w-4" />
+                                    <span className="font-medium">記録日時</span>
+                                  </div>
+                                  <span className="font-mono text-gray-800">{record.recordedAt}</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-xl border border-primary/20">
+                                    <span className="font-bold text-primary text-lg">学習回</span>
+                                    <span className="font-bold text-primary text-xl">{record.studySession}</span>
+                                  </div>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-primary text-lg">学習回: {record.studySession}</span>
+                              <div className="flex items-center gap-3">
+                                <Badge
+                                  className={`${levelColors[record.level as keyof typeof levelColors].bg} ${levelColors[record.level as keyof typeof levelColors].text} ${levelColors[record.level as keyof typeof levelColors].border} font-bold px-4 py-2 text-sm shadow-sm`}
+                                >
+                                  {record.level}
+                                </Badge>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
+
+                            <div className="mb-6">
                               <Badge
-                                className={`${levelColors[record.level as keyof typeof levelColors].bg} ${levelColors[record.level as keyof typeof levelColors].text} ${levelColors[record.level as keyof typeof levelColors].border} font-medium`}
+                                className={`${subjectColors[record.subject as keyof typeof subjectColors].bg} ${subjectColors[record.subject as keyof typeof subjectColors].text} ${subjectColors[record.subject as keyof typeof subjectColors].border} text-lg px-6 py-3 font-bold shadow-sm`}
                               >
-                                {record.level}
+                                {record.subject}
                               </Badge>
                             </div>
-                          </div>
 
-                          <div className="mb-4">
-                            <Badge
-                              className={`${subjectColors[record.subject as keyof typeof subjectColors].bg} ${subjectColors[record.subject as keyof typeof subjectColors].text} ${subjectColors[record.subject as keyof typeof subjectColors].border} text-base px-4 py-2 font-semibold`}
-                            >
-                              {record.subject}
-                            </Badge>
-                          </div>
-
-                          <div className="mb-4">
-                            <div className="flex items-center gap-2 mb-2">
-                              <BookOpen className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm font-medium text-foreground">学習内容</span>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {record.learningContent.map((content) => (
-                                <Badge
-                                  key={content}
-                                  variant="outline"
-                                  className={`${learningContentColors[content as keyof typeof learningContentColors].bg} ${learningContentColors[content as keyof typeof learningContentColors].text} ${learningContentColors[content as keyof typeof learningContentColors].border} text-xs px-3 py-1`}
-                                >
-                                  {content}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="mb-4">
-                            <div className="flex items-center gap-2 mb-2">
-                              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm font-medium text-foreground">正答率</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <div className="flex items-baseline gap-1">
-                                <span className="text-2xl font-bold text-primary">{record.correctRate}%</span>
-                                <span className="text-sm text-muted-foreground">
-                                  ({record.correctAnswers}/{record.totalQuestions}問正解)
-                                </span>
+                            <div className="mb-6">
+                              <div className="flex items-center gap-3 mb-4">
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100/80 rounded-full">
+                                  <BookOpen className="h-4 w-4 text-gray-600" />
+                                  <span className="text-sm font-bold text-gray-700">学習内容</span>
+                                </div>
                               </div>
-                              <div className="flex-1 bg-muted rounded-full h-2.5">
-                                <div
-                                  className="bg-primary rounded-full h-2.5 transition-all duration-300"
-                                  style={{ width: `${record.correctRate}%` }}
-                                />
+                              <div className="flex flex-wrap gap-3">
+                                {record.learningContent.map((content) => (
+                                  <Badge
+                                    key={content}
+                                    className={`${learningContentColors[content as keyof typeof learningContentColors].bg} ${learningContentColors[content as keyof typeof learningContentColors].text} ${learningContentColors[content as keyof typeof learningContentColors].border} text-sm px-4 py-2 font-medium shadow-sm hover:shadow-md transition-shadow duration-200`}
+                                  >
+                                    {content}
+                                  </Badge>
+                                ))}
                               </div>
                             </div>
-                          </div>
 
-                          <div className="mb-4">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Brain className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm font-medium text-foreground">理解度</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-3xl">{record.understandingEmoji}</span>
-                              <span className="font-medium text-lg">{record.understanding}</span>
-                            </div>
-                          </div>
+                            <div className="mb-6">
+                              <div className="flex items-center gap-3 mb-4">
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100/80 rounded-full">
+                                  <TrendingUp className="h-4 w-4 text-gray-600" />
+                                  <span className="text-sm font-bold text-gray-700">正答率</span>
+                                </div>
+                              </div>
 
-                          {record.reflection && (
-                            <div className="p-3 bg-background/70 rounded-lg border border-border/30">
-                              <div className="text-xs text-muted-foreground mb-1">今日の振り返り</div>
-                              <p className="text-sm text-foreground leading-relaxed">{record.reflection}</p>
+                              <div className="space-y-4">
+                                <div className="flex items-center gap-4">
+                                  <div className="flex items-baseline gap-2">
+                                    <span className="text-3xl font-bold text-primary">{record.correctRate}%</span>
+                                    <span className="text-sm text-gray-600 font-medium">
+                                      ({record.correctAnswers}/{record.totalQuestions}問正解)
+                                    </span>
+                                  </div>
+                                  <div className="flex-1 bg-gray-200 rounded-full h-3 shadow-inner">
+                                    <div
+                                      className="bg-gradient-to-r from-primary to-primary/80 rounded-full h-3 transition-all duration-700 shadow-sm"
+                                      style={{ width: `${record.correctRate}%` }}
+                                    />
+                                  </div>
+                                </div>
+
+                                {(() => {
+                                  const progressChange = getProgressChange(
+                                    record.correctRate,
+                                    record.previousCorrectRate,
+                                  )
+                                  if (!progressChange) return null
+
+                                  const IconComponent = progressChange.icon
+                                  return (
+                                    <div
+                                      className={`inline-flex items-center gap-2 px-4 py-2 ${progressChange.bgColor} ${progressChange.borderColor} border rounded-xl shadow-sm`}
+                                    >
+                                      <IconComponent className={`h-4 w-4 ${progressChange.color}`} />
+                                      <span className="text-sm font-medium text-gray-700">前回からの変化:</span>
+                                      <span className="font-mono text-sm text-gray-600">{progressChange.text}</span>
+                                      <span className={`font-bold text-sm ${progressChange.color}`}>
+                                        ({progressChange.change})
+                                      </span>
+                                    </div>
+                                  )
+                                })()}
+                              </div>
                             </div>
-                          )}
+
+                            <div className="mb-6">
+                              <div className="flex items-center gap-3 mb-3">
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100/80 rounded-full">
+                                  <Brain className="h-4 w-4 text-gray-600" />
+                                  <span className="text-sm font-bold text-gray-700">理解度</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3 px-4 py-3 bg-gray-50/80 rounded-xl border border-gray-200/60">
+                                <span className="text-4xl">{record.understandingEmoji}</span>
+                                <span className="font-bold text-lg text-gray-800">{record.understanding}</span>
+                              </div>
+                            </div>
+
+                            {record.reflection && (
+                              <div className="p-6 bg-gradient-to-br from-blue-50/80 to-indigo-50/80 rounded-xl border border-blue-200/60 shadow-sm">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                  <span className="text-sm font-bold text-blue-700">今日の振り返り</span>
+                                </div>
+                                <p className="text-sm text-gray-700 leading-relaxed font-medium">{record.reflection}</p>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       ))
                     : filteredAndSortedLearningHistory.slice(0, 5).map((record, index) => (
                         <div
                           key={index}
-                          className="p-6 rounded-xl bg-gradient-to-r from-background/90 to-muted/30 border border-border/40 shadow-lg hover:shadow-xl transition-all duration-300"
+                          className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-white/90 via-white/80 to-gray-50/90 border border-gray-200/60 shadow-lg hover:shadow-xl transition-all duration-500 hover:scale-[1.02]"
                         >
-                          <div className="flex items-start justify-between mb-4">
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <Clock className="h-4 w-4" />
-                                <span>記録日時: {record.recordedAt}</span>
+                          <div className="absolute inset-0 bg-gradient-to-br from-primary/2 via-transparent to-accent/2 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+                          <div className="relative p-8">
+                            <div className="flex items-start justify-between mb-6">
+                              <div className="space-y-3">
+                                <div className="flex items-center gap-3 text-sm text-gray-600">
+                                  <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100/80 rounded-full">
+                                    <Clock className="h-4 w-4" />
+                                    <span className="font-medium">記録日時</span>
+                                  </div>
+                                  <span className="font-mono text-gray-800">{record.recordedAt}</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-xl border border-primary/20">
+                                    <span className="font-bold text-primary text-lg">学習回</span>
+                                    <span className="font-bold text-primary text-xl">{record.studySession}</span>
+                                  </div>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-primary text-lg">学習回: {record.studySession}</span>
+                              <div className="flex items-center gap-3">
+                                <Badge
+                                  className={`${levelColors[record.level as keyof typeof levelColors].bg} ${levelColors[record.level as keyof typeof levelColors].text} ${levelColors[record.level as keyof typeof levelColors].border} font-bold px-4 py-2 text-sm shadow-sm`}
+                                >
+                                  {record.level}
+                                </Badge>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
+
+                            <div className="mb-6">
                               <Badge
-                                className={`${levelColors[record.level as keyof typeof levelColors].bg} ${levelColors[record.level as keyof typeof levelColors].text} ${levelColors[record.level as keyof typeof levelColors].border} font-medium`}
+                                className={`${subjectColors[record.subject as keyof typeof subjectColors].bg} ${subjectColors[record.subject as keyof typeof subjectColors].text} ${subjectColors[record.subject as keyof typeof subjectColors].border} text-lg px-6 py-3 font-bold shadow-sm`}
                               >
-                                {record.level}
+                                {record.subject}
                               </Badge>
                             </div>
-                          </div>
 
-                          <div className="mb-4">
-                            <Badge
-                              className={`${subjectColors[record.subject as keyof typeof subjectColors].bg} ${subjectColors[record.subject as keyof typeof subjectColors].text} ${subjectColors[record.subject as keyof typeof subjectColors].border} text-base px-4 py-2 font-semibold`}
-                            >
-                              {record.subject}
-                            </Badge>
-                          </div>
-
-                          <div className="mb-4">
-                            <div className="flex items-center gap-2 mb-2">
-                              <BookOpen className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm font-medium text-foreground">学習内容</span>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {record.learningContent.map((content) => (
-                                <Badge
-                                  key={content}
-                                  variant="outline"
-                                  className={`${learningContentColors[content as keyof typeof learningContentColors].bg} ${learningContentColors[content as keyof typeof learningContentColors].text} ${learningContentColors[content as keyof typeof learningContentColors].border} text-xs px-3 py-1`}
-                                >
-                                  {content}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="mb-4">
-                            <div className="flex items-center gap-2 mb-2">
-                              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm font-medium text-foreground">正答率</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <div className="flex items-baseline gap-1">
-                                <span className="text-2xl font-bold text-primary">{record.correctRate}%</span>
-                                <span className="text-sm text-muted-foreground">
-                                  ({record.correctAnswers}/{record.totalQuestions}問正解)
-                                </span>
+                            <div className="mb-6">
+                              <div className="flex items-center gap-3 mb-4">
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100/80 rounded-full">
+                                  <BookOpen className="h-4 w-4 text-gray-600" />
+                                  <span className="text-sm font-bold text-gray-700">学習内容</span>
+                                </div>
                               </div>
-                              <div className="flex-1 bg-muted rounded-full h-2.5">
-                                <div
-                                  className="bg-primary rounded-full h-2.5 transition-all duration-300"
-                                  style={{ width: `${record.correctRate}%` }}
-                                />
+                              <div className="flex flex-wrap gap-3">
+                                {record.learningContent.map((content) => (
+                                  <Badge
+                                    key={content}
+                                    className={`${learningContentColors[content as keyof typeof learningContentColors].bg} ${learningContentColors[content as keyof typeof learningContentColors].text} ${learningContentColors[content as keyof typeof learningContentColors].border} text-sm px-4 py-2 font-medium shadow-sm hover:shadow-md transition-shadow duration-200`}
+                                  >
+                                    {content}
+                                  </Badge>
+                                ))}
                               </div>
                             </div>
-                          </div>
 
-                          <div className="mb-4">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Brain className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm font-medium text-foreground">理解度</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-3xl">{record.understandingEmoji}</span>
-                              <span className="font-medium text-lg">{record.understanding}</span>
-                            </div>
-                          </div>
+                            <div className="mb-6">
+                              <div className="flex items-center gap-3 mb-4">
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100/80 rounded-full">
+                                  <TrendingUp className="h-4 w-4 text-gray-600" />
+                                  <span className="text-sm font-bold text-gray-700">正答率</span>
+                                </div>
+                              </div>
 
-                          {record.reflection && (
-                            <div className="p-3 bg-background/70 rounded-lg border border-border/30">
-                              <div className="text-xs text-muted-foreground mb-1">今日の振り返り</div>
-                              <p className="text-sm text-foreground leading-relaxed">{record.reflection}</p>
+                              <div className="space-y-4">
+                                <div className="flex items-center gap-4">
+                                  <div className="flex items-baseline gap-2">
+                                    <span className="text-3xl font-bold text-primary">{record.correctRate}%</span>
+                                    <span className="text-sm text-gray-600 font-medium">
+                                      ({record.correctAnswers}/{record.totalQuestions}問正解)
+                                    </span>
+                                  </div>
+                                  <div className="flex-1 bg-gray-200 rounded-full h-3 shadow-inner">
+                                    <div
+                                      className="bg-gradient-to-r from-primary to-primary/80 rounded-full h-3 transition-all duration-700 shadow-sm"
+                                      style={{ width: `${record.correctRate}%` }}
+                                    />
+                                  </div>
+                                </div>
+
+                                {(() => {
+                                  const progressChange = getProgressChange(
+                                    record.correctRate,
+                                    record.previousCorrectRate,
+                                  )
+                                  if (!progressChange) return null
+
+                                  const IconComponent = progressChange.icon
+                                  return (
+                                    <div
+                                      className={`inline-flex items-center gap-2 px-4 py-2 ${progressChange.bgColor} ${progressChange.borderColor} border rounded-xl shadow-sm`}
+                                    >
+                                      <IconComponent className={`h-4 w-4 ${progressChange.color}`} />
+                                      <span className="text-sm font-medium text-gray-700">前回からの変化:</span>
+                                      <span className="font-mono text-sm text-gray-600">{progressChange.text}</span>
+                                      <span className={`font-bold text-sm ${progressChange.color}`}>
+                                        ({progressChange.change})
+                                      </span>
+                                    </div>
+                                  )
+                                })()}
+                              </div>
                             </div>
-                          )}
+
+                            <div className="mb-6">
+                              <div className="flex items-center gap-3 mb-3">
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100/80 rounded-full">
+                                  <Brain className="h-4 w-4 text-gray-600" />
+                                  <span className="text-sm font-bold text-gray-700">理解度</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3 px-4 py-3 bg-gray-50/80 rounded-xl border border-gray-200/60">
+                                <span className="text-4xl">{record.understandingEmoji}</span>
+                                <span className="font-bold text-lg text-gray-800">{record.understanding}</span>
+                              </div>
+                            </div>
+
+                            {record.reflection && (
+                              <div className="p-6 bg-gradient-to-br from-blue-50/80 to-indigo-50/80 rounded-xl border border-blue-200/60 shadow-sm">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                  <span className="text-sm font-bold text-blue-700">今日の振り返り</span>
+                                </div>
+                                <p className="text-sm text-gray-700 leading-relaxed font-medium">{record.reflection}</p>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       ))}
                 </div>
@@ -1195,8 +1343,7 @@ export default function ReflectPage() {
                                       {message.learningContent.map((content) => (
                                         <Badge
                                           key={content}
-                                          variant="outline"
-                                          className={`${learningContentColors[content as keyof typeof learningContentColors].bg} ${learningContentColors[content as keyof typeof learningContentColors].text} ${learningContentColors[content as keyof typeof learningContentColors].border} text-xs px-3 py-1`}
+                                          className={`${learningContentColors[content as keyof typeof learningContentColors].bg} ${learningContentColors[content as keyof typeof learningContentColors].text} ${learningContentColors[content as keyof typeof learningContentColors].border} text-xs px-3 py-1 font-medium`}
                                         >
                                           {content}
                                         </Badge>
@@ -1206,19 +1353,45 @@ export default function ReflectPage() {
 
                                   <div>
                                     <div className="text-sm font-medium text-muted-foreground mb-2">正答率</div>
-                                    <div className="flex items-center gap-3">
-                                      <div className="flex items-baseline gap-1">
-                                        <span className="text-2xl font-bold text-primary">{message.correctRate}%</span>
-                                        <span className="text-sm text-muted-foreground">
-                                          ({message.correctAnswers}/{message.totalQuestions}問正解)
-                                        </span>
+                                    <div className="space-y-3">
+                                      <div className="flex items-center gap-3">
+                                        <div className="flex items-baseline gap-1">
+                                          <span className="text-2xl font-bold text-primary">
+                                            {message.correctRate}%
+                                          </span>
+                                          <span className="text-sm text-muted-foreground">
+                                            ({message.correctAnswers}/{message.totalQuestions}問正解)
+                                          </span>
+                                        </div>
+                                        <div className="flex-1 bg-muted rounded-full h-2.5">
+                                          <div
+                                            className="bg-primary rounded-full h-2.5 transition-all duration-300"
+                                            style={{ width: `${message.correctRate}%` }}
+                                          />
+                                        </div>
                                       </div>
-                                      <div className="flex-1 bg-muted rounded-full h-2.5">
-                                        <div
-                                          className="bg-primary rounded-full h-2.5 transition-all duration-300"
-                                          style={{ width: `${message.correctRate}%` }}
-                                        />
-                                      </div>
+
+                                      {(() => {
+                                        const progressChange = getProgressChange(
+                                          message.correctRate,
+                                          message.previousCorrectRate,
+                                        )
+                                        if (!progressChange) return null
+
+                                        const IconComponent = progressChange.icon
+                                        return (
+                                          <div
+                                            className={`inline-flex items-center gap-2 px-3 py-1.5 ${progressChange.bgColor} ${progressChange.borderColor} border rounded-lg text-xs`}
+                                          >
+                                            <IconComponent className={`h-3 w-3 ${progressChange.color}`} />
+                                            <span className="font-medium text-gray-700">前回からの変化:</span>
+                                            <span className="font-mono text-gray-600">{progressChange.text}</span>
+                                            <span className={`font-bold ${progressChange.color}`}>
+                                              ({progressChange.change})
+                                            </span>
+                                          </div>
+                                        )
+                                      })()}
                                     </div>
                                   </div>
 
