@@ -392,58 +392,60 @@ export default function ReflectPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 pb-20">
       <div className="bg-gradient-to-r from-white/95 to-slate-50/95 backdrop-blur-md border-b border-slate-200/60 shadow-lg">
-        <div className="max-w-6xl mx-auto p-4 sm:p-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="space-y-2">
-              <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-xl border border-blue-200">
-                  <MessageCircle className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-800 flex items-center gap-3">
+                <div className="p-2 sm:p-3 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl border border-blue-300 shadow-sm">
+                  <MessageCircle className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 text-blue-600" />
                 </div>
                 リフレクト
               </h1>
-              <p className="text-sm sm:text-base text-slate-600 font-medium">
+              <p className="text-sm sm:text-base lg:text-lg text-slate-600 font-medium">
                 1週間の学習を振り返り、成長の軌跡を確認しましょう
               </p>
             </div>
             <div className="text-left sm:text-right">
               <div className="text-sm text-slate-500">今週の振り返り</div>
-              <div className="text-xl sm:text-2xl font-bold text-blue-600">進行中</div>
+              <div className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                進行中
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto p-4 sm:p-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
         {isAICoachingAvailable() && (
-          <Card className="mb-6 sm:mb-8 bg-gradient-to-r from-blue-50/80 via-indigo-50/80 to-purple-50/80 border-blue-200/60 shadow-xl overflow-hidden">
+          <Card className="mb-6 sm:mb-8 bg-gradient-to-r from-blue-50/90 via-indigo-50/90 to-purple-50/90 border-blue-200/60 shadow-2xl overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-r from-blue-100/20 to-purple-100/20 animate-pulse" />
-            <CardContent className="p-6 sm:p-8 relative">
+            <CardContent className="p-4 sm:p-6 lg:p-8 relative">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6">
                 <div className="flex items-center gap-4 sm:gap-6">
                   <div className="relative">
                     <div className="absolute inset-0 bg-blue-400/30 rounded-full animate-ping" />
-                    <Avatar className="w-12 h-12 sm:w-16 sm:h-16 border-4 border-white/80 shadow-xl relative z-10">
+                    <Avatar className="w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 border-4 border-white/80 shadow-xl relative z-10">
                       <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
-                      <AvatarFallback className="bg-blue-600 text-white font-bold text-lg sm:text-xl">
+                      <AvatarFallback className="bg-gradient-to-br from-blue-600 to-purple-600 text-white font-bold text-lg sm:text-xl lg:text-2xl">
                         AI
                       </AvatarFallback>
                     </Avatar>
                     <div className="absolute -top-2 -right-2 z-20">
-                      <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-purple-500 animate-bounce" />
+                      <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-purple-500 animate-bounce" />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <h3 className="font-bold text-xl sm:text-2xl text-slate-800">AIコーチング</h3>
-                    <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
+                    <h3 className="font-bold text-xl sm:text-2xl lg:text-3xl text-slate-800">AIコーチング</h3>
+                    <p className="text-sm sm:text-base lg:text-lg text-slate-600 leading-relaxed">
                       土曜日12時〜水曜日23時59分限定！
-                      <br />
+                      <br className="hidden sm:block" />
                       1週間の学習を一緒に振り返り、成長をサポートします
                     </p>
                   </div>
                 </div>
                 <Button
                   onClick={() => setShowAIChat(true)}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 w-full sm:w-auto"
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold px-6 sm:px-8 lg:px-10 py-3 sm:py-4 lg:py-5 text-base sm:text-lg lg:text-xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 w-full sm:w-auto rounded-xl"
                 >
                   週間振り返りを始める
                 </Button>
@@ -453,56 +455,61 @@ export default function ReflectPage() {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 sm:space-y-8">
-          <TabsList className="grid w-full grid-cols-3 bg-white/80 backdrop-blur-md border border-slate-200/60 shadow-xl p-1.5 rounded-2xl h-14 sm:h-16">
+          <TabsList className="grid w-full grid-cols-3 bg-white/90 backdrop-blur-md border border-slate-200/60 shadow-xl p-1.5 rounded-2xl h-14 sm:h-16 lg:h-18">
             <TabsTrigger
               value="history"
-              className="flex items-center justify-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-lg font-medium px-2 sm:px-4 py-2 sm:py-3 rounded-xl transition-all duration-300 hover:bg-slate-100/50 text-xs sm:text-sm"
+              className="flex items-center justify-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-lg font-medium px-2 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 rounded-xl transition-all duration-300 hover:bg-slate-100/50 text-xs sm:text-sm lg:text-base"
             >
-              <History className="h-4 w-4" />
+              <History className="h-4 w-4 sm:h-5 sm:w-5" />
               <span className="hidden sm:inline">学習履歴</span>
+              <span className="sm:hidden">学習</span>
             </TabsTrigger>
             <TabsTrigger
               value="messages"
-              className="flex items-center justify-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-lg font-medium px-2 sm:px-4 py-2 sm:py-3 rounded-xl transition-all duration-300 hover:bg-slate-100/50 text-xs sm:text-sm"
+              className="flex items-center justify-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-lg font-medium px-2 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 rounded-xl transition-all duration-300 hover:bg-slate-100/50 text-xs sm:text-sm lg:text-base"
             >
-              <MessageCircle className="h-4 w-4" />
+              <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" />
               <span className="hidden sm:inline">応援履歴</span>
+              <span className="sm:hidden">応援</span>
             </TabsTrigger>
             <TabsTrigger
               value="coaching"
-              className="flex items-center justify-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-lg font-medium px-2 sm:px-4 py-2 sm:py-3 rounded-xl transition-all duration-300 hover:bg-slate-100/50 text-xs sm:text-sm"
+              className="flex items-center justify-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-lg font-medium px-2 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 rounded-xl transition-all duration-300 hover:bg-slate-100/50 text-xs sm:text-sm lg:text-base"
             >
-              <Headphones className="h-4 w-4" />
+              <Headphones className="h-4 w-4 sm:h-5 sm:w-5" />
               <span className="hidden sm:inline">コーチング履歴</span>
+              <span className="sm:hidden">コーチ</span>
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="history" className="space-y-6">
-            <Card className="bg-gradient-to-br from-white/95 to-slate-50/95 backdrop-blur-sm border-slate-200/60 shadow-xl">
-              <CardHeader className="pb-4 sm:pb-6">
-                <CardTitle className="flex items-center gap-3 text-xl sm:text-2xl text-slate-800">
-                  <div className="p-2 bg-blue-100 rounded-xl border border-blue-200">
-                    <History className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
+            <Card className="bg-gradient-to-br from-white/95 to-slate-50/95 backdrop-blur-sm border-slate-200/60 shadow-2xl">
+              <CardHeader className="pb-4 sm:pb-6 lg:pb-8">
+                <CardTitle className="flex items-center gap-3 text-xl sm:text-2xl lg:text-3xl text-slate-800">
+                  <div className="p-2 sm:p-3 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl border border-blue-300 shadow-sm">
+                    <History className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-blue-600" />
                   </div>
                   学習履歴
                 </CardTitle>
-                <p className="text-sm sm:text-base text-slate-600">
+                <p className="text-sm sm:text-base lg:text-lg text-slate-600">
                   スパーク機能で記録した学習データを時系列で確認できます
                 </p>
               </CardHeader>
-              <CardContent>
-                <div className="bg-gradient-to-r from-slate-100/60 to-slate-50/60 rounded-xl p-4 sm:p-6 mb-6 sm:mb-8 border border-slate-200/60 shadow-inner">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Filter className="h-5 w-5 text-blue-600" />
-                    <span className="font-bold text-base sm:text-lg text-slate-800">フィルター・並び替え</span>
+              <CardContent className="px-4 sm:px-6 lg:px-8">
+                <div className="bg-gradient-to-r from-slate-100/60 to-slate-50/60 rounded-xl p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 border border-slate-200/60 shadow-inner">
+                  <div className="flex items-center gap-2 mb-4 sm:mb-6">
+                    <Filter className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
+                    <span className="font-bold text-base sm:text-lg lg:text-xl text-slate-800">
+                      フィルター・並び替え
+                    </span>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700">科目</label>
+                      <label className="text-sm sm:text-base font-medium text-slate-700">科目</label>
                       <select
                         value={learningSubjectFilter}
                         onChange={(e) => setLearningSubjectFilter(e.target.value)}
-                        className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm border border-slate-300/60 rounded-lg bg-white/90 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all duration-200"
+                        className="w-full px-3 sm:px-4 lg:px-5 py-2 sm:py-3 lg:py-4 text-sm sm:text-base border border-slate-300/60 rounded-lg bg-white/90 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all duration-200"
                       >
                         <option value="全科目">全科目</option>
                         <option value="算数">算数</option>
@@ -512,11 +519,11 @@ export default function ReflectPage() {
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700">期間</label>
+                      <label className="text-sm sm:text-base font-medium text-slate-700">期間</label>
                       <select
                         value={learningPeriodFilter}
                         onChange={(e) => setLearningPeriodFilter(e.target.value)}
-                        className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm border border-slate-300/60 rounded-lg bg-white/90 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all duration-200"
+                        className="w-full px-3 sm:px-4 lg:px-5 py-2 sm:py-3 lg:py-4 text-sm sm:text-base border border-slate-300/60 rounded-lg bg-white/90 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all duration-200"
                       >
                         <option value="1週間">1週間</option>
                         <option value="1ヶ月">1ヶ月</option>
@@ -524,11 +531,11 @@ export default function ReflectPage() {
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700">並び替え</label>
+                      <label className="text-sm sm:text-base font-medium text-slate-700">並び替え</label>
                       <select
                         value={learningSortBy}
                         onChange={(e) => setLearningSortBy(e.target.value)}
-                        className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm border border-slate-300/60 rounded-lg bg-white/90 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all duration-200"
+                        className="w-full px-3 sm:px-4 lg:px-5 py-2 sm:py-3 lg:py-4 text-sm sm:text-base border border-slate-300/60 rounded-lg bg-white/90 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all duration-200"
                       >
                         <option value="記録日時">記録日時（降順）</option>
                         <option value="学習回">学習回</option>
@@ -538,28 +545,30 @@ export default function ReflectPage() {
                   </div>
                 </div>
 
-                <div className="space-y-4 sm:space-y-6">
+                <div className="space-y-4 sm:space-y-6 lg:space-y-8">
                   {filteredAndSortedLearningHistory.map((record, index) => (
                     <div
                       key={index}
-                      className="group relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-white/95 via-white/90 to-slate-50/90 border border-slate-200/60 shadow-lg hover:shadow-xl transition-all duration-500 hover:scale-[1.01] sm:hover:scale-[1.02]"
+                      className="group relative overflow-hidden rounded-xl sm:rounded-2xl lg:rounded-3xl bg-gradient-to-br from-white/95 via-white/90 to-slate-50/90 border border-slate-200/60 shadow-lg hover:shadow-2xl transition-all duration-500 hover:scale-[1.01] sm:hover:scale-[1.02]"
                     >
                       <div className="absolute inset-0 bg-gradient-to-br from-blue-50/20 via-transparent to-indigo-50/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-                      <div className="relative p-4 sm:p-6 lg:p-8">
-                        <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-4 sm:mb-6 gap-4">
-                          <div className="space-y-3">
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 text-sm text-slate-600">
-                              <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100/80 rounded-full">
-                                <Clock className="h-4 w-4" />
+                      <div className="relative p-4 sm:p-6 lg:p-8 xl:p-10">
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-4 sm:mb-6 lg:mb-8 gap-4">
+                          <div className="space-y-3 sm:space-y-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 text-sm sm:text-base text-slate-600">
+                              <div className="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-100/80 rounded-full">
+                                <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
                                 <span className="font-medium">生徒記録日時</span>
                               </div>
-                              <span className="font-mono text-slate-800 text-xs sm:text-sm">{record.recordedAt}</span>
+                              <span className="font-mono text-slate-800 text-xs sm:text-sm lg:text-base">
+                                {record.recordedAt}
+                              </span>
                             </div>
                             <div className="flex items-center gap-3">
-                              <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-100/80 rounded-xl border border-blue-200">
-                                <span className="font-bold text-blue-700 text-base sm:text-lg">学習回</span>
-                                <span className="font-bold text-blue-700 text-lg sm:text-xl">
+                              <div className="flex items-center gap-2 px-3 sm:px-4 lg:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-100 to-blue-200 rounded-xl border border-blue-300 shadow-sm">
+                                <span className="font-bold text-blue-700 text-base sm:text-lg lg:text-xl">学習回</span>
+                                <span className="font-bold text-blue-700 text-lg sm:text-xl lg:text-2xl">
                                   {record.studySession}
                                 </span>
                               </div>
@@ -567,26 +576,26 @@ export default function ReflectPage() {
                           </div>
                         </div>
 
-                        <div className="mb-4 sm:mb-6">
+                        <div className="mb-4 sm:mb-6 lg:mb-8">
                           <Badge
-                            className={`${subjectColors[record.subject as keyof typeof subjectColors].bg} ${subjectColors[record.subject as keyof typeof subjectColors].text} ${subjectColors[record.subject as keyof typeof subjectColors].border} text-base sm:text-lg px-4 sm:px-6 py-2 sm:py-3 font-bold shadow-sm`}
+                            className={`${subjectColors[record.subject as keyof typeof subjectColors].bg} ${subjectColors[record.subject as keyof typeof subjectColors].text} ${subjectColors[record.subject as keyof typeof subjectColors].border} text-base sm:text-lg lg:text-xl px-4 sm:px-6 lg:px-8 py-2 sm:py-3 lg:py-4 font-bold shadow-sm`}
                           >
                             {record.subject}
                           </Badge>
                         </div>
 
-                        <div className="mb-4 sm:mb-6">
-                          <div className="flex items-center gap-3 mb-3 sm:mb-4">
-                            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100/80 rounded-full">
-                              <BookOpen className="h-4 w-4 text-slate-600" />
-                              <span className="text-sm font-bold text-slate-700">学習内容</span>
+                        <div className="mb-4 sm:mb-6 lg:mb-8">
+                          <div className="flex items-center gap-3 mb-3 sm:mb-4 lg:mb-6">
+                            <div className="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-100/80 rounded-full">
+                              <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-slate-600" />
+                              <span className="text-sm sm:text-base font-bold text-slate-700">学習内容</span>
                             </div>
                           </div>
-                          <div className="flex flex-wrap gap-2 sm:gap-3">
+                          <div className="flex flex-wrap gap-2 sm:gap-3 lg:gap-4">
                             {record.learningContent.map((content) => (
                               <Badge
                                 key={content}
-                                className={`${learningContentColors[content as keyof typeof learningContentColors].bg} ${learningContentColors[content as keyof typeof learningContentColors].text} ${learningContentColors[content as keyof typeof learningContentColors].border} text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 font-medium shadow-sm hover:shadow-md transition-shadow duration-200`}
+                                className={`${learningContentColors[content as keyof typeof learningContentColors].bg} ${learningContentColors[content as keyof typeof learningContentColors].text} ${learningContentColors[content as keyof typeof learningContentColors].border} text-xs sm:text-sm lg:text-base px-3 sm:px-4 lg:px-5 py-1.5 sm:py-2 lg:py-3 font-medium shadow-sm hover:shadow-md transition-shadow duration-200`}
                               >
                                 {content}
                               </Badge>
@@ -594,27 +603,27 @@ export default function ReflectPage() {
                           </div>
                         </div>
 
-                        <div className="mb-4 sm:mb-6">
-                          <div className="flex items-center gap-3 mb-3 sm:mb-4">
-                            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100/80 rounded-full">
-                              <TrendingUp className="h-4 w-4 text-slate-600" />
-                              <span className="text-sm font-bold text-slate-700">正答率</span>
+                        <div className="mb-4 sm:mb-6 lg:mb-8">
+                          <div className="flex items-center gap-3 mb-3 sm:mb-4 lg:mb-6">
+                            <div className="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-100/80 rounded-full">
+                              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-slate-600" />
+                              <span className="text-sm sm:text-base font-bold text-slate-700">正答率</span>
                             </div>
                           </div>
 
-                          <div className="space-y-3 sm:space-y-4">
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                          <div className="space-y-3 sm:space-y-4 lg:space-y-6">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 lg:gap-6">
                               <div className="flex items-baseline gap-2">
-                                <span className="text-2xl sm:text-3xl font-bold text-blue-600">
+                                <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-blue-600">
                                   {record.correctRate}%
                                 </span>
-                                <span className="text-xs sm:text-sm text-slate-600 font-medium">
+                                <span className="text-xs sm:text-sm lg:text-base text-slate-600 font-medium">
                                   ({record.correctAnswers}/{record.totalQuestions}問正解)
                                 </span>
                               </div>
-                              <div className="flex-1 bg-slate-200 rounded-full h-2.5 sm:h-3 shadow-inner">
+                              <div className="flex-1 bg-slate-200 rounded-full h-2.5 sm:h-3 lg:h-4 shadow-inner">
                                 <div
-                                  className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-full h-2.5 sm:h-3 transition-all duration-700 shadow-sm"
+                                  className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-full h-2.5 sm:h-3 lg:h-4 transition-all duration-700 shadow-sm"
                                   style={{ width: `${record.correctRate}%` }}
                                 />
                               </div>
@@ -627,14 +636,16 @@ export default function ReflectPage() {
                               const IconComponent = progressChange.icon
                               return (
                                 <div
-                                  className={`inline-flex items-center gap-2 px-3 sm:px-4 py-2 ${progressChange.bgColor} ${progressChange.borderColor} border rounded-lg sm:rounded-xl shadow-sm`}
+                                  className={`inline-flex items-center gap-2 sm:gap-3 px-3 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 ${progressChange.bgColor} ${progressChange.borderColor} border rounded-lg sm:rounded-xl lg:rounded-2xl shadow-sm`}
                                 >
-                                  <IconComponent className={`h-4 w-4 ${progressChange.color}`} />
-                                  <span className="text-xs sm:text-sm font-medium text-slate-700">変化:</span>
-                                  <span className="font-mono text-xs sm:text-sm text-slate-600">
+                                  <IconComponent className={`h-4 w-4 sm:h-5 sm:w-5 ${progressChange.color}`} />
+                                  <span className="text-xs sm:text-sm lg:text-base font-medium text-slate-700">
+                                    変化:
+                                  </span>
+                                  <span className="font-mono text-xs sm:text-sm lg:text-base text-slate-600">
                                     {progressChange.text}
                                   </span>
-                                  <span className={`font-bold text-xs sm:text-sm ${progressChange.color}`}>
+                                  <span className={`font-bold text-xs sm:text-sm lg:text-base ${progressChange.color}`}>
                                     ({progressChange.change})
                                   </span>
                                 </div>
@@ -644,12 +655,16 @@ export default function ReflectPage() {
                         </div>
 
                         {record.reflection && (
-                          <div className="p-4 sm:p-6 bg-gradient-to-br from-blue-50/80 to-indigo-50/80 rounded-lg sm:rounded-xl border border-blue-200/60 shadow-sm">
-                            <div className="flex items-center gap-2 mb-3">
-                              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                              <span className="text-sm font-bold text-blue-700">今日の振り返り</span>
+                          <div className="p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-blue-50/80 to-indigo-50/80 rounded-lg sm:rounded-xl lg:rounded-2xl border border-blue-200/60 shadow-sm">
+                            <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                              <div className="w-2 h-2 sm:w-3 sm:h-3 bg-blue-500 rounded-full"></div>
+                              <span className="text-sm sm:text-base lg:text-lg font-bold text-blue-700">
+                                今日の振り返り
+                              </span>
                             </div>
-                            <p className="text-sm text-slate-700 leading-relaxed font-medium">{record.reflection}</p>
+                            <p className="text-sm sm:text-base lg:text-lg text-slate-700 leading-relaxed font-medium">
+                              {record.reflection}
+                            </p>
                           </div>
                         )}
                       </div>
@@ -661,26 +676,26 @@ export default function ReflectPage() {
           </TabsContent>
 
           <TabsContent value="messages" className="space-y-6">
-            <Card className="bg-gradient-to-br from-white/95 to-slate-50/95 backdrop-blur-sm border-slate-200/60 shadow-xl">
-              <CardHeader className="pb-4 sm:pb-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <Card className="bg-gradient-to-br from-white/95 to-slate-50/95 backdrop-blur-sm border-slate-200/60 shadow-2xl">
+              <CardHeader className="pb-4 sm:pb-6 lg:pb-8">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6">
                   <div>
-                    <CardTitle className="flex items-center gap-3 text-xl sm:text-2xl text-slate-800">
-                      <div className="p-2 bg-pink-100 rounded-xl border border-pink-200">
-                        <MessageCircle className="h-5 w-5 sm:h-6 sm:w-6 text-pink-600" />
+                    <CardTitle className="flex items-center gap-3 text-xl sm:text-2xl lg:text-3xl text-slate-800">
+                      <div className="p-2 sm:p-3 bg-gradient-to-br from-pink-100 to-pink-200 rounded-xl border border-pink-300 shadow-sm">
+                        <MessageCircle className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-pink-600" />
                       </div>
                       応援履歴
                     </CardTitle>
-                    <p className="text-sm sm:text-base text-slate-600 mt-2">
+                    <p className="text-sm sm:text-base lg:text-lg text-slate-600 mt-2">
                       保護者・指導者からの温かいメッセージを確認できます
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 sm:gap-3">
                     <Button
                       variant={displayMode === "全表示" ? "default" : "outline"}
                       size="sm"
                       onClick={() => setDisplayMode("全表示")}
-                      className="text-xs sm:text-sm"
+                      className="text-xs sm:text-sm lg:text-base px-3 sm:px-4 lg:px-6 py-2 sm:py-3 font-medium"
                     >
                       全表示
                     </Button>
@@ -688,26 +703,28 @@ export default function ReflectPage() {
                       variant={displayMode === "一部表示" ? "default" : "outline"}
                       size="sm"
                       onClick={() => setDisplayMode("一部表示")}
-                      className="text-xs sm:text-sm"
+                      className="text-xs sm:text-sm lg:text-base px-3 sm:px-4 lg:px-6 py-2 sm:py-3 font-medium"
                     >
                       一部表示
                     </Button>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="bg-gradient-to-r from-slate-100/60 to-slate-50/60 rounded-xl p-4 sm:p-6 mb-6 sm:mb-8 border border-slate-200/60 shadow-inner">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Filter className="h-5 w-5 text-blue-600" />
-                    <span className="font-bold text-base sm:text-lg text-slate-800">フィルター・並び替え</span>
+              <CardContent className="px-4 sm:px-6 lg:px-8">
+                <div className="bg-gradient-to-r from-slate-100/60 to-slate-50/60 rounded-xl p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 border border-slate-200/60 shadow-inner">
+                  <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+                    <Filter className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
+                    <span className="font-bold text-base sm:text-lg lg:text-xl text-slate-800">
+                      フィルター・並び替え
+                    </span>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700">科目</label>
+                      <label className="text-sm sm:text-base font-medium text-slate-700">科目</label>
                       <select
                         value={subjectFilter}
                         onChange={(e) => setSubjectFilter(e.target.value)}
-                        className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm border border-slate-300/60 rounded-lg bg-white/90 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all duration-200"
+                        className="w-full px-3 sm:px-4 lg:px-5 py-2 sm:py-3 lg:py-4 text-sm sm:text-base border border-slate-300/60 rounded-lg bg-white/90 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all duration-200"
                       >
                         <option value="全科目">全科目</option>
                         <option value="算数">算数</option>
@@ -717,11 +734,11 @@ export default function ReflectPage() {
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700">期間</label>
+                      <label className="text-sm sm:text-base font-medium text-slate-700">期間</label>
                       <select
                         value={periodFilter}
                         onChange={(e) => setPeriodFilter(e.target.value)}
-                        className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm border border-slate-300/60 rounded-lg bg-white/90 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all duration-200"
+                        className="w-full px-3 sm:px-4 lg:px-5 py-2 sm:py-3 lg:py-4 text-sm sm:text-base border border-slate-300/60 rounded-lg bg-white/90 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all duration-200"
                       >
                         <option value="1週間">1週間</option>
                         <option value="1ヶ月">1ヶ月</option>
@@ -729,11 +746,11 @@ export default function ReflectPage() {
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-700">並び替え</label>
+                      <label className="text-sm sm:text-base font-medium text-slate-700">並び替え</label>
                       <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value)}
-                        className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm border border-slate-300/60 rounded-lg bg-white/90 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all duration-200"
+                        className="w-full px-3 sm:px-4 lg:px-5 py-2 sm:py-3 lg:py-4 text-sm sm:text-base border border-slate-300/60 rounded-lg bg-white/90 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all duration-200"
                       >
                         <option value="記録日時">記録日時（降順）</option>
                         <option value="学習回">学習回</option>
@@ -743,62 +760,68 @@ export default function ReflectPage() {
                   </div>
                 </div>
 
-                <div className="space-y-4 sm:space-y-6">
+                <div className="space-y-4 sm:space-y-6 lg:space-y-8">
                   {filteredAndSortedMessages.map((message) => (
                     <div
                       key={message.id}
-                      className="group relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-white/95 via-white/90 to-pink-50/30 border border-pink-200/60 shadow-lg hover:shadow-xl transition-all duration-500 hover:scale-[1.01] sm:hover:scale-[1.02]"
+                      className="group relative overflow-hidden rounded-xl sm:rounded-2xl lg:rounded-3xl bg-gradient-to-br from-white/95 via-white/90 to-pink-50/30 border border-pink-200/60 shadow-lg hover:shadow-2xl transition-all duration-500 hover:scale-[1.01] sm:hover:scale-[1.02]"
                     >
                       <div className="absolute inset-0 bg-gradient-to-br from-pink-50/20 via-transparent to-rose-50/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-                      <div className="relative p-4 sm:p-6 lg:p-8">
-                        <div className="flex items-start gap-3 sm:gap-4 mb-4">
-                          <Avatar className="h-10 w-10 sm:h-12 sm:w-12 border-2 border-pink-200/60 shadow-md">
+                      <div className="relative p-4 sm:p-6 lg:p-8 xl:p-10">
+                        <div className="flex items-start gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6">
+                          <Avatar className="h-10 w-10 sm:h-12 sm:w-12 lg:h-16 lg:w-16 border-2 border-pink-200/60 shadow-md">
                             <AvatarImage src={getAvatarSrc(message.avatar) || "/placeholder.svg"} alt={message.from} />
-                            <AvatarFallback className="bg-pink-100 text-pink-700 font-bold">
+                            <AvatarFallback className="bg-gradient-to-br from-pink-100 to-pink-200 text-pink-700 font-bold text-sm sm:text-base lg:text-lg">
                               {message.from.charAt(0)}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1 text-sm text-slate-600">
-                              <Clock className="h-4 w-4" />
+                            <div className="flex items-center gap-2 mb-1 text-sm sm:text-base text-slate-600">
+                              <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
                               <span>記録日時: {message.recordedAt}</span>
                             </div>
-                            <div className="flex items-center gap-2 mb-3">
-                              <span className="font-bold text-base sm:text-lg text-slate-800">{message.from}</span>
+                            <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                              <span className="font-bold text-base sm:text-lg lg:text-xl text-slate-800">
+                                {message.from}
+                              </span>
                               <Badge
                                 variant={message.type === "parent" ? "secondary" : "default"}
-                                className="text-xs font-medium bg-pink-100 text-pink-700 border-pink-200"
+                                className="text-xs sm:text-sm font-medium bg-gradient-to-r from-pink-100 to-pink-200 text-pink-700 border-pink-300 px-2 sm:px-3 py-1"
                               >
                                 {message.type === "parent" ? "保護者" : "指導者"}
                               </Badge>
                             </div>
-                            <div className="mb-3 flex items-start gap-3">
-                              <Heart className="h-5 w-5 text-pink-500 mt-1 flex-shrink-0" />
-                              <p className="text-sm sm:text-base text-slate-800 bg-white/80 p-3 sm:p-4 rounded-lg border border-pink-200/60 leading-relaxed font-medium shadow-sm">
+                            <div className="mb-3 sm:mb-4 flex items-start gap-3 sm:gap-4">
+                              <Heart className="h-5 w-5 sm:h-6 sm:w-6 text-pink-500 mt-1 flex-shrink-0" />
+                              <p className="text-sm sm:text-base lg:text-lg text-slate-800 bg-white/80 p-3 sm:p-4 lg:p-6 rounded-lg sm:rounded-xl border border-pink-200/60 leading-relaxed font-medium shadow-sm">
                                 {message.message}
                               </p>
                             </div>
 
                             {(displayMode === "全表示" || expandedMessages.has(message.id)) && (
-                              <div className="mt-4 pt-4 border-t border-pink-200/60 space-y-4">
-                                <div className="flex items-center gap-2 mb-3 text-sm text-slate-600">
-                                  <Clock className="h-4 w-4" />
+                              <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-pink-200/60 space-y-4 sm:space-y-6">
+                                <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4 text-sm sm:text-base text-slate-600">
+                                  <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
                                   <span className="font-medium">生徒記録日時:</span>
                                   <span className="font-mono text-slate-800">{message.studentRecordedAt}</span>
                                 </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                                   <div>
-                                    <div className="text-sm font-medium text-slate-600 mb-1">学習回</div>
-                                    <span className="text-base font-semibold text-blue-600">
+                                    <div className="text-sm sm:text-base font-medium text-slate-600 mb-1 sm:mb-2">
+                                      学習回
+                                    </div>
+                                    <span className="text-base sm:text-lg lg:text-xl font-semibold text-blue-600">
                                       {message.studySession}
                                     </span>
                                   </div>
                                   <div>
-                                    <div className="text-sm font-medium text-slate-600 mb-1">科目</div>
+                                    <div className="text-sm sm:text-base font-medium text-slate-600 mb-1 sm:mb-2">
+                                      科目
+                                    </div>
                                     <Badge
-                                      className={`${subjectColors[message.subject as keyof typeof subjectColors].bg} ${subjectColors[message.subject as keyof typeof subjectColors].text} ${subjectColors[message.subject as keyof typeof subjectColors].border} text-base px-3 py-1 font-semibold`}
+                                      className={`${subjectColors[message.subject as keyof typeof subjectColors].bg} ${subjectColors[message.subject as keyof typeof subjectColors].text} ${subjectColors[message.subject as keyof typeof subjectColors].border} text-base sm:text-lg px-3 sm:px-4 py-1 sm:py-2 font-semibold`}
                                     >
                                       {message.subject}
                                     </Badge>
@@ -806,12 +829,14 @@ export default function ReflectPage() {
                                 </div>
 
                                 <div>
-                                  <div className="text-sm font-medium text-slate-600 mb-2">学習内容</div>
-                                  <div className="flex flex-wrap gap-2">
+                                  <div className="text-sm sm:text-base font-medium text-slate-600 mb-2 sm:mb-3">
+                                    学習内容
+                                  </div>
+                                  <div className="flex flex-wrap gap-2 sm:gap-3">
                                     {message.learningContent.map((content) => (
                                       <Badge
                                         key={content}
-                                        className={`${learningContentColors[content as keyof typeof learningContentColors].bg} ${learningContentColors[content as keyof typeof learningContentColors].text} ${learningContentColors[content as keyof typeof learningContentColors].border} text-xs px-3 py-1 font-medium`}
+                                        className={`${learningContentColors[content as keyof typeof learningContentColors].bg} ${learningContentColors[content as keyof typeof learningContentColors].text} ${learningContentColors[content as keyof typeof learningContentColors].border} text-xs sm:text-sm px-3 sm:px-4 py-1 sm:py-2 font-medium`}
                                       >
                                         {content}
                                       </Badge>
@@ -820,20 +845,22 @@ export default function ReflectPage() {
                                 </div>
 
                                 <div>
-                                  <div className="text-sm font-medium text-slate-600 mb-2">正答率</div>
-                                  <div className="space-y-3">
-                                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                                      <div className="flex items-baseline gap-1">
-                                        <span className="text-xl sm:text-2xl font-bold text-blue-600">
+                                  <div className="text-sm sm:text-base font-medium text-slate-600 mb-2 sm:mb-3">
+                                    正答率
+                                  </div>
+                                  <div className="space-y-3 sm:space-y-4">
+                                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                                      <div className="flex items-baseline gap-1 sm:gap-2">
+                                        <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-600">
                                           {message.correctRate}%
                                         </span>
-                                        <span className="text-sm text-slate-600">
+                                        <span className="text-sm sm:text-base text-slate-600">
                                           ({message.correctAnswers}/{message.totalQuestions}問正解)
                                         </span>
                                       </div>
-                                      <div className="flex-1 bg-slate-200 rounded-full h-2.5">
+                                      <div className="flex-1 bg-slate-200 rounded-full h-2.5 sm:h-3">
                                         <div
-                                          className="bg-blue-500 rounded-full h-2.5 transition-all duration-300"
+                                          className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-full h-2.5 sm:h-3 transition-all duration-300"
                                           style={{ width: `${message.correctRate}%` }}
                                         />
                                       </div>
@@ -849,9 +876,9 @@ export default function ReflectPage() {
                                       const IconComponent = progressChange.icon
                                       return (
                                         <div
-                                          className={`inline-flex items-center gap-2 px-3 py-1.5 ${progressChange.bgColor} ${progressChange.borderColor} border rounded-lg text-xs`}
+                                          className={`inline-flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-1.5 sm:py-2 ${progressChange.bgColor} ${progressChange.borderColor} border rounded-lg sm:rounded-xl text-xs sm:text-sm`}
                                         >
-                                          <IconComponent className={`h-3 w-3 ${progressChange.color}`} />
+                                          <IconComponent className={`h-3 w-3 sm:h-4 sm:w-4 ${progressChange.color}`} />
                                           <span className="font-medium text-slate-700">変化:</span>
                                           <span className="font-mono text-slate-600">{progressChange.text}</span>
                                           <span className={`font-bold ${progressChange.color}`}>
@@ -865,8 +892,10 @@ export default function ReflectPage() {
 
                                 {message.reflection && (
                                   <div>
-                                    <div className="text-sm font-medium text-slate-600 mb-1">今日の振り返り</div>
-                                    <p className="text-sm sm:text-base text-slate-800 bg-white/80 p-3 rounded-lg border border-blue-200/60 leading-relaxed">
+                                    <div className="text-sm sm:text-base font-medium text-slate-600 mb-1 sm:mb-2">
+                                      今日の振り返り
+                                    </div>
+                                    <p className="text-sm sm:text-base lg:text-lg text-slate-800 bg-white/80 p-3 sm:p-4 lg:p-6 rounded-lg sm:rounded-xl border border-blue-200/60 leading-relaxed">
                                       {message.reflection}
                                     </p>
                                   </div>
@@ -877,21 +906,21 @@ export default function ReflectPage() {
                         </div>
 
                         {displayMode === "一部表示" && (
-                          <div className="mt-4 flex items-center justify-center">
+                          <div className="mt-4 sm:mt-6 flex items-center justify-center">
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => toggleMessageExpansion(message.id)}
-                              className="flex items-center gap-2 text-sm text-slate-600 bg-white/60 hover:bg-white/80 px-4 py-2 rounded-full border border-slate-200/60"
+                              className="flex items-center gap-2 text-sm sm:text-base text-slate-600 bg-white/60 hover:bg-white/80 px-4 sm:px-6 py-2 sm:py-3 rounded-full border border-slate-200/60 transition-all duration-200"
                             >
                               {expandedMessages.has(message.id) ? (
                                 <>
-                                  <ChevronUp className="h-4 w-4" />
+                                  <ChevronUp className="h-4 w-4 sm:h-5 sm:w-5" />
                                   クリックして詳細を閉じる
                                 </>
                               ) : (
                                 <>
-                                  <ChevronDown className="h-4 w-4" />
+                                  <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5" />
                                   クリックして詳細を表示
                                 </>
                               )}
@@ -907,28 +936,28 @@ export default function ReflectPage() {
           </TabsContent>
 
           <TabsContent value="coaching" className="space-y-6">
-            <Card className="bg-gradient-to-br from-white/95 to-slate-50/95 backdrop-blur-sm border-slate-200/60 shadow-xl">
-              <CardHeader className="pb-4 sm:pb-6">
-                <CardTitle className="flex items-center gap-3 text-xl sm:text-2xl text-slate-800">
-                  <div className="p-2 bg-purple-100 rounded-xl border border-purple-200">
-                    <Headphones className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" />
+            <Card className="bg-gradient-to-br from-white/95 to-slate-50/95 backdrop-blur-sm border-slate-200/60 shadow-2xl">
+              <CardHeader className="pb-4 sm:pb-6 lg:pb-8">
+                <CardTitle className="flex items-center gap-3 text-xl sm:text-2xl lg:text-3xl text-slate-800">
+                  <div className="p-2 sm:p-3 bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl border border-purple-300 shadow-sm">
+                    <Headphones className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-purple-600" />
                   </div>
                   コーチング履歴
                 </CardTitle>
-                <p className="text-sm sm:text-base text-slate-600">
+                <p className="text-sm sm:text-base lg:text-lg text-slate-600">
                   過去のAIコーチングの会話記録を時系列で表示し、成長の軌跡を可視化します
                 </p>
               </CardHeader>
-              <CardContent>
-                <div className="bg-gradient-to-r from-slate-100/60 to-slate-50/60 rounded-xl p-4 sm:p-6 mb-6 sm:mb-8 border border-slate-200/60 shadow-inner">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Calendar className="h-5 w-5 text-blue-600" />
-                    <span className="font-bold text-base sm:text-lg text-slate-800">期間フィルター</span>
+              <CardContent className="px-4 sm:px-6 lg:px-8">
+                <div className="bg-gradient-to-r from-slate-100/60 to-slate-50/60 rounded-xl p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 border border-slate-200/60 shadow-inner">
+                  <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+                    <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
+                    <span className="font-bold text-base sm:text-lg lg:text-xl text-slate-800">期間フィルター</span>
                   </div>
                   <select
                     value={coachingPeriodFilter}
                     onChange={(e) => setCoachingPeriodFilter(e.target.value)}
-                    className="w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-3 text-sm border border-slate-300/60 rounded-lg bg-white/90 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all duration-200"
+                    className="w-full sm:w-auto px-3 sm:px-4 lg:px-5 py-2 sm:py-3 lg:py-4 text-sm sm:text-base border border-slate-300/60 rounded-lg bg-white/90 backdrop-blur-sm shadow-sm focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all duration-200"
                   >
                     <option value="1週間">1週間</option>
                     <option value="1ヶ月">1ヶ月</option>
@@ -936,72 +965,84 @@ export default function ReflectPage() {
                   </select>
                 </div>
 
-                <div className="space-y-4 sm:space-y-6">
+                <div className="space-y-4 sm:space-y-6 lg:space-y-8">
                   {filteredCoachingHistory.map((session, index) => (
                     <div
                       key={index}
-                      className="group relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-white/95 via-white/90 to-purple-50/30 border border-purple-200/60 shadow-lg hover:shadow-xl transition-all duration-500 hover:scale-[1.01] sm:hover:scale-[1.02]"
+                      className="group relative overflow-hidden rounded-xl sm:rounded-2xl lg:rounded-3xl bg-gradient-to-br from-white/95 via-white/90 to-purple-50/30 border border-purple-200/60 shadow-lg hover:shadow-2xl transition-all duration-500 hover:scale-[1.01] sm:hover:scale-[1.02]"
                     >
                       <div className="absolute inset-0 bg-gradient-to-br from-purple-50/20 via-transparent to-indigo-50/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-                      <div className="relative p-4 sm:p-6 lg:p-8">
-                        <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-4 gap-4">
+                      <div className="relative p-4 sm:p-6 lg:p-8 xl:p-10">
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-4 sm:mb-6 gap-4">
                           <div className="space-y-2">
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                              <Calendar className="h-4 w-4 text-slate-600" />
-                              <span className="font-medium text-slate-800">記録日時: {session.recordedAt}</span>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                              <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-slate-600" />
+                              <span className="font-medium text-sm sm:text-base lg:text-lg text-slate-800">
+                                記録日時: {session.recordedAt}
+                              </span>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-8 w-8 sm:h-10 sm:w-10 border-2 border-purple-200/60">
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            <Avatar className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 border-2 border-purple-200/60">
                               <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
-                              <AvatarFallback className="bg-purple-100 text-purple-700 font-bold">AI</AvatarFallback>
+                              <AvatarFallback className="bg-gradient-to-br from-purple-100 to-purple-200 text-purple-700 font-bold text-sm sm:text-base">
+                                AI
+                              </AvatarFallback>
                             </Avatar>
-                            <span className="font-medium text-slate-800">AIコーチ</span>
+                            <span className="font-medium text-sm sm:text-base lg:text-lg text-slate-800">AIコーチ</span>
                           </div>
                         </div>
 
-                        <div className="mb-4 sm:mb-6">
-                          <div className="flex items-center gap-3 mb-4">
-                            <Target className="h-5 w-5 text-purple-600" />
-                            <span className="text-base sm:text-lg font-bold text-slate-800">
+                        <div className="mb-4 sm:mb-6 lg:mb-8">
+                          <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
+                            <Target className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" />
+                            <span className="text-base sm:text-lg lg:text-xl font-bold text-slate-800">
                               コーチングサマリー（GROWモデル）
                             </span>
                           </div>
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                            <div className="p-3 sm:p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg sm:rounded-xl border-2 border-green-200 shadow-sm">
-                              <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                                <Target className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
-                                <span className="text-sm font-bold text-green-700">Goal（目標）</span>
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                            <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-lg sm:rounded-xl lg:rounded-2xl border-2 border-green-200 shadow-sm">
+                              <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3 lg:mb-4">
+                                <Target className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-green-600" />
+                                <span className="text-sm sm:text-base lg:text-lg font-bold text-green-700">
+                                  Goal（目標）
+                                </span>
                               </div>
-                              <p className="text-xs sm:text-sm text-slate-800 leading-relaxed">
+                              <p className="text-xs sm:text-sm lg:text-base text-slate-800 leading-relaxed">
                                 {session.coachingSummary.goal}
                               </p>
                             </div>
-                            <div className="p-3 sm:p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg sm:rounded-xl border-2 border-blue-200 shadow-sm">
-                              <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                                <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
-                                <span className="text-sm font-bold text-blue-700">Reality（現実）</span>
+                            <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg sm:rounded-xl lg:rounded-2xl border-2 border-blue-200 shadow-sm">
+                              <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3 lg:mb-4">
+                                <Eye className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-blue-600" />
+                                <span className="text-sm sm:text-base lg:text-lg font-bold text-blue-700">
+                                  Reality（現実）
+                                </span>
                               </div>
-                              <p className="text-xs sm:text-sm text-slate-800 leading-relaxed">
+                              <p className="text-xs sm:text-sm lg:text-base text-slate-800 leading-relaxed">
                                 {session.coachingSummary.reality}
                               </p>
                             </div>
-                            <div className="p-3 sm:p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg sm:rounded-xl border-2 border-orange-200 shadow-sm">
-                              <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                                <Lightbulb className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600" />
-                                <span className="text-sm font-bold text-orange-700">Options（選択肢）</span>
+                            <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg sm:rounded-xl lg:rounded-2xl border-2 border-orange-200 shadow-sm">
+                              <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3 lg:mb-4">
+                                <Lightbulb className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-orange-600" />
+                                <span className="text-sm sm:text-base lg:text-lg font-bold text-orange-700">
+                                  Options（選択肢）
+                                </span>
                               </div>
-                              <p className="text-xs sm:text-sm text-slate-800 leading-relaxed">
+                              <p className="text-xs sm:text-sm lg:text-base text-slate-800 leading-relaxed">
                                 {session.coachingSummary.options}
                               </p>
                             </div>
-                            <div className="p-3 sm:p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg sm:rounded-xl border-2 border-purple-200 shadow-sm">
-                              <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                                <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
-                                <span className="text-sm font-bold text-purple-700">Will（意志・行動）</span>
+                            <div className="p-3 sm:p-4 lg:p-6 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg sm:rounded-xl lg:rounded-2xl border-2 border-purple-200 shadow-sm">
+                              <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3 lg:mb-4">
+                                <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-purple-600" />
+                                <span className="text-sm sm:text-base lg:text-lg font-bold text-purple-700">
+                                  Will（意志・行動）
+                                </span>
                               </div>
-                              <p className="text-xs sm:text-sm text-slate-800 leading-relaxed">
+                              <p className="text-xs sm:text-sm lg:text-base text-slate-800 leading-relaxed">
                                 {session.coachingSummary.will}
                               </p>
                             </div>
@@ -1009,12 +1050,14 @@ export default function ReflectPage() {
                         </div>
 
                         {session.encouragementMessage && (
-                          <div className="p-4 sm:p-6 bg-gradient-to-br from-pink-50/80 to-rose-50/80 rounded-lg sm:rounded-xl border border-pink-200/60 shadow-sm">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Heart className="h-4 w-4 text-pink-500" />
-                              <span className="text-sm font-bold text-pink-700">応援メッセージ</span>
+                          <div className="p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-pink-50/80 to-rose-50/80 rounded-lg sm:rounded-xl lg:rounded-2xl border border-pink-200/60 shadow-sm">
+                            <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                              <Heart className="h-4 w-4 sm:h-5 sm:w-5 text-pink-500" />
+                              <span className="text-sm sm:text-base lg:text-lg font-bold text-pink-700">
+                                応援メッセージ
+                              </span>
                             </div>
-                            <p className="text-sm text-slate-700 leading-relaxed font-medium">
+                            <p className="text-sm sm:text-base lg:text-lg text-slate-700 leading-relaxed font-medium">
                               {session.encouragementMessage}
                             </p>
                           </div>
