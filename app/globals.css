@@ -15,9 +15,9 @@
   --popover-foreground: #2c3e50; /* Deep navy popover text */
 
   /* Primary Brand Colors - Elegant Navy Blue System */
-  --primary: #1e3a8a; /* Sophisticated navy blue */
+  --primary: #3b82f6; /* Changed from dark navy to lighter blue matching StudySpark logo */
   --primary-foreground: #ffffff; /* Pure white on primary */
-  --secondary: #3b82f6; /* Refined medium blue */
+  --secondary: #6366f1; /* Adjusted secondary to complement new primary */
   --secondary-foreground: #ffffff; /* White text on secondary */
 
   /* Accent Colors - Warm Purple & Sophisticated Tones */
