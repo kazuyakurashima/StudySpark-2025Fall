@@ -1144,119 +1144,103 @@ export default function StudentDashboard() {
   const greetingMessage = getGreetingMessage(userName, mockData.user.streak)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-20">
-      {/* ヘッダー */}
-      <div className="bg-card/90 backdrop-blur-sm border-b border-border/60 p-6 shadow-sm">
+    <div className="min-h-screen bg-background pb-20 elegant-fade-in">
+      <div className="surface-gradient-primary backdrop-blur-lg border-b border-border/30 p-6 shadow-lg">
         <div className="flex items-center justify-between max-w-6xl mx-auto">
           <div className="flex items-center gap-4">
-            <Avatar className="h-14 w-14 border-3 border-primary/30 shadow-lg">
+            <Avatar className="h-16 w-16 border-3 border-primary/20 shadow-xl ring-2 ring-primary/10">
               <AvatarImage src={getAvatarSrc(selectedAvatar) || "/placeholder.svg"} alt={userName} />
-              <AvatarFallback className="bg-primary/10 text-primary font-bold text-lg">
+              <AvatarFallback className="bg-primary/10 text-primary font-bold text-xl">
                 {userName.charAt(0)}
               </AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">{greetingMessage}</h1>
-              <p className="text-base text-muted-foreground mt-1">今日も一緒にがんばろう！</p>
+              <h1 className="text-3xl font-bold text-foreground tracking-tight">{greetingMessage}</h1>
+              <p className="text-lg text-muted-foreground mt-1 font-medium">今日も一緒にがんばろう！</p>
             </div>
           </div>
           <div className="text-right">
-            <div className="flex items-center gap-2 text-primary">
-              <Flame className="h-6 w-6" />
-              <span className="font-bold text-2xl">{mockData.user.streak}</span>
+            <div className="flex items-center gap-3 text-primary">
+              <div className="p-2 bg-primary/10 rounded-full">
+                <Flame className="h-7 w-7" />
+              </div>
+              <span className="font-bold text-3xl">{mockData.user.streak}</span>
             </div>
-            <p className="text-sm text-muted-foreground font-medium">連続学習日数</p>
+            <p className="text-sm text-muted-foreground font-semibold mt-1">連続学習日数</p>
           </div>
         </div>
       </div>
 
       <div className="max-w-6xl mx-auto p-6 space-y-8">
-        {/* スマホ: 1列表示, タブレット・PC: 2列表示 */}
         <div className="space-y-8 lg:space-y-0">
           {/* スマホでの表示順序 */}
           <div className="lg:hidden space-y-8">
-            {/* 1. AIコーチからのメッセージ */}
-            <Card className="ai-coach-gradient border-0 shadow-2xl ai-coach-glow">
+            <Card className="card-elevated ai-coach-gradient border-0 shadow-2xl premium-glow">
               <CardHeader className="pb-6">
                 <CardTitle className="text-xl font-bold flex items-center gap-4">
                   <div className="flex items-center gap-3">
-                    <Avatar className="h-14 w-14 border-3 border-white/40 shadow-xl">
+                    <Avatar className="h-16 w-16 border-3 border-white/30 shadow-2xl ring-2 ring-white/20">
                       <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
                       <AvatarFallback className="bg-white/20 text-white font-bold text-lg">AI</AvatarFallback>
                     </Avatar>
-                    <span className="text-slate-900 font-bold text-xl bg-white/95 px-4 py-2 rounded-xl shadow-lg">
+                    <span className="text-slate-800 font-bold text-xl bg-white/95 px-6 py-3 rounded-2xl shadow-xl backdrop-blur-sm">
                       AIコーチからのメッセージ
                     </span>
                   </div>
-                  <MessageCircle className="h-7 w-7 text-white animate-pulse" />
+                  <MessageCircle className="h-8 w-8 text-white sophisticated-scale" />
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border border-white/60 shadow-xl">
-                  <p className="text-lg leading-relaxed text-slate-700">{mockData.aiCoachMessage.message}</p>
+                <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border border-white/40 shadow-2xl">
+                  <p className="text-lg leading-relaxed text-slate-700 font-medium">
+                    {mockData.aiCoachMessage.message}
+                  </p>
                 </div>
               </CardContent>
             </Card>
 
-            {/* 2. 今日のミッション */}
             <TodayMissionCard />
-
-            {/* 3. 学習カレンダー */}
             <LearningHistoryCalendar />
-
-            {/* 4. 今週の科目別進捗バー */}
             <WeeklySubjectProgressCard />
-
-            {/* 5. 直近の応援履歴 */}
             <RecentEncouragementCard />
-
-            {/* 6. 直近の学習履歴 */}
             <RecentLearningHistoryCard />
           </div>
 
-          {/* タブレット・PC: 2列表示 (2:1の比率) */}
           <div className="hidden lg:grid lg:grid-cols-3 lg:gap-8">
             {/* 左列（メイン - 2/3の幅） */}
             <div className="lg:col-span-2 space-y-8">
-              {/* 1. AIコーチからのメッセージ */}
-              <Card className="ai-coach-gradient border-0 shadow-2xl ai-coach-glow">
+              <Card className="card-elevated ai-coach-gradient border-0 shadow-2xl premium-glow">
                 <CardHeader className="pb-6">
                   <CardTitle className="text-xl font-bold flex items-center gap-4">
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-14 w-14 border-3 border-white/40 shadow-xl">
+                      <Avatar className="h-16 w-16 border-3 border-white/30 shadow-2xl ring-2 ring-white/20">
                         <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
                         <AvatarFallback className="bg-white/20 text-white font-bold text-lg">AI</AvatarFallback>
                       </Avatar>
-                      <span className="text-slate-900 font-bold text-xl bg-white/95 px-4 py-2 rounded-xl shadow-lg">
+                      <span className="text-slate-800 font-bold text-xl bg-white/95 px-6 py-3 rounded-2xl shadow-xl backdrop-blur-sm">
                         AIコーチからのメッセージ
                       </span>
                     </div>
-                    <MessageCircle className="h-7 w-7 text-white animate-pulse" />
+                    <MessageCircle className="h-8 w-8 text-white sophisticated-scale" />
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border border-white/60 shadow-xl">
-                    <p className="text-lg leading-relaxed text-slate-700">{mockData.aiCoachMessage.message}</p>
+                  <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border border-white/40 shadow-2xl">
+                    <p className="text-lg leading-relaxed text-slate-700 font-medium">
+                      {mockData.aiCoachMessage.message}
+                    </p>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* 2. 今日のミッション */}
               <TodayMissionCard />
-
-              {/* 3. 直近の応援履歴 */}
               <RecentEncouragementCard />
-
-              {/* 4. 直近の学習履歴 */}
               <RecentLearningHistoryCard />
             </div>
 
             {/* 右列（サブ - 1/3の幅） */}
             <div className="lg:col-span-1 space-y-8">
-              {/* 1. 学習カレンダー */}
               <LearningHistoryCalendar />
-
-              {/* 2. 今週の科目別進捗バー */}
               <WeeklySubjectProgressCard />
             </div>
           </div>

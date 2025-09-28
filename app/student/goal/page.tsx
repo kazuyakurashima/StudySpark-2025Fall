@@ -715,7 +715,7 @@ export default function GoalSettingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-20">
+    <div className="min-h-screen bg-background pb-20 elegant-fade-in">
       {showCelebration && (
         <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
           {[...Array(20)].map((_, i) => (
@@ -733,7 +733,7 @@ export default function GoalSettingPage() {
             />
           ))}
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-8 shadow-2xl pulse-celebration">
+            <div className="bg-white/95 backdrop-blur-lg rounded-2xl p-8 shadow-2xl premium-glow">
               <div className="text-center">
                 <PartyPopper className="h-16 w-16 text-primary mx-auto mb-4" />
                 <h2 className="text-2xl font-bold text-primary mb-2">目標決定！</h2>
@@ -744,7 +744,7 @@ export default function GoalSettingPage() {
         </div>
       )}
 
-      <div className="bg-card/80 backdrop-blur-sm border-b border-border/50 p-3 sm:p-4">
+      <div className="surface-gradient-primary backdrop-blur-lg border-b border-border/30 p-3 sm:p-4 shadow-lg">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2">
             <Flag className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
@@ -753,13 +753,13 @@ export default function GoalSettingPage() {
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground">目標を設定して、合格に向けて頑張ろう！</p>
 
-          <div className="flex gap-1 mt-3 sm:mt-4 bg-muted p-1 rounded-lg">
+          <div className="flex gap-1 mt-3 sm:mt-4 bg-muted/50 backdrop-blur-sm p-1 rounded-lg border border-border/20">
             <button
               onClick={() => setActiveTab("goal")}
-              className={`flex-1 px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${
+              className={`flex-1 px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all duration-300 ${
                 activeTab === "goal"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-background text-foreground shadow-lg border border-border/20"
+                  : "text-muted-foreground hover:text-foreground hover:bg-background/50"
               }`}
             >
               <Target className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1 sm:mr-2" />
@@ -767,10 +767,10 @@ export default function GoalSettingPage() {
             </button>
             <button
               onClick={() => setActiveTab("result")}
-              className={`flex-1 px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${
+              className={`flex-1 px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all duration-300 ${
                 activeTab === "result"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-background text-foreground shadow-lg border border-border/20"
+                  : "text-muted-foreground hover:text-foreground hover:bg-background/50"
               }`}
             >
               <Trophy className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1 sm:mr-2" />
@@ -778,10 +778,10 @@ export default function GoalSettingPage() {
             </button>
             <button
               onClick={() => setActiveTab("tests")}
-              className={`flex-1 px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${
+              className={`flex-1 px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all duration-300 ${
                 activeTab === "tests"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-background text-foreground shadow-lg border border-border/20"
+                  : "text-muted-foreground hover:text-foreground hover:bg-background/50"
               }`}
             >
               <TestTube className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1 sm:mr-2" />
@@ -797,22 +797,22 @@ export default function GoalSettingPage() {
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
               <div className="space-y-4 sm:space-y-6">
                 {!isAiCoachActive && (
-                  <Card className="bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200">
+                  <Card className="card-elevated ai-coach-gradient border-0 shadow-2xl premium-glow">
                     <CardContent className="p-6">
                       <div className="flex items-start gap-4">
                         <div className="flex-shrink-0">
                           <img
                             src={avatarMap.ai_coach || "/placeholder.svg"}
                             alt="AIコーチ"
-                            className="w-12 h-12 rounded-full border-2 border-blue-200"
+                            className="w-12 h-12 rounded-full border-2 border-white/30 shadow-lg"
                           />
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
-                            <Bot className="h-4 w-4 text-blue-600" />
-                            <span className="font-semibold text-blue-800">AIコーチからのアドバイス</span>
+                            <Bot className="h-4 w-4 text-white" />
+                            <span className="font-semibold text-white">AIコーチからのアドバイス</span>
                           </div>
-                          <p className="text-blue-700 leading-relaxed">
+                          <p className="text-white/90 leading-relaxed">
                             今日も目標に向かって頑張ろう！まずは自分の現在の気持ちを正直に選んで、無理のない目標設定をしていこう。
                             小さな積み重ねが大きな成果につながるよ。一緒に合格を目指そう！✨
                           </p>
@@ -822,7 +822,7 @@ export default function GoalSettingPage() {
                   </Card>
                 )}
 
-                <Card className={isGoalSet ? "opacity-75" : ""}>
+                <Card className={`card-elevated ${isGoalSet ? "opacity-75" : ""}`}>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Calendar className="h-5 w-5 text-primary" />
@@ -850,7 +850,7 @@ export default function GoalSettingPage() {
                     </div>
 
                     {selectedTest && (
-                      <div className="mt-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                      <div className="mt-4 p-3 surface-gradient-primary rounded-lg border border-primary/20">
                         <p className="text-sm text-primary font-medium">
                           選択中: {getAvailableTests(true).find((t) => t.id === selectedTest)?.name}
                         </p>
@@ -872,7 +872,7 @@ export default function GoalSettingPage() {
 
                 {selectedTest &&
                   (getTestType(selectedTest) === "gohan" || getTestType(selectedTest) === "kumiwake") && (
-                    <Card className={isGoalSet ? "opacity-75" : ""}>
+                    <Card className={`card-elevated ${isGoalSet ? "opacity-75" : ""}`}>
                       <CardHeader>
                         <CardTitle>目標の設定</CardTitle>
                       </CardHeader>
@@ -885,10 +885,10 @@ export default function GoalSettingPage() {
                                 key={course.id}
                                 onClick={() => !isGoalSet && setSelectedCourse(course.id)}
                                 disabled={isGoalSet}
-                                className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all min-h-[60px] sm:min-h-[70px] ${
+                                className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all duration-300 min-h-[60px] sm:min-h-[70px] ${
                                   selectedCourse === course.id
-                                    ? "border-primary bg-primary/10 shadow-md"
-                                    : "border-border bg-background hover:border-primary/50"
+                                    ? "border-primary bg-primary/10 shadow-lg"
+                                    : "border-border bg-background hover:border-primary/50 hover:shadow-md"
                                 } ${isGoalSet ? "cursor-not-allowed" : ""}`}
                               >
                                 <div className="font-bold text-base sm:text-lg">{course.name}</div>
@@ -900,10 +900,10 @@ export default function GoalSettingPage() {
 
                         <div className="space-y-3 sm:space-y-4">
                           <Label className="text-sm sm:text-base font-medium">目標の組を決めよう</Label>
-                          <div className="px-4 sm:px-6 py-4 sm:py-5 bg-gradient-to-br from-blue-50 via-blue-50 to-cyan-50 rounded-2xl border-2 border-blue-200/60 shadow-sm">
+                          <div className="px-4 sm:px-6 py-4 sm:py-5 surface-gradient-primary rounded-2xl border-2 border-primary/20 shadow-lg">
                             <div className="flex items-center justify-between mb-4">
-                              <span className="text-sm sm:text-base font-semibold text-blue-900">目標の組</span>
-                              <div className="px-4 sm:px-5 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-full text-sm sm:text-base font-bold shadow-md">
+                              <span className="text-sm sm:text-base font-semibold text-primary">目標の組</span>
+                              <div className="px-4 sm:px-5 py-2 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground rounded-full text-sm sm:text-base font-bold shadow-lg">
                                 {classNumber[0]}組
                               </div>
                             </div>
@@ -918,7 +918,7 @@ export default function GoalSettingPage() {
                                 disabled={isGoalSet}
                               />
                             </div>
-                            <div className="flex justify-between text-xs sm:text-sm text-blue-700 mt-3 font-semibold">
+                            <div className="flex justify-between text-xs sm:text-sm text-primary/70 mt-3 font-semibold">
                               <span>1組</span>
                               <span>40組</span>
                             </div>
@@ -930,7 +930,7 @@ export default function GoalSettingPage() {
 
                 {selectedTest && getTestType(selectedTest) === "week" && (
                   <>
-                    <Card className={isGoalSet ? "opacity-75" : ""}>
+                    <Card className={`card-elevated ${isGoalSet ? "opacity-75" : ""}`}>
                       <CardHeader>
                         <CardTitle>目標設定の方法を選択してください</CardTitle>
                       </CardHeader>
@@ -939,20 +939,20 @@ export default function GoalSettingPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                           <button
                             onClick={() => setGoalSettingMode("based")}
-                            className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all min-h-[60px] ${
+                            className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all duration-300 min-h-[60px] ${
                               goalSettingMode === "based"
-                                ? "border-primary bg-primary/10 shadow-md"
-                                : "border-border bg-background hover:border-primary/50"
+                                ? "border-primary bg-primary/10 shadow-lg"
+                                : "border-border bg-background hover:border-primary/50 hover:shadow-md"
                             }`}
                           >
                             <div className="text-xs sm:text-sm font-medium">週テスト結果にもとづく</div>
                           </button>
                           <button
                             onClick={() => setGoalSettingMode("manual")}
-                            className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all min-h-[60px] ${
+                            className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all duration-300 min-h-[60px] ${
                               goalSettingMode === "manual"
-                                ? "border-primary bg-primary/10 shadow-md"
-                                : "border-border bg-background hover:border-primary/50"
+                                ? "border-primary bg-primary/10 shadow-lg"
+                                : "border-border bg-background hover:border-primary/50 hover:shadow-md"
                             }`}
                           >
                             <div className="text-xs sm:text-sm font-medium">自分で決める</div>
@@ -962,7 +962,7 @@ export default function GoalSettingPage() {
                     </Card>
 
                     {goalSettingMode === "based" && (
-                      <Card className={isGoalSet ? "opacity-75" : ""}>
+                      <Card className={`card-elevated ${isGoalSet ? "opacity-75" : ""}`}>
                         <CardHeader>
                           <CardTitle>自動提案モード</CardTitle>
                         </CardHeader>
@@ -973,10 +973,10 @@ export default function GoalSettingPage() {
                               <button
                                 key={mode.id}
                                 onClick={() => setAutoSuggestionMode(mode.id)}
-                                className={`p-3 sm:p-4 rounded-lg border-2 text-left transition-all ${
+                                className={`p-3 sm:p-4 rounded-lg border-2 text-left transition-all duration-300 ${
                                   autoSuggestionMode === mode.id
-                                    ? "border-primary bg-primary/10 shadow-md"
-                                    : "border-border bg-background hover:border-primary/50"
+                                    ? "border-primary bg-primary/10 shadow-lg"
+                                    : "border-border bg-background hover:border-primary/50 hover:shadow-md"
                                 }`}
                               >
                                 <div className="text-xs sm:text-sm font-medium">{mode.name}</div>
@@ -990,7 +990,7 @@ export default function GoalSettingPage() {
 
                     {goalSettingMode &&
                       (goalSettingMode === "manual" || (goalSettingMode === "based" && autoSuggestionMode)) && (
-                        <Card className={isGoalSet ? "opacity-75" : ""}>
+                        <Card className={`card-elevated ${isGoalSet ? "opacity-75" : ""}`}>
                           <CardHeader>
                             <CardTitle>科目別目標偏差値</CardTitle>
                           </CardHeader>
@@ -1068,7 +1068,7 @@ export default function GoalSettingPage() {
                 )}
 
                 {!isGoalSet && selectedTest && (
-                  <Card className="bg-gradient-to-r from-primary/10 to-accent/10 border-primary/20">
+                  <Card className="card-elevated bg-gradient-to-r from-primary/10 to-accent/10 border-primary/20 shadow-xl">
                     <CardContent className="p-6 text-center">
                       <Target className="h-12 w-12 text-primary mx-auto mb-4" />
                       <h3 className="text-lg font-bold text-primary mb-2">
@@ -1088,7 +1088,7 @@ export default function GoalSettingPage() {
                       <Button
                         onClick={handleGoalDecision}
                         disabled={!canSetGoal}
-                        className="w-full h-11 sm:h-12 text-sm sm:text-lg font-medium bg-primary text-primary-foreground hover:bg-primary/90"
+                        className="w-full h-11 sm:h-12 text-sm sm:text-lg font-medium bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg hover:shadow-xl transition-all duration-300"
                       >
                         <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                         {getTestType(selectedTest) === "gohan"
@@ -1102,7 +1102,7 @@ export default function GoalSettingPage() {
                 )}
 
                 {isAiCoachActive && (
-                  <Card>
+                  <Card className="card-elevated">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <Sparkles className="h-5 w-5 text-primary" />
@@ -1115,7 +1115,7 @@ export default function GoalSettingPage() {
                           <div className="flex gap-2">
                             <Button
                               onClick={startCoachChat}
-                              className="flex items-center gap-2 bg-gradient-to-r from-primary to-accent text-white"
+                              className="flex items-center gap-2 bg-gradient-to-r from-primary to-accent text-white shadow-lg hover:shadow-xl transition-all duration-300"
                             >
                               <Bot className="h-4 w-4" />
                               AIコーチと話してみる
@@ -1136,7 +1136,7 @@ export default function GoalSettingPage() {
                         </>
                       ) : (
                         <div className="space-y-4">
-                          <div className="bg-gray-50 rounded-lg p-4 max-h-80 overflow-y-auto space-y-3">
+                          <div className="bg-muted/30 rounded-lg p-4 max-h-80 overflow-y-auto space-y-3">
                             {chatMessages.map((message) => (
                               <div
                                 key={message.id}
@@ -1155,8 +1155,8 @@ export default function GoalSettingPage() {
                                   <div
                                     className={`px-3 py-2 rounded-lg ${
                                       message.sender === "student"
-                                        ? "bg-blue-500 text-white"
-                                        : "bg-white border border-gray-200"
+                                        ? "bg-primary text-primary-foreground"
+                                        : "bg-background border border-border"
                                     }`}
                                   >
                                     <p className="text-sm whitespace-pre-line">{message.message}</p>
@@ -1173,7 +1173,7 @@ export default function GoalSettingPage() {
                                 value={studentResponse}
                                 onChange={(e) => setStudentResponse(e.target.value)}
                                 placeholder="あなたの気持ちを教えて..."
-                                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="flex-1 px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                                 onKeyPress={(e) => e.key === "Enter" && sendStudentResponse()}
                               />
                               <Button onClick={sendStudentResponse} disabled={!studentResponse.trim()} size="sm">
@@ -1188,7 +1188,10 @@ export default function GoalSettingPage() {
                 )}
 
                 {isGoalSet && (
-                  <Button onClick={handleSaveGoals} className="w-full h-11 sm:h-12 text-sm sm:text-lg font-medium">
+                  <Button
+                    onClick={handleSaveGoals}
+                    className="w-full h-11 sm:h-12 text-sm sm:text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
                     <Save className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                     目標を保存する
                   </Button>
@@ -1198,22 +1201,22 @@ export default function GoalSettingPage() {
           </>
         ) : activeTab === "result" ? (
           <>
-            <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+            <Card className="card-elevated ai-coach-gradient border-0 shadow-2xl premium-glow">
               <CardContent className="p-6">
                 <div className="flex items-start gap-4">
                   <div className="flex-shrink-0">
                     <img
                       src={avatarMap.ai_coach || "/placeholder.svg"}
                       alt="AIコーチ"
-                      className="w-12 h-12 rounded-full border-2 border-green-200"
+                      className="w-12 h-12 rounded-full border-2 border-white/30 shadow-lg"
                     />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <Trophy className="h-4 w-4 text-green-600" />
-                      <span className="font-semibold text-green-800">AIコーチからのメッセージ</span>
+                      <Trophy className="h-4 w-4 text-white" />
+                      <span className="font-semibold text-white">AIコーチからのメッセージ</span>
                     </div>
-                    <p className="text-green-700 leading-relaxed">
+                    <p className="text-white/90 leading-relaxed">
                       テストお疲れさま！結果はどうだったかな？良い結果も思うようにいかなかった結果も、
                       すべて次への成長につながる大切な経験だよ。正直に記録して、次の目標に活かそう！✨
                     </p>
@@ -1287,10 +1290,10 @@ export default function GoalSettingPage() {
                                 <button
                                   key={course.id}
                                   onClick={() => setResultCourse(course.id)}
-                                  className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all min-h-[60px] sm:min-h-[70px] ${
+                                  className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all duration-300 min-h-[60px] sm:min-h-[70px] ${
                                     resultCourse === course.id
-                                      ? "border-primary bg-primary/10 shadow-md"
-                                      : "border-border bg-background hover:border-primary/50"
+                                      ? "border-primary bg-primary/10 shadow-lg"
+                                      : "border-border bg-background hover:border-primary/50 hover:shadow-md"
                                   }`}
                                 >
                                   <div className="font-bold text-base sm:text-lg">{course.name}</div>
@@ -1302,10 +1305,10 @@ export default function GoalSettingPage() {
 
                           <div className="space-y-3 sm:space-y-4">
                             <Label className="text-sm sm:text-base font-medium">実際の組</Label>
-                            <div className="px-4 sm:px-6 py-4 sm:py-5 bg-gradient-to-br from-emerald-50 via-emerald-50 to-green-50 rounded-2xl border-2 border-emerald-200/60 shadow-sm">
+                            <div className="px-4 sm:px-6 py-4 sm:py-5 surface-gradient-primary rounded-2xl border-2 border-primary/20 shadow-lg">
                               <div className="flex items-center justify-between mb-4">
-                                <span className="text-sm sm:text-base font-semibold text-emerald-900">実際の組</span>
-                                <div className="px-4 sm:px-5 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-full text-sm sm:text-base font-bold shadow-md">
+                                <span className="text-sm sm:text-base font-semibold text-primary">実際の組</span>
+                                <div className="px-4 sm:px-5 py-2 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground rounded-full text-sm sm:text-base font-bold shadow-lg">
                                   {resultClass[0]}組
                                 </div>
                               </div>
@@ -1316,10 +1319,10 @@ export default function GoalSettingPage() {
                                   max={40}
                                   min={1}
                                   step={1}
-                                  className="w-full [&_[data-orientation=horizontal]_[role=slider]]:border-emerald-500 [&_[data-orientation=horizontal]_[role=slider]]:focus-visible:ring-emerald-500 [&_[data-orientation=horizontal]>span]:bg-gradient-to-r [&_[data-orientation=horizontal]>span]:from-emerald-500 [&_[data-orientation=horizontal]>span]:to-emerald-600"
+                                  className="w-full [&_[data-orientation=horizontal]_[role=slider]]:border-primary [&_[data-orientation=horizontal]_[role=slider]]:focus-visible:ring-primary [&_[data-orientation=horizontal]>span]:bg-gradient-to-r [&_[data-orientation=horizontal]>span]:from-primary [&_[data-orientation=horizontal]>span]:to-primary/80"
                                 />
                               </div>
-                              <div className="flex justify-between text-xs sm:text-sm text-emerald-700 mt-3 font-semibold">
+                              <div className="flex justify-between text-xs sm:text-sm text-primary/70 mt-3 font-semibold">
                                 <span>1組</span>
                                 <span>40組</span>
                               </div>
@@ -1342,10 +1345,10 @@ export default function GoalSettingPage() {
                                 <button
                                   key={course.id}
                                   onClick={() => setResultCourse(course.id)}
-                                  className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all min-h-[60px] sm:min-h-[70px] ${
+                                  className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all duration-300 min-h-[60px] sm:min-h-[70px] ${
                                     resultCourse === course.id
-                                      ? "border-primary bg-primary/10 shadow-md"
-                                      : "border-border bg-background hover:border-primary/50"
+                                      ? "border-primary bg-primary/10 shadow-lg"
+                                      : "border-border bg-background hover:border-primary/50 hover:shadow-md"
                                   }`}
                                 >
                                   <div className="font-bold text-base sm:text-lg">{course.name}</div>
@@ -1357,10 +1360,10 @@ export default function GoalSettingPage() {
 
                           <div className="space-y-3 sm:space-y-4">
                             <Label className="text-sm sm:text-base font-medium">実際の組</Label>
-                            <div className="px-4 sm:px-6 py-4 sm:py-5 bg-gradient-to-br from-emerald-50 via-emerald-50 to-green-50 rounded-2xl border-2 border-emerald-200/60 shadow-sm">
+                            <div className="px-4 sm:px-6 py-4 sm:py-5 surface-gradient-primary rounded-2xl border-2 border-primary/20 shadow-lg">
                               <div className="flex items-center justify-between mb-4">
-                                <span className="text-sm sm:text-base font-semibold text-emerald-900">実際の組</span>
-                                <div className="px-4 sm:px-5 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-full text-sm sm:text-base font-bold shadow-md">
+                                <span className="text-sm sm:text-base font-semibold text-primary">実際の組</span>
+                                <div className="px-4 sm:px-5 py-2 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground rounded-full text-sm sm:text-base font-bold shadow-lg">
                                   {resultClass[0]}組
                                 </div>
                               </div>
@@ -1371,10 +1374,10 @@ export default function GoalSettingPage() {
                                   max={40}
                                   min={1}
                                   step={1}
-                                  className="w-full [&_[data-orientation=horizontal]_[role=slider]]:border-emerald-500 [&_[data-orientation=horizontal]_[role=slider]]:focus-visible:ring-emerald-500 [&_[data-orientation=horizontal]>span]:bg-gradient-to-r [&_[data-orientation=horizontal]>span]:from-emerald-500 [&_[data-orientation=horizontal]>span]:to-emerald-600"
+                                  className="w-full [&_[data-orientation=horizontal]_[role=slider]]:border-primary [&_[data-orientation=horizontal]_[role=slider]]:focus-visible:ring-primary [&_[data-orientation=horizontal]>span]:bg-gradient-to-r [&_[data-orientation=horizontal]>span]:from-primary [&_[data-orientation=horizontal]>span]:to-primary/80"
                                 />
                               </div>
-                              <div className="flex justify-between text-xs sm:text-sm text-emerald-700 mt-3 font-semibold">
+                              <div className="flex justify-between text-xs sm:text-sm text-primary/70 mt-3 font-semibold">
                                 <span>1組</span>
                                 <span>40組</span>
                               </div>
@@ -1469,7 +1472,7 @@ export default function GoalSettingPage() {
                             placeholder="今回のテストはどうでしたか？良かった点、改善したい点、次に向けての気持ちを書いてみましょう。"
                             value={resultThoughts}
                             onChange={(e) => setResultThoughts(e.target.value)}
-                            className="min-h-[100px] sm:min-h-[120px] resize-none text-sm sm:text-base"
+                            className="min-h-[100px] sm:min-min-h-[120px] resize-none text-sm sm:text-base"
                             maxLength={300}
                           />
                           <div className="flex justify-between items-center text-xs">
@@ -1483,7 +1486,7 @@ export default function GoalSettingPage() {
                     {resultTest && (
                       <Button
                         onClick={handleSaveResults}
-                        className="w-full h-11 sm:h-12 text-sm sm:text-lg font-medium"
+                        className="w-full h-11 sm:h-12 text-sm sm:text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300"
                       >
                         <Save className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                         実績を保存する
@@ -1495,7 +1498,7 @@ export default function GoalSettingPage() {
             </div>
           </>
         ) : (
-          <Card>
+          <Card className="card-elevated">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
@@ -1510,7 +1513,10 @@ export default function GoalSettingPage() {
             <CardContent>
               <div className="space-y-4">
                 {displayedTests.map((test) => (
-                  <Card key={test.id} className="border border-border/50 shadow-sm hover:shadow-md transition-shadow">
+                  <Card
+                    key={test.id}
+                    className="card-elevated border border-border/50 shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <div>
