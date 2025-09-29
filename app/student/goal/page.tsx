@@ -1190,7 +1190,7 @@ export default function GoalSettingPage() {
                 {isGoalSet && (
                   <Button
                     onClick={handleSaveGoals}
-                    className="w-full h-11 sm:h-12 text-sm sm:text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+                    className="w-full h-11 sm:h-12 text-sm sm:text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 bg-blue-500 hover:bg-blue-600 text-white"
                   >
                     <Save className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                     目標を保存する
@@ -1486,7 +1486,7 @@ export default function GoalSettingPage() {
                     {resultTest && (
                       <Button
                         onClick={handleSaveResults}
-                        className="w-full h-11 sm:h-12 text-sm sm:text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+                        className="w-full h-11 sm:h-12 text-sm sm:text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 bg-blue-500 hover:bg-blue-600 text-white"
                       >
                         <Save className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                         実績を保存する

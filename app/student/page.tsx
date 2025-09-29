@@ -512,7 +512,7 @@ const TodayMissionCard = () => {
                     }
                     className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
                       panel.needsAction || panel.status === "未完了"
-                        ? "bg-primary text-white hover:bg-primary/90 shadow-lg hover:scale-105"
+                        ? "bg-blue-500 text-white hover:bg-blue-600 shadow-lg hover:scale-105"
                         : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                     }`}
                   >
@@ -548,7 +548,7 @@ const TodayMissionCard = () => {
                       onClick={() => handleSparkNavigation(panel.subject)}
                       className={`w-full py-3 px-4 rounded-lg text-sm font-bold transition-all duration-300 ${
                         panel.needsAction
-                          ? "bg-primary text-white hover:bg-primary/90 shadow-lg hover:scale-105"
+                          ? "bg-blue-500 text-white hover:bg-blue-600 shadow-lg hover:scale-105"
                           : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                       }`}
                     >
@@ -995,7 +995,7 @@ const RecentEncouragementCard = () => {
               onClick={() => setShowAll(false)}
               className={`text-xs px-3 py-1 transition-all duration-200 ${
                 !showAll
-                  ? "bg-pink-600 text-white shadow-md hover:bg-pink-700"
+                  ? "bg-blue-500 text-white shadow-md hover:bg-blue-600"
                   : "border-pink-300 text-pink-700 hover:bg-pink-50"
               }`}
             >
@@ -1007,7 +1007,7 @@ const RecentEncouragementCard = () => {
               onClick={() => setShowAll(true)}
               className={`text-xs px-3 py-1 transition-all duration-200 ${
                 showAll
-                  ? "bg-pink-600 text-white shadow-md hover:bg-pink-700"
+                  ? "bg-blue-500 text-white shadow-md hover:bg-blue-600"
                   : "border-pink-300 text-pink-700 hover:bg-pink-50"
               }`}
             >

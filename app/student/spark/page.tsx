@@ -954,7 +954,7 @@ export default function SparkPage() {
           <Button
             onClick={handleSubmit}
             disabled={!isFormValid() || isSubmitting}
-            className="w-full h-18 text-xl font-bold shadow-2xl bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 text-white hover:from-blue-700 hover:via-blue-800 hover:to-indigo-800 disabled:from-slate-400 disabled:to-slate-500 transition-all duration-300 rounded-2xl border-0"
+            className="w-full h-18 text-xl font-bold shadow-2xl bg-blue-500 text-white hover:bg-blue-600 disabled:bg-slate-400 disabled:hover:bg-slate-400 transition-all duration-300 rounded-2xl border-0"
           >
             <Save className="h-7 w-7 mr-4" />
             {isSubmitting ? "保存中..." : "学習記録を保存"}

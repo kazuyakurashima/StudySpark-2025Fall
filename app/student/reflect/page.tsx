@@ -486,7 +486,7 @@ export default function ReflectPage() {
                 </div>
                 <Button
                   onClick={() => setShowAIChat(true)}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold px-6 sm:px-8 lg:px-10 py-3 sm:py-4 lg:py-5 text-base sm:text-lg lg:text-xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 w-full sm:w-auto rounded-xl"
+                  className="bg-blue-500 hover:bg-blue-600 text-white font-bold px-6 sm:px-8 lg:px-10 py-3 sm:py-4 lg:py-5 text-base sm:text-lg lg:text-xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 w-full sm:w-auto rounded-xl"
                 >
                   週間振り返りを始める
                 </Button>

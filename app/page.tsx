@@ -152,7 +152,11 @@ export default function LoginPage() {
                       className="h-12"
                     />
                   </div>
-                  <Button type="submit" className="w-full h-12 text-lg font-medium" disabled={isLoading}>
+                  <Button
+                    type="submit"
+                    className="w-full h-12 text-lg font-medium bg-blue-500 hover:bg-blue-600 text-white"
+                    disabled={isLoading}
+                  >
                     {isLoading ? "ログイン中..." : "ログイン"}
                   </Button>
                 </form>
@@ -184,7 +188,11 @@ export default function LoginPage() {
                       className="h-12"
                     />
                   </div>
-                  <Button type="submit" className="w-full h-12 text-lg font-medium" disabled={isLoading}>
+                  <Button
+                    type="submit"
+                    className="w-full h-12 text-lg font-medium bg-blue-500 hover:bg-blue-600 text-white"
+                    disabled={isLoading}
+                  >
                     {isLoading ? "登録中..." : "新規登録"}
                   </Button>
 
