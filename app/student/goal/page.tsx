@@ -1088,7 +1088,7 @@ export default function GoalSettingPage() {
                       <Button
                         onClick={handleGoalDecision}
                         disabled={!canSetGoal}
-                        className="w-full h-11 sm:h-12 text-sm sm:text-lg font-medium bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg hover:shadow-xl transition-all duration-300"
+                        className="w-full h-11 sm:h-12 text-sm sm:text-lg font-medium bg-blue-500 text-white hover:bg-blue-600 shadow-lg hover:shadow-xl transition-all duration-300 disabled:bg-slate-400 disabled:hover:bg-slate-400"
                       >
                         <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                         {getTestType(selectedTest) === "gohan"
