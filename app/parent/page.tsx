@@ -9,49 +9,32 @@ import {
   Heart,
   Send,
   Sparkles,
-  BookOpen,
-  Target,
   Calendar,
   Flame,
   AlertTriangle,
-  CheckCircle,
-  XCircle,
+  Home,
+  Bot,
+  ThumbsUp,
+  BarChart3,
+  Clock,
 } from "lucide-react"
 import ParentBottomNavigation from "@/components/parent-bottom-navigation"
 
 // Mock data for children
-const children = [
+const childrenData = [
   {
     id: "child1",
     name: "みかん",
     avatar: "student1",
-    todayRecord: {
-      subjects: ["算数", "国語"],
-      totalProblems: 25,
-      totalCorrect: 20,
-      mood: "good",
-      reflection: "算数の分数問題が難しかったけど、最後は理解できました。",
-      studyTime: "45分",
-    },
     streak: 7,
-    weeklyGoal: 5,
-    weeklyProgress: 4,
+    weeklyTotal: 5,
   },
   {
     id: "child2",
     name: "太郎",
     avatar: "student2",
-    todayRecord: {
-      subjects: ["理科", "社会"],
-      totalProblems: 18,
-      totalCorrect: 16,
-      mood: "good",
-      reflection: "理科の実験が楽しかった！",
-      studyTime: "30分",
-    },
     streak: 5,
-    weeklyGoal: 4,
-    weeklyProgress: 3,
+    weeklyTotal: 4,
   },
 ]
 
@@ -62,7 +45,7 @@ const encouragementStamps = [
 ]
 
 const aiSuggestedMessages = [
-  "今日も勉強お疲れさま！算数がんばったね。明日もファイト！",
+  "今日も勉強お疲れさま！算数の分数問題が難しかったけど、最後は理解できました。",
   "毎日コツコツ続けているのが素晴らしいです。この調子で頑張ろう！",
   "難しい問題にもチャレンジしていて偉いね。きっと力になってるよ！",
 ]
@@ -203,7 +186,7 @@ const LearningHistoryCalendar = ({ selectedChild }: { selectedChild: string }) =
   }
 
   const learningHistory = generateLearningHistory(selectedChild)
-  const selectedChildData = children.find((child) => child.id === selectedChild)
+  const selectedChildData = childrenData.find((child) => child.id === selectedChild)
 
   const getLearningIntensity = (date: string) => {
     const data = learningHistory[date]
@@ -483,342 +466,361 @@ const LearningDashboard = ({
   )
 }
 
-export default function ParentDashboard() {
-  const [isSending, setIsSending] = useState(false)
-  const [parentAvatar, setParentAvatar] = useState<string>("parent1")
-  const [selectedChild, setSelectedChild] = useState<string>("child1")
+const WeeklySubjectProgressCard = () => {
+  return (
+    <Card className="bg-gradient-to-br from-primary/10 to-accent/10 border-primary/30 shadow-xl">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-xl font-bold flex items-center gap-3">
+          <BarChart3 className="h-7 w-7 text-primary" />
+          <span className="text-slate-800">週間学習進捗</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="bg-white/95 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-white/60 shadow-lg">
+          <p className="text-lg leading-relaxed text-slate-700 font-medium">週間の学習進捗をグラフで表示します。</p>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
-  const handleSendMessage = async (message: string, isScheduled = false) => {
-    setIsSending(true)
+const RecentEncouragementCard = () => {
+  return (
+    <Card className="bg-gradient-to-br from-primary/10 to-accent/10 border-primary/30 shadow-xl">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-xl font-bold flex items-center gap-3">
+          <Heart className="h-7 w-7 text-primary" />
+          <span className="text-slate-800">最近の応援</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="bg-white/95 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-white/60 shadow-lg">
+          <p className="text-lg leading-relaxed text-slate-700 font-medium">最近の応援メッセージを表示します。</p>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
-    setTimeout(() => {
-      if (isScheduled) {
-        console.log(`Scheduled message for 19:00: ${message}`)
-        alert(`19:00に応援メッセージを予約しました！`)
-      } else {
-        console.log(`Sent message: ${message}`)
-        alert("応援メッセージを送信しました！")
-      }
-      setIsSending(false)
-    }, 800)
-  }
+const RecentLearningHistoryCard = () => {
+  return (
+    <Card className="bg-gradient-to-br from-primary/10 to-accent/10 border-primary/30 shadow-xl">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-xl font-bold flex items-center gap-3">
+          <Clock className="h-7 w-7 text-primary" />
+          <span className="text-slate-800">最近の学習履歴</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="bg-white/95 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-white/60 shadow-lg">
+          <p className="text-lg leading-relaxed text-slate-700 font-medium">最近の学習履歴を表示します。</p>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
-  useEffect(() => {
-    const savedParentAvatar = localStorage.getItem("selectedParentAvatar")
-    if (savedParentAvatar) {
-      setParentAvatar(savedParentAvatar)
-    }
-  }, [])
-
-  const getParentAvatarSrc = (avatarId: string) => {
-    const parentAvatarMap: { [key: string]: string } = {
-      parent1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent1-HbhESuJlC27LuGOGupullRXyEUzFLy.png",
-      parent2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent2-zluk4uVJLfzP8dBe0I7v5fVGSn5QfU.png",
-      parent3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent3-EzBDrjsFP5USAgnSPTXjcdNeq1bzSm.png",
-      parent4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent4-YHYTNRnNQ7bRb6aAfTNEFMozjGRlZq.png",
-      parent5: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent5-dGCLocpgcZw4lXWRiPmTHkXURBXXoH.png",
-      parent6: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent6-gKoeUywhHoKWJ4BPEk69iW6idztaLl.png",
-    }
-    return parentAvatarMap[avatarId] || parentAvatarMap["parent1"]
-  }
-
-  const getAvatarSrc = (avatarId: string) => {
-    const avatarMap: { [key: string]: string } = {
-      student1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student1-xZFJU5uXJO4DEfUbq1jbTMQUXReyM0.png",
-      student2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student2-mZ9Q9oVm43IQoRyxSYytVFYgp3JS1V.png",
-      student3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student3-teUpOKnopXNhE2vGFtvz9RWtC7O6kv.png",
-      student4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student4-pKazGXekCT1H5kzHBqmfOrM1968hML.png",
-      student5: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student5-kehwNSIKsgkTL6EkAPO2evB3qJWnRM.png",
-      student6: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student6-dJrMk7uUxYSRMp5tMJ3t4KYDOEIuNl.png",
-      ai_coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png",
-    }
-    return avatarMap[avatarId] || avatarMap["student1"]
-  }
-
-  const formatTestDate = (dateString: string) => {
-    const date = new Date(dateString)
-    const weekdays = ["日", "月", "火", "水", "木", "金", "土"]
-    const month = date.getMonth() + 1
-    const day = date.getDate()
-    const weekday = weekdays[date.getDay()]
-    return `${month}/${day}（${weekday}）`
-  }
-
-  const getDaysUntilTest = (testDate: string) => {
-    const today = new Date()
-    const test = new Date(testDate)
-    today.setHours(0, 0, 0, 0)
-    test.setHours(0, 0, 0, 0)
-    const diffTime = test.getTime() - today.getTime()
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    if (diffDays === 0) return "本日！"
-    if (diffDays === 1) return "明日"
-    if (diffDays < 0) return "終了"
-    return `${diffDays}日後`
-  }
-
-  const currentChildData = studentDataArray.find((data) => data.id === selectedChild) || studentDataArray[0]
+const TodayStatusCard = ({ childName }: { childName: string }) => {
+  const todayStatus = `今日${childName}さんは算数と国語の学習を完了しました。特に算数の正答率が前回より10%向上しています。この調子で頑張っていますね！`
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-20">
-      <div className="bg-card/90 backdrop-blur-sm border-b border-border/60 p-6 shadow-sm">
+    <Card className="card-elevated ai-coach-gradient border-0 shadow-2xl premium-glow">
+      <CardHeader className="pb-6">
+        <CardTitle className="text-xl font-bold flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <Avatar className="h-16 w-16 border-3 border-white/30 shadow-2xl ring-2 ring-white/20">
+              <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
+              <AvatarFallback className="bg-white/20 text-white font-bold text-lg">AI</AvatarFallback>
+            </Avatar>
+            <span className="text-slate-800 font-bold text-xl bg-white/95 px-6 py-3 rounded-2xl shadow-xl backdrop-blur-sm">
+              今日の{childName}さん
+            </span>
+          </div>
+          <Bot className="h-8 w-8 text-white sophisticated-scale" />
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border border-white/40 shadow-2xl">
+          <p className="text-lg leading-relaxed text-slate-700 font-medium">{todayStatus}</p>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+const TodayMissionCard = ({ childName }: { childName: string }) => {
+  const getTodayWeekday = () => {
+    const today = new Date()
+    return today.getDay()
+  }
+
+  const getCurrentHour = () => {
+    const now = new Date()
+    return now.getHours()
+  }
+
+  const getSubjectBlock = (weekday: number) => {
+    const blocks = {
+      1: ["算数", "国語", "社会"],
+      2: ["算数", "国語", "社会"],
+      3: ["算数", "国語", "理科"],
+      4: ["算数", "国語", "理科"],
+      5: ["算数", "理科", "社会"],
+      6: ["算数", "理科", "社会"],
+    }
+    return blocks[weekday as keyof typeof blocks] || []
+  }
+
+  const getMissionMode = (weekday: number, hour: number) => {
+    if (weekday === 0) return "sunday"
+    if (weekday === 6 && hour >= 12) return "special"
+    if ([1, 3, 5].includes(weekday)) return "input"
+    if ([2, 4, 6].includes(weekday)) return "review"
+    return "input"
+  }
+
+  const todayWeekday = getTodayWeekday()
+  const currentHour = getCurrentHour()
+  const mode = getMissionMode(todayWeekday, currentHour)
+  const subjects = getSubjectBlock(todayWeekday)
+
+  const panels = subjects.map((subject) => {
+    const isStudentCompleted = Math.random() > 0.5 // デモ用：実際はAPIから取得
+    const isParentEncouraged = Math.random() > 0.7 // デモ用：実際はAPIから取得
+
+    return {
+      subject,
+      isStudentCompleted,
+      isParentEncouraged,
+      correctRate: isStudentCompleted ? Math.floor(Math.random() * 30) + 70 : null,
+    }
+  })
+
+  const completedCount = panels.filter((p) => p.isParentEncouraged).length
+
+  const getSubjectColor = (subject: string) => {
+    const colors = {
+      算数: "border-l-4 border-l-blue-500 bg-blue-50/80",
+      国語: "border-l-4 border-l-emerald-500 bg-emerald-50/80",
+      理科: "border-l-4 border-l-purple-500 bg-purple-50/80",
+      社会: "border-l-4 border-l-red-500 bg-red-50/80",
+    }
+    return colors[subject as keyof typeof colors] || "border-l-4 border-l-slate-400 bg-slate-50/80"
+  }
+
+  const handleEncourage = (subject: string) => {
+    console.log(`応援する: ${subject}`)
+    alert(`${subject}の応援メッセージを送信しました！`)
+  }
+
+  const handleAIEncourage = (subject: string) => {
+    console.log(`AI応援: ${subject}`)
+    alert(`${subject}のAI応援メッセージを生成しました！`)
+  }
+
+  const handleViewDetails = (subject: string) => {
+    console.log(`詳細を見る: ${subject}`)
+    // 実際の実装では応援機能へ遷移
+  }
+
+  return (
+    <Card className="bg-gradient-to-br from-primary/8 to-accent/8 border-primary/30 shadow-xl">
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-xl font-bold flex items-center gap-3">
+            <Home className="h-7 w-7 text-primary" />
+            <span className="text-slate-800">今日のミッション！</span>
+          </CardTitle>
+          <Badge className="bg-primary text-primary-foreground border-primary font-bold text-base px-4 py-2 shadow-md">
+            {completedCount}/{panels.length}完了
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {panels.map((panel, index) => (
+            <div
+              key={index}
+              className={`p-4 rounded-xl border-2 shadow-sm transition-all duration-300 hover:shadow-md ${getSubjectColor(panel.subject)}`}
+            >
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-lg text-slate-800">{panel.subject}</span>
+                  {panel.isStudentCompleted && panel.correctRate !== null && (
+                    <Badge className="text-xs px-2 py-1 border bg-green-100 text-green-800 border-green-200">
+                      進捗率{panel.correctRate}%
+                    </Badge>
+                  )}
+                </div>
+
+                {!panel.isStudentCompleted ? (
+                  <Button
+                    disabled
+                    className="w-full py-3 px-4 rounded-lg text-sm font-bold bg-slate-200 text-slate-500 cursor-not-allowed"
+                  >
+                    未完了
+                  </Button>
+                ) : panel.isParentEncouraged ? (
+                  <div className="w-full py-3 px-4 rounded-lg text-sm font-bold bg-green-100 text-green-800 text-center border-2 border-green-300">
+                    応援完了！
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Button
+                      onClick={() => handleEncourage(panel.subject)}
+                      className="w-full py-2 px-3 rounded-lg text-sm font-bold bg-pink-500 text-white hover:bg-pink-600 shadow-lg hover:scale-105 transition-all duration-300"
+                    >
+                      <ThumbsUp className="h-4 w-4 mr-2" />
+                      頑張ったね！
+                    </Button>
+                    <Button
+                      onClick={() => handleAIEncourage(panel.subject)}
+                      className="w-full py-2 px-3 rounded-lg text-sm font-bold bg-blue-500 text-white hover:bg-blue-600 shadow-lg hover:scale-105 transition-all duration-300"
+                    >
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      AI応援
+                    </Button>
+                    <Button
+                      onClick={() => handleViewDetails(panel.subject)}
+                      variant="outline"
+                      className="w-full py-2 px-3 rounded-lg text-sm font-bold border-2 border-slate-300 hover:bg-slate-50"
+                    >
+                      詳細を見る
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+const getGreetingMessage = (userName: string, streak: number) => {
+  if (streak === 1) {
+    return `はじめまして、${userName}さん`
+  }
+
+  const lastLoginDays = 0
+  if (lastLoginDays > 7) {
+    return `お久しぶり、${userName}さん`
+  }
+
+  return `おかえりなさい、${userName}さん`
+}
+
+const getAvatarSrc = (avatarId: string) => {
+  const avatarMap: { [key: string]: string } = {
+    student1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student1-xZFJU5uXJO4DEfUbq1jbTMQUXReyM0.png",
+    student2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student2-mZ9Q9oVm43IQoRyxSYytVFYgp3JS1V.png",
+    student3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student3-teUpOKnopXNhE2vGFtvz9RWtC7O6kv.png",
+    student4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student4-pKazGXekCT1H5kzHBqmfOrM1968hML.png",
+    student5: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student5-kehwNSIKsgkTL6EkAPO2evB3qJWnRM.png",
+    student6: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student6-dJrMk7uUxYSRMp5tMJ3t4KYDOEIuNl.png",
+    coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/coach-LENT7C1nR9yWT7UBNTHgxnWakF66Pr.png",
+    ai_coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png",
+    parent1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent1-HbhESuJlC27LuGOGupullRXyEUzFLy.png",
+    parent2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent2-zluk4uVJLfzP8dBe0I7v5fVGSn5QfU.png",
+    parent3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent3-EzBDrjsFP5USAgnSPTXjcdNeq1bzSm.png",
+    parent4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent4-YHYTNRnNQ7bRb6aAfTNEFMozjGRlZq.png",
+    parent5: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent5-dGCLocpgcZw4lXWRiPmTHkXURBXXoH.png",
+    parent6: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent6-gKoeUywhHoKWJ4BPEk69iW6idztaLl.png",
+  }
+  return avatarMap[avatarId] || avatarMap["student1"]
+}
+
+export default function ParentDashboard() {
+  const [parentName, setParentName] = useState("")
+  const [selectedAvatar, setSelectedAvatar] = useState("")
+  const [selectedChild, setSelectedChild] = useState<string>("child1")
+
+  useEffect(() => {
+    const name = localStorage.getItem("parentName") || "保護者"
+    const avatar = localStorage.getItem("selectedParentAvatar") || "parent1"
+    setParentName(name)
+    setSelectedAvatar(avatar)
+  }, [])
+
+  const greetingMessage = getGreetingMessage(parentName, 7)
+  const currentChild = childrenData.find((child) => child.id === selectedChild) || childrenData[0]
+
+  return (
+    <div className="min-h-screen bg-background pb-20 elegant-fade-in">
+      <div className="surface-gradient-primary backdrop-blur-lg border-b border-border/30 p-6 shadow-lg">
         <div className="flex items-center justify-between max-w-6xl mx-auto">
           <div className="flex items-center gap-4">
-            <Avatar className="h-14 w-14 border-3 border-primary/30 shadow-lg">
-              <AvatarImage src={getParentAvatarSrc(parentAvatar) || "/placeholder.svg"} alt="保護者" />
-              <AvatarFallback className="bg-primary text-white font-bold text-lg">保</AvatarFallback>
+            <Avatar className="h-16 w-16 border-3 border-primary/20 shadow-xl ring-2 ring-primary/10">
+              <AvatarImage src={getAvatarSrc(selectedAvatar) || "/placeholder.svg"} alt={parentName} />
+              <AvatarFallback className="bg-primary/10 text-primary font-bold text-xl">
+                {parentName.charAt(0)}
+              </AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">保護者サポート</h1>
-              <p className="text-base text-muted-foreground mt-1">60秒で状況把握・応援しよう</p>
+              <h1 className="text-3xl font-bold text-foreground tracking-tight">{greetingMessage}</h1>
+              <p className="text-lg text-muted-foreground mt-1 font-medium">お子さんの学習を見守りましょう</p>
             </div>
           </div>
           <div className="text-right">
-            <div className="flex items-center gap-2 text-primary">
-              <Heart className="h-6 w-6" />
-              <span className="font-bold text-2xl">完了</span>
+            <div className="flex items-center gap-3 text-primary">
+              <div className="p-2 bg-primary/10 rounded-full">
+                <Flame className="h-7 w-7" />
+              </div>
+              <span className="font-bold text-3xl">{currentChild.streak}</span>
             </div>
-            <p className="text-sm text-muted-foreground font-medium">今日の応援</p>
+            <p className="text-sm text-muted-foreground font-semibold mt-1">連続学習日数</p>
           </div>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6 sm:space-y-8">
-        <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
-          {children.map((child) => (
-            <Button
-              key={child.id}
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelectedChild(child.id)}
-              className={`flex-1 rounded-md transition-all ${
-                selectedChild === child.id
-                  ? "bg-white text-primary shadow-sm font-medium"
-                  : "text-slate-600 hover:text-slate-800 hover:bg-white/50"
-              }`}
-            >
-              {child.name}
-            </Button>
-          ))}
-        </div>
-
-        <div className="ai-coach-gradient rounded-2xl p-6 shadow-2xl ai-coach-glow">
-          <div className="pb-4 sm:pb-6">
-            <div className="text-lg sm:text-xl font-bold flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10 sm:h-12 sm:w-12 border-3 border-white/40 shadow-xl ai-coach-glow">
-                  <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
-                  <AvatarFallback className="bg-white/20 text-white font-bold">AI</AvatarFallback>
+      <div className="max-w-6xl mx-auto p-6 space-y-8">
+        {childrenData.length > 1 && (
+          <div className="flex gap-2 bg-slate-100 p-2 rounded-xl shadow-sm">
+            {childrenData.map((child) => (
+              <Button
+                key={child.id}
+                variant="ghost"
+                onClick={() => setSelectedChild(child.id)}
+                className={`flex-1 rounded-lg transition-all duration-200 ${
+                  selectedChild === child.id
+                    ? "bg-white text-primary shadow-md font-bold"
+                    : "text-slate-600 hover:text-slate-800 hover:bg-white/50"
+                }`}
+              >
+                <Avatar className="h-8 w-8 mr-2">
+                  <AvatarImage src={getAvatarSrc(child.avatar) || "/placeholder.svg"} alt={child.name} />
+                  <AvatarFallback>{child.name.charAt(0)}</AvatarFallback>
                 </Avatar>
-                <span className="text-white font-bold text-base sm:text-lg bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg border border-white/30">
-                  今日の声かけTip
-                </span>
-              </div>
-              <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-white animate-pulse sparkle" />
+                {child.name}
+              </Button>
+            ))}
+          </div>
+        )}
+
+        <div className="space-y-8 lg:space-y-0">
+          <div className="lg:hidden space-y-8">
+            <TodayStatusCard childName={currentChild.name} />
+            <TodayMissionCard childName={currentChild.name} />
+            <LearningHistoryCalendar selectedChild={selectedChild} />
+            <WeeklySubjectProgressCard />
+            <RecentEncouragementCard />
+            <RecentLearningHistoryCard />
+          </div>
+
+          <div className="hidden lg:grid lg:grid-cols-3 lg:gap-8">
+            <div className="lg:col-span-2 space-y-8">
+              <TodayStatusCard childName={currentChild.name} />
+              <TodayMissionCard childName={currentChild.name} />
+              <RecentEncouragementCard />
+              <RecentLearningHistoryCard />
+            </div>
+
+            <div className="lg:col-span-1 space-y-8">
+              <LearningHistoryCalendar selectedChild={selectedChild} />
+              <WeeklySubjectProgressCard />
             </div>
           </div>
-          <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-xl border border-white/30">
-            <p className="text-base sm:text-lg leading-relaxed text-slate-700 font-medium">{generateParentTip()}</p>
-          </div>
-        </div>
-
-        <div className="xl:col-span-2">
-          <LearningDashboard
-            handleSendMessage={handleSendMessage}
-            isSending={isSending}
-            selectedChild={selectedChild}
-          />
-        </div>
-
-        <div className="xl:col-span-2">
-          <Card className="ai-coach-gradient-subtle border-primary/30 shadow-xl mission-pulse">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg sm:text-xl font-bold flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                <div className="flex items-center gap-3">
-                  <Flame className="h-6 w-6 sm:h-7 sm:w-7 text-primary status-glow" />
-                  <span className="text-slate-800">今日のミッション！</span>
-                </div>
-                <Badge className="bg-primary text-primary-foreground border-primary font-bold text-sm sm:text-base px-3 sm:px-4 py-1 sm:py-2 shadow-md status-glow">
-                  要対応 {currentChildData.todayMissions.needsAttention}/{currentChildData.todayMissions.total}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 sm:space-y-6">
-              <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-white/60 shadow-lg">
-                <div className="space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <span className="text-base sm:text-lg font-bold text-slate-800">
-                      {currentChildData.todayMissions.mode === "input" ? "入力促進モード" : "復習促進モード"}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      {currentChildData.todayMissions.needsAttention > 0 ? (
-                        <XCircle className="h-5 w-5 text-red-500" />
-                      ) : (
-                        <CheckCircle className="h-5 w-5 text-primary" />
-                      )}
-                      <span className="font-medium">
-                        {currentChildData.todayMissions.completed}/{currentChildData.todayMissions.total} 完了
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 sm:gap-3">
-                    {currentChildData.todayMissions.subjects.map((subject) => (
-                      <Badge key={subject} className="bg-primary text-white border-primary font-medium py-1 sm:py-2">
-                        {subject}
-                      </Badge>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {[
-                      { subject: "算数", type: "授業", status: "できた" },
-                      { subject: "算数", type: "宿題", status: "入力のみ" },
-                      { subject: "国語", type: "授業", status: "未入力" },
-                      { subject: "国語", type: "宿題", status: "バッチリ理解" },
-                      { subject: "理科", type: "授業", status: "ふつう" },
-                      { subject: "理科", type: "宿題", status: "未入力" },
-                    ].map((panel, index) => {
-                      const getStatusColor = (status: string) => {
-                        switch (status) {
-                          case "未入力":
-                            return "bg-slate-100 text-slate-700 border-slate-300"
-                          case "入力のみ":
-                            return "bg-blue-50 text-blue-800 border-blue-200"
-                          case "ふつう":
-                            return "bg-yellow-50 text-yellow-800 border-yellow-200"
-                          case "できた":
-                            return "bg-green-50 text-green-800 border-green-200"
-                          case "バッチリ理解":
-                            return "bg-purple-50 text-purple-800 border-purple-200"
-                          default:
-                            return "bg-slate-100 text-slate-700 border-slate-300"
-                        }
-                      }
-
-                      const getSubjectColor = (subject: string) => {
-                        switch (subject) {
-                          case "算数":
-                            return "border-l-4 border-l-blue-500 bg-blue-50/80"
-                          case "国語":
-                            return "border-l-4 border-l-green-500 bg-green-50/80"
-                          case "理科":
-                            return "border-l-4 border-l-purple-500 bg-purple-50/80"
-                          case "社会":
-                            return "border-l-4 border-l-red-500 bg-red-50/80"
-                          default:
-                            return "border-l-4 border-l-slate-400 bg-slate-50/80"
-                        }
-                      }
-
-                      const needsAction = panel.status === "未入力" || panel.status === "入力のみ"
-
-                      return (
-                        <div
-                          key={index}
-                          className={`p-3 rounded-lg border-2 shadow-sm ${getSubjectColor(panel.subject)} ${
-                            needsAction ? "ring-2 ring-red-200" : ""
-                          }`}
-                        >
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-sm text-slate-800">{panel.subject}</span>
-                              <Badge className={`text-xs px-2 py-1 border ${getStatusColor(panel.status)}`}>
-                                {panel.status}
-                              </Badge>
-                            </div>
-                            <div className="space-y-1">
-                              <p className="text-xs font-medium text-slate-700">{panel.type}</p>
-                              <div className="text-xs text-slate-600">{needsAction ? "要サポート" : "順調"}</div>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div>
-          <Card className="bg-gradient-to-br from-primary/10 to-accent/10 border-primary/30 shadow-xl">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg sm:text-xl font-bold flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                <div className="flex items-center gap-3">
-                  <Target className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
-                  <span className="text-slate-800">今週の目標</span>
-                </div>
-                <Badge
-                  className={`${
-                    currentChildData.nextTest.riskLevel === "高"
-                      ? "bg-primary/10 text-primary"
-                      : currentChildData.nextTest.riskLevel === "接戦"
-                        ? "bg-yellow-50 text-yellow-600"
-                        : "bg-red-50 text-red-600"
-                  } font-bold`}
-                >
-                  到達見込み: {currentChildData.nextTest.riskLevel}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 sm:space-y-6">
-              <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-white/60 shadow-lg">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
-                  <div>
-                    <h3 className="font-bold text-lg sm:text-xl text-foreground">{currentChildData.nextTest.name}</h3>
-                    <p className="text-sm sm:text-base text-muted-foreground mt-1">
-                      {formatTestDate(currentChildData.nextTest.date)}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-2xl sm:text-3xl font-black text-primary">
-                      {getDaysUntilTest(currentChildData.nextTest.date)}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="font-bold text-base sm:text-lg text-foreground flex items-center gap-2">
-                    <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                    結果目標
-                  </h4>
-                  <div className="flex items-center gap-3 sm:gap-4">
-                    <div
-                      className="font-bold text-sm sm:text-lg px-3 sm:px-4 py-2 border shadow-md rounded-md"
-                      style={{ backgroundColor: "#1e3a8a", color: "#ffffff" }}
-                    >
-                      {currentChildData.nextTest.course}コース
-                    </div>
-                    <div
-                      className="font-bold text-sm sm:text-lg px-3 sm:px-4 py-2 border shadow-md rounded-md"
-                      style={{ backgroundColor: "#1e40af", color: "#ffffff" }}
-                    >
-                      {currentChildData.nextTest.group}組
-                    </div>
-                  </div>
-                </div>
-
-                {currentChildData.nextTest.thought && (
-                  <div className="space-y-3 pt-4 border-t border-border/40">
-                    <h4 className="font-bold text-base sm:text-lg text-foreground">
-                      {currentChildData.name}さんの思い
-                    </h4>
-                    <div className="bg-accent/10 rounded-xl p-3 sm:p-4 border border-accent/30 shadow-sm">
-                      <p className="text-sm sm:text-base leading-relaxed text-slate-800">
-                        {currentChildData.nextTest.thought}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div>
-          <LearningHistoryCalendar selectedChild={selectedChild} />
         </div>
       </div>
 
