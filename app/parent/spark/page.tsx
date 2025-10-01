@@ -482,7 +482,7 @@ export default function ParentSparkPage() {
                     <div className="space-y-3">
                       <div className="text-sm font-medium flex items-center gap-2">
                         <MessageCircle className="h-4 w-4 text-primary" />
-                        AI提案メッセージ
+                        AI応援メッセージ
                       </div>
                       <div className="space-y-2">
                         {generateAIMessages(record).map((message, index) => (

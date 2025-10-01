@@ -17,6 +17,7 @@ import {
   ThumbsUp,
   BarChart3,
   Clock,
+  BookOpen,
 } from "lucide-react"
 import ParentBottomNavigation from "@/components/parent-bottom-navigation"
 
@@ -467,54 +468,550 @@ const LearningDashboard = ({
 }
 
 const WeeklySubjectProgressCard = () => {
-  return (
-    <Card className="bg-gradient-to-br from-primary/10 to-accent/10 border-primary/30 shadow-xl">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-xl font-bold flex items-center gap-3">
-          <BarChart3 className="h-7 w-7 text-primary" />
-          <span className="text-slate-800">週間学習進捗</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="bg-white/95 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-white/60 shadow-lg">
-          <p className="text-lg leading-relaxed text-slate-700 font-medium">週間の学習進捗をグラフで表示します。</p>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
+  const [expandedSubject, setExpandedSubject] = useState<string | null>(null)
 
-const RecentEncouragementCard = () => {
+  const subjectProgress = [
+    {
+      subject: "算数",
+      status: "進行中",
+      correctAnswers: 32,
+      totalQuestions: 50,
+      progressRate: 64,
+      color: "blue",
+      details: [
+        { content: "実験", remaining: 8 },
+        { content: "暗記", remaining: 7 },
+      ],
+    },
+    {
+      subject: "国語",
+      status: "あと少し",
+      correctAnswers: 28,
+      totalQuestions: 35,
+      progressRate: 80,
+      color: "yellow",
+      details: [
+        { content: "読解", remaining: 3 },
+        { content: "漢字", remaining: 4 },
+      ],
+    },
+    {
+      subject: "理科",
+      status: "未着手",
+      correctAnswers: 15,
+      totalQuestions: 30,
+      progressRate: 50,
+      color: "gray",
+      details: [
+        { content: "実験", remaining: 8 },
+        { content: "暗記", remaining: 7 },
+      ],
+    },
+    {
+      subject: "社会",
+      status: "達成",
+      correctAnswers: 25,
+      totalQuestions: 25,
+      progressRate: 100,
+      color: "green",
+      details: [],
+    },
+  ]
+
+  const getStatusColor = (status: string) => {
+    const colors = {
+      進行中: "bg-blue-100 text-blue-800 border-blue-200",
+      あと少し: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      未着手: "bg-gray-100 text-gray-800 border-gray-200",
+      達成: "bg-green-100 text-green-800 border-green-200",
+    }
+    return colors[status as keyof typeof colors] || "bg-gray-100 text-gray-800"
+  }
+
+  const getProgressColor = (color: string) => {
+    const colors = {
+      blue: "bg-blue-500",
+      yellow: "bg-yellow-500",
+      gray: "bg-gray-400",
+      green: "bg-green-500",
+    }
+    return colors[color as keyof typeof colors] || "bg-gray-400"
+  }
+
+  const getProgressBgColor = (color: string) => {
+    const colors = {
+      blue: "bg-blue-100",
+      yellow: "bg-yellow-100",
+      gray: "bg-gray-100",
+      green: "bg-green-100",
+    }
+    return colors[color as keyof typeof colors] || "bg-gray-100"
+  }
+
   return (
-    <Card className="bg-gradient-to-br from-primary/10 to-accent/10 border-primary/30 shadow-xl">
+    <Card className="bg-gradient-to-br from-purple-50 to-blue-50 border-purple/20 shadow-lg">
       <CardHeader className="pb-4">
-        <CardTitle className="text-xl font-bold flex items-center gap-3">
-          <Heart className="h-7 w-7 text-primary" />
-          <span className="text-slate-800">最近の応援</span>
+        <CardTitle className="text-lg font-bold flex items-center gap-2">
+          <BarChart3 className="h-6 w-6 text-purple-600" />
+          今週の進捗
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="bg-white/95 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-white/60 shadow-lg">
-          <p className="text-lg leading-relaxed text-slate-700 font-medium">最近の応援メッセージを表示します。</p>
-        </div>
+      <CardContent className="space-y-4">
+        {subjectProgress.map((subject, index) => (
+          <div key={index} className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="font-bold text-lg text-slate-800">{subject.subject}</span>
+                <Badge className={`text-xs px-2 py-1 border ${getStatusColor(subject.status)}`}>{subject.status}</Badge>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-slate-600">
+                  {subject.correctAnswers}/{subject.totalQuestions}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setExpandedSubject(expandedSubject === subject.subject ? null : subject.subject)}
+                  className="text-blue-600 hover:text-blue-800 p-1"
+                >
+                  詳細
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className={`w-full h-3 rounded-full ${getProgressBgColor(subject.color)}`}>
+                <div
+                  className={`h-3 rounded-full transition-all duration-500 ${getProgressColor(subject.color)}`}
+                  style={{ width: `${subject.progressRate}%` }}
+                />
+              </div>
+            </div>
+
+            {expandedSubject === subject.subject && subject.details.length > 0 && (
+              <div className="bg-white/80 rounded-lg p-4 border border-slate-200 space-y-2">
+                <h4 className="font-medium text-slate-700 mb-2">内容別残数</h4>
+                {subject.details.map((detail, detailIndex) => (
+                  <div key={detailIndex} className="flex justify-between items-center text-sm">
+                    <span className="text-slate-600">{detail.content}</span>
+                    <span className="font-medium text-slate-800">{detail.remaining}問</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
       </CardContent>
     </Card>
   )
 }
 
 const RecentLearningHistoryCard = () => {
+  const recentHistory = [
+    {
+      studentRecordTime: "今日 14:30",
+      session: 2,
+      subject: "算数",
+      content: "類題",
+      correctAnswers: 8,
+      totalQuestions: 10,
+      accuracy: 80,
+      previousAccuracy: 65,
+      reflection: "分数の計算が少しずつ分かってきました",
+    },
+    {
+      studentRecordTime: "今日 10:15",
+      session: 1,
+      subject: "国語",
+      content: "確認問題",
+      correctAnswers: 9,
+      totalQuestions: 10,
+      accuracy: 90,
+      previousAccuracy: null,
+      reflection: "",
+    },
+    {
+      studentRecordTime: "昨日 16:45",
+      session: 3,
+      subject: "理科",
+      content: "演習問題集（基本問題）",
+      correctAnswers: 7,
+      totalQuestions: 10,
+      accuracy: 70,
+      previousAccuracy: 45,
+      reflection: "実験の手順を覚えることができました",
+    },
+    {
+      studentRecordTime: "昨日 09:20",
+      session: 1,
+      subject: "社会",
+      content: "演習問題集（練習問題）",
+      correctAnswers: 6,
+      totalQuestions: 10,
+      accuracy: 60,
+      previousAccuracy: null,
+      reflection: "",
+    },
+  ]
+
+  const getSubjectColor = (subject: string) => {
+    const colors = {
+      算数: "text-blue-600 bg-blue-50 border-blue-200",
+      国語: "text-emerald-600 bg-emerald-50 border-emerald-200",
+      理科: "text-purple-600 bg-purple-50 border-purple-200",
+      社会: "text-red-600 bg-red-50 border-red-200",
+    }
+    return colors[subject as keyof typeof colors] || "text-slate-600 bg-slate-50 border-slate-200"
+  }
+
+  const getAccuracyColor = (accuracy: number) => {
+    if (accuracy >= 80) return "text-green-700 bg-green-50 border-green-200"
+    if (accuracy >= 60) return "text-yellow-700 bg-yellow-50 border-yellow-200"
+    return "text-red-700 bg-red-50 border-red-200"
+  }
+
+  const getImprovementDisplay = (current: number, previous: number | null) => {
+    if (previous === null) return null
+    const improvement = current - previous
+    const isPositive = improvement > 0
+    return {
+      text: `${previous}% → ${current}%`,
+      color: isPositive ? "text-green-600" : improvement === 0 ? "text-slate-600" : "text-red-600",
+      icon: isPositive ? "↗" : improvement === 0 ? "→" : "↘",
+    }
+  }
+
   return (
-    <Card className="bg-gradient-to-br from-primary/10 to-accent/10 border-primary/30 shadow-xl">
-      <CardHeader className="pb-4">
+    <Card className="bg-gradient-to-br from-green-50 via-emerald-50 to-blue-50 border-green-200/60 shadow-xl backdrop-blur-sm">
+      <CardHeader className="pb-4 bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-t-lg">
         <CardTitle className="text-xl font-bold flex items-center gap-3">
-          <Clock className="h-7 w-7 text-primary" />
-          <span className="text-slate-800">最近の学習履歴</span>
+          <div className="p-2 bg-green-100 rounded-full shadow-sm">
+            <Clock className="h-6 w-6 text-green-600" />
+          </div>
+          <div>
+            <span className="text-slate-800">直近の学習履歴</span>
+            <p className="text-sm font-normal text-slate-600 mt-1">昨日0:00〜今日23:59のスパーク機能記録</p>
+          </div>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="bg-white/95 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-white/60 shadow-lg">
-          <p className="text-lg leading-relaxed text-slate-700 font-medium">最近の学習履歴を表示します。</p>
+      <CardContent className="space-y-4 p-6">
+        {recentHistory.map((item, index) => (
+          <div
+            key={index}
+            className="bg-white/90 backdrop-blur-sm rounded-xl p-5 border border-green-100 shadow-lg hover:shadow-xl transition-all duration-300"
+          >
+            <div className="space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <Badge className={`text-sm px-3 py-1 border font-medium ${getSubjectColor(item.subject)}`}>
+                    {item.subject}
+                  </Badge>
+                  <span className="text-sm text-slate-600 bg-slate-100 px-3 py-1 rounded-full font-medium">
+                    {item.studentRecordTime}
+                  </span>
+                  <Badge variant="outline" className="text-sm px-3 py-1 border-slate-300 bg-white">
+                    {item.session}回目
+                  </Badge>
+                </div>
+                <Badge className={`text-sm px-3 py-2 border font-bold ${getAccuracyColor(item.accuracy)}`}>
+                  {item.accuracy}%
+                </Badge>
+              </div>
+
+              <div className="space-y-3">
+                <p className="font-bold text-slate-800 text-lg">{item.content}</p>
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <span className="text-base text-slate-700">
+                    正答数:{" "}
+                    <span className="font-bold text-slate-800">
+                      {item.correctAnswers}/{item.totalQuestions}問
+                    </span>
+                  </span>
+                  {item.previousAccuracy !== null && (
+                    <div className="flex items-center gap-1">
+                      {(() => {
+                        const improvement = getImprovementDisplay(item.accuracy, item.previousAccuracy)
+                        return improvement ? (
+                          <span
+                            className={`text-sm font-bold ${improvement.color} bg-white px-3 py-1 rounded-full border shadow-sm`}
+                          >
+                            {improvement.icon} {improvement.text}
+                          </span>
+                        ) : null
+                      })()}
+                    </div>
+                  )}
+                </div>
+                {item.reflection && (
+                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                    <p className="text-sm text-blue-800 leading-relaxed">
+                      <span className="font-semibold">今日の振り返り:</span> {item.reflection}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  )
+}
+
+const RecentEncouragementCard = () => {
+  const [showAll, setShowAll] = useState(false)
+  const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set())
+
+  const toggleCardExpansion = (index: number) => {
+    const newExpanded = new Set(expandedCards)
+    if (newExpanded.has(index)) {
+      newExpanded.delete(index)
+    } else {
+      newExpanded.add(index)
+    }
+    setExpandedCards(newExpanded)
+  }
+
+  const encouragementMessages = [
+    {
+      recordTime: "今日 15:20",
+      from: "お母さん",
+      avatar: "parent1",
+      message: "算数がんばったね！明日もファイト！",
+      studentRecordTime: "今日 14:30",
+      learningDetails: {
+        session: 2,
+        subject: "算数",
+        content: "類題",
+        correctAnswers: 8,
+        totalQuestions: 10,
+        accuracy: 80,
+        previousAccuracy: 65,
+        reflection: "分数の計算が少しずつ分かってきました",
+      },
+    },
+    {
+      recordTime: "今日 11:30",
+      from: "田中先生",
+      avatar: "coach",
+      message: "国語の漢字、きれいに書けていますね！",
+      studentRecordTime: "今日 10:15",
+      learningDetails: {
+        session: 1,
+        subject: "国語",
+        content: "確認問題",
+        correctAnswers: 9,
+        totalQuestions: 10,
+        accuracy: 90,
+        previousAccuracy: null,
+        reflection: "",
+      },
+    },
+    {
+      recordTime: "昨日 17:10",
+      from: "田中先生",
+      avatar: "coach",
+      message: "理科の実験問題、よくできていました",
+      studentRecordTime: "昨日 16:45",
+      learningDetails: {
+        session: 3,
+        subject: "理科",
+        content: "演習問題集（基本問題）",
+        correctAnswers: 7,
+        totalQuestions: 10,
+        accuracy: 70,
+        previousAccuracy: 45,
+        reflection: "実験の手順を覚えることができました",
+      },
+    },
+    {
+      recordTime: "昨日 10:45",
+      from: "お父さん",
+      avatar: "parent2",
+      message: "毎日コツコツ続けてえらいね",
+      studentRecordTime: "昨日 09:20",
+      learningDetails: {
+        session: 1,
+        subject: "社会",
+        content: "演習問題集（練習問題）",
+        correctAnswers: 6,
+        totalQuestions: 10,
+        accuracy: 60,
+        previousAccuracy: null,
+        reflection: "",
+      },
+    },
+  ]
+
+  const getSubjectColor = (subject: string) => {
+    const colors = {
+      算数: "text-blue-600 bg-blue-50 border-blue-200",
+      国語: "text-emerald-600 bg-emerald-50 border-emerald-200",
+      理科: "text-purple-600 bg-purple-50 border-purple-200",
+      社会: "text-red-600 bg-red-50 border-red-200",
+    }
+    return colors[subject as keyof typeof colors] || "text-slate-600 bg-slate-50 border-slate-200"
+  }
+
+  const getImprovementDisplay = (current: number, previous: number | null) => {
+    if (previous === null) return null
+    const improvement = current - previous
+    const isPositive = improvement > 0
+    return {
+      text: `${previous}% → ${current}%`,
+      color: isPositive ? "text-green-600" : improvement === 0 ? "text-slate-600" : "text-red-600",
+      icon: isPositive ? "↗" : improvement === 0 ? "→" : "↘",
+    }
+  }
+
+  return (
+    <Card className="bg-gradient-to-br from-pink-50 via-rose-50 to-red-50 border-pink-200/60 shadow-xl backdrop-blur-sm">
+      <CardHeader className="pb-4 bg-gradient-to-r from-pink-500/10 to-rose-500/10 rounded-t-lg">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-xl font-bold flex items-center gap-3">
+            <div className="p-2 bg-pink-100 rounded-full shadow-sm">
+              <Heart className="h-6 w-6 text-pink-600" />
+            </div>
+            <div>
+              <span className="text-slate-800">直近の応援履歴</span>
+              <p className="text-sm font-normal text-slate-600 mt-1">昨日0:00〜今日23:59の保護者・指導者からの応援</p>
+            </div>
+          </CardTitle>
+          <div className="flex gap-2">
+            <Button
+              variant={showAll ? "outline" : "default"}
+              size="sm"
+              onClick={() => setShowAll(false)}
+              className={`text-xs px-3 py-1 transition-all duration-200 ${
+                !showAll
+                  ? "bg-blue-500 text-white shadow-md hover:bg-blue-600"
+                  : "border-pink-300 text-pink-700 hover:bg-pink-50"
+              }`}
+            >
+              一部表示
+            </Button>
+            <Button
+              variant={!showAll ? "outline" : "default"}
+              size="sm"
+              onClick={() => setShowAll(true)}
+              className={`text-xs px-3 py-1 transition-all duration-200 ${
+                showAll
+                  ? "bg-blue-500 text-white shadow-md hover:bg-blue-600"
+                  : "border-pink-300 text-pink-700 hover:bg-pink-50"
+              }`}
+            >
+              全表示
+            </Button>
+          </div>
         </div>
+      </CardHeader>
+      <CardContent className="space-y-4 p-6">
+        {encouragementMessages.map((message, index) => {
+          const isExpanded = expandedCards.has(index)
+          const shouldShowDetails = showAll || isExpanded
+
+          return (
+            <div
+              key={index}
+              className="bg-white/90 backdrop-blur-sm rounded-xl p-5 border border-pink-100 shadow-lg hover:shadow-xl transition-all duration-300"
+            >
+              <div className="flex items-start gap-4">
+                <Avatar className="h-12 w-12 border-3 border-pink-200 flex-shrink-0 shadow-md">
+                  <AvatarImage src={getAvatarSrc(message.avatar) || "/placeholder.svg"} alt={message.from} />
+                  <AvatarFallback className="bg-pink-100 text-pink-700 font-bold text-lg">
+                    {message.from.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 space-y-3">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <span className="font-bold text-slate-800 text-lg">{message.from}</span>
+                    <span className="text-sm text-slate-600 bg-slate-100 px-2 py-1 rounded-full">
+                      {message.recordTime}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <Heart className="h-4 w-4 text-pink-500" />
+                      <span className="text-xs text-pink-600 font-medium">応援</span>
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-4 rounded-xl border border-pink-100">
+                    <p className="text-base leading-relaxed text-slate-700 font-medium">{message.message}</p>
+                  </div>
+
+                  {shouldShowDetails && (
+                    <div className="bg-slate-50/80 backdrop-blur-sm rounded-xl p-4 space-y-3 border border-slate-200">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge
+                          className={`text-xs px-3 py-1 border font-medium ${getSubjectColor(message.learningDetails.subject)}`}
+                        >
+                          {message.learningDetails.subject}
+                        </Badge>
+                        <Badge variant="outline" className="text-xs px-3 py-1 border-slate-300 bg-white">
+                          {message.learningDetails.session}回目
+                        </Badge>
+                        <span className="text-xs text-slate-600 bg-white px-2 py-1 rounded-full border">
+                          生徒記録: {message.studentRecordTime}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="font-semibold text-slate-800 text-base">{message.learningDetails.content}</p>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <span className="text-sm text-slate-700">
+                              正答数:{" "}
+                              <span className="font-bold">
+                                {message.learningDetails.correctAnswers}/{message.learningDetails.totalQuestions}問
+                              </span>
+                            </span>
+                            <span className="text-sm font-bold text-slate-800">
+                              正答率: <span className="text-lg">{message.learningDetails.accuracy}%</span>
+                            </span>
+                          </div>
+                          {message.learningDetails.previousAccuracy !== null && (
+                            <div className="flex items-center gap-1">
+                              {(() => {
+                                const improvement = getImprovementDisplay(
+                                  message.learningDetails.accuracy,
+                                  message.learningDetails.previousAccuracy,
+                                )
+                                return improvement ? (
+                                  <span
+                                    className={`text-sm font-bold ${improvement.color} bg-white px-2 py-1 rounded-full border shadow-sm`}
+                                  >
+                                    {improvement.icon} {improvement.text}
+                                  </span>
+                                ) : null
+                              })()}
+                            </div>
+                          )}
+                        </div>
+                        {message.learningDetails.reflection && (
+                          <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                            <p className="text-sm text-blue-800">
+                              <span className="font-medium">今日の振り返り:</span> {message.learningDetails.reflection}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {!showAll && (
+                    <div className="text-center pt-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleCardExpansion(index)}
+                        className="text-pink-600 hover:text-pink-700 hover:bg-pink-50 text-sm font-medium transition-all duration-200"
+                      >
+                        {isExpanded ? "クリックして詳細を閉じる" : "クリックして詳細を表示"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })}
       </CardContent>
     </Card>
   )
@@ -549,6 +1046,11 @@ const TodayStatusCard = ({ childName }: { childName: string }) => {
 }
 
 const TodayMissionCard = ({ childName }: { childName: string }) => {
+  const [aiMessages, setAiMessages] = useState<{ [key: string]: string[] }>({})
+  const [selectedMessage, setSelectedMessage] = useState<{ [key: string]: string | null }>({})
+  const [showDetails, setShowDetails] = useState<{ [key: string]: boolean }>({})
+  const [isGenerating, setIsGenerating] = useState<{ [key: string]: boolean }>({})
+
   const getTodayWeekday = () => {
     const today = new Date()
     return today.getDay()
@@ -613,14 +1115,70 @@ const TodayMissionCard = ({ childName }: { childName: string }) => {
     alert(`${subject}の応援メッセージを送信しました！`)
   }
 
-  const handleAIEncourage = (subject: string) => {
-    console.log(`AI応援: ${subject}`)
-    alert(`${subject}のAI応援メッセージを生成しました！`)
+  const handleAIEncourage = async (subject: string) => {
+    // Check if messages already exist
+    if (aiMessages[subject] && aiMessages[subject].length > 0) {
+      // Show existing messages
+      return
+    }
+
+    setIsGenerating({ ...isGenerating, [subject]: true })
+
+    // Simulate API call to ChatGPT
+    setTimeout(() => {
+      const messages = [
+        `${subject}の学習、本当によく頑張りましたね！この調子で続けていきましょう！`,
+        `${subject}の理解が深まっていますね。素晴らしい成長です！`,
+        `${subject}に真剣に取り組む姿勢が素晴らしいです。応援しています！`,
+      ]
+      setAiMessages({ ...aiMessages, [subject]: messages })
+      setIsGenerating({ ...isGenerating, [subject]: false })
+    }, 1500)
+  }
+
+  const handleSendAIMessage = (subject: string, message: string) => {
+    setSelectedMessage({ ...selectedMessage, [subject]: message })
+    alert(`${subject}に「${message}」を送信しました！`)
   }
 
   const handleViewDetails = (subject: string) => {
-    console.log(`詳細を見る: ${subject}`)
-    // 実際の実装では応援機能へ遷移
+    setShowDetails({ ...showDetails, [subject]: !showDetails[subject] })
+  }
+
+  const learningDetails = {
+    算数: {
+      studentRecordTime: "今日 14:30",
+      session: 2,
+      subject: "算数",
+      content: "類題",
+      correctAnswers: 8,
+      totalQuestions: 10,
+      accuracy: 80,
+      previousAccuracy: 65,
+      reflection: "分数の計算が少しずつ分かってきました",
+    },
+    国語: {
+      studentRecordTime: "今日 10:15",
+      session: 1,
+      subject: "国語",
+      content: "確認問題",
+      correctAnswers: 9,
+      totalQuestions: 10,
+      accuracy: 90,
+      previousAccuracy: null,
+      reflection: "",
+    },
+    理科: {
+      studentRecordTime: "昨日 16:45",
+      session: 3,
+      subject: "理科",
+      content: "演習問題集（基本問題）",
+      correctAnswers: 7,
+      totalQuestions: 10,
+      accuracy: 70,
+      previousAccuracy: 45,
+      reflection: "実験の手順を覚えることができました",
+    },
   }
 
   return (
@@ -675,18 +1233,96 @@ const TodayMissionCard = ({ childName }: { childName: string }) => {
                     </Button>
                     <Button
                       onClick={() => handleAIEncourage(panel.subject)}
+                      disabled={isGenerating[panel.subject]}
                       className="w-full py-2 px-3 rounded-lg text-sm font-bold bg-blue-500 text-white hover:bg-blue-600 shadow-lg hover:scale-105 transition-all duration-300"
                     >
                       <Sparkles className="h-4 w-4 mr-2" />
-                      AI応援
+                      {isGenerating[panel.subject] ? "生成中..." : "AI応援"}
                     </Button>
+
+                    {aiMessages[panel.subject] && aiMessages[panel.subject].length > 0 && (
+                      <div className="space-y-2 mt-3 p-3 bg-white/80 rounded-lg border border-blue-200">
+                        <p className="text-xs font-semibold text-slate-700 mb-2">AI応援メッセージを選択:</p>
+                        {aiMessages[panel.subject].map((msg, msgIndex) => (
+                          <Button
+                            key={msgIndex}
+                            onClick={() => handleSendAIMessage(panel.subject, msg)}
+                            variant="outline"
+                            className="w-full text-xs py-2 px-2 h-auto text-left justify-start hover:bg-blue-50"
+                          >
+                            {msg}
+                          </Button>
+                        ))}
+                      </div>
+                    )}
+
                     <Button
                       onClick={() => handleViewDetails(panel.subject)}
                       variant="outline"
                       className="w-full py-2 px-3 rounded-lg text-sm font-bold border-2 border-slate-300 hover:bg-slate-50"
                     >
-                      詳細を見る
+                      {showDetails[panel.subject] ? "詳細を閉じる" : "詳細を見る"}
                     </Button>
+
+                    {showDetails[panel.subject] && learningDetails[panel.subject as keyof typeof learningDetails] && (
+                      <div className="mt-3 p-4 bg-white/90 rounded-lg border border-slate-200 space-y-3">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-sm">
+                            <Clock className="h-4 w-4 text-slate-600" />
+                            <span className="font-semibold text-slate-700">生徒記録日時:</span>
+                            <span className="text-slate-600">
+                              {learningDetails[panel.subject as keyof typeof learningDetails].studentRecordTime}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm">
+                            <BookOpen className="h-4 w-4 text-slate-600" />
+                            <span className="font-semibold text-slate-700">学習回:</span>
+                            <span className="text-slate-600">
+                              {learningDetails[panel.subject as keyof typeof learningDetails].session}回目
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="font-semibold text-slate-700">科目:</span>
+                            <Badge className="text-xs">
+                              {learningDetails[panel.subject as keyof typeof learningDetails].subject}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="font-semibold text-slate-700">学習内容:</span>
+                            <span className="text-slate-600">
+                              {learningDetails[panel.subject as keyof typeof learningDetails].content}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="font-semibold text-slate-700">正答率:</span>
+                            <span className="font-bold text-blue-600">
+                              {learningDetails[panel.subject as keyof typeof learningDetails].accuracy}%
+                            </span>
+                            <span className="text-slate-600">
+                              ({learningDetails[panel.subject as keyof typeof learningDetails].correctAnswers}/
+                              {learningDetails[panel.subject as keyof typeof learningDetails].totalQuestions}問)
+                            </span>
+                          </div>
+                          {learningDetails[panel.subject as keyof typeof learningDetails].previousAccuracy !== null && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <span className="font-semibold text-slate-700">変化:</span>
+                              <span className="text-green-600 font-bold">
+                                {learningDetails[panel.subject as keyof typeof learningDetails].previousAccuracy}% →{" "}
+                                {learningDetails[panel.subject as keyof typeof learningDetails].accuracy}%
+                              </span>
+                            </div>
+                          )}
+                          {learningDetails[panel.subject as keyof typeof learningDetails].reflection && (
+                            <div className="pt-2 border-t border-slate-200">
+                              <span className="font-semibold text-slate-700 text-sm">今日の振り返り:</span>
+                              <p className="text-sm text-slate-600 mt-1">
+                                {learningDetails[panel.subject as keyof typeof learningDetails].reflection}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
