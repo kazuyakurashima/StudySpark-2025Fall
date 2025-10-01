@@ -236,13 +236,18 @@ export default function ParentSparkPage() {
     return 0
   })
 
+  const shouldShowSupportOptions = (record: (typeof sparkRecords)[0]) => {
+    return !record.hasSupport
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-accent/5 via-background to-primary/5 pb-20">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-4xl mx-auto px-4 py-4">
+    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-red-50 pb-20">
+      <div className="bg-white/95 backdrop-blur-md shadow-md border-b border-pink-100">
+        <div className="max-w-4xl mx-auto px-4 py-5">
           <div className="flex items-center gap-3 mb-4">
-            <Heart className="h-6 w-6 text-primary" />
+            <div className="p-2 bg-gradient-to-br from-pink-100 to-rose-100 rounded-xl shadow-sm">
+              <Heart className="h-6 w-6 text-pink-600" />
+            </div>
             <div>
               <h1 className="text-xl font-bold text-slate-800">応援</h1>
               <p className="text-sm text-slate-600">お子さんの学習記録に応援を送ろう</p>
@@ -314,7 +319,7 @@ export default function ParentSparkPage() {
 
       <div className="max-w-4xl mx-auto p-4 space-y-4">
         {filteredRecords.length === 0 ? (
-          <Card className="border-l-4 border-l-primary">
+          <Card className="border-l-4 border-l-pink-400 bg-white/90 backdrop-blur-sm">
             <CardContent className="p-6 text-center">
               <p className="text-muted-foreground">条件に合う学習記録がありません。</p>
             </CardContent>
@@ -324,7 +329,10 @@ export default function ParentSparkPage() {
             const isExpanded = expandedCards.has(record.id)
 
             return (
-              <Card key={record.id} className="border-l-4 border-l-primary">
+              <Card
+                key={record.id}
+                className="border-l-4 border-l-pink-400 bg-white/95 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300"
+              >
                 <CardHeader
                   className="cursor-pointer hover:bg-slate-50/50 transition-colors"
                   onClick={() => toggleCard(record.id)}
@@ -365,19 +373,6 @@ export default function ParentSparkPage() {
                       <ChevronDown className="h-5 w-5 text-muted-foreground" />
                     )}
                   </CardTitle>
-
-                  {!isExpanded && (
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      {record.subjects.map((subject, index) => (
-                        <Badge
-                          key={index}
-                          className={`${subjectColors[subject.name as keyof typeof subjectColors]?.bg} ${subjectColors[subject.name as keyof typeof subjectColors]?.text} border-0`}
-                        >
-                          {subject.name}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
                 </CardHeader>
 
                 {isExpanded && (
@@ -453,56 +448,65 @@ export default function ParentSparkPage() {
                       </div>
                     )}
 
-                    <div className="space-y-3">
-                      <div className="text-sm font-medium flex items-center gap-2">
-                        <Heart className="h-4 w-4 text-primary" />
-                        クイック応援
-                      </div>
-                      <div className="flex gap-2">
-                        {quickSupportIcons.map((item, index) => {
-                          const Icon = item.icon
-                          return (
-                            <Button
-                              key={index}
-                              onClick={() => handleQuickSupport(item.label, record.id)}
-                              disabled={isSending}
-                              variant="outline"
-                              className="flex-1 h-auto py-3 hover:bg-accent/5 hover:border-accent/50"
-                            >
-                              <div className="flex flex-col items-center gap-1">
-                                <Icon className={`h-6 w-6 ${item.color}`} />
-                                <span className="text-xs">{item.label}</span>
-                              </div>
-                            </Button>
-                          )
-                        })}
-                      </div>
-                    </div>
+                    {shouldShowSupportOptions(record) && (
+                      <>
+                        <div className="space-y-3">
+                          <div className="text-sm font-medium flex items-center gap-2">
+                            <Heart className="h-4 w-4 text-pink-600" />
+                            クイック応援
+                          </div>
+                          <div className="flex gap-2">
+                            {quickSupportIcons.map((item, index) => {
+                              const Icon = item.icon
+                              return (
+                                <Button
+                                  key={index}
+                                  onClick={() => handleQuickSupport(item.label, record.id)}
+                                  disabled={isSending}
+                                  variant="outline"
+                                  className="flex-1 h-auto py-3 hover:bg-pink-50 hover:border-pink-300 transition-all duration-200"
+                                >
+                                  <div className="flex flex-col items-center gap-1">
+                                    <Icon className={`h-6 w-6 ${item.color}`} />
+                                    <span className="text-xs">{item.label}</span>
+                                  </div>
+                                </Button>
+                              )
+                            })}
+                          </div>
+                        </div>
 
-                    <div className="space-y-3">
-                      <div className="text-sm font-medium flex items-center gap-2">
-                        <MessageCircle className="h-4 w-4 text-primary" />
-                        AI応援メッセージ
-                      </div>
-                      <div className="space-y-2">
-                        {generateAIMessages(record).map((message, index) => (
-                          <Button
-                            key={index}
-                            onClick={() => handleSendMessage(message, record.id)}
-                            disabled={isSending}
-                            variant="outline"
-                            className="w-full h-auto p-3 text-left justify-start hover:bg-accent/5 hover:border-accent/50"
-                          >
-                            <div className="flex items-start gap-2">
-                              <Send className="h-4 w-4 text-accent mt-1 flex-shrink-0" />
-                              <span className="text-sm leading-relaxed">{message}</span>
-                            </div>
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
+                        <div className="space-y-3">
+                          <div className="text-sm font-medium flex items-center gap-2">
+                            <MessageCircle className="h-4 w-4 text-pink-600" />
+                            AI応援メッセージ
+                          </div>
+                          <div className="space-y-2">
+                            {generateAIMessages(record).map((message, index) => (
+                              <Button
+                                key={index}
+                                onClick={() => handleSendMessage(message, record.id)}
+                                disabled={isSending}
+                                variant="outline"
+                                className="w-full h-auto p-3 text-left justify-start hover:bg-pink-50 hover:border-pink-300 transition-all duration-200"
+                              >
+                                <div className="flex items-start gap-2">
+                                  <Send className="h-4 w-4 text-accent mt-1 flex-shrink-0" />
+                                  <span className="text-sm leading-relaxed">{message}</span>
+                                </div>
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
 
-                    {/* Custom Message */}
+                    {!shouldShowSupportOptions(record) && (
+                      <div className="p-4 bg-green-50 rounded-lg border border-green-200 text-center">
+                        <p className="text-sm text-green-700 font-medium">この学習記録には既に応援を送信済みです</p>
+                      </div>
+                    )}
+
                     <div className="space-y-3">
                       <div className="text-sm font-medium">カスタムメッセージ</div>
                       <Textarea
@@ -518,6 +522,7 @@ export default function ParentSparkPage() {
                           onClick={() => handleSendMessage(customMessage, record.id)}
                           disabled={!customMessage.trim() || isSending}
                           size="sm"
+                          className="bg-pink-500 hover:bg-pink-600 text-white"
                         >
                           <Send className="h-4 w-4 mr-2" />
                           送信

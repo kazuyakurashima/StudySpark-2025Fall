@@ -1050,6 +1050,7 @@ const TodayMissionCard = ({ childName }: { childName: string }) => {
   const [selectedMessage, setSelectedMessage] = useState<{ [key: string]: string | null }>({})
   const [showDetails, setShowDetails] = useState<{ [key: string]: boolean }>({})
   const [isGenerating, setIsGenerating] = useState<{ [key: string]: boolean }>({})
+  const [completedSubjects, setCompletedSubjects] = useState<Set<string>>(new Set())
 
   const getTodayWeekday = () => {
     const today = new Date()
@@ -1087,8 +1088,8 @@ const TodayMissionCard = ({ childName }: { childName: string }) => {
   const subjects = getSubjectBlock(todayWeekday)
 
   const panels = subjects.map((subject) => {
-    const isStudentCompleted = Math.random() > 0.5 // デモ用：実際はAPIから取得
-    const isParentEncouraged = Math.random() > 0.7 // デモ用：実際はAPIから取得
+    const isStudentCompleted = Math.random() > 0.3 // デモ用：実際はAPIから取得
+    const isParentEncouraged = completedSubjects.has(subject)
 
     return {
       subject,
@@ -1111,33 +1112,32 @@ const TodayMissionCard = ({ childName }: { childName: string }) => {
   }
 
   const handleEncourage = (subject: string) => {
+    setCompletedSubjects((prev) => new Set(prev).add(subject))
     console.log(`応援する: ${subject}`)
     alert(`${subject}の応援メッセージを送信しました！`)
   }
 
   const handleAIEncourage = async (subject: string) => {
-    // Check if messages already exist
     if (aiMessages[subject] && aiMessages[subject].length > 0) {
-      // Show existing messages
       return
     }
 
     setIsGenerating({ ...isGenerating, [subject]: true })
 
-    // Simulate API call to ChatGPT
     setTimeout(() => {
       const messages = [
         `${subject}の学習、本当によく頑張りましたね！この調子で続けていきましょう！`,
         `${subject}の理解が深まっていますね。素晴らしい成長です！`,
         `${subject}に真剣に取り組む姿勢が素晴らしいです。応援しています！`,
       ]
-      setAiMessages({ ...aiMessages, [subject]: messages })
-      setIsGenerating({ ...isGenerating, [subject]: false })
+      setAiMessages((prev) => ({ ...prev, [subject]: messages }))
+      setIsGenerating((prev) => ({ ...prev, [subject]: false }))
     }, 1500)
   }
 
   const handleSendAIMessage = (subject: string, message: string) => {
     setSelectedMessage({ ...selectedMessage, [subject]: message })
+    setCompletedSubjects((prev) => new Set(prev).add(subject))
     alert(`${subject}に「${message}」を送信しました！`)
   }
 
@@ -1241,16 +1241,19 @@ const TodayMissionCard = ({ childName }: { childName: string }) => {
                     </Button>
 
                     {aiMessages[panel.subject] && aiMessages[panel.subject].length > 0 && (
-                      <div className="space-y-2 mt-3 p-3 bg-white/80 rounded-lg border border-blue-200">
-                        <p className="text-xs font-semibold text-slate-700 mb-2">AI応援メッセージを選択:</p>
+                      <div className="space-y-2 mt-3 p-3 bg-white/90 rounded-lg border border-blue-200 max-h-64 overflow-y-auto">
+                        <p className="text-xs font-semibold text-slate-700 mb-2 sticky top-0 bg-white/95 py-1">
+                          AI応援メッセージを選択:
+                        </p>
                         {aiMessages[panel.subject].map((msg, msgIndex) => (
                           <Button
                             key={msgIndex}
                             onClick={() => handleSendAIMessage(panel.subject, msg)}
                             variant="outline"
-                            className="w-full text-xs py-2 px-2 h-auto text-left justify-start hover:bg-blue-50"
+                            className="w-full text-xs py-3 px-3 h-auto text-left justify-start hover:bg-blue-50 whitespace-normal leading-relaxed"
                           >
-                            {msg}
+                            <Send className="h-3 w-3 mr-2 flex-shrink-0 mt-0.5" />
+                            <span className="flex-1">{msg}</span>
                           </Button>
                         ))}
                       </div>
