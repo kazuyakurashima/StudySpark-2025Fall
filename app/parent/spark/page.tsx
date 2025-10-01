@@ -499,28 +499,30 @@ export default function ParentSparkPage() {
                           </div>
                         </div>
 
-                        <div className="space-y-3">
-                          <div className="text-sm font-medium">カスタムメッセージ</div>
-                          <Textarea
-                            placeholder="お子さんへの応援メッセージを自由に書いてください..."
-                            value={customMessage}
-                            onChange={(e) => setCustomMessage(e.target.value)}
-                            className="min-h-[80px] text-base"
-                            maxLength={200}
-                          />
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs text-muted-foreground">{customMessage.length}/200文字</span>
-                            <Button
-                              onClick={() => handleSendMessage(customMessage, record.id)}
-                              disabled={!customMessage.trim() || isSending}
-                              size="sm"
-                              className="bg-pink-500 hover:bg-pink-600 text-white"
-                            >
-                              <Send className="h-4 w-4 mr-2" />
-                              送信
-                            </Button>
+                        {!record.hasSupport && (
+                          <div className="space-y-3">
+                            <div className="text-sm font-medium">カスタムメッセージ</div>
+                            <Textarea
+                              placeholder="お子さんへの応援メッセージを自由に書いてください..."
+                              value={customMessage}
+                              onChange={(e) => setCustomMessage(e.target.value)}
+                              className="min-h-[80px] text-base"
+                              maxLength={200}
+                            />
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-muted-foreground">{customMessage.length}/200文字</span>
+                              <Button
+                                onClick={() => handleSendMessage(customMessage, record.id)}
+                                disabled={!customMessage.trim() || isSending}
+                                size="sm"
+                                className="bg-pink-500 hover:bg-pink-600 text-white"
+                              >
+                                <Send className="h-4 w-4 mr-2" />
+                                送信
+                              </Button>
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </>
                     )}
 
