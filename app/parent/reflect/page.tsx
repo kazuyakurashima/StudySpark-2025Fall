@@ -3,112 +3,277 @@
 import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
 import ParentBottomNavigation from "@/components/parent-bottom-navigation"
 import { AICoachChat } from "@/components/ai-coach-chat"
 import { MessageCircle, Sparkles, TrendingUp, TrendingDown, Minus } from "lucide-react"
 
 // Declare variables and functions here
 const children = [
-  { id: "child1", name: "子供1" },
-  { id: "child2", name: "子供2" },
+  { id: "child1", name: "みかん", nickname: "みかんちゃん" },
+  { id: "child2", name: "太郎", nickname: "たろう" },
 ]
 
-const filteredAndSortedLearningHistory = [
+const sparkLearningHistory = [
   {
+    recordedAt: "2024-09-06 20:30",
+    studyDate: "2024-09-06",
+    studySession: "第3回",
     subject: "算数",
-    studySession: "1",
-    studyDate: "2023-10-01",
+    learningContent: ["類題", "基本問題"],
+    correctAnswers: 8,
+    totalQuestions: 10,
     correctRate: 80,
-    previousCorrectRate: 70,
-    learningContent: ["加法", "減法"],
-    reflection: "良い進歩をみせた",
+    previousCorrectRate: 65,
+    reflection: "図形問題が最初は難しかったけど、先生の説明でよく分かりました。基本問題も全部解けました！",
+  },
+  {
+    recordedAt: "2024-09-06 19:45",
+    studyDate: "2024-09-06",
+    studySession: "第2回",
+    subject: "国語",
+    learningContent: ["確認問題"],
+    correctAnswers: 7,
+    totalQuestions: 10,
+    correctRate: 70,
+    previousCorrectRate: 55,
+    reflection: "漢字の読み方を復習しました。確認問題で基礎を固められて良かったです。",
+  },
+  {
+    recordedAt: "2024-09-05 21:15",
+    studyDate: "2024-09-05",
+    studySession: "第1回",
+    subject: "理科",
+    learningContent: ["演習問題集（練習問題）", "演習問題集（発展問題）"],
+    correctAnswers: 6,
+    totalQuestions: 10,
+    correctRate: 60,
+    previousCorrectRate: 45,
+    reflection: "実験の問題は理解できたけど、発展問題がまだ少し難しいです。",
+  },
+  {
+    recordedAt: "2024-09-05 20:00",
+    studyDate: "2024-09-05",
+    studySession: "第4回",
+    subject: "社会",
+    learningContent: ["演習問題集（練習問題）"],
+    correctAnswers: 5,
+    totalQuestions: 10,
+    correctRate: 50,
+    previousCorrectRate: 30,
+    reflection: "歴史の年号を覚えるのが大変でした。もう少し復習が必要です。",
+  },
+  {
+    recordedAt: "2024-09-04 19:30",
+    studyDate: "2024-09-04",
+    studySession: "第5回",
+    subject: "算数",
+    learningContent: ["練習問題", "演習問題集（実戦演習）"],
+    correctAnswers: 9,
+    totalQuestions: 10,
+    correctRate: 90,
+    previousCorrectRate: 75,
+    reflection: "分数の計算問題をたくさん練習しました。実戦演習でも良い結果が出せました。",
+  },
+  {
+    recordedAt: "2024-09-03 18:15",
+    studyDate: "2024-09-03",
+    studySession: "第1回",
+    subject: "算数",
+    learningContent: ["類題"],
+    correctAnswers: 6,
+    totalQuestions: 10,
+    correctRate: 60,
+    previousCorrectRate: null,
+    reflection: "新しい単元の類題に取り組みました。基本的な考え方は理解できました。",
+  },
+]
+
+const learningContentColors = {
+  類題: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
+  基本問題: { bg: "bg-green-50", text: "text-green-700", border: "border-green-200" },
+  練習問題: { bg: "bg-yellow-50", text: "text-yellow-700", border: "border-yellow-200" },
+  確認問題: { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" },
+  "演習問題集（基本問題）": { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
+  "演習問題集（練習問題）": { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" },
+  "演習問題集（発展問題）": { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" },
+  "演習問題集（実戦演習）": { bg: "bg-red-50", text: "text-red-700", border: "border-red-200" },
+  "演習問題集（発展問題・記述問題）": { bg: "bg-pink-50", text: "text-pink-700", border: "border-pink-200" },
+}
+
+const encouragementMessages = [
+  {
+    id: 1,
+    recordedAt: "2024-09-06 18:30",
+    from: "お母さん",
+    avatar: "parent1",
+    message: "算数の類題と基本問題、よくがんばったね！明日もファイト！",
+    type: "parent",
+    studentRecordedAt: "2024-09-06 20:30",
+    studySession: "第3回",
+    subject: "算数",
+    learningContent: ["類題", "基本問題"],
+    correctRate: 80,
+    correctAnswers: 8,
+    totalQuestions: 10,
+    previousCorrectRate: 65,
+    reflection: "図形問題が最初は難しかったけど、先生の説明でよく分かりました。基本問題も全部解けました！",
+  },
+  {
+    id: 2,
+    recordedAt: "2024-09-06 15:20",
+    from: "田中先生",
+    avatar: "coach",
+    message: "理科の演習問題、着実に力がついていますね。この調子で続けましょう。",
+    type: "teacher",
+    studentRecordedAt: "2024-09-05 21:15",
+    studySession: "第1回",
+    subject: "理科",
+    learningContent: ["演習問題集（練習問題）", "演習問題集（発展問題）"],
+    correctRate: 60,
+    correctAnswers: 6,
+    totalQuestions: 10,
+    previousCorrectRate: 45,
+    reflection: "実験の問題は理解できたけど、発展問題がまだ少し難しいです。",
+  },
+  {
+    id: 3,
+    recordedAt: "2024-09-05 20:15",
+    from: "お父さん",
+    avatar: "parent2",
+    message: "社会の演習問題、前回より20%も上がったね！素晴らしい成長です！",
+    type: "parent",
+    studentRecordedAt: "2024-09-05 20:00",
+    studySession: "第4回",
+    subject: "社会",
+    learningContent: ["演習問題集（練習問題）"],
+    correctRate: 50,
+    correctAnswers: 5,
+    totalQuestions: 10,
+    previousCorrectRate: 30,
+    reflection: "歴史の年号を覚えるのが大変でした。もう少し復習が必要です。",
   },
 ]
 
 const subjectColors = {
-  算数: { bg: "bg-blue-100", text: "text-blue-600", border: "border-blue-300" },
-  国語: { bg: "bg-green-100", text: "text-green-600", border: "border-green-300" },
-  理科: { bg: "bg-red-100", text: "text-red-600", border: "border-red-300" },
-  社会: { bg: "bg-yellow-100", text: "text-yellow-600", border: "border-yellow-300" },
+  算数: {
+    bg: "bg-blue-50",
+    text: "text-blue-700",
+    border: "border-blue-200",
+    accent: "bg-blue-100",
+    gradient: "from-blue-50 to-blue-100",
+  },
+  国語: {
+    bg: "bg-emerald-50",
+    text: "text-emerald-700",
+    border: "border-emerald-200",
+    accent: "bg-emerald-100",
+    gradient: "from-emerald-50 to-emerald-100",
+  },
+  理科: {
+    bg: "bg-violet-50",
+    text: "text-violet-700",
+    border: "border-violet-200",
+    accent: "bg-violet-100",
+    gradient: "from-violet-50 to-violet-100",
+  },
+  社会: {
+    bg: "bg-amber-50",
+    text: "text-amber-700",
+    border: "border-amber-200",
+    accent: "bg-amber-100",
+    gradient: "from-amber-50 to-amber-100",
+  },
 }
 
-const getProgressChange = (currentRate: number, previousRate: number) => {
+const coachingHistory = [
+  {
+    recordedAt: "2024-09-06 20:45",
+    coachingSummary: {
+      goal: "算数の図形問題で80%以上の正答率を維持し、他科目への応用力を身につける",
+      reality: "今週は図形問題の正答率が85%に向上。毎日の学習習慣も定着し、基礎力が安定してきた",
+      options: "①他科目への応用練習 ②理科実験問題への挑戦 ③復習時間の調整と効率化",
+      will: "来週は理科の実験問題に毎日15分取り組み、算数で学んだ論理的思考を活用する",
+    },
+    encouragementMessage: "今週は本当によく頑張りました！図形問題の理解が深まって、自信もついてきましたね。",
+  },
+  {
+    recordedAt: "2024-09-01 19:30",
+    coachingSummary: {
+      goal: "国語の読解問題で安定した成績を保ち、時間管理スキルを向上させる",
+      reality: "正答率は70%で安定している。ただし時間管理に課題があり、最後の問題まで到達できないことがある",
+      options: "①速読練習の継続 ②問題文の構造分析方法の習得 ③時間配分の見直しと練習",
+      will: "毎日10分間の速読練習を継続し、問題文を読む前に全体構造を把握する習慣をつける",
+    },
+    encouragementMessage: null,
+  },
+]
+
+const getAvatarSrc = (avatarId: string) => {
+  const avatarMap: { [key: string]: string } = {
+    student1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student1-xZFJU5uXJO4DEfUbq1jbTMQUXReyM0.png",
+    student2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student2-mZ9Q9oVm43IQoRyxSYytVFYgp3JS1V.png",
+    student3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student3-teUpOKnopXNhE2vGFtvz9RWtC7O6kv.png",
+    student4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student4-pKazGXekCT1H5kzHBqmfOrM1968hML.png",
+    coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/coach-LENT7C1nR9yWT7UBNTHgxnWakF66Pr.png",
+    ai_coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png",
+    parent1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent1-Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8.png",
+    parent2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent2-Fj9Fj9Fj9Fj9Fj9Fj9Fj9Fj9Fj9.png",
+  }
+  return avatarMap[avatarId] || avatarMap["student1"]
+}
+
+const isAICoachingAvailable = () => {
+  const now = new Date()
+  const day = now.getDay()
+  const hour = now.getHours()
+
+  if (day === 6 && hour >= 12) return true
+  if (day === 0) return true
+  if (day >= 1 && day <= 3) return true
+  if (day === 4 && hour < 0) return true
+
+  return false
+}
+
+const getProgressChange = (currentRate: number, previousRate: number | null) => {
+  if (previousRate === null) return null
+
   const change = currentRate - previousRate
   if (change > 0) {
     return {
-      icon: TrendingUp,
+      text: `${previousRate}% → ${currentRate}%`,
       change: `+${change}%`,
       color: "text-green-600",
-      bgColor: "bg-green-100",
-      borderColor: "border-green-300",
+      bgColor: "bg-green-50",
+      borderColor: "border-green-200",
+      icon: TrendingUp,
     }
   } else if (change < 0) {
     return {
-      icon: TrendingDown,
+      text: `${previousRate}% → ${currentRate}%`,
       change: `${change}%`,
       color: "text-red-600",
-      bgColor: "bg-red-100",
-      borderColor: "border-red-300",
+      bgColor: "bg-red-50",
+      borderColor: "border-red-200",
+      icon: TrendingDown,
     }
   } else {
     return {
+      text: `${previousRate}% → ${currentRate}%`,
+      change: "±0%",
+      color: "text-gray-600",
+      bgColor: "bg-gray-50",
+      borderColor: "border-gray-200",
       icon: Minus,
-      change: "0%",
-      color: "text-slate-600",
-      bgColor: "bg-slate-100",
-      borderColor: "border-slate-300",
     }
   }
 }
 
-const learningContentColors = {
-  加法: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
-  減法: { bg: "bg-green-50", text: "text-green-700", border: "border-green-200" },
-}
-
-const filteredAndSortedMessages = [
-  {
-    id: 1,
-    from: "保護者",
-    type: "parent",
-    recordedAt: "2023-10-01T12:00:00",
-    message: "素晴らしい学習をしたね！",
-    subject: "算数",
-    studySession: "1",
-    studentRecordedAt: "2023-10-01",
-    correctRate: 80,
-    correctAnswers: 8,
-    totalQuestions: 10,
-    reflection: "良い進歩をみせた",
-  },
-]
-
-const getAvatarSrc = (avatar: string) => {
-  // Implement avatar source retrieval logic here
-  return null
-}
-
-const toggleMessageExpansion = (messageId: number) => {
-  // Implement message expansion toggle logic here
-}
-
-const filteredCoachingHistory = [
-  {
-    recordedAt: "2023-10-01T12:00:00",
-    coachingSummary: {
-      goal: "目標を設定する",
-      reality: "現状を把握する",
-      options: "選択肢を提示する",
-      will: "意志を示す",
-    },
-    encouragementMessage: "応援メッセージ",
-  },
-]
-
 export default function ParentReflectPage() {
+  // Declare variables and functions here
   const [selectedChild, setSelectedChild] = useState("child1")
   const [showAIChat, setShowAIChat] = useState(false)
   const [activeTab, setActiveTab] = useState("history")
@@ -122,7 +287,133 @@ export default function ParentReflectPage() {
   const [displayMode, setDisplayMode] = useState("一部表示")
   const [coachingPeriodFilter, setCoachingPeriodFilter] = useState("1ヶ月")
 
-  // ... existing code (all filter and helper functions) ...
+  const toggleMessageExpansion = (messageId: number) => {
+    const newExpanded = new Set(expandedMessages)
+    if (newExpanded.has(messageId)) {
+      newExpanded.delete(messageId)
+    } else {
+      newExpanded.add(messageId)
+    }
+    setExpandedMessages(newExpanded)
+  }
+
+  const filteredAndSortedMessages = encouragementMessages
+    .filter((message) => {
+      if (subjectFilter !== "全科目" && message.subject !== subjectFilter) return false
+
+      const messageDate = new Date(message.recordedAt)
+      const now = new Date()
+
+      if (periodFilter === "1週間") {
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        return messageDate >= oneWeekAgo
+      } else if (periodFilter === "1ヶ月") {
+        const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+        const filteredByMonth = encouragementMessages.filter(
+          (msg) =>
+            (subjectFilter === "全科目" || msg.subject === subjectFilter) && new Date(msg.recordedAt) >= oneMonthAgo,
+        )
+        if (filteredByMonth.length < 5) {
+          return true
+        }
+        return messageDate >= oneMonthAgo
+      } else if (periodFilter === "3ヶ月") {
+        const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+        const filteredByThreeMonths = encouragementMessages.filter(
+          (msg) =>
+            (subjectFilter === "全科目" || msg.subject === subjectFilter) && new Date(msg.recordedAt) >= threeMonthsAgo,
+        )
+        if (filteredByThreeMonths.length < 5) {
+          return true
+        }
+        return messageDate >= threeMonthsAgo
+      }
+
+      return true
+    })
+    .sort((a, b) => {
+      if (sortBy === "記録日時") {
+        return new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime()
+      } else if (sortBy === "学習回") {
+        return a.studySession.localeCompare(b.studySession)
+      } else if (sortBy === "正答率") {
+        return b.correctRate - a.correctRate
+      }
+      return 0
+    })
+
+  const filteredCoachingHistory = coachingHistory.filter((session) => {
+    const sessionDate = new Date(session.recordedAt)
+    const now = new Date()
+
+    if (coachingPeriodFilter === "1週間") {
+      const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+      return sessionDate >= oneWeekAgo
+    } else if (coachingPeriodFilter === "1ヶ月") {
+      const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+      const filteredByMonth = coachingHistory.filter((session) => new Date(session.recordedAt) >= oneMonthAgo)
+      if (filteredByMonth.length < 5) {
+        return true
+      }
+      return sessionDate >= oneMonthAgo
+    } else if (coachingPeriodFilter === "3ヶ月") {
+      const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+      const filteredByThreeMonths = coachingHistory.filter((session) => new Date(session.recordedAt) >= threeMonthsAgo)
+      if (filteredByThreeMonths.length < 5) {
+        return true
+      }
+      return sessionDate >= threeMonthsAgo
+    }
+
+    return true
+  })
+
+  const filteredAndSortedLearningHistory = sparkLearningHistory
+    .filter((record) => {
+      if (learningSubjectFilter !== "全科目" && record.subject !== learningSubjectFilter) return false
+
+      const recordDate = new Date(record.recordedAt)
+      const now = new Date()
+
+      if (learningPeriodFilter === "1週間") {
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        return recordDate >= oneWeekAgo
+      } else if (learningPeriodFilter === "1ヶ月") {
+        const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+        const filteredByMonth = sparkLearningHistory.filter(
+          (record) =>
+            (learningSubjectFilter === "全科目" || record.subject === learningSubjectFilter) &&
+            new Date(record.recordedAt) >= oneMonthAgo,
+        )
+        if (filteredByMonth.length < 5) {
+          return true
+        }
+        return recordDate >= oneMonthAgo
+      } else if (learningPeriodFilter === "3ヶ月") {
+        const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+        const filteredByThreeMonths = sparkLearningHistory.filter(
+          (record) =>
+            (learningSubjectFilter === "全科目" || record.subject === learningSubjectFilter) &&
+            new Date(record.recordedAt) >= threeMonthsAgo,
+        )
+        if (filteredByThreeMonths.length < 5) {
+          return true
+        }
+        return recordDate >= threeMonthsAgo
+      }
+
+      return true
+    })
+    .sort((a, b) => {
+      if (learningSortBy === "記録日時") {
+        return new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime()
+      } else if (learningSortBy === "学習回") {
+        return a.studySession.localeCompare(b.studySession)
+      } else if (learningSortBy === "正答率") {
+        return b.correctRate - a.correctRate
+      }
+      return 0
+    })
 
   if (showAIChat) {
     return <AICoachChat onClose={() => setShowAIChat(false)} />
@@ -171,8 +462,6 @@ export default function ParentReflectPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-        {/* ... existing AI coaching card ... */}
-
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 sm:space-8">
           {/* ... existing tabs list ... */}
 
