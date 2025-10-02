@@ -36,7 +36,7 @@ export function CoachTopNavigation() {
   const pathname = usePathname()
 
   return (
-    <div className="bg-gradient-to-r from-blue-50 via-white to-purple-50 border-b border-border/50 shadow-sm">
+    <div className="bg-white border-b border-border shadow-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 py-3">
         <div className="flex items-center gap-2 overflow-x-auto">
           {navItems.map((item) => {
@@ -47,10 +47,8 @@ export function CoachTopNavigation() {
               <Link key={item.id} href={item.href}>
                 <Button
                   variant={isActive ? "default" : "ghost"}
-                  className={`flex items-center gap-2 whitespace-nowrap transition-all duration-300 ${
-                    isActive
-                      ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md"
-                      : "hover:bg-white/80 hover:shadow-sm"
+                  className={`flex items-center gap-2 whitespace-nowrap transition-all duration-200 ${
+                    isActive ? "bg-primary text-primary-foreground shadow-sm" : "hover:bg-accent"
                   }`}
                 >
                   <Icon className="h-4 w-4" />

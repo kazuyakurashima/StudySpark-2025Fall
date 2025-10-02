@@ -262,31 +262,35 @@ export default function CoachHomePage() {
   })
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 pb-20">
+    <div className="min-h-screen bg-background pb-20">
       <CoachTopNavigation />
 
-      <div className="max-w-7xl mx-auto p-4 space-y-6">
+      <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white shadow-lg">
-          <h1 className="text-2xl font-bold mb-2">ホーム</h1>
-          <p className="text-blue-100">学習記録への応援と未入力生徒の管理</p>
-        </div>
+        <Card className="border-l-4 border-l-primary">
+          <CardContent className="p-6">
+            <h1 className="text-2xl md:text-3xl font-bold mb-2">ホーム</h1>
+            <p className="text-muted-foreground">学習記録への応援と未入力生徒の管理</p>
+          </CardContent>
+        </Card>
 
         <Tabs defaultValue="encouragement" className="space-y-6">
-          <TabsList className="bg-white/80 backdrop-blur-sm shadow-md border border-border/50">
+          <TabsList className="bg-muted w-full md:w-auto">
             <TabsTrigger
               value="encouragement"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white"
+              className="data-[state=active]:bg-background data-[state=active]:shadow-sm flex-1 md:flex-none"
             >
               学習記録への応援
             </TabsTrigger>
             <TabsTrigger
               value="inactive"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white"
+              className="data-[state=active]:bg-background data-[state=active]:shadow-sm flex-1 md:flex-none"
             >
               未入力生徒一覧
               {filteredInactiveStudents.length > 0 && (
-                <Badge className="ml-2 bg-red-500 text-white">{filteredInactiveStudents.length}</Badge>
+                <Badge className="ml-2 bg-destructive text-destructive-foreground">
+                  {filteredInactiveStudents.length}
+                </Badge>
               )}
             </TabsTrigger>
           </TabsList>
@@ -294,44 +298,66 @@ export default function CoachHomePage() {
           {/* Learning Records Encouragement Tab */}
           <TabsContent value="encouragement" className="space-y-4">
             {/* Filters */}
-            <Card className="bg-white/80 backdrop-blur-sm shadow-md border-border/50">
+            <Card>
               <CardContent className="p-4">
-                <div className="flex flex-wrap gap-3">
-                  <Select value={gradeFilter} onValueChange={setGradeFilter}>
-                    <SelectTrigger className="w-40 bg-white shadow-sm">
-                      <SelectValue placeholder="学年" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">すべて</SelectItem>
-                      <SelectItem value="小学5年">小学5年</SelectItem>
-                      <SelectItem value="小学6年">小学6年</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">学年</label>
+                    <Select value={gradeFilter} onValueChange={setGradeFilter}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="学年" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">すべて</SelectItem>
+                        <SelectItem value="小学5年">小学5年</SelectItem>
+                        <SelectItem value="小学6年">小学6年</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                  <Select value={subjectFilter} onValueChange={setSubjectFilter}>
-                    <SelectTrigger className="w-40 bg-white shadow-sm">
-                      <SelectValue placeholder="科目" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">すべて</SelectItem>
-                      <SelectItem value="算数">算数</SelectItem>
-                      <SelectItem value="国語">国語</SelectItem>
-                      <SelectItem value="理科">理科</SelectItem>
-                      <SelectItem value="社会">社会</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">科目</label>
+                    <Select value={subjectFilter} onValueChange={setSubjectFilter}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="科目" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">すべて</SelectItem>
+                        <SelectItem value="算数">算数</SelectItem>
+                        <SelectItem value="国語">国語</SelectItem>
+                        <SelectItem value="理科">理科</SelectItem>
+                        <SelectItem value="社会">社会</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                  <Select value={encouragementFilter} onValueChange={setEncouragementFilter}>
-                    <SelectTrigger className="w-40 bg-white shadow-sm">
-                      <SelectValue placeholder="応援" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">すべて</SelectItem>
-                      <SelectItem value="coach">指導者</SelectItem>
-                      <SelectItem value="parent">保護者</SelectItem>
-                      <SelectItem value="none">応援なし</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">応援状態</label>
+                    <Select value={encouragementFilter} onValueChange={setEncouragementFilter}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="応援" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">すべて</SelectItem>
+                        <SelectItem value="coach">指導者応援済み</SelectItem>
+                        <SelectItem value="parent">保護者応援済み</SelectItem>
+                        <SelectItem value="none">応援なし</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">日付</label>
+                    <Select defaultValue="desc">
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="desc">新しい順</SelectItem>
+                        <SelectItem value="asc">古い順</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -341,14 +367,14 @@ export default function CoachHomePage() {
               {filteredRecords.map((record) => (
                 <Card
                   key={record.id}
-                  className="bg-white shadow-md hover:shadow-lg transition-all duration-300 border-l-4 border-l-blue-500"
+                  className="hover:shadow-md transition-shadow duration-200 border-l-4 border-l-primary"
                 >
-                  <CardContent className="p-6">
+                  <CardContent className="p-4 md:p-6">
                     <div className="space-y-4">
                       {/* Student Info */}
-                      <div className="flex items-start justify-between">
+                      <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
                         <div className="flex items-center gap-3">
-                          <Avatar className="h-12 w-12 border-2 border-white shadow-md">
+                          <Avatar className="h-12 w-12 border-2 border-border">
                             <AvatarImage
                               src={getAvatarSrc(record.studentAvatar) || "/placeholder.svg"}
                               alt={record.studentName}
@@ -356,11 +382,11 @@ export default function CoachHomePage() {
                             <AvatarFallback>{record.studentName.charAt(0)}</AvatarFallback>
                           </Avatar>
                           <div>
-                            <div className="font-semibold text-lg">{record.studentName}</div>
+                            <div className="font-semibold text-base md:text-lg">{record.studentName}</div>
                             <div className="text-sm text-muted-foreground">ニックネーム: {record.studentNickname}</div>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Badge className="bg-blue-100 text-blue-800">{record.grade}</Badge>
-                              <Badge className="bg-purple-100 text-purple-800">{record.subject}</Badge>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              <Badge variant="secondary">{record.grade}</Badge>
+                              <Badge variant="outline">{record.subject}</Badge>
                             </div>
                           </div>
                         </div>
@@ -371,7 +397,7 @@ export default function CoachHomePage() {
                       </div>
 
                       {/* Learning Content */}
-                      <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4">
+                      <div className="bg-muted rounded-lg p-4">
                         <p className="text-sm leading-relaxed">{record.content}</p>
                       </div>
 
@@ -382,13 +408,16 @@ export default function CoachHomePage() {
                           <div className="space-y-2">
                             <div className="text-sm font-medium text-muted-foreground">保護者の応援</div>
                             {record.parentEncouragements.map((enc) => (
-                              <div key={enc.id} className="flex items-start gap-2 bg-green-50 rounded-lg p-3">
+                              <div
+                                key={enc.id}
+                                className="flex items-start gap-2 bg-green-50 dark:bg-green-950 rounded-lg p-3"
+                              >
                                 <Avatar className="h-8 w-8">
                                   <AvatarFallback>{enc.sender.charAt(0)}</AvatarFallback>
                                 </Avatar>
-                                <div className="flex-1">
+                                <div className="flex-1 min-w-0">
                                   <div className="text-sm font-medium">{enc.sender}</div>
-                                  <div className="text-sm">{enc.content}</div>
+                                  <div className="text-sm break-words">{enc.content}</div>
                                 </div>
                               </div>
                             ))}
@@ -400,13 +429,16 @@ export default function CoachHomePage() {
                           <div className="space-y-2">
                             <div className="text-sm font-medium text-muted-foreground">指導者の応援</div>
                             {record.coachEncouragements.map((enc) => (
-                              <div key={enc.id} className="flex items-start gap-2 bg-blue-50 rounded-lg p-3">
+                              <div
+                                key={enc.id}
+                                className="flex items-start gap-2 bg-blue-50 dark:bg-blue-950 rounded-lg p-3"
+                              >
                                 <Avatar className="h-8 w-8">
                                   <AvatarFallback>{enc.sender.charAt(0)}</AvatarFallback>
                                 </Avatar>
-                                <div className="flex-1">
+                                <div className="flex-1 min-w-0">
                                   <div className="text-sm font-medium">{enc.sender}</div>
-                                  <div className="text-sm">{enc.content}</div>
+                                  <div className="text-sm break-words">{enc.content}</div>
                                 </div>
                               </div>
                             ))}
@@ -417,7 +449,7 @@ export default function CoachHomePage() {
                       {/* Encouragement Actions */}
                       {selectedRecord?.id === record.id ? (
                         <div className="space-y-4 border-t pt-4">
-                          <div className="flex gap-2">
+                          <div className="flex flex-wrap gap-2">
                             <Button
                               variant={encouragementType === "stamp" ? "default" : "outline"}
                               size="sm"
@@ -425,7 +457,7 @@ export default function CoachHomePage() {
                               className="flex items-center gap-1"
                             >
                               <Heart className="h-4 w-4" />
-                              スタンプ
+                              スタンプ送信
                             </Button>
                             <Button
                               variant={encouragementType === "ai" ? "default" : "outline"}
@@ -437,7 +469,7 @@ export default function CoachHomePage() {
                               className="flex items-center gap-1"
                             >
                               <Sparkles className="h-4 w-4" />
-                              AI提案
+                              AI提案メッセージ
                             </Button>
                             <Button
                               variant={encouragementType === "custom" ? "default" : "outline"}
@@ -446,7 +478,7 @@ export default function CoachHomePage() {
                               className="flex items-center gap-1"
                             >
                               <Edit3 className="h-4 w-4" />
-                              個別作成
+                              個別メッセージ作成
                             </Button>
                           </div>
 
@@ -469,10 +501,10 @@ export default function CoachHomePage() {
                           {encouragementType === "ai" && aiSuggestions.length > 0 && (
                             <div className="space-y-2">
                               {aiSuggestions.map((suggestion, index) => (
-                                <div key={index} className="flex items-start gap-2">
+                                <div key={index} className="flex flex-col sm:flex-row items-start gap-2">
                                   <Button
                                     variant="outline"
-                                    className="flex-1 text-left h-auto py-3 hover:bg-blue-50 bg-transparent"
+                                    className="flex-1 text-left h-auto py-3 hover:bg-accent w-full bg-transparent"
                                     onClick={() => setEditingMessage(suggestion)}
                                   >
                                     {suggestion}
@@ -480,8 +512,10 @@ export default function CoachHomePage() {
                                   <Button
                                     size="sm"
                                     onClick={() => handleSendEncouragement(record, suggestion, "ai-message")}
+                                    className="w-full sm:w-auto"
                                   >
-                                    <Send className="h-4 w-4" />
+                                    <Send className="h-4 w-4 sm:mr-0 mr-2" />
+                                    <span className="sm:hidden">送信</span>
                                   </Button>
                                 </div>
                               ))}
@@ -529,11 +563,8 @@ export default function CoachHomePage() {
                           </Button>
                         </div>
                       ) : (
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={() => setSelectedRecord(record)}
-                            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                          >
+                        <div className="flex flex-wrap gap-2">
+                          <Button onClick={() => setSelectedRecord(record)} className="flex-1 sm:flex-none">
                             <Heart className="h-4 w-4 mr-2" />
                             応援する
                           </Button>
@@ -570,12 +601,12 @@ export default function CoachHomePage() {
           {/* Inactive Students Tab */}
           <TabsContent value="inactive" className="space-y-4">
             {/* Threshold Filter */}
-            <Card className="bg-white/80 backdrop-blur-sm shadow-md border-border/50">
+            <Card>
               <CardContent className="p-4">
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                   <span className="text-sm font-medium">未入力日数のしきい値:</span>
                   <Select value={inactiveThreshold} onValueChange={setInactiveThreshold}>
-                    <SelectTrigger className="w-40 bg-white shadow-sm">
+                    <SelectTrigger className="w-full sm:w-40">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -593,30 +624,32 @@ export default function CoachHomePage() {
               {filteredInactiveStudents.map((student) => (
                 <Card
                   key={student.id}
-                  className={`shadow-md hover:shadow-lg transition-all duration-300 border-l-4 ${
+                  className={`hover:shadow-md transition-shadow duration-200 border-l-4 ${
                     student.daysInactive >= 7
-                      ? "border-l-red-500 bg-red-50/50"
+                      ? "border-l-destructive bg-destructive/5"
                       : student.daysInactive >= 5
-                        ? "border-l-orange-500 bg-orange-50/50"
-                        : "border-l-yellow-500 bg-yellow-50/50"
+                        ? "border-l-orange-500 bg-orange-50 dark:bg-orange-950/20"
+                        : "border-l-yellow-500 bg-yellow-50 dark:bg-yellow-950/20"
                   } ${student.isHandled ? "opacity-60" : ""}`}
                 >
-                  <CardContent className="p-6">
+                  <CardContent className="p-4 md:p-6">
                     <div className="space-y-4">
                       {/* Student Info */}
-                      <div className="flex items-start justify-between">
+                      <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
                         <div className="flex items-center gap-3">
-                          <Avatar className="h-12 w-12 border-2 border-white shadow-md">
+                          <Avatar className="h-12 w-12 border-2 border-border">
                             <AvatarImage src={getAvatarSrc(student.avatar) || "/placeholder.svg"} alt={student.name} />
                             <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
                           </Avatar>
                           <div>
-                            <div className="font-semibold text-lg">{student.name}</div>
+                            <div className="font-semibold text-base md:text-lg">{student.name}</div>
                             <div className="text-sm text-muted-foreground">ニックネーム: {student.nickname}</div>
-                            <Badge className="mt-1 bg-blue-100 text-blue-800">{student.grade}</Badge>
+                            <Badge variant="secondary" className="mt-1">
+                              {student.grade}
+                            </Badge>
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right w-full sm:w-auto">
                           <div className="flex items-center gap-1 text-sm text-muted-foreground mb-1">
                             <Calendar className="h-4 w-4" />
                             最終入力: {student.lastInputDate.toLocaleDateString()}
@@ -624,7 +657,7 @@ export default function CoachHomePage() {
                           <Badge
                             className={`${
                               student.daysInactive >= 7
-                                ? "bg-red-500 text-white"
+                                ? "bg-destructive text-destructive-foreground"
                                 : student.daysInactive >= 5
                                   ? "bg-orange-500 text-white"
                                   : "bg-yellow-500 text-white"
@@ -637,11 +670,11 @@ export default function CoachHomePage() {
                       </div>
 
                       {/* Action Buttons */}
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         <Button
                           variant={student.isHandled ? "outline" : "default"}
                           onClick={() => handleToggleHandled(student.id)}
-                          className={student.isHandled ? "bg-gray-200" : ""}
+                          className={`flex-1 sm:flex-none ${student.isHandled ? "bg-muted" : ""}`}
                         >
                           {student.isHandled ? "対応済み解除" : "対応済みにする"}
                         </Button>
@@ -653,6 +686,7 @@ export default function CoachHomePage() {
                               setNoteInput({ ...noteInput, [student.id]: "" })
                             }
                           }}
+                          className="flex-1 sm:flex-none"
                         >
                           <MessageSquare className="h-4 w-4 mr-2" />
                           対応メモ
@@ -698,19 +732,19 @@ export default function CoachHomePage() {
                         <div className="space-y-2 border-t pt-4">
                           <div className="text-sm font-medium">対応メモ履歴</div>
                           {student.notes.map((note) => (
-                            <div key={note.id} className="bg-white rounded-lg p-3 shadow-sm">
+                            <div key={note.id} className="bg-background rounded-lg p-3 shadow-sm border">
                               <div className="flex items-start gap-2">
                                 <Avatar className="h-8 w-8">
                                   <AvatarFallback>{note.author.charAt(0)}</AvatarFallback>
                                 </Avatar>
-                                <div className="flex-1">
-                                  <div className="flex items-center justify-between mb-1">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-1 gap-1">
                                     <span className="text-sm font-medium">{note.author}</span>
                                     <span className="text-xs text-muted-foreground">
                                       {note.timestamp.toLocaleString()}
                                     </span>
                                   </div>
-                                  <p className="text-sm">{note.content}</p>
+                                  <p className="text-sm break-words">{note.content}</p>
                                 </div>
                               </div>
                             </div>
@@ -723,7 +757,7 @@ export default function CoachHomePage() {
               ))}
 
               {filteredInactiveStudents.length === 0 && (
-                <Card className="bg-white/80 backdrop-blur-sm shadow-md">
+                <Card>
                   <CardContent className="p-8 text-center">
                     <p className="text-muted-foreground">{inactiveThreshold}日以上未入力の生徒はいません</p>
                   </CardContent>
