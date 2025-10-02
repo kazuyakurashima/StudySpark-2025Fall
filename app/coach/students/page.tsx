@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Home, Flag, Map, BookOpen, Heart, MessageCircle, X } from "lucide-react"
-import { CoachTopNavigation } from "@/components/coach-top-navigation"
+import { Home, Flag, Map, BookOpen, Heart, MessageCircle, X, Users } from "lucide-react"
 import { CoachBottomNavigation } from "@/components/coach-bottom-navigation"
 
 interface Student {
@@ -91,8 +90,6 @@ export default function StudentsListPage() {
   if (selectedStudent && selectedView) {
     return (
       <div className="min-h-screen bg-background pb-20">
-        <CoachTopNavigation />
-
         <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
           {/* Header with Close Button */}
           <Card className="border-l-4 border-l-primary">
@@ -131,13 +128,14 @@ export default function StudentsListPage() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <CoachTopNavigation />
-
       <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
         {/* Header */}
         <Card className="border-l-4 border-l-primary">
           <CardContent className="p-6">
-            <h1 className="text-2xl md:text-3xl font-bold mb-2">生徒一覧</h1>
+            <h1 className="text-2xl md:text-3xl font-bold mb-2 flex items-center gap-2">
+              <Users className="h-6 w-6 md:h-7 md:w-7" />
+              生徒一覧
+            </h1>
             <p className="text-muted-foreground">各生徒の詳細情報を確認</p>
           </CardContent>
         </Card>

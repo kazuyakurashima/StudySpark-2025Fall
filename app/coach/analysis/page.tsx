@@ -17,7 +17,6 @@ import {
   Heart,
   MessageCircle,
 } from "lucide-react"
-import { CoachTopNavigation } from "@/components/coach-top-navigation"
 import { CoachBottomNavigation } from "@/components/coach-bottom-navigation"
 
 interface AnalysisReport {
@@ -148,8 +147,6 @@ export default function AnalysisPage() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <CoachTopNavigation />
-
       <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
         {/* Header */}
         <Card className="border-l-4 border-l-primary">

@@ -8,7 +8,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar, Heart } from "lucide-react"
-import { CoachTopNavigation } from "@/components/coach-top-navigation"
 import { CoachBottomNavigation } from "@/components/coach-bottom-navigation"
 
 interface EncouragementHistory {
@@ -83,34 +82,36 @@ export default function EncouragementListPage() {
   const parentHistory = encouragementHistory.filter((h) => h.type === "parent")
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 pb-20">
-      <CoachTopNavigation />
-
-      <div className="max-w-7xl mx-auto p-4 space-y-6">
+    <div className="min-h-screen bg-background pb-20">
+      <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white shadow-lg">
-          <h1 className="text-2xl font-bold mb-2 flex items-center gap-2">
-            <Heart className="h-6 w-6" />
-            応援一覧
-          </h1>
-          <p className="text-blue-100">指導者と保護者の応援履歴を確認</p>
-        </div>
+        <Card className="border-l-4 border-l-primary">
+          <CardContent className="p-6">
+            <h1 className="text-2xl md:text-3xl font-bold mb-2 flex items-center gap-2">
+              <Heart className="h-6 w-6" />
+              応援一覧
+            </h1>
+            <p className="text-muted-foreground">指導者と保護者の応援履歴を確認</p>
+          </CardContent>
+        </Card>
 
         <Tabs defaultValue="coach" className="space-y-6">
-          <TabsList className="bg-white/80 backdrop-blur-sm shadow-md border border-border/50">
+          <TabsList className="bg-muted w-full md:w-auto">
             <TabsTrigger
               value="coach"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white"
+              className="data-[state=active]:bg-background data-[state=active]:shadow-sm flex-1 md:flex-none"
             >
               指導者タブ
-              <Badge className="ml-2 bg-blue-100 text-blue-800">{coachHistory.length}</Badge>
+              <Badge className="ml-2 bg-primary/10 text-primary">{coachHistory.length}</Badge>
             </TabsTrigger>
             <TabsTrigger
               value="parent"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white"
+              className="data-[state=active]:bg-background data-[state=active]:shadow-sm flex-1 md:flex-none"
             >
               保護者タブ
-              <Badge className="ml-2 bg-green-100 text-green-800">{parentHistory.length}</Badge>
+              <Badge className="ml-2 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
+                {parentHistory.length}
+              </Badge>
             </TabsTrigger>
           </TabsList>
 
@@ -272,7 +273,7 @@ export default function EncouragementListPage() {
                           <div className="text-sm font-medium">{history.content}</div>
                         </div>
                         <div className="flex gap-2">
-                          <Badge className="bg-green-100 text-green-800">
+                          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
                             {history.encouragementType === "stamp"
                               ? "スタンプ"
                               : history.encouragementType === "ai-message"
