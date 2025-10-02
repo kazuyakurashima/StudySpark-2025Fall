@@ -19,7 +19,7 @@ const tabs = [
   },
   {
     id: "spark",
-    label: "応援", // Changed from "管理" to "応援"
+    label: "応援",
     icon: Users,
     href: "/coach/spark",
   },
