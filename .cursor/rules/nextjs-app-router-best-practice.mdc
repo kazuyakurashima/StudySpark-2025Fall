@@ -1,0 +1,1249 @@
+---
+alwaysApply: true
+---
+
+# Next.js App Router ベストプラクティス
+
+このドキュメントは、StudySparkプロジェクトにおけるNext.js 14 App Routerのベストプラクティスをまとめたものです。
+
+## 技術スタック
+
+- Next.js (App Router) 14.2.x
+- React 18.3.x
+- TypeScript 5.5.x
+- Supabase（Auth含む）
+- Tailwind CSS
+- ChatGPT API (GPT-5-mini)
+
+---
+
+## 1. Server Components の利用指針
+
+### 基本原則
+
+**App Routerではデフォルトで全てのコンポーネントがServer Componentsです。**
+
+### Server Componentsを使うべき場面
+
+✅ **以下の場合はServer Componentsを優先する：**
+
+- データベースやAPIから直接データを取得する
+- 環境変数やAPIキーなど、機密情報にアクセスする
+- バックエンドリソースを利用する
+- 大きな依存関係をサーバー側に保持し、クライアントのJavaScriptバンドルサイズを削減する
+- SEOに必要な静的コンテンツをレンダリングする
+
+```typescript
+// app/student/page.tsx
+// デフォルトでServer Component（'use client'不要）
+import { getStudentData } from '@/lib/dal/student'
+
+export default async function StudentDashboard() {
+  // サーバー側で直接データ取得
+  const student = await getStudentData()
+
+  return (
+    <div>
+      <h1>ようこそ、{student.name}さん</h1>
+      <StudentStats stats={student.stats} />
+    </div>
+  )
+}
+```
+
+### Client Componentsへの境界の考え方
+
+❌ **以下の場合のみClient Componentsを使用する：**
+
+- ユーザーインタラクション（onClick, onChange, onSubmitなど）
+- React Hooks（useState, useEffect, useContextなど）
+- ブラウザAPI（localStorage, geolocationなど）
+- カスタムフック
+
+**重要：** `'use client'`ディレクティブは、ファイルの先頭（import文より上）に配置し、Server/Client境界を明示します。
+
+```typescript
+// components/learning-form.tsx
+'use client'
+
+import { useState } from 'react'
+import { submitLearningRecord } from '@/app/actions/learning'
+
+export function LearningForm() {
+  const [subject, setSubject] = useState('')
+
+  return (
+    <form action={submitLearningRecord}>
+      <select value={subject} onChange={(e) => setSubject(e.target.value)}>
+        <option value="math">算数</option>
+        <option value="japanese">国語</option>
+      </select>
+      <button type="submit">記録する</button>
+    </form>
+  )
+}
+```
+
+### Server ComponentsとClient Componentsの組み合わせパターン
+
+**推奨パターン：** Server ComponentからClient Componentにpropsとしてデータを渡す
+
+```typescript
+// app/student/page.tsx (Server Component)
+import { getStudentData } from '@/lib/dal/student'
+import { InteractiveChart } from '@/components/interactive-chart' // Client Component
+
+export default async function StudentPage() {
+  const data = await getStudentData()
+
+  return (
+    <div>
+      <h1>ダッシュボード</h1>
+      {/* Server ComponentからClient Componentへデータを渡す */}
+      <InteractiveChart data={data.chartData} />
+    </div>
+  )
+}
+```
+
+**推奨パターン：** Client ComponentにServer Componentを子要素として渡す
+
+```typescript
+// app/parent/page.tsx (Server Component)
+import { ClientTabs } from '@/components/client-tabs' // Client Component
+import { StudentProgress } from '@/components/student-progress' // Server Component
+
+export default async function ParentPage() {
+  return (
+    <ClientTabs>
+      {/* Server Componentをchildren propsとして渡す */}
+      <StudentProgress />
+    </ClientTabs>
+  )
+}
+```
+
+### アンチパターン
+
+❌ **避けるべきパターン：**
+
+```typescript
+// ❌ 悪い例：全てのコンポーネントに'use client'を付ける
+'use client'
+
+// このコンポーネントはインタラクティブではないのに、
+// クライアントバンドルに含まれてしまう
+export function StaticHeader() {
+  return <header>StudySpark</header>
+}
+```
+
+```typescript
+// ❌ 悪い例：Server ComponentをClient Componentから直接importする
+'use client'
+
+import { ServerDataComponent } from './server-component' // エラー！
+
+export function ClientComponent() {
+  return <ServerDataComponent />
+}
+```
+
+---
+
+## 2. Server Actions の利用指針
+
+### 基本原則
+
+**Server Actionsは、サーバー側で実行される非同期関数です。**
+フォーム送信、データ変更（CRUD操作）、認証処理などに使用します。
+
+### Server Actionsを使うべき場面
+
+✅ **以下の場合はServer Actionsを優先する：**
+
+- フォーム送信処理
+- データベースへの書き込み（INSERT, UPDATE, DELETE）
+- サーバー側のバリデーション
+- セッション管理や認証処理
+- 外部APIへのPOSTリクエスト
+- ファイルアップロード
+
+```typescript
+// app/actions/learning.ts
+'use server'
+
+import { revalidatePath } from 'next/cache'
+import { createLearningRecord } from '@/lib/dal/learning'
+import { z } from 'zod'
+
+const learningSchema = z.object({
+  subject: z.enum(['math', 'japanese', 'science', 'social']),
+  content: z.string().min(1),
+  correctAnswers: z.number().min(0),
+  totalQuestions: z.number().min(1),
+})
+
+export async function submitLearningRecord(formData: FormData) {
+  // サーバー側でバリデーション
+  const validated = learningSchema.parse({
+    subject: formData.get('subject'),
+    content: formData.get('content'),
+    correctAnswers: Number(formData.get('correctAnswers')),
+    totalQuestions: Number(formData.get('totalQuestions')),
+  })
+
+  // DAL経由でデータベース操作
+  await createLearningRecord(validated)
+
+  // キャッシュを再検証
+  revalidatePath('/student')
+
+  return { success: true }
+}
+```
+
+### API Routesとの比較
+
+| 項目 | Server Actions | API Routes |
+|------|---------------|-----------|
+| **用途** | フォーム送信、データ変更 | 外部公開エンドポイント、Webhook |
+| **呼び出し方** | 直接関数呼び出し | Fetch API経由 |
+| **型安全性** | TypeScriptで型安全 | 型情報が失われる |
+| **認証** | セッションを自動的に継承 | 手動で認証を実装 |
+| **推奨度** | 内部処理は推奨 | 外部公開APIのみ |
+
+### API Routesを使うべき場面
+
+✅ **以下の場合のみAPI Routesを使用する：**
+
+- 外部サービスからのWebhook受信
+- サードパーティライブラリとの統合
+- 公開REST APIの提供
+- Server Actionsでは対応できない複雑なHTTPレスポンス制御
+
+```typescript
+// app/api/webhook/route.ts
+import { NextRequest, NextResponse } from 'next/server'
+import { verifyWebhookSignature } from '@/lib/security'
+
+export async function POST(request: NextRequest) {
+  const signature = request.headers.get('x-signature')
+  const body = await request.json()
+
+  // 外部サービスからのWebhookを検証
+  if (!verifyWebhookSignature(signature, body)) {
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
+  }
+
+  // 処理...
+
+  return NextResponse.json({ success: true })
+}
+```
+
+### Server Actionsのベストプラクティス
+
+**1. 'use server'ディレクティブを使用**
+
+```typescript
+// app/actions/student.ts
+'use server'
+
+// このファイル全体がServer Actions
+export async function updateProfile(data: ProfileData) {
+  // ...
+}
+
+export async function deleteAccount(userId: string) {
+  // ...
+}
+```
+
+**2. フォームとの統合（Progressive Enhancement）**
+
+```typescript
+// components/profile-form.tsx
+'use client'
+
+import { updateProfile } from '@/app/actions/student'
+import { useFormState, useFormStatus } from 'react-dom'
+
+export function ProfileForm() {
+  const [state, formAction] = useFormState(updateProfile, null)
+
+  return (
+    <form action={formAction}>
+      <input name="name" required />
+      <SubmitButton />
+      {state?.error && <p>{state.error}</p>}
+    </form>
+  )
+}
+
+function SubmitButton() {
+  const { pending } = useFormStatus()
+  return (
+    <button type="submit" disabled={pending}>
+      {pending ? '送信中...' : '更新する'}
+    </button>
+  )
+}
+```
+
+**3. エラーハンドリングとバリデーション**
+
+```typescript
+// app/actions/goal.ts
+'use server'
+
+import { z } from 'zod'
+import { redirect } from 'next/navigation'
+
+const goalSchema = z.object({
+  title: z.string().min(1, '目標を入力してください'),
+  deadline: z.string().datetime(),
+})
+
+export async function createGoal(prevState: any, formData: FormData) {
+  try {
+    const validated = goalSchema.parse({
+      title: formData.get('title'),
+      deadline: formData.get('deadline'),
+    })
+
+    await saveGoal(validated)
+
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return { error: error.errors[0].message }
+    }
+    return { error: '予期しないエラーが発生しました' }
+  }
+
+  redirect('/student/goal')
+}
+```
+
+---
+
+## 3. DAL (Data Abstraction Layer) の利用指針
+
+### 基本原則
+
+**DALは、データアクセスロジックをビジネスロジックから分離する設計パターンです。**
+Supabaseクライアントを直接コンポーネントやServer Actionsから呼び出すのではなく、DAL層を介してアクセスします。
+
+### DALを使う利点
+
+✅ **DAL層を導入する主な理由：**
+
+1. **責務の分離** - データアクセスとビジネスロジックを明確に分ける
+2. **再利用性** - 同じクエリを複数箇所で使い回せる
+3. **テスタビリティ** - モック化が容易になり、単体テストが書きやすい
+4. **型安全性** - Supabaseの型を一箇所で管理できる
+5. **保守性** - データベーススキーマ変更時の影響範囲を最小化
+6. **セキュリティ** - アクセス制御やバリデーションを一元管理
+
+### DAL層の構造
+
+```
+lib/
+├── dal/
+│   ├── student.ts          # 生徒関連のデータアクセス
+│   ├── learning.ts         # 学習記録関連
+│   ├── goal.ts             # 目標関連
+│   ├── encouragement.ts    # 応援メッセージ関連
+│   └── auth.ts             # 認証関連
+├── supabase/
+│   ├── client.ts           # Supabaseクライアント初期化
+│   └── server.ts           # サーバー側Supabaseクライアント
+└── types/
+    └── database.ts         # Supabase型定義
+```
+
+### DAL実装例
+
+**1. Supabaseクライアントの初期化**
+
+```typescript
+// lib/supabase/server.ts
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+
+export async function createClient() {
+  const cookieStore = await cookies()
+
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+}
+```
+
+**2. DAL層の実装（生徒データ）**
+
+```typescript
+// lib/dal/student.ts
+import { createClient } from '@/lib/supabase/server'
+import { cache } from 'react'
+
+// キャッシュ付きデータ取得（同一リクエスト内で再利用）
+export const getStudentProfile = cache(async (studentId: string) => {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('students')
+    .select('*, profiles(*)')
+    .eq('id', studentId)
+    .single()
+
+  if (error) {
+    console.error('Failed to fetch student:', error)
+    throw new Error('生徒情報の取得に失敗しました')
+  }
+
+  return data
+})
+
+export async function updateStudentProfile(
+  studentId: string,
+  updates: { name?: string; avatar?: string }
+) {
+  const supabase = await createClient()
+
+  const { error } = await supabase
+    .from('students')
+    .update(updates)
+    .eq('id', studentId)
+
+  if (error) {
+    console.error('Failed to update student:', error)
+    throw new Error('プロフィールの更新に失敗しました')
+  }
+}
+
+export async function getStudentStats(studentId: string) {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('learning_records')
+    .select('subject, correct_answers, total_questions, created_at')
+    .eq('student_id', studentId)
+    .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('Failed to fetch stats:', error)
+    return []
+  }
+
+  // ビジネスロジック：正答率の計算
+  return data.map(record => ({
+    ...record,
+    accuracy: (record.correct_answers / record.total_questions) * 100,
+  }))
+}
+```
+
+**3. DAL層の実装（学習記録）**
+
+```typescript
+// lib/dal/learning.ts
+import { createClient } from '@/lib/supabase/server'
+
+export type LearningRecord = {
+  subject: 'math' | 'japanese' | 'science' | 'social'
+  content: string
+  correctAnswers: number
+  totalQuestions: number
+  studentId: string
+}
+
+export async function createLearningRecord(record: LearningRecord) {
+  const supabase = await createClient()
+
+  const { error } = await supabase
+    .from('learning_records')
+    .insert({
+      student_id: record.studentId,
+      subject: record.subject,
+      content: record.content,
+      correct_answers: record.correctAnswers,
+      total_questions: record.totalQuestions,
+      created_at: new Date().toISOString(),
+    })
+
+  if (error) {
+    console.error('Failed to create learning record:', error)
+    throw new Error('学習記録の保存に失敗しました')
+  }
+}
+
+export async function getLearningRecords(
+  studentId: string,
+  options?: { limit?: number; subject?: string }
+) {
+  const supabase = await createClient()
+
+  let query = supabase
+    .from('learning_records')
+    .select('*')
+    .eq('student_id', studentId)
+    .order('created_at', { ascending: false })
+
+  if (options?.subject) {
+    query = query.eq('subject', options.subject)
+  }
+
+  if (options?.limit) {
+    query = query.limit(options.limit)
+  }
+
+  const { data, error } = await query
+
+  if (error) {
+    console.error('Failed to fetch learning records:', error)
+    return []
+  }
+
+  return data
+}
+```
+
+**4. DAL層の実装（認証）**
+
+```typescript
+// lib/dal/auth.ts
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+
+/**
+ * 現在ログイン中のユーザーを取得
+ * 認証されていない場合はログインページにリダイレクト
+ */
+export async function requireAuth() {
+  const supabase = await createClient()
+
+  const { data: { user }, error } = await supabase.auth.getUser()
+
+  if (error || !user) {
+    redirect('/login')
+  }
+
+  return user
+}
+
+/**
+ * ユーザーのロールを取得
+ */
+export async function getUserRole(userId: string) {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .single()
+
+  if (error) {
+    throw new Error('ロール情報の取得に失敗しました')
+  }
+
+  return data.role as 'student' | 'parent' | 'coach' | 'admin'
+}
+
+/**
+ * ロールベースのアクセス制御
+ */
+export async function requireRole(allowedRoles: string[]) {
+  const user = await requireAuth()
+  const role = await getUserRole(user.id)
+
+  if (!allowedRoles.includes(role)) {
+    redirect('/unauthorized')
+  }
+
+  return { user, role }
+}
+```
+
+### DAL使用例（Server Component）
+
+```typescript
+// app/student/page.tsx
+import { requireRole } from '@/lib/dal/auth'
+import { getStudentProfile, getStudentStats } from '@/lib/dal/student'
+
+export default async function StudentDashboard() {
+  // 認証とロールチェック
+  const { user } = await requireRole(['student'])
+
+  // DAL経由でデータ取得
+  const profile = await getStudentProfile(user.id)
+  const stats = await getStudentStats(user.id)
+
+  return (
+    <div>
+      <h1>こんにちは、{profile.name}さん</h1>
+      <StatsChart data={stats} />
+    </div>
+  )
+}
+```
+
+### DAL使用例（Server Action）
+
+```typescript
+// app/actions/learning.ts
+'use server'
+
+import { revalidatePath } from 'next/cache'
+import { requireAuth } from '@/lib/dal/auth'
+import { createLearningRecord } from '@/lib/dal/learning'
+
+export async function submitLearning(formData: FormData) {
+  // 認証チェック
+  const user = await requireAuth()
+
+  // DAL経由でデータ保存
+  await createLearningRecord({
+    studentId: user.id,
+    subject: formData.get('subject') as any,
+    content: formData.get('content') as string,
+    correctAnswers: Number(formData.get('correctAnswers')),
+    totalQuestions: Number(formData.get('totalQuestions')),
+  })
+
+  // キャッシュ再検証
+  revalidatePath('/student')
+
+  return { success: true }
+}
+```
+
+### アンチパターン
+
+❌ **避けるべきパターン：**
+
+```typescript
+// ❌ 悪い例：Server ComponentでSupabaseを直接呼び出す
+import { createClient } from '@/lib/supabase/server'
+
+export default async function BadExample() {
+  const supabase = await createClient()
+  const { data } = await supabase.from('students').select('*') // 直接呼び出し
+
+  return <div>{data?.name}</div>
+}
+```
+
+```typescript
+// ❌ 悪い例：Client ComponentでSupabaseを直接呼び出す
+'use client'
+
+import { createClient } from '@/lib/supabase/client'
+import { useEffect, useState } from 'react'
+
+export function BadClientExample() {
+  const [data, setData] = useState(null)
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.from('students').select('*').then(({ data }) => setData(data))
+  }, [])
+
+  return <div>{data?.name}</div>
+}
+```
+
+✅ **正しいパターン：**
+
+```typescript
+// ✅ 良い例：DAL層を経由
+import { getStudentProfile } from '@/lib/dal/student'
+
+export default async function GoodExample({ studentId }: Props) {
+  const student = await getStudentProfile(studentId)
+
+  return <div>{student.name}</div>
+}
+```
+
+---
+
+## 4. 全体フローの整理
+
+### アーキテクチャ概要
+
+```
+┌─────────────────────────────────────────────────────┐
+│                    UI Layer                         │
+│  ┌──────────────┐         ┌──────────────┐         │
+│  │   Server     │         │   Client     │         │
+│  │  Components  │────────▶│  Components  │         │
+│  └──────────────┘         └──────────────┘         │
+│         │                        │                  │
+└─────────┼────────────────────────┼──────────────────┘
+          │                        │
+          │                        │ formAction / onClick
+          ▼                        ▼
+┌─────────────────────────────────────────────────────┐
+│              Server Actions Layer                   │
+│  ┌──────────────────────────────────────┐           │
+│  │  app/actions/*.ts ('use server')     │           │
+│  │  - バリデーション (zod)              │           │
+│  │  - エラーハンドリング                │           │
+│  │  - キャッシュ再検証                  │           │
+│  └──────────────────────────────────────┘           │
+└─────────────────────┬───────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────┐
+│          Data Abstraction Layer (DAL)               │
+│  ┌──────────────────────────────────────┐           │
+│  │  lib/dal/*.ts                        │           │
+│  │  - 型安全なデータアクセス            │           │
+│  │  - ビジネスロジック                  │           │
+│  │  - エラーハンドリング                │           │
+│  │  - キャッシュ制御 (React cache)      │           │
+│  └──────────────────────────────────────┘           │
+└─────────────────────┬───────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────┐
+│               Supabase Client Layer                 │
+│  ┌──────────────────────────────────────┐           │
+│  │  lib/supabase/server.ts              │           │
+│  │  - クライアント初期化                │           │
+│  │  - Cookie管理                        │           │
+│  │  - セッション管理                    │           │
+│  └──────────────────────────────────────┘           │
+└─────────────────────┬───────────────────────────────┘
+                      │
+                      ▼
+              ┌─────────────┐
+              │  Supabase   │
+              │  (Postgres) │
+              └─────────────┘
+```
+
+### レイヤーごとの責務
+
+#### 1. UI Layer（Server/Client Components）
+
+**責務：**
+- ユーザーインターフェースの描画
+- ユーザー入力の受け取り
+- データの表示
+
+**ルール：**
+- データ取得はServer Componentsで行う
+- ユーザーインタラクションはClient Componentsで行う
+- Supabaseを直接呼び出さない（DAL経由）
+- ビジネスロジックを含めない
+
+```typescript
+// ✅ Server Component: データ取得と表示
+export default async function StudentPage() {
+  const student = await getStudentProfile(userId) // DAL経由
+  return <StudentInfo student={student} />
+}
+
+// ✅ Client Component: インタラクション
+'use client'
+export function LearningForm() {
+  return <form action={submitLearning}>...</form> // Server Action経由
+}
+```
+
+#### 2. Server Actions Layer
+
+**責務：**
+- フォーム送信処理
+- データ変更（CRUD）
+- バリデーション
+- エラーハンドリング
+- キャッシュ再検証
+
+**ルール：**
+- `'use server'`ディレクティブを使用
+- Zodなどでバリデーション実施
+- DAL経由でデータアクセス
+- `revalidatePath()`でキャッシュ更新
+
+```typescript
+// app/actions/learning.ts
+'use server'
+
+import { z } from 'zod'
+import { revalidatePath } from 'next/cache'
+import { createLearningRecord } from '@/lib/dal/learning'
+
+export async function submitLearning(formData: FormData) {
+  // 1. バリデーション
+  const schema = z.object({
+    subject: z.enum(['math', 'japanese', 'science', 'social']),
+    correctAnswers: z.number().min(0),
+  })
+
+  const validated = schema.parse({
+    subject: formData.get('subject'),
+    correctAnswers: Number(formData.get('correctAnswers')),
+  })
+
+  // 2. DAL経由でデータ保存
+  await createLearningRecord(validated)
+
+  // 3. キャッシュ再検証
+  revalidatePath('/student')
+
+  return { success: true }
+}
+```
+
+#### 3. Data Abstraction Layer (DAL)
+
+**責務：**
+- データアクセスロジックのカプセル化
+- ビジネスロジック（計算、変換）
+- 型安全なデータ操作
+- エラーハンドリング
+
+**ルール：**
+- Supabaseクライアントを直接使用可能
+- 関数単位で責務を明確化
+- `cache()`でリクエスト内キャッシュを実装
+- エラーを適切にハンドリング
+
+```typescript
+// lib/dal/learning.ts
+import { createClient } from '@/lib/supabase/server'
+import { cache } from 'react'
+
+export const getLearningRecords = cache(async (studentId: string) => {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('learning_records')
+    .select('*')
+    .eq('student_id', studentId)
+
+  if (error) throw new Error('データ取得に失敗しました')
+
+  // ビジネスロジック：正答率計算
+  return data.map(record => ({
+    ...record,
+    accuracy: (record.correct_answers / record.total_questions) * 100,
+  }))
+})
+```
+
+#### 4. Supabase Client Layer
+
+**責務：**
+- Supabaseクライアントの初期化
+- Cookie管理（SSR対応）
+- セッション管理
+
+**ルール：**
+- `@supabase/ssr`を使用
+- Server ComponentsとClient Componentsで別々のクライアント
+- 環境変数から設定を読み込む
+
+```typescript
+// lib/supabase/server.ts
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+
+export async function createClient() {
+  const cookieStore = await cookies()
+
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+}
+```
+
+### 実装フロー例：学習記録の送信
+
+```typescript
+// ① UI Layer: フォーム表示（Client Component）
+'use client'
+export function LearningForm() {
+  return (
+    <form action={submitLearning}>
+      <input name="subject" />
+      <button type="submit">記録</button>
+    </form>
+  )
+}
+
+// ② Server Actions Layer: バリデーション・処理
+'use server'
+export async function submitLearning(formData: FormData) {
+  const validated = schema.parse(Object.fromEntries(formData))
+  await createLearningRecord(validated) // DAL呼び出し
+  revalidatePath('/student')
+}
+
+// ③ DAL Layer: データベース操作
+export async function createLearningRecord(data: LearningRecord) {
+  const supabase = await createClient() // Supabaseクライアント取得
+  const { error } = await supabase.from('learning_records').insert(data)
+  if (error) throw new Error('保存失敗')
+}
+
+// ④ Supabase Client Layer: クライアント提供
+export async function createClient() {
+  return createServerClient(url, key, { cookies: ... })
+}
+```
+
+---
+
+## 5. パフォーマンス最適化
+
+### キャッシュ戦略
+
+**1. React `cache()`によるリクエストキャッシュ**
+
+```typescript
+import { cache } from 'react'
+
+export const getStudentData = cache(async (id: string) => {
+  // 同一リクエスト内で複数回呼ばれても、実際のフェッチは1回だけ
+  const supabase = await createClient()
+  return supabase.from('students').select('*').eq('id', id).single()
+})
+```
+
+**2. Next.js Data Cacheによる永続キャッシュ**
+
+```typescript
+// デフォルトで永続キャッシュされる
+export async function getStaticData() {
+  const data = await fetch('https://api.example.com/data', {
+    next: { revalidate: 3600 } // 1時間ごとに再検証
+  })
+  return data.json()
+}
+
+// キャッシュを無効化
+export async function getDynamicData() {
+  const data = await fetch('https://api.example.com/data', {
+    cache: 'no-store' // キャッシュしない
+  })
+  return data.json()
+}
+```
+
+**3. `revalidatePath()`によるキャッシュ再検証**
+
+```typescript
+'use server'
+
+import { revalidatePath, revalidateTag } from 'next/cache'
+
+export async function updateProfile(data: ProfileData) {
+  await updateProfileInDB(data)
+
+  // 特定パスのキャッシュを再検証
+  revalidatePath('/student/profile')
+
+  // タグ付きキャッシュを再検証
+  revalidateTag('student-data')
+}
+```
+
+### データフェッチングのベストプラクティス
+
+**並列データフェッチング**
+
+```typescript
+// ✅ 良い例：並列実行
+export default async function DashboardPage() {
+  const [student, stats, messages] = await Promise.all([
+    getStudentProfile(id),
+    getStudentStats(id),
+    getEncouragementMessages(id),
+  ])
+
+  return <Dashboard student={student} stats={stats} messages={messages} />
+}
+
+// ❌ 悪い例：直列実行
+export default async function SlowDashboard() {
+  const student = await getStudentProfile(id)
+  const stats = await getStudentStats(id) // 前の処理を待つ
+  const messages = await getEncouragementMessages(id) // さらに待つ
+
+  return <Dashboard student={student} stats={stats} messages={messages} />
+}
+```
+
+**段階的レンダリング（Streaming）**
+
+```typescript
+// app/student/page.tsx
+import { Suspense } from 'react'
+
+export default function StudentPage() {
+  return (
+    <div>
+      {/* 即座に表示 */}
+      <Header />
+
+      {/* データ取得中はローディング表示 */}
+      <Suspense fallback={<StatsLoading />}>
+        <StudentStats />
+      </Suspense>
+
+      <Suspense fallback={<ChartLoading />}>
+        <LearningChart />
+      </Suspense>
+    </div>
+  )
+}
+
+// 別コンポーネントで非同期データ取得
+async function StudentStats() {
+  const stats = await getStudentStats()
+  return <StatsCard stats={stats} />
+}
+```
+
+---
+
+## 6. セキュリティとバリデーション
+
+### Supabase認証のベストプラクティス
+
+**✅ 推奨：`supabase.auth.getUser()`を使用**
+
+```typescript
+// lib/dal/auth.ts
+export async function getCurrentUser() {
+  const supabase = await createClient()
+
+  // ✅ サーバー側では必ずgetUser()を使用（セキュア）
+  const { data: { user }, error } = await supabase.auth.getUser()
+
+  if (error || !user) {
+    return null
+  }
+
+  return user
+}
+```
+
+**❌ 非推奨：`supabase.auth.getSession()`は使わない**
+
+```typescript
+// ❌ セキュリティリスク：トークンが再検証されない
+const { data: { session } } = await supabase.auth.getSession()
+```
+
+### Row Level Security (RLS) の活用
+
+```sql
+-- Supabaseのポリシー例
+CREATE POLICY "生徒は自分のデータのみ閲覧可能"
+ON learning_records
+FOR SELECT
+USING (auth.uid() = student_id);
+
+CREATE POLICY "指導者は担当生徒のデータを閲覧可能"
+ON learning_records
+FOR SELECT
+USING (
+  EXISTS (
+    SELECT 1 FROM coach_students
+    WHERE coach_id = auth.uid()
+    AND student_id = learning_records.student_id
+  )
+);
+```
+
+### バリデーションの二重��
+
+```typescript
+// クライアント側バリデーション（UX向上）
+'use client'
+import { z } from 'zod'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+
+const schema = z.object({
+  subject: z.enum(['math', 'japanese', 'science', 'social']),
+})
+
+export function LearningForm() {
+  const form = useForm({
+    resolver: zodResolver(schema), // クライアント側でバリデーション
+  })
+
+  return <form onSubmit={form.handleSubmit(submitLearning)}>...</form>
+}
+
+// サーバー側バリデーション（セキュリティ）
+'use server'
+export async function submitLearning(data: unknown) {
+  // サーバー側でも必ずバリデーション
+  const validated = schema.parse(data)
+  await createLearningRecord(validated)
+}
+```
+
+---
+
+## 7. エラーハンドリング
+
+### エラーバウンダリ
+
+```typescript
+// app/student/error.tsx
+'use client'
+
+export default function Error({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string }
+  reset: () => void
+}) {
+  return (
+    <div>
+      <h2>エラーが発生しました</h2>
+      <p>{error.message}</p>
+      <button onClick={reset}>もう一度試す</button>
+    </div>
+  )
+}
+```
+
+### DAL層でのエラーハンドリング
+
+```typescript
+// lib/dal/learning.ts
+export async function getLearningRecords(studentId: string) {
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('learning_records')
+      .select('*')
+      .eq('student_id', studentId)
+
+    if (error) {
+      console.error('Database error:', error)
+      throw new Error('学習記録の取得に失敗しました')
+    }
+
+    return data
+  } catch (error) {
+    // ログ送信（Sentry等）
+    console.error('Failed to get learning records:', error)
+    throw error
+  }
+}
+```
+
+---
+
+## 8. 型安全性の確保
+
+### Supabase型の生成と利用
+
+```bash
+# Supabaseから型を自動生成
+npx supabase gen types typescript --project-id <project-id> > lib/types/database.ts
+```
+
+```typescript
+// lib/types/database.ts
+export type Database = {
+  public: {
+    Tables: {
+      students: {
+        Row: {
+          id: string
+          name: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          created_at?: string
+        }
+      }
+    }
+  }
+}
+
+// 型付きクライアントの作成
+import { Database } from '@/lib/types/database'
+
+const supabase = createClient<Database>()
+```
+
+---
+
+## まとめ
+
+### チェックリスト
+
+✅ **Server Components優先**
+- デフォルトでServer Components、必要な時だけ`'use client'`
+
+✅ **Server Actionsでデータ変更**
+- フォーム送信・CRUD操作はServer Actions
+- 外部公開APIのみAPI Routes
+
+✅ **DAL層を必ず経由**
+- Supabaseを直接呼び出さない
+- データアクセスとビジネスロジックを分離
+
+✅ **適切なキャッシュ戦略**
+- React `cache()`でリクエスト内キャッシュ
+- `revalidatePath()`で明示的に再検証
+
+✅ **セキュリティ重視**
+- `supabase.auth.getUser()`を使用
+- サーバー側で必ずバリデーション
+
+✅ **型安全性を確保**
+- TypeScript + Zod + Supabase型定義
+
+---
+
+このドキュメントは、StudySparkプロジェクトの技術スタックに最適化されたNext.js App Routerのベストプラクティスです。実装時はこのガイドラインに従ってください。
