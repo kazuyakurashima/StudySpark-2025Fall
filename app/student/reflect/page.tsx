@@ -27,6 +27,7 @@ import {
   ChevronUp,
   Filter,
   Heart,
+  Map,
 } from "lucide-react"
 
 const sparkLearningHistory = [
@@ -285,9 +286,101 @@ const getProgressChange = (currentRate: number, previousRate: number | null) => 
   }
 }
 
+const achievementMapData = {
+  grade5: {
+    算数: {
+      learningContents: ["類題", "基本問題", "練習問題", "演習問題集（実戦演習）"],
+      courses: ["A", "A", "B", "C"],
+      sessions: [
+        { session: "第1回", period: "9/1〜9/7", problems: [7, 16, 12, 10], correctRates: [85, 75, 60, 50] },
+        { session: "第2回", period: "9/8〜9/14", problems: [7, 10, 11, 12], correctRates: [90, 80, 70, 55] },
+        { session: "第3回", period: "9/15〜9/21", problems: [5, 10, 11, 9], correctRates: [100, 85, 75, 60] },
+        { session: "第4回", period: "9/22〜9/28", problems: [8, 15, 14, 13], correctRates: [75, 70, 65, 45] },
+        { session: "第5回", period: "9/29〜10/5", problems: [0, 31, 12, 0], correctRates: [0, 90, 80, 0] },
+      ],
+    },
+    国語: {
+      learningContents: ["確認問題"],
+      courses: ["A"],
+      sessions: [
+        { session: "第1回", period: "9/1〜9/7", problems: [40], correctRates: [70] },
+        { session: "第2回", period: "9/8〜9/14", problems: [40], correctRates: [75] },
+        { session: "第3回", period: "9/15〜9/21", problems: [40], correctRates: [80] },
+        { session: "第4回", period: "9/22〜9/28", problems: [40], correctRates: [85] },
+        { session: "第5回", period: "9/29〜10/5", problems: [80], correctRates: [90] },
+      ],
+    },
+    理科: {
+      learningContents: ["演習問題集（基本問題）", "演習問題集（練習問題）", "演習問題集（発展問題）"],
+      courses: ["A", "B", "C"],
+      sessions: [
+        { session: "第1回", period: "9/1〜9/7", problems: [12, 15, 4], correctRates: [80, 70, 50] },
+        { session: "第2回", period: "9/8〜9/14", problems: [13, 21, 3], correctRates: [85, 75, 55] },
+        { session: "第3回", period: "9/15〜9/21", problems: [14, 17, 5], correctRates: [90, 80, 60] },
+        { session: "第4回", period: "9/22〜9/28", problems: [15, 14, 4], correctRates: [75, 70, 45] },
+        { session: "第5回", period: "9/29〜10/5", problems: [0, 34, 16], correctRates: [0, 85, 65] },
+      ],
+    },
+    社会: {
+      learningContents: ["演習問題集（練習問題）", "演習問題集（発展問題・記述問題）"],
+      courses: ["A", "B"],
+      sessions: [
+        { session: "第1回", period: "9/1〜9/7", problems: [9, 6], correctRates: [75, 60] },
+        { session: "第2回", period: "9/8〜9/14", problems: [9, 7], correctRates: [80, 65] },
+        { session: "第3回", period: "9/15〜9/21", problems: [11, 6], correctRates: [85, 70] },
+        { session: "第4回", period: "9/22〜9/28", problems: [15, 5], correctRates: [70, 55] },
+        { session: "第5回", period: "9/29〜10/5", problems: [19, 19], correctRates: [90, 75] },
+      ],
+    },
+  },
+}
+
+const subjectColorSchemes = {
+  算数: {
+    base: "bg-blue-500",
+    light: "bg-blue-200",
+    medium: "bg-blue-400",
+    dark: "bg-blue-600",
+    text: "text-blue-700",
+    border: "border-blue-300",
+  },
+  国語: {
+    base: "bg-red-500",
+    light: "bg-red-200",
+    medium: "bg-red-400",
+    dark: "bg-red-600",
+    text: "text-red-700",
+    border: "border-red-300",
+  },
+  理科: {
+    base: "bg-orange-500",
+    light: "bg-orange-200",
+    medium: "bg-orange-400",
+    dark: "bg-orange-600",
+    text: "text-orange-700",
+    border: "border-orange-300",
+  },
+  社会: {
+    base: "bg-green-500",
+    light: "bg-green-200",
+    medium: "bg-green-400",
+    dark: "bg-green-600",
+    text: "text-green-700",
+    border: "border-green-300",
+  },
+}
+
+const getColorByCorrectRate = (rate: number, subject: keyof typeof subjectColorSchemes) => {
+  const colors = subjectColorSchemes[subject]
+  if (rate === 0) return "bg-white border border-slate-200"
+  if (rate < 50) return colors.light
+  if (rate < 80) return colors.medium
+  return colors.dark
+}
+
 export default function ReflectPage() {
   const [showAIChat, setShowAIChat] = useState(false)
-  const [activeTab, setActiveTab] = useState("history")
+  const [activeTab, setActiveTab] = useState("achievement")
   const [expandedMessages, setExpandedMessages] = useState<Set<number>>(new Set())
   const [learningSubjectFilter, setLearningSubjectFilter] = useState("全科目")
   const [learningPeriodFilter, setLearningPeriodFilter] = useState("1ヶ月")
@@ -297,6 +390,13 @@ export default function ReflectPage() {
   const [sortBy, setSortBy] = useState("記録日時")
   const [displayMode, setDisplayMode] = useState("一部表示")
   const [coachingPeriodFilter, setCoachingPeriodFilter] = useState("1ヶ月")
+  const [achievementSubject, setAchievementSubject] = useState<keyof typeof achievementMapData.grade5>("算数")
+  const [selectedCell, setSelectedCell] = useState<{
+    session: string
+    content: string
+    rate: number
+    problems: number
+  } | null>(null)
 
   const toggleMessageExpansion = (messageId: number) => {
     const newExpanded = new Set(expandedMessages)
@@ -496,7 +596,15 @@ export default function ReflectPage() {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 sm:space-8">
-          <TabsList className="grid w-full grid-cols-3 bg-white/90 backdrop-blur-md border border-slate-200/60 shadow-xl p-1.5 rounded-2xl h-14 sm:h-16 lg:h-18">
+          <TabsList className="grid w-full grid-cols-4 bg-white/90 backdrop-blur-md border border-slate-200/60 shadow-xl p-1.5 rounded-2xl h-14 sm:h-16 lg:h-18">
+            <TabsTrigger
+              value="achievement"
+              className="flex items-center justify-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-lg font-medium px-2 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 rounded-xl transition-all duration-300 hover:bg-slate-100/50 text-xs sm:text-sm lg:text-base"
+            >
+              <Map className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="hidden sm:inline">達成マップ</span>
+              <span className="sm:hidden">達成</span>
+            </TabsTrigger>
             <TabsTrigger
               value="history"
               className="flex items-center justify-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-lg font-medium px-2 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 rounded-xl transition-all duration-300 hover:bg-slate-100/50 text-xs sm:text-sm lg:text-base"
@@ -523,6 +631,204 @@ export default function ReflectPage() {
             </TabsTrigger>
           </TabsList>
 
+          <TabsContent value="achievement" className="space-y-6">
+            <Card className="bg-gradient-to-br from-white/95 to-slate-50/95 backdrop-blur-sm border-slate-200/60 shadow-2xl">
+              <CardHeader className="pb-4 sm:pb-6 lg:pb-8">
+                <CardTitle className="flex items-center gap-3 text-xl sm:text-2xl lg:text-3xl text-slate-800">
+                  <div className="p-2 sm:p-3 bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl border border-purple-300 shadow-sm">
+                    <Map className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-purple-600" />
+                  </div>
+                  達成マップ
+                </CardTitle>
+                <p className="text-sm sm:text-base lg:text-lg text-slate-600">
+                  各科目の習得具合を一覧で確認できます。色が濃いほど正答率が高いことを示します。
+                </p>
+              </CardHeader>
+              <CardContent className="px-4 sm:px-6 lg:px-8">
+                {/* Subject tabs */}
+                <Tabs
+                  value={achievementSubject}
+                  onValueChange={(v) => setAchievementSubject(v as keyof typeof achievementMapData.grade5)}
+                  className="space-y-6"
+                >
+                  <TabsList className="grid w-full grid-cols-4 bg-white/90 backdrop-blur-md border border-slate-200/60 shadow-lg p-1.5 rounded-xl h-12 sm:h-14">
+                    <TabsTrigger
+                      value="算数"
+                      className="flex items-center justify-center gap-2 data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-md font-medium px-2 sm:px-4 py-2 sm:py-3 rounded-lg transition-all duration-300 text-xs sm:text-sm"
+                    >
+                      算数
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="国語"
+                      className="flex items-center justify-center gap-2 data-[state=active]:bg-red-500 data-[state=active]:text-white data-[state=active]:shadow-md font-medium px-2 sm:px-4 py-2 sm:py-3 rounded-lg transition-all duration-300 text-xs sm:text-sm"
+                    >
+                      国語
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="理科"
+                      className="flex items-center justify-center gap-2 data-[state=active]:bg-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md font-medium px-2 sm:px-4 py-2 sm:py-3 rounded-lg transition-all duration-300 text-xs sm:text-sm"
+                    >
+                      理科
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="社会"
+                      className="flex items-center justify-center gap-2 data-[state=active]:bg-green-500 data-[state=active]:text-white data-[state=active]:shadow-md font-medium px-2 sm:px-4 py-2 sm:py-3 rounded-lg transition-all duration-300 text-xs sm:text-sm"
+                    >
+                      社会
+                    </TabsTrigger>
+                  </TabsList>
+
+                  {Object.keys(achievementMapData.grade5).map((subject) => (
+                    <TabsContent key={subject} value={subject} className="space-y-6">
+                      <div className="bg-gradient-to-r from-slate-50 to-white rounded-xl p-4 sm:p-6 border border-slate-200 shadow-inner">
+                        {/* Legend */}
+                        <div className="flex flex-wrap items-center gap-4 mb-6">
+                          <span className="text-sm font-medium text-slate-700">正答率:</span>
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 bg-white border border-slate-200 rounded"></div>
+                            <span className="text-xs text-slate-600">未修</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className={`w-6 h-6 ${subjectColorSchemes[subject as keyof typeof subjectColorSchemes].light} rounded`}
+                            ></div>
+                            <span className="text-xs text-slate-600">0-49%</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className={`w-6 h-6 ${subjectColorSchemes[subject as keyof typeof subjectColorSchemes].medium} rounded`}
+                            ></div>
+                            <span className="text-xs text-slate-600">50-79%</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className={`w-6 h-6 ${subjectColorSchemes[subject as keyof typeof subjectColorSchemes].dark} rounded`}
+                            ></div>
+                            <span className="text-xs text-slate-600">80-100%</span>
+                          </div>
+                        </div>
+
+                        {/* Heatmap */}
+                        <div className="overflow-x-auto">
+                          <div className="min-w-max">
+                            {/* Header row with learning contents */}
+                            <div className="flex gap-2 mb-2">
+                              <div className="w-24 sm:w-32"></div>
+                              {achievementMapData.grade5[
+                                subject as keyof typeof achievementMapData.grade5
+                              ].learningContents.map((content, idx) => (
+                                <div key={idx} className="flex-1 min-w-[80px] sm:min-w-[100px]">
+                                  <div className="text-xs sm:text-sm font-medium text-slate-700 text-center mb-1">
+                                    {content}
+                                  </div>
+                                  <div className="text-xs text-slate-500 text-center">
+                                    (コース
+                                    {
+                                      achievementMapData.grade5[subject as keyof typeof achievementMapData.grade5]
+                                        .courses[idx]
+                                    }
+                                    )
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Data rows */}
+                            {achievementMapData.grade5[subject as keyof typeof achievementMapData.grade5].sessions.map(
+                              (session, sessionIdx) => (
+                                <div key={sessionIdx} className="flex gap-2 mb-2">
+                                  <div className="w-24 sm:w-32 flex flex-col justify-center">
+                                    <div className="text-xs sm:text-sm font-semibold text-slate-800">
+                                      {session.session}
+                                    </div>
+                                    <div className="text-xs text-slate-500">{session.period}</div>
+                                  </div>
+                                  {session.correctRates.map((rate, contentIdx) => (
+                                    <div key={contentIdx} className="flex-1 min-w-[80px] sm:min-w-[100px]">
+                                      <button
+                                        onClick={() =>
+                                          setSelectedCell({
+                                            session: session.session,
+                                            content:
+                                              achievementMapData.grade5[
+                                                subject as keyof typeof achievementMapData.grade5
+                                              ].learningContents[contentIdx],
+                                            rate,
+                                            problems: session.problems[contentIdx],
+                                          })
+                                        }
+                                        className={`w-full h-16 sm:h-20 rounded-lg ${getColorByCorrectRate(rate, subject as keyof typeof subjectColorSchemes)} hover:ring-2 hover:ring-offset-2 hover:ring-${subject === "算数" ? "blue" : subject === "国語" ? "red" : subject === "理科" ? "orange" : "green"}-400 transition-all duration-200 flex flex-col items-center justify-center shadow-sm hover:shadow-md`}
+                                      >
+                                        {rate > 0 && (
+                                          <>
+                                            <span className="text-sm sm:text-base font-bold text-white drop-shadow-md">
+                                              {rate}%
+                                            </span>
+                                            <span className="text-xs text-white/90 drop-shadow-sm">
+                                              {session.problems[contentIdx]}問
+                                            </span>
+                                          </>
+                                        )}
+                                        {rate === 0 && <span className="text-xs text-slate-400">未修</span>}
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              ),
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Selected cell details */}
+                        {selectedCell && (
+                          <div className="mt-6 p-4 sm:p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200 shadow-md">
+                            <div className="flex items-center justify-between mb-4">
+                              <h3 className="text-lg sm:text-xl font-bold text-slate-800">詳細情報</h3>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setSelectedCell(null)}
+                                className="text-slate-600 hover:text-slate-800"
+                              >
+                                閉じる
+                              </Button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <div className="text-sm text-slate-600 mb-1">学習回</div>
+                                <div className="text-base sm:text-lg font-semibold text-slate-800">
+                                  {selectedCell.session}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-sm text-slate-600 mb-1">学習内容</div>
+                                <div className="text-base sm:text-lg font-semibold text-slate-800">
+                                  {selectedCell.content}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-sm text-slate-600 mb-1">正答率</div>
+                                <div className="text-base sm:text-lg font-semibold text-blue-600">
+                                  {selectedCell.rate}%
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-sm text-slate-600 mb-1">問題数</div>
+                                <div className="text-base sm:text-lg font-semibold text-slate-800">
+                                  {selectedCell.problems}問
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+                  ))}
+                </Tabs>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="history" className="space-y-6">
             <Card className="bg-gradient-to-br from-white/95 to-slate-50/95 backdrop-blur-sm border-slate-200/60 shadow-2xl">
               <CardHeader className="pb-4 sm:pb-6 lg:pb-8">
@@ -538,7 +844,7 @@ export default function ReflectPage() {
               </CardHeader>
               <CardContent className="px-4 sm:px-6 lg:px-8">
                 <div className="bg-gradient-to-r from-slate-100/60 to-slate-50/60 rounded-xl p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 border border-slate-200/60 shadow-inner">
-                  <div className="flex items-center gap-2 mb-4 sm:mb-6">
+                  <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
                     <Filter className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
                     <span className="font-bold text-base sm:text-lg lg:text-xl text-slate-800">
                       フィルター・並び替え
@@ -813,7 +1119,7 @@ export default function ReflectPage() {
 
                       <div className="relative p-4 sm:p-6 lg:p-8 xl:p-10">
                         <div className="flex items-start gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6">
-                          <Avatar className="h-10 w-10 sm:h-12 sm:w-12 lg:h-16 lg:w-16 border-2 border-pink-200/60 shadow-md">
+                          <Avatar className="h-10 w-10 sm:h-12 sm:w-12 lg:h-16 lg:w-16 border-2 border-pink-200/60">
                             <AvatarImage src={getAvatarSrc(message.avatar) || "/placeholder.svg"} alt={message.from} />
                             <AvatarFallback className="bg-gradient-to-br from-pink-100 to-pink-200 text-pink-700 font-bold text-sm sm:text-base lg:text-lg">
                               {message.from.charAt(0)}
