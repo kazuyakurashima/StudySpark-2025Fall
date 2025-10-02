@@ -16,7 +16,6 @@ import {
   AlertTriangle,
   MessageSquare,
   Sparkles,
-  Edit3,
   Clock,
   Calendar,
 } from "lucide-react"
@@ -446,36 +445,36 @@ export default function CoachHomePage() {
                       {/* Encouragement Actions */}
                       {selectedRecord?.id === record.id ? (
                         <div className="space-y-4 border-t pt-4">
-                          <div className="flex flex-wrap gap-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <Button
                               variant={encouragementType === "stamp" ? "default" : "outline"}
-                              size="sm"
+                              size="lg"
                               onClick={() => setEncouragementType("stamp")}
-                              className="flex items-center gap-1"
+                              className="flex items-center justify-center gap-2 h-14 bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white border-0"
                             >
-                              <Heart className="h-4 w-4" />
-                              スタンプ送信
+                              <Heart className="h-5 w-5" />
+                              <span className="font-medium">スタンプ</span>
                             </Button>
                             <Button
                               variant={encouragementType === "ai" ? "default" : "outline"}
-                              size="sm"
+                              size="lg"
                               onClick={() => {
                                 setEncouragementType("ai")
                                 generateAISuggestions(record)
                               }}
-                              className="flex items-center gap-1"
+                              className="flex items-center justify-center gap-2 h-14 bg-gradient-to-r from-pink-400 to-pink-500 hover:from-pink-500 hover:to-pink-600 text-white border-0"
                             >
-                              <Sparkles className="h-4 w-4" />
-                              AI提案メッセージ
+                              <Sparkles className="h-5 w-5" />
+                              <span className="font-medium">AI提案</span>
                             </Button>
                             <Button
                               variant={encouragementType === "custom" ? "default" : "outline"}
-                              size="sm"
+                              size="lg"
                               onClick={() => setEncouragementType("custom")}
-                              className="flex items-center gap-1"
+                              className="flex items-center justify-center gap-2 h-14 bg-gradient-to-r from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white border-0"
                             >
-                              <Edit3 className="h-4 w-4" />
-                              個別メッセージ作成
+                              <Send className="h-5 w-5" />
+                              <span className="font-medium">個別作成</span>
                             </Button>
                           </div>
 

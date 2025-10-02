@@ -1,22 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import {
-  BarChart3,
-  TrendingUp,
-  Calendar,
-  ChevronDown,
-  ChevronUp,
-  Target,
-  Map,
-  BookOpen,
-  Heart,
-  MessageCircle,
-} from "lucide-react"
+import { BarChart3, ChevronRight, ChevronDown, Target, TrendingUp, BookOpen, Heart, MessageCircle } from "lucide-react"
 import { CoachBottomNavigation } from "@/components/coach-bottom-navigation"
 
 interface AnalysisReport {
@@ -36,9 +24,12 @@ interface AnalysisReport {
 
 interface AnalysisSummary {
   summary: string
-  keyMetrics: { label: string; value: string; trend?: string }[]
-  details: string
-  insights: string[]
+  details: {
+    byGrade?: string
+    bySubject?: string
+    trend?: string
+    suggestions?: string
+  }
 }
 
 const analysisReports: AnalysisReport[] = [
@@ -50,80 +41,49 @@ const analysisReports: AnalysisReport[] = [
     targetWeek: "第4回（9/22〜9/28）",
     categories: {
       goalNavi: {
-        summary: "目標達成率は全体で75%。前週比+5%の改善が見られました。小学5年生の算数で特に高い達成率（85%）を記録。",
-        keyMetrics: [
-          { label: "全体達成率", value: "75%", trend: "+5%" },
-          { label: "算数（5年）", value: "85%", trend: "+8%" },
-          { label: "理科（6年）", value: "60%", trend: "-3%" },
-        ],
-        details:
-          "小学5年生の算数で特に高い達成率（85%）を記録。一方、小学6年生の理科は60%と課題が残ります。目標設定の具体性が達成率に大きく影響していることが分かりました。算数では「問題集の〇〇ページを解く」といった具体的な目標が多く、理科では「復習する」といった抽象的な目標が多い傾向にあります。",
-        insights: [
-          "算数の目標設定が適切で、生徒のモチベーション向上に寄与している",
-          "理科の目標設定を見直し、より具体的な目標に変更することを推奨",
-          "目標達成時の応援メッセージが次の学習意欲につながっている",
-        ],
+        summary: "全体の目標達成率は78%で、先週比+5%の向上。算数の達成率が特に高く85%を記録。",
+        details: {
+          byGrade: "小学5年: 4.2時間、小学6年: 4.8時間",
+          bySubject: "算数: 35%, 国語: 30%, 理科: 20%, 社会: 15%",
+          trend: "朝学習を実施している生徒は週平均6時間と高い傾向。",
+          suggestions: "社会の学習時間が少ない生徒には、興味関心を引き出す教材を提案。",
+        },
       },
       achievementMap: {
-        summary: "全体の習得率は68%。前週比+3%の向上。算数の習得率が最も高く（78%）、社会が最も低い（55%）。",
-        keyMetrics: [
-          { label: "全体習得率", value: "68%", trend: "+3%" },
-          { label: "算数", value: "78%", trend: "+4%" },
-          { label: "社会", value: "55%", trend: "+1%" },
-        ],
-        details:
-          "算数の習得率が最も高く（78%）、社会が最も低い（55%）。学年別では小学6年生が小学5年生を上回る傾向にあります。特に算数では、基礎問題の習得率が90%を超えており、応用問題への移行がスムーズに進んでいます。社会では地理分野の習得率が低く、歴史分野との差が顕著です。",
-        insights: [
-          "社会の学習時間が不足している傾向があり、学習計画の見直しが必要",
-          "小学6年生の学習習慣が定着してきており、継続的なサポートが効果を発揮",
-          "算数の基礎固めが成功しており、応用問題への展開を推奨",
-        ],
+        summary: "週次目標の達成率は72%。小目標の設定がSMART基準を満たしている生徒ほど達成率が高い傾向。",
+        details: {
+          byGrade: "小学5年: 68%, 小学6年: 76%",
+          bySubject: "算数: 80%, 国語: 70%, 理科: 65%, 社会: 60%",
+          trend: "SMART基準を満たす目標設定をしている生徒の達成率は85%と高い。",
+          suggestions: "目標設定時にSMART基準を意識するよう指導を強化。",
+        },
       },
       learningHistory: {
-        summary: "週平均学習時間は4.2時間。前週比+0.5時間。算数と国語の学習時間が多く、理科と社会が少ない傾向。",
-        keyMetrics: [
-          { label: "週平均学習時間", value: "4.2時間", trend: "+0.5時間" },
-          { label: "平日平均", value: "35分/日", trend: "+5分" },
-          { label: "休日平均", value: "1.2時間/日", trend: "+0.2時間" },
-        ],
-        details:
-          "算数と国語の学習時間が多く、理科と社会が少ない傾向。平日の学習時間が増加しており、学習習慣の定着が見られます。特に朝学習を取り入れている生徒の学習時間が長く、集中力も高い傾向にあります。一方で、理科と社会の学習時間は週1時間未満の生徒が多く、バランスの改善が必要です。",
-        insights: [
-          "理科と社会の学習時間を増やす工夫が必要（週2時間以上を目標に）",
-          "平日の学習習慣が定着してきており、朝学習の効果が顕著",
-          "休日の学習時間を活用した理科・社会の強化を推奨",
-        ],
+        summary: "週平均学習時間は4.5時間。平日の学習時間が先週比+15分増加し、習慣化が進んでいる。",
+        details: {
+          byGrade: "小学5年: 4.2時間、小学6年: 4.8時間",
+          bySubject: "算数: 35%, 国語: 30%, 理科: 20%, 社会: 15%",
+          trend: "朝学習を実施している生徒は週平均6時間と高い傾向。",
+          suggestions: "社会の学習時間が少ない生徒には、興味関心を引き出す教材を提案。",
+        },
       },
       encouragementHistory: {
-        summary:
-          "応援総数は週120件。前週比+15件。保護者からの応援が80件、指導者からが40件。AI提案メッセージの使用率が60%。",
-        keyMetrics: [
-          { label: "応援総数", value: "120件", trend: "+15件" },
-          { label: "保護者", value: "80件", trend: "+10件" },
-          { label: "指導者", value: "40件", trend: "+5件" },
-        ],
-        details:
-          "保護者からの応援が80件、指導者からが40件。AI提案メッセージの使用率が60%で、効率的な応援が実現できています。応援を受けた生徒の学習継続率は95%と高く、応援の効果が明確に表れています。特に学習直後の応援が効果的で、次の学習へのモチベーション維持につながっています。",
-        insights: [
-          "保護者の関与度が高く、生徒のモチベーション向上に大きく貢献",
-          "AI提案メッセージが効果的に活用されており、応援の質と量が向上",
-          "学習直後の応援が特に効果的で、タイムリーな応援を推奨",
-        ],
+        summary: "応援総数は週156件。個別メッセージを受けた生徒は習慣の学習時間が平均30%増加。",
+        details: {
+          byGrade: "小学5年: 70件、小学6年: 86件",
+          bySubject: "算数: 45件、国語: 40件、理科: 35件、社会: 36件",
+          trend: "保護者からの応援が多い生徒ほど学習継続率が高い（95%）。",
+          suggestions: "応援が少ない生徒には、保護者への働きかけを強化。",
+        },
       },
       coachingHistory: {
         summary: "Will設定数は週50件。SMART度の平均は3.5/5。具体性と計測可能性は高いが、時間制約の設定が不十分。",
-        keyMetrics: [
-          { label: "Will設定数", value: "50件", trend: "+8件" },
-          { label: "SMART度", value: "3.5/5", trend: "+0.3" },
-          { label: "達成率", value: "70%", trend: "+5%" },
-        ],
-        details:
-          "具体性と計測可能性は高いが、時間制約の設定が不十分。Will達成率は70%で、前週比+5%の改善が見られます。Willの品質が向上するにつれて達成率も上昇しており、SMART度との相関が確認できます。特に「いつまでに」を明確にしたWillの達成率が85%と高く、時間制約の重要性が示されています。",
-        insights: [
-          "時間制約を明確にすることで達成率の向上が期待できる（目標：SMART度4.0以上）",
-          "Willの品質向上により行動変容が促進されており、継続的な指導が重要",
-          "達成したWillを振り返る機会を設けることで、次のWill設定の質が向上",
-        ],
+        details: {
+          byGrade: "小学5年: 22件、小学6年: 28件",
+          bySubject: "算数: 15件、国語: 12件、理科: 11件、社会: 12件",
+          trend: "SMART度が高いWillほど達成率が高い（SMART度4以上: 85%達成）。",
+          suggestions: "時間制約を明確にすることで達成率の向上が期待できる。",
+        },
       },
     },
   },
@@ -134,11 +94,41 @@ export default function AnalysisPage() {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null)
 
   const categories = [
-    { id: "goalNavi", label: "ゴールナビのテスト結果分析", icon: Target, color: "text-blue-600" },
-    { id: "achievementMap", label: "達成マップの分析", icon: Map, color: "text-green-600" },
-    { id: "learningHistory", label: "学習履歴の分析", icon: BookOpen, color: "text-purple-600" },
-    { id: "encouragementHistory", label: "応援履歴の分析", icon: Heart, color: "text-pink-600" },
-    { id: "coachingHistory", label: "コーチング履歴の分析", icon: MessageCircle, color: "text-orange-600" },
+    {
+      id: "goalNavi",
+      label: "ゴールナビのテスト結果",
+      icon: Target,
+      bgColor: "bg-blue-50 dark:bg-blue-950/20",
+      iconColor: "text-blue-600",
+    },
+    {
+      id: "achievementMap",
+      label: "達成マップの分析",
+      icon: TrendingUp,
+      bgColor: "bg-green-50 dark:bg-green-950/20",
+      iconColor: "text-green-600",
+    },
+    {
+      id: "learningHistory",
+      label: "学習履歴の分析",
+      icon: BookOpen,
+      bgColor: "bg-purple-50 dark:bg-purple-950/20",
+      iconColor: "text-purple-600",
+    },
+    {
+      id: "encouragementHistory",
+      label: "応援履歴の分析",
+      icon: Heart,
+      bgColor: "bg-pink-50 dark:bg-pink-950/20",
+      iconColor: "text-pink-600",
+    },
+    {
+      id: "coachingHistory",
+      label: "コーチング履歴の分析",
+      icon: MessageCircle,
+      bgColor: "bg-orange-50 dark:bg-orange-950/20",
+      iconColor: "text-orange-600",
+    },
   ]
 
   const toggleCategory = (categoryId: string) => {
@@ -149,49 +139,39 @@ export default function AnalysisPage() {
     <div className="min-h-screen bg-background pb-20">
       <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
         {/* Header */}
-        <Card className="border-l-4 border-l-primary">
-          <CardContent className="p-6">
-            <h1 className="text-2xl md:text-3xl font-bold mb-2 flex items-center gap-2">
-              <BarChart3 className="h-6 w-6 md:h-7 md:w-7" />
-              分析機能（週次AI分析）
-            </h1>
-            <p className="text-muted-foreground text-sm md:text-base">毎週月曜日（中間）と木曜日（最終）に自動実行</p>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <BarChart3 className="h-6 w-6 text-primary" />
+            </div>
+            <h1 className="text-2xl md:text-3xl font-bold">週次AI分析レポート</h1>
+          </div>
+          <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 border-0 px-4 py-2 text-sm">
+            最終分析（木曜日）
+          </Badge>
+        </div>
 
         {/* Report Selection */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-start sm:items-center">
-              <Select
-                value={selectedReport.id}
-                onValueChange={(value) => {
-                  const report = analysisReports.find((r) => r.id === value)
-                  if (report) setSelectedReport(report)
-                }}
-              >
-                <SelectTrigger className="w-full sm:w-60">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {analysisReports.map((report) => (
-                    <SelectItem key={report.id} value={report.id}>
-                      {report.week} - {report.type === "intermediate" ? "中間分析" : "最終分析"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary">{selectedReport.type === "intermediate" ? "中間分析" : "最終分析"}</Badge>
-                <Badge variant="outline" className="flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  {selectedReport.executionDate.toLocaleDateString()}
-                </Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex justify-end">
+          <Select
+            value={selectedReport.id}
+            onValueChange={(value) => {
+              const report = analysisReports.find((r) => r.id === value)
+              if (report) setSelectedReport(report)
+            }}
+          >
+            <SelectTrigger className="w-full sm:w-64">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {analysisReports.map((report) => (
+                <SelectItem key={report.id} value={report.id}>
+                  {report.week}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         {/* Analysis Categories */}
         <div className="space-y-4">
@@ -201,77 +181,55 @@ export default function AnalysisPage() {
             const Icon = category.icon
 
             return (
-              <Card key={category.id} className="hover:shadow-md transition-shadow duration-200">
-                <CardHeader
-                  className="cursor-pointer hover:bg-accent/50 transition-colors rounded-t-lg"
-                  onClick={() => toggleCategory(category.id)}
-                >
-                  <CardTitle className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg bg-accent ${category.color}`}>
-                        <Icon className="h-5 w-5 md:h-6 md:w-6" />
+              <Card
+                key={category.id}
+                className={`${category.bgColor} border-0 cursor-pointer hover:shadow-md transition-all duration-200`}
+                onClick={() => toggleCategory(category.id)}
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-4 flex-1 min-w-0">
+                      <div className={`p-3 rounded-full ${category.iconColor} bg-white dark:bg-gray-800 flex-shrink-0`}>
+                        <Icon className="h-6 w-6" />
                       </div>
-                      <span className="text-base md:text-lg">{category.label}</span>
-                    </div>
-                    <Button variant="ghost" size="icon" className="flex-shrink-0">
-                      {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-                    </Button>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  {/* Summary (Always Visible) */}
-                  <div className="bg-muted rounded-lg p-4 space-y-4">
-                    <div className="flex items-start gap-2">
-                      <TrendingUp className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm text-muted-foreground mb-2">サマリー</div>
-                        <p className="text-sm leading-relaxed">{categoryData.summary}</p>
+                        <h3 className="text-lg font-bold mb-2">{category.label}</h3>
+                        <p className="text-sm leading-relaxed text-foreground/80">{categoryData.summary}</p>
+
+                        {/* Expanded Details */}
+                        {isExpanded && (
+                          <div className="mt-6 space-y-4 pt-4 border-t border-border/30">
+                            <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
+                              <h4 className="font-semibold text-sm mb-3">学年別</h4>
+                              <p className="text-sm text-muted-foreground">{categoryData.details.byGrade}</p>
+                            </div>
+
+                            <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
+                              <h4 className="font-semibold text-sm mb-3">科目別</h4>
+                              <p className="text-sm text-muted-foreground">{categoryData.details.bySubject}</p>
+                            </div>
+
+                            <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
+                              <h4 className="font-semibold text-sm mb-3">トレンド</h4>
+                              <p className="text-sm text-muted-foreground">{categoryData.details.trend}</p>
+                            </div>
+
+                            <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
+                              <h4 className="font-semibold text-sm mb-3">示唆・提案</h4>
+                              <p className="text-sm text-muted-foreground">{categoryData.details.suggestions}</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
-
-                    {/* Key Metrics */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-border/50">
-                      {categoryData.keyMetrics.map((metric, index) => (
-                        <div key={index} className="bg-background rounded-lg p-3">
-                          <div className="text-xs text-muted-foreground mb-1">{metric.label}</div>
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-lg md:text-xl font-bold">{metric.value}</span>
-                            {metric.trend && (
-                              <span
-                                className={`text-xs font-medium ${
-                                  metric.trend.startsWith("+") ? "text-green-600" : "text-red-600"
-                                }`}
-                              >
-                                {metric.trend}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                    <div className="flex-shrink-0">
+                      {isExpanded ? (
+                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                      )}
                     </div>
                   </div>
-
-                  {/* Details (Expandable) */}
-                  {isExpanded && (
-                    <div className="space-y-4 mt-4">
-                      <div className="border-t pt-4">
-                        <div className="font-medium text-sm text-muted-foreground mb-2">詳細分析</div>
-                        <p className="text-sm leading-relaxed">{categoryData.details}</p>
-                      </div>
-
-                      <div className="border-t pt-4">
-                        <div className="font-medium text-sm text-muted-foreground mb-3">示唆・アクション</div>
-                        <ul className="space-y-2">
-                          {categoryData.insights.map((insight, index) => (
-                            <li key={index} className="flex items-start gap-2 text-sm bg-accent/50 rounded-lg p-3">
-                              <span className="text-primary mt-0.5 flex-shrink-0">•</span>
-                              <span className="flex-1">{insight}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             )
