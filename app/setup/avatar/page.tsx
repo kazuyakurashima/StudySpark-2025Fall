@@ -1,52 +1,71 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Image from "next/image"
+import { updateAvatar } from "@/app/actions/profile"
 
 const studentAvatars = [
   {
     id: "student1",
     src: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student1-xZFJU5uXJO4DEfUbq1jbTMQUXReyM0.png",
-    name: "スマイルボーイ", // Updated character name from 学生1
+    name: "スマイルボーイ",
   },
   {
     id: "student2",
     src: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student2-mZ9Q9oVm43IQoRyxSYytVFYgp3JS1V.png",
-    name: "ハッピーガール", // Updated character name from 学生2
+    name: "ハッピーガール",
   },
   {
     id: "student3",
     src: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student3-teUpOKnopXNhE2vGFtvz9RWtC7O6kv.png",
-    name: "クールキッズ", // Updated character name from 学生3
+    name: "クールキッズ",
   },
   {
     id: "student4",
     src: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student4-pKazGXekCT1H5kzHBqmfOrM1968hML.png",
-    name: "スマートガール", // Updated character name from 学生4
+    name: "スマートガール",
   },
   {
     id: "student5",
     src: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student5-kehwNSIKsgkTL6EkAPO2evB3qJWnRM.png",
-    name: "チャレンジャー", // Updated character name from 学生5
+    name: "チャレンジャー",
   },
   {
     id: "student6",
     src: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student6-dJrMk7uUxYSRMp5tMJ3t4KYDOEIuNl.png",
-    name: "ピースメーカー", // Updated character name from 学生6
+    name: "ピースメーカー",
   },
 ]
 
 export default function AvatarSelectionPage() {
+  const router = useRouter()
   const [selectedAvatar, setSelectedAvatar] = useState<string>("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleContinue = () => {
-    if (selectedAvatar) {
-      // Store selected avatar in localStorage for demo
-      localStorage.setItem("selectedAvatar", selectedAvatar)
-      window.location.href = "/setup/profile" // Updated navigation to profile setup page
+  const handleContinue = async () => {
+    if (!selectedAvatar) return
+
+    setIsLoading(true)
+    setError(null)
+
+    const result = await updateAvatar(selectedAvatar)
+
+    if (result?.error) {
+      setError(result.error)
+      setIsLoading(false)
+      return
     }
+
+    // 次のステップへ
+    router.push("/setup/profile")
+  }
+
+  const handleSkip = () => {
+    router.push("/setup/profile")
   }
 
   return (
@@ -73,6 +92,9 @@ export default function AvatarSelectionPage() {
             <CardTitle className="text-center">好きなアバターを選んでね</CardTitle>
           </CardHeader>
           <CardContent>
+            {/* エラーメッセージ */}
+            {error && <div className="mb-4 p-3 bg-destructive/10 text-destructive text-sm rounded-md">{error}</div>}
+
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
               {studentAvatars.map((avatar) => (
                 <button
@@ -80,7 +102,7 @@ export default function AvatarSelectionPage() {
                   onClick={() => setSelectedAvatar(avatar.id)}
                   className={`p-4 rounded-xl border-2 transition-all duration-200 hover:scale-105 ${
                     selectedAvatar === avatar.id
-                      ? "border-cyan-600 bg-cyan-50 shadow-lg" // Enhanced accent color for selected state
+                      ? "border-cyan-600 bg-cyan-50 shadow-lg"
                       : "border-border bg-background hover:border-primary/50"
                   }`}
                 >
@@ -97,9 +119,23 @@ export default function AvatarSelectionPage() {
               ))}
             </div>
 
-            <Button onClick={handleContinue} disabled={!selectedAvatar} className="w-full h-12 text-lg font-medium">
-              次へ進む
-            </Button>
+            <div className="flex gap-3">
+              <Button
+                onClick={handleSkip}
+                variant="outline"
+                className="flex-1 h-12 text-lg font-medium"
+                disabled={isLoading}
+              >
+                スキップ
+              </Button>
+              <Button
+                onClick={handleContinue}
+                disabled={!selectedAvatar || isLoading}
+                className="flex-1 h-12 text-lg font-medium"
+              >
+                {isLoading ? "保存中..." : "次へ進む"}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

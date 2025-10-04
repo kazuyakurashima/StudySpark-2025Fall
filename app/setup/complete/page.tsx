@@ -1,20 +1,17 @@
 "use client"
 
-import { useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { completeSetup } from "@/app/actions/profile"
 
 export default function RegistrationComplete() {
-  const router = useRouter()
+  const [isLoading, setIsLoading] = useState(false)
 
-  useEffect(() => {
-    // 登録完了フラグを設定
-    localStorage.setItem("registrationComplete", "true")
-  }, [])
-
-  const handleStart = () => {
-    router.push("/student")
+  const handleStart = async () => {
+    setIsLoading(true)
+    await completeSetup()
+    // completeSetup() がリダイレクトするため、ここに到達しない
   }
 
   return (
@@ -33,8 +30,12 @@ export default function RegistrationComplete() {
           </div>
 
           <div className="pt-4">
-            <Button onClick={handleStart} className="px-8 py-3 bg-cyan-600 hover:bg-cyan-700 text-white font-medium">
-              始める
+            <Button
+              onClick={handleStart}
+              disabled={isLoading}
+              className="px-8 py-3 bg-cyan-600 hover:bg-cyan-700 text-white font-medium"
+            >
+              {isLoading ? "準備中..." : "始める"}
             </Button>
           </div>
         </CardContent>
