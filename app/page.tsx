@@ -225,11 +225,11 @@ export default function LoginPage() {
           <p className="text-sm text-muted-foreground text-center">
             <strong>デモ用:</strong>
             <br />
-            生徒: student1 / password
+            生徒: student5a / password123
             <br />
-            保護者: parent1@example.com / password
+            保護者: parent1@example.com / password123
             <br />
-            指導者: coach1@example.com / password
+            指導者: coach1@example.com / password123
           </p>
         </div>
       </div>

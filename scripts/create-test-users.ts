@@ -151,6 +151,11 @@ async function createParent(parent: (typeof testUsers.parents)[0]) {
       name: parent.name,
       name_kana: parent.nameKana,
     },
+    // ローカル環境でパスワード認証を確実にするため
+    app_metadata: {
+      provider: "email",
+      providers: ["email"],
+    },
   })
 
   if (authError) {
