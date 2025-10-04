@@ -1,0 +1,257 @@
+# Cursor Rules for StudySpark
+
+## Project Overview
+StudySpark is a Next.js 14 (App Router) web application for elementary school students preparing for junior high school entrance exams, with AI coaching, learning tracking, and encouragement features.
+
+## Tech Stack
+- **Frontend**: Next.js 14.2.18 (App Router), React 18.3.1, TypeScript 5.5.4
+- **Backend**: Supabase (Auth, Database, Storage)
+- **UI**: Tailwind CSS 4.1.9, Radix UI, Recharts
+- **AI**: ChatGPT API (GPT-5-mini)
+- **Forms**: react-hook-form + zod
+- **Package Manager**: pnpm
+
+## Supabase Auth Implementation
+
+### Client Creation Patterns
+
+#### 1. Server Components Client
+```typescript
+// utils/supabase/server.ts
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+
+export function createClient() {
+  const cookieStore = cookies()
+
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            )
+          } catch {
+            // Server Component can't set cookies
+          }
+        },
+      },
+    }
+  )
+}
+```
+
+#### 2. Client Components Client
+```typescript
+// utils/supabase/client.ts
+import { createBrowserClient } from '@supabase/ssr'
+
+export function createClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+}
+```
+
+#### 3. Route Handlers Client
+```typescript
+// utils/supabase/route.ts
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+
+export function createClient() {
+  const cookieStore = cookies()
+
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+}
+```
+
+#### 4. Server Actions Client
+```typescript
+// utils/supabase/server.ts (can reuse)
+// Same as Server Components client
+```
+
+#### 5. Middleware Client
+```typescript
+// utils/supabase/middleware.ts
+import { createServerClient } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
+
+export async function updateSession(request: NextRequest) {
+  let supabaseResponse = NextResponse.next({
+    request,
+  })
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          )
+          supabaseResponse = NextResponse.next({
+            request,
+          })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+
+  // Refresh session
+  await supabase.auth.getUser()
+
+  return supabaseResponse
+}
+```
+
+### Authentication Best Practices
+
+#### ✅ DO
+- **Always use `supabase.auth.getUser()`** for server-side authentication
+- Create a **new Supabase client for each route/request**
+- Use middleware to **refresh authentication tokens**
+- **Opt out of Next.js data caching** for authenticated routes using `export const dynamic = 'force-dynamic'`
+- Handle **cookie-setting errors gracefully** in Server Components (try-catch)
+
+#### ❌ DON'T
+- **Never trust `supabase.auth.getSession()`** inside server code (can be spoofed)
+- Don't reuse Supabase clients across requests
+- Don't rely solely on client-side authentication checks
+
+### Session Validation Pattern
+
+```typescript
+// app/dashboard/page.tsx
+import { createClient } from '@/utils/supabase/server'
+import { redirect } from 'next/navigation'
+
+export default async function DashboardPage() {
+  const supabase = createClient()
+
+  const { data: { user }, error } = await supabase.auth.getUser()
+
+  if (error || !user) {
+    redirect('/login')
+  }
+
+  // User is authenticated
+  return <div>Welcome {user.email}</div>
+}
+```
+
+### Middleware Setup
+
+```typescript
+// middleware.ts
+import { updateSession } from '@/utils/supabase/middleware'
+
+export async function middleware(request: NextRequest) {
+  return await updateSession(request)
+}
+
+export const config = {
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
+}
+```
+
+## Role-Based Access Control
+
+StudySpark has 4 user roles:
+- **student**: Login ID/password authentication
+- **parent**: Email/password authentication
+- **coach**: Email/password authentication (invitation required)
+- **admin**: Invitation only (internal)
+
+### Role Check Pattern
+```typescript
+const { data: profile } = await supabase
+  .from('profiles')
+  .select('role')
+  .eq('id', user.id)
+  .single()
+
+if (profile?.role !== 'student') {
+  redirect('/unauthorized')
+}
+```
+
+## Important Implementation Notes
+
+### Path Aliases
+```typescript
+"@/*" → project root
+// Example: import { Button } from "@/components/ui/button"
+```
+
+### Timezone & Scheduling
+- **Timezone**: Asia/Tokyo
+- **Week**: Monday start, Sunday end
+- **Mission Rotation**: Mon/Tue (Block A), Wed/Thu (Block B), Fri/Sat (Block C)
+
+### Course System
+- **A Course** → "Spark (楽しくスタート)" - Beginners
+- **B Course** → "Flame (成長ステップ)" - Growth stage
+- **C/S Course** → "Blaze (最高にチャレンジ)" - Advanced
+
+### Data Display Patterns
+- **Mastery threshold**: 80%
+- **Accuracy rate** = correct answers / total questions
+- **Color gradation**: 0-50% (light), 50-80% (medium), 80-100% (dark)
+
+## Key Documentation
+
+Refer to `docs/` directory for detailed specifications:
+- `01-Concept.md` - Vision, stakeholder needs, coaching framework
+- `02-Requirements-Auth.md` - Authentication specifications
+- `03-Requirements-Student.md` - Student features
+- `04-Requirements-Parent.md` - Parent features
+- `05-Requirements-Coach.md` - Coach features
+
+**Always consult these documents before implementing features.**
+
+## Development Commands
+- `npm run dev` - Start development server
+- `npm run build` - Production build
+- `npm run start` - Start production server
+- `npm run lint` - Run ESLint
+- Package manager: **pnpm** (use `pnpm install`)
+
+## General Guidelines
+- Prefer editing existing files over creating new ones
+- Never create documentation files unless explicitly requested
+- Use concise, direct communication
+- Follow Japanese UI text conventions for this project
+- Implement defensive security practices only
