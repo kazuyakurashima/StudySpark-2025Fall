@@ -2,98 +2,62 @@
 
 import type React from "react"
 import Image from "next/image"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { studentLogin, parentLogin, coachLogin } from "@/app/actions/auth"
 
 export default function LoginPage() {
-  const [userId, setUserId] = useState("")
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+  const [studentId, setStudentId] = useState("")
+  const [studentPassword, setStudentPassword] = useState("")
+  const [parentEmail, setParentEmail] = useState("")
+  const [parentPassword, setParentPassword] = useState("")
+  const [coachEmail, setCoachEmail] = useState("")
+  const [coachPassword, setCoachPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [showCoachCode, setShowCoachCode] = useState(false)
-  const [coachCode, setCoachCode] = useState("")
-  const [codeValidation, setCodeValidation] = useState<{ isValid: boolean; message: string } | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-  const validateCoachCode = (code: string) => {
-    if (code.length === 0) {
-      setCodeValidation(null)
-      return
-    }
-
-    if (code.length < 6) {
-      setCodeValidation({ isValid: false, message: "コードは6文字以上である必要があります" })
-      return
-    }
-
-    // 簡単な検証ロジック（実際のアプリでは API 呼び出しを行う）
-    const validCodes = ["COACH123", "TEACHER456", "MENTOR789"]
-    const isValid = validCodes.includes(code.toUpperCase())
-
-    setCodeValidation({
-      isValid,
-      message: isValid ? "有効なコードです" : "無効なコードです",
-    })
-  }
-
-  const handleCoachCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    setCoachCode(value)
-    validateCoachCode(value)
-  }
-
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleStudentLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError(null)
 
-    // Simulate login process
-    setTimeout(() => {
-      const isReturningUser = localStorage.getItem("registrationComplete") === "true"
+    const result = await studentLogin(studentId, studentPassword)
 
-      if (userId.startsWith("student")) {
-        if (isReturningUser) {
-          window.location.href = "/student"
-        } else {
-          window.location.href = "/setup/avatar"
-        }
-      } else if (userId.startsWith("parent")) {
-        if (isReturningUser) {
-          window.location.href = "/parent"
-        } else {
-          window.location.href = "/setup/parent-avatar"
-        }
-      } else if (userId.startsWith("coach")) {
-        window.location.href = "/coach"
-      } else {
-        window.location.href = "/setup/avatar"
-      }
+    if (result?.error) {
+      setError(result.error)
       setIsLoading(false)
-    }, 1000)
+    }
+    // 成功時は自動リダイレクトされるため、ここでは何もしない
   }
 
-  const handleNewRegistration = async (e: React.FormEvent) => {
+  const handleParentLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError(null)
 
-    localStorage.removeItem("registrationComplete")
+    const result = await parentLogin(parentEmail, parentPassword)
 
-    // Simulate registration process
-    setTimeout(() => {
-      if (email.includes("student")) {
-        window.location.href = "/setup/avatar"
-      } else if (email.includes("parent")) {
-        window.location.href = "/setup/parent-avatar"
-      } else if (email.includes("coach")) {
-        window.location.href = "/coach"
-      } else {
-        window.location.href = "/setup/avatar"
-      }
+    if (result?.error) {
+      setError(result.error)
       setIsLoading(false)
-    }, 1000)
+    }
+  }
+
+  const handleCoachLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError(null)
+
+    const result = await coachLogin(coachEmail, coachPassword)
+
+    if (result?.error) {
+      setError(result.error)
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -116,38 +80,47 @@ export default function LoginPage() {
 
         <Card className="shadow-lg border-0 bg-card/80 backdrop-blur-sm">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center">アカウント</CardTitle>
-            <CardDescription className="text-center">ログインまたは新規登録</CardDescription>
+            <CardTitle className="text-2xl text-center">ログイン</CardTitle>
+            <CardDescription className="text-center">ロールを選択してログインしてください</CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login">ログイン</TabsTrigger>
-                <TabsTrigger value="register">新規登録</TabsTrigger>
+            <Tabs defaultValue="student" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="student">生徒</TabsTrigger>
+                <TabsTrigger value="parent">保護者</TabsTrigger>
+                <TabsTrigger value="coach">指導者</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="login" className="space-y-4 mt-4">
-                <form onSubmit={handleLogin} className="space-y-4">
+              {/* エラーメッセージ */}
+              {error && (
+                <div className="mt-4 p-3 bg-destructive/10 text-destructive text-sm rounded-md">
+                  {error}
+                </div>
+              )}
+
+              {/* 生徒ログイン */}
+              <TabsContent value="student" className="space-y-4 mt-4">
+                <form onSubmit={handleStudentLogin} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="userId">ユーザーID</Label>
+                    <Label htmlFor="studentId">ログインID</Label>
                     <Input
-                      id="userId"
+                      id="studentId"
                       type="text"
-                      placeholder="ユーザーIDを入力"
-                      value={userId}
-                      onChange={(e) => setUserId(e.target.value)}
+                      placeholder="ログインIDを入力"
+                      value={studentId}
+                      onChange={(e) => setStudentId(e.target.value)}
                       required
                       className="h-12"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="password">パスワード</Label>
+                    <Label htmlFor="studentPassword">パスワード</Label>
                     <Input
-                      id="password"
+                      id="studentPassword"
                       type="password"
                       placeholder="パスワードを入力"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      value={studentPassword}
+                      onChange={(e) => setStudentPassword(e.target.value)}
                       required
                       className="h-12"
                     />
@@ -162,72 +135,85 @@ export default function LoginPage() {
                 </form>
               </TabsContent>
 
-              <TabsContent value="register" className="space-y-4 mt-4">
-                <form onSubmit={handleNewRegistration} className="space-y-4">
+              {/* 保護者ログイン */}
+              <TabsContent value="parent" className="space-y-4 mt-4">
+                <form onSubmit={handleParentLogin} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email">メールアドレス</Label>
+                    <Label htmlFor="parentEmail">メールアドレス</Label>
                     <Input
-                      id="email"
+                      id="parentEmail"
                       type="email"
                       placeholder="メールアドレスを入力"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      value={parentEmail}
+                      onChange={(e) => setParentEmail(e.target.value)}
                       required
                       className="h-12"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="newPassword">パスワード</Label>
+                    <Label htmlFor="parentPassword">パスワード</Label>
                     <Input
-                      id="newPassword"
+                      id="parentPassword"
                       type="password"
                       placeholder="パスワードを入力"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      value={parentPassword}
+                      onChange={(e) => setParentPassword(e.target.value)}
                       required
                       className="h-12"
                     />
                   </div>
                   <Button
                     type="submit"
-                    className="w-full h-12 text-lg font-medium bg-blue-500 hover:bg-blue-600 text-white"
+                    className="w-full h-12 text-lg font-medium bg-green-500 hover:bg-green-600 text-white"
                     disabled={isLoading}
                   >
-                    {isLoading ? "登録中..." : "新規登録"}
+                    {isLoading ? "ログイン中..." : "ログイン"}
                   </Button>
-
-                  <div className="mt-4 pt-4 border-t border-border">
-                    <button
-                      type="button"
-                      onClick={() => setShowCoachCode(!showCoachCode)}
-                      className="text-primary hover:text-primary/80 underline text-sm transition-colors"
+                  <div className="text-center">
+                    <a
+                      href="/register/parent"
+                      className="text-sm text-primary hover:text-primary/80 underline transition-colors"
                     >
-                      指導者コード/招待リンクをお持ちの方
-                    </button>
-
-                    <div
-                      className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                        showCoachCode ? "max-h-32 opacity-100 mt-3" : "max-h-0 opacity-0"
-                      }`}
-                    >
-                      <div className="space-y-2">
-                        <Label htmlFor="coachCode">指導者コード</Label>
-                        <Input
-                          id="coachCode"
-                          type="text"
-                          placeholder="指導者コードを入力"
-                          value={coachCode}
-                          onChange={handleCoachCodeChange}
-                          className="h-10"
-                        />
-                        {codeValidation && (
-                          <p className={`text-xs ${codeValidation.isValid ? "text-green-600" : "text-red-600"}`}>
-                            {codeValidation.message}
-                          </p>
-                        )}
-                      </div>
-                    </div>
+                      保護者アカウントをお持ちでない方はこちら
+                    </a>
                   </div>
+                </form>
+              </TabsContent>
+
+              {/* 指導者ログイン */}
+              <TabsContent value="coach" className="space-y-4 mt-4">
+                <form onSubmit={handleCoachLogin} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="coachEmail">メールアドレス</Label>
+                    <Input
+                      id="coachEmail"
+                      type="email"
+                      placeholder="メールアドレスを入力"
+                      value={coachEmail}
+                      onChange={(e) => setCoachEmail(e.target.value)}
+                      required
+                      className="h-12"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="coachPassword">パスワード</Label>
+                    <Input
+                      id="coachPassword"
+                      type="password"
+                      placeholder="パスワードを入力"
+                      value={coachPassword}
+                      onChange={(e) => setCoachPassword(e.target.value)}
+                      required
+                      className="h-12"
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    className="w-full h-12 text-lg font-medium bg-purple-500 hover:bg-purple-600 text-white"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "ログイン中..." : "ログイン"}
+                  </Button>
                 </form>
               </TabsContent>
             </Tabs>
@@ -239,9 +225,11 @@ export default function LoginPage() {
           <p className="text-sm text-muted-foreground text-center">
             <strong>デモ用:</strong>
             <br />
-            student1 / parent1 / coach1 で始まるIDを入力してください
+            生徒: student1 / password
             <br />
-            <span className="text-xs">指導者コード例: COACH123, TEACHER456, MENTOR789</span>
+            保護者: parent1@example.com / password
+            <br />
+            指導者: coach1@example.com / password
           </p>
         </div>
       </div>
