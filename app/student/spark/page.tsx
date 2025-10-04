@@ -503,15 +503,86 @@ export default function SparkPage() {
   const handleSubmit = async () => {
     setIsSubmitting(true)
 
-    setTimeout(() => {
-      console.log("Learning record saved:", {
-        session: selectedSession,
-        subjects: selectedSubjects,
-        details: subjectDetails,
-        reflection,
-        course: currentCourse,
-        level: currentLevel,
-      })
+    try {
+      // Import the Server Action dynamically
+      const { saveStudyLog } = await import("@/app/actions/study-log")
+
+      // Prepare study logs for each subject and content
+      const logs: Array<{
+        session_id: number
+        subject_id: number
+        content_type_id: number
+        correct_answers: number
+        study_date?: string
+        reflection_text?: string
+      }> = []
+
+      // Get session number from selectedSession (e.g., "session1" -> 1)
+      const sessionNumber = parseInt(selectedSession.replace("session", ""))
+
+      // Map subject IDs to database IDs (算数=1, 国語=2, 理科=3, 社会=4)
+      const subjectIdMap: { [key: string]: number } = {
+        math: 1,
+        japanese: 2,
+        science: 3,
+        social: 4,
+      }
+
+      // For each selected subject, create log entries
+      for (const subjectId of selectedSubjects) {
+        const dbSubjectId = subjectIdMap[subjectId]
+        const details = subjectDetails[subjectId]
+
+        if (!details || !dbSubjectId) continue
+
+        // Map content IDs to database content_type_ids
+        // This is a simplified mapping - in production, you'd fetch this from the database
+        const contentTypeIdMap: { [key: string]: number } = {
+          // These IDs should match the study_content_types table
+          ruirui: 1,
+          kihon: 2,
+          renshu: 3,
+          jissen: 4,
+          kakunin: 5,
+          hatten: 6,
+          ichigyo: 7,
+          kanji: 8,
+          oyo: 9,
+        }
+
+        for (const [contentId, correctAnswers] of Object.entries(details)) {
+          // Only save if there's a value entered
+          if (correctAnswers === undefined || correctAnswers < 0) continue
+
+          // For now, we'll use a simple ID mapping
+          // In production, you'd need to fetch the actual content_type_id from the database
+          // based on session_id, subject_id, and content name
+          const contentTypeId = contentTypeIdMap[contentId]
+          if (!contentTypeId) continue
+
+          logs.push({
+            session_id: sessionNumber,
+            subject_id: dbSubjectId,
+            content_type_id: contentTypeId,
+            correct_answers: correctAnswers,
+            reflection_text: reflection || undefined,
+          })
+        }
+      }
+
+      if (logs.length === 0) {
+        alert("保存する学習記録がありません")
+        setIsSubmitting(false)
+        return
+      }
+
+      const result = await saveStudyLog(logs)
+
+      if (result.error) {
+        alert(`エラー: ${result.error}`)
+        setIsSubmitting(false)
+        return
+      }
 
       // Reset form
       setSelectedSubjects([])
@@ -523,7 +594,11 @@ export default function SparkPage() {
       setIsSubmitting(false)
 
       alert("学習記録を保存しました！")
-    }, 1000)
+    } catch (error) {
+      console.error("Submit error:", error)
+      alert("保存中にエラーが発生しました")
+      setIsSubmitting(false)
+    }
   }
 
   const isFormValid = () => {
