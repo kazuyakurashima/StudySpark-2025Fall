@@ -121,6 +121,7 @@ COMMENT ON FUNCTION create_notification IS '通知作成ヘルパー関数 (Serv
 -- ----------------------------------------------------------------------------
 -- Trigger: 応援メッセージ受信時に通知作成
 -- ----------------------------------------------------------------------------
+-- Note: トリガー関数のみ定義し、実際のトリガー適用は20251004000009で実施
 CREATE OR REPLACE FUNCTION notify_new_encouragement()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -145,10 +146,5 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
-CREATE TRIGGER trigger_notify_new_encouragement
-  AFTER INSERT ON public.encouragement_messages
-  FOR EACH ROW
-  EXECUTE FUNCTION notify_new_encouragement();
 
 COMMENT ON FUNCTION notify_new_encouragement IS '応援メッセージ受信時に通知を自動作成するトリガー関数';
