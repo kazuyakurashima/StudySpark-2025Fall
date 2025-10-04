@@ -1,7 +1,7 @@
 # Phase 0: 基盤整備
 
 **期間:** 2週間
-**進捗:** 35% (6/17タスク完了)
+**進捗:** 65% (11/17タスク完了)
 **状態:** 🔄 進行中
 
 ---
@@ -65,7 +65,7 @@
 
 ---
 
-### P0-3: DBスキーマ設計・実装 🔄 進行中 (6/11完了)
+### P0-3: DBスキーマ設計・実装 ✅ 完了 (11/11完了)
 
 - [x] ER図作成 (`docs/db/Schema-Proposal.md`)
   - 対応要件: 全要件定義
@@ -88,20 +88,11 @@
   - 検証: ✅ `study_logs`, `encouragement_messages` テーブル作成
   - **注:** テーブル名は `encouragement_messages`（`encouragement_logs` ではない）
 
-- [ ] `encouragement_messages` テーブルにカラム追加
+- [x] `encouragement_messages` テーブルにカラム追加
   - 対応要件: `04-Requirements-Parent.md`, `05-Requirements-Coach.md`
-  - 検証: `support_type` (quick/ai/custom), `related_study_log_id` を追加
-  - 実装内容:
-    ```sql
-    ALTER TABLE public.encouragement_messages
-    ADD COLUMN support_type VARCHAR(20) CHECK (support_type IN ('quick', 'ai', 'custom')),
-    ADD COLUMN related_study_log_id BIGINT REFERENCES public.study_logs(id) ON DELETE SET NULL;
-
-    CREATE INDEX idx_encouragement_support_type ON public.encouragement_messages(support_type);
-    CREATE INDEX idx_encouragement_study_log ON public.encouragement_messages(related_study_log_id);
-    ```
+  - 検証: ✅ `support_type` (quick/ai/custom), `related_study_log_id` を追加
+  - マイグレーション: `20251004000010_extend_encouragement_messages.sql`
   - 備考: Phase 2 の応援フィルター機能で `support_type` を使用、科目フィルターは `study_logs` との JOIN で実現
-  - **現在地:** 👈 次はここ
 
 - [x] `supabase/migrations/20251004000005_create_goals.sql` 作成
   - 対応要件: `03-Requirements-Student.md` (ゴールナビ)
@@ -119,8 +110,9 @@
   - 対応要件: 監査要件
   - 検証: ✅ `audit_logs`, `weekly_analysis` テーブル作成、トリガー設定
 
-- [ ] Supabaseでマイグレーション適用
-  - 検証: すべてのテーブルが正常に作成されること
+- [x] Supabaseでマイグレーション適用
+  - 検証: ✅ すべてのテーブルが正常に作成されたこと確認済み（全10マイグレーション適用）
+  - マスターデータ: 科目4件、学習回34件、学習内容80件、テスト日程8件が投入済み
 
 ---
 
