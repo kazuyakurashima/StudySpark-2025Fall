@@ -2,11 +2,19 @@
 -- Phase 0: 認証・プロフィールテーブル作成
 -- ============================================================================
 
--- ロール型定義
-CREATE TYPE user_role AS ENUM ('student', 'parent', 'coach', 'admin');
+-- ロール型定義（既存の場合はスキップ）
+DO $$ BEGIN
+  CREATE TYPE user_role AS ENUM ('student', 'parent', 'coach', 'admin');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
 
--- コース型定義
-CREATE TYPE course_level AS ENUM ('A', 'B', 'C', 'S');
+-- コース型定義（既存の場合はスキップ）
+DO $$ BEGIN
+  CREATE TYPE course_level AS ENUM ('A', 'B', 'C', 'S');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
 
 -- ============================================================================
 -- profiles: 全ユーザー共通プロフィール
