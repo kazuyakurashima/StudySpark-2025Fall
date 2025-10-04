@@ -17,7 +17,7 @@ export async function updateAvatar(avatar: string) {
     return { error: "認証されていません" }
   }
 
-  const { error } = await supabase.from("profiles").update({ avatar }).eq("id", user.id)
+  const { error } = await supabase.from("profiles").update({ avatar_url: avatar }).eq("id", user.id)
 
   if (error) {
     return { error: error.message }
@@ -69,7 +69,7 @@ export async function updateProfile(data: {
     const { error: studentError } = await supabase
       .from("students")
       .update({
-        name: data.realName,
+        full_name: data.realName,
         grade: data.grade,
       })
       .eq("user_id", user.id)
@@ -84,7 +84,7 @@ export async function updateProfile(data: {
     const { error: parentError } = await supabase
       .from("parents")
       .update({
-        name: data.realName,
+        full_name: data.realName,
       })
       .eq("user_id", user.id)
 

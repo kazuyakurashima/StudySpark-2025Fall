@@ -176,8 +176,8 @@ export async function parentSignUp(
     .from("parents")
     .insert({
       user_id: authData.user.id,
-      name: parentName,
-      name_kana: parentNameKana,
+      full_name: parentName,
+      furigana: parentNameKana,
     })
     .select()
     .single()

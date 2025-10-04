@@ -96,23 +96,21 @@ async function createStudent(student: (typeof testUsers.students)[0]) {
 
   console.log(`✅ Auth user created: ${authData.user.id}`)
 
-  // 2. プロフィール作成（トリガーで自動作成されるが確認）
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .upsert({
-      id: authData.user.id,
-      role: "student",
-      display_name: student.displayName,
-      avatar_url: student.avatar,
-    })
-    .select()
-    .single()
+  // 2. プロフィール作成
+  const { error: profileError } = await supabase.from("profiles").insert({
+    id: authData.user.id,
+    role: "student",
+    display_name: student.displayName,
+    avatar_url: student.avatar,
+    setup_completed: true,
+  })
 
   if (profileError) {
-    console.error(`⚠️  Profile error: ${profileError.message}`)
-  } else {
-    console.log(`✅ Profile created`)
+    console.error(`❌ Failed to create profile: ${profileError.message}`)
+    return false
   }
+
+  console.log(`✅ Profile created`)
 
   // 3. 生徒レコード作成
   const { data: studentData, error: studentError } = await supabase
@@ -163,21 +161,19 @@ async function createParent(parent: (typeof testUsers.parents)[0]) {
   console.log(`✅ Auth user created: ${authData.user.id}`)
 
   // 2. プロフィール作成
-  const { error: profileError } = await supabase
-    .from("profiles")
-    .upsert({
-      id: authData.user.id,
-      role: "parent",
-      display_name: parent.displayName,
-    })
-    .select()
-    .single()
+  const { error: profileError } = await supabase.from("profiles").insert({
+    id: authData.user.id,
+    role: "parent",
+    display_name: parent.displayName,
+    setup_completed: true,
+  })
 
   if (profileError) {
-    console.error(`⚠️  Profile error: ${profileError.message}`)
-  } else {
-    console.log(`✅ Profile created`)
+    console.error(`❌ Failed to create profile: ${profileError.message}`)
+    return false
   }
+
+  console.log(`✅ Profile created`)
 
   // 3. 保護者レコード作成
   const { data: parentData, error: parentError } = await supabase
@@ -226,21 +222,19 @@ async function createCoach(coach: (typeof testUsers.coaches)[0]) {
   console.log(`✅ Auth user created: ${authData.user.id}`)
 
   // 2. プロフィール作成
-  const { error: profileError } = await supabase
-    .from("profiles")
-    .upsert({
-      id: authData.user.id,
-      role: "coach",
-      display_name: coach.displayName,
-    })
-    .select()
-    .single()
+  const { error: profileError } = await supabase.from("profiles").insert({
+    id: authData.user.id,
+    role: "coach",
+    display_name: coach.displayName,
+    setup_completed: true,
+  })
 
   if (profileError) {
-    console.error(`⚠️  Profile error: ${profileError.message}`)
-  } else {
-    console.log(`✅ Profile created`)
+    console.error(`❌ Failed to create profile: ${profileError.message}`)
+    return false
   }
+
+  console.log(`✅ Profile created`)
 
   // 3. 指導者レコード作成
   const { data: coachData, error: coachError } = await supabase

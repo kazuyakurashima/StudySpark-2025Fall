@@ -66,8 +66,8 @@ export async function POST(request: NextRequest) {
       .from("students")
       .insert({
         user_id: childAuthData.user.id,
-        name: childName,
-        name_kana: childNameKana,
+        full_name: childName,
+        furigana: childNameKana,
         grade: childGrade,
         login_id: childLoginId,
       })
