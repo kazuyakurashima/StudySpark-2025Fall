@@ -81,58 +81,49 @@ BEGIN
   INSERT INTO public.study_content_types (grade, subject_id, course, content_name, display_order) VALUES
   (5, v_math_id, 'A', '類題', 1),
   (5, v_math_id, 'A', '基本問題', 2),
-  (5, v_math_id, 'A', '練習問題', 3),
   (5, v_math_id, 'B', '類題', 1),
   (5, v_math_id, 'B', '基本問題', 2),
   (5, v_math_id, 'B', '練習問題', 3),
-  (5, v_math_id, 'B', '演習問題集', 4),
   (5, v_math_id, 'C', '類題', 1),
   (5, v_math_id, 'C', '基本問題', 2),
   (5, v_math_id, 'C', '練習問題', 3),
-  (5, v_math_id, 'C', '演習問題集', 4),
+  (5, v_math_id, 'C', '演習問題集（実戦演習）', 4),
   (5, v_math_id, 'S', '類題', 1),
   (5, v_math_id, 'S', '基本問題', 2),
   (5, v_math_id, 'S', '練習問題', 3),
-  (5, v_math_id, 'S', '演習問題集', 4)
+  (5, v_math_id, 'S', '演習問題集（実戦演習）', 4)
   ON CONFLICT (grade, subject_id, course, content_name) DO NOTHING;
 
   -- 小学5年生 - 国語
   INSERT INTO public.study_content_types (grade, subject_id, course, content_name, display_order) VALUES
-  (5, v_japanese_id, 'A', '漢字とことば', 1),
-  (5, v_japanese_id, 'A', '読解基礎', 2),
-  (5, v_japanese_id, 'A', '演習問題集', 3),
-  (5, v_japanese_id, 'B', '漢字とことば', 1),
-  (5, v_japanese_id, 'B', '読解基礎', 2),
-  (5, v_japanese_id, 'B', '読解完成', 3),
-  (5, v_japanese_id, 'B', '演習問題集', 4),
-  (5, v_japanese_id, 'C', '漢字とことば', 1),
-  (5, v_japanese_id, 'C', '読解基礎', 2),
-  (5, v_japanese_id, 'C', '読解完成', 3),
-  (5, v_japanese_id, 'C', '演習問題集', 4),
-  (5, v_japanese_id, 'S', '漢字とことば', 1),
-  (5, v_japanese_id, 'S', '読解基礎', 2),
-  (5, v_japanese_id, 'S', '読解完成', 3),
-  (5, v_japanese_id, 'S', '演習問題集', 4)
+  (5, v_japanese_id, 'A', '確認問題', 1),
+  (5, v_japanese_id, 'B', '確認問題', 1),
+  (5, v_japanese_id, 'C', '確認問題', 1),
+  (5, v_japanese_id, 'S', '確認問題', 1)
   ON CONFLICT (grade, subject_id, course, content_name) DO NOTHING;
 
-  -- 小学5年生 - 理科・社会（簡略版）
+  -- 小学5年生 - 理科
   INSERT INTO public.study_content_types (grade, subject_id, course, content_name, display_order) VALUES
-  (5, v_science_id, 'A', '基本問題', 1),
-  (5, v_science_id, 'A', '演習問題集', 2),
-  (5, v_science_id, 'B', '基本問題', 1),
-  (5, v_science_id, 'B', '演習問題集', 2),
-  (5, v_science_id, 'C', '基本問題', 1),
-  (5, v_science_id, 'C', '演習問題集', 2),
-  (5, v_science_id, 'S', '基本問題', 1),
-  (5, v_science_id, 'S', '演習問題集', 2),
-  (5, v_social_id, 'A', '基本問題', 1),
-  (5, v_social_id, 'A', '演習問題集', 2),
-  (5, v_social_id, 'B', '基本問題', 1),
-  (5, v_social_id, 'B', '演習問題集', 2),
-  (5, v_social_id, 'C', '基本問題', 1),
-  (5, v_social_id, 'C', '演習問題集', 2),
-  (5, v_social_id, 'S', '基本問題', 1),
-  (5, v_social_id, 'S', '演習問題集', 2)
+  (5, v_science_id, 'A', '演習問題集（基本問題）', 1),
+  (5, v_science_id, 'B', '演習問題集（基本問題）', 1),
+  (5, v_science_id, 'B', '演習問題集（練習問題）', 2),
+  (5, v_science_id, 'C', '演習問題集（基本問題）', 1),
+  (5, v_science_id, 'C', '演習問題集（練習問題）', 2),
+  (5, v_science_id, 'C', '演習問題集（発展問題）', 3),
+  (5, v_science_id, 'S', '演習問題集（基本問題）', 1),
+  (5, v_science_id, 'S', '演習問題集（練習問題）', 2),
+  (5, v_science_id, 'S', '演習問題集（発展問題）', 3)
+  ON CONFLICT (grade, subject_id, course, content_name) DO NOTHING;
+
+  -- 小学5年生 - 社会
+  INSERT INTO public.study_content_types (grade, subject_id, course, content_name, display_order) VALUES
+  (5, v_social_id, 'A', '演習問題集（練習問題）', 1),
+  (5, v_social_id, 'B', '演習問題集（練習問題）', 1),
+  (5, v_social_id, 'B', '演習問題集（発展問題・記述問題）', 2),
+  (5, v_social_id, 'C', '演習問題集（練習問題）', 1),
+  (5, v_social_id, 'C', '演習問題集（発展問題・記述問題）', 2),
+  (5, v_social_id, 'S', '演習問題集（練習問題）', 1),
+  (5, v_social_id, 'S', '演習問題集（発展問題・記述問題）', 2)
   ON CONFLICT (grade, subject_id, course, content_name) DO NOTHING;
 
   -- 小学6年生 - 算数
@@ -153,38 +144,33 @@ BEGIN
 
   -- 小学6年生 - 国語
   INSERT INTO public.study_content_types (grade, subject_id, course, content_name, display_order) VALUES
-  (6, v_japanese_id, 'A', '漢字とことば', 1),
-  (6, v_japanese_id, 'A', '読解演習', 2),
-  (6, v_japanese_id, 'A', '記述演習', 3),
-  (6, v_japanese_id, 'B', '漢字とことば', 1),
-  (6, v_japanese_id, 'B', '読解演習', 2),
-  (6, v_japanese_id, 'B', '記述演習', 3),
-  (6, v_japanese_id, 'C', '漢字とことば', 1),
-  (6, v_japanese_id, 'C', '読解演習', 2),
-  (6, v_japanese_id, 'C', '記述演習', 3),
-  (6, v_japanese_id, 'S', '漢字とことば', 1),
-  (6, v_japanese_id, 'S', '読解演習', 2),
-  (6, v_japanese_id, 'S', '記述演習', 3)
+  (6, v_japanese_id, 'A', '中学入試頻出漢字', 1),
+  (6, v_japanese_id, 'B', '中学入試頻出漢字', 1),
+  (6, v_japanese_id, 'C', '中学入試頻出漢字', 1),
+  (6, v_japanese_id, 'S', '中学入試頻出漢字', 1)
   ON CONFLICT (grade, subject_id, course, content_name) DO NOTHING;
 
-  -- 小学6年生 - 理科・社会（簡略版）
+  -- 小学6年生 - 理科
   INSERT INTO public.study_content_types (grade, subject_id, course, content_name, display_order) VALUES
-  (6, v_science_id, 'A', '基本演習', 1),
-  (6, v_science_id, 'A', '実戦演習', 2),
-  (6, v_science_id, 'B', '基本演習', 1),
-  (6, v_science_id, 'B', '実戦演習', 2),
-  (6, v_science_id, 'C', '基本演習', 1),
-  (6, v_science_id, 'C', '実戦演習', 2),
-  (6, v_science_id, 'S', '基本演習', 1),
-  (6, v_science_id, 'S', '実戦演習', 2),
-  (6, v_social_id, 'A', '基本演習', 1),
-  (6, v_social_id, 'A', '実戦演習', 2),
-  (6, v_social_id, 'B', '基本演習', 1),
-  (6, v_social_id, 'B', '実戦演習', 2),
-  (6, v_social_id, 'C', '基本演習', 1),
-  (6, v_social_id, 'C', '実戦演習', 2),
-  (6, v_social_id, 'S', '基本演習', 1),
-  (6, v_social_id, 'S', '実戦演習', 2)
+  (6, v_science_id, 'A', '演習問題集（基本問題）', 1),
+  (6, v_science_id, 'B', '演習問題集（基本問題）', 1),
+  (6, v_science_id, 'C', '演習問題集（基本問題）', 1),
+  (6, v_science_id, 'C', '演習問題集（練習問題）', 2),
+  (6, v_science_id, 'S', '演習問題集（基本問題）', 1),
+  (6, v_science_id, 'S', '演習問題集（練習問題）', 2)
+  ON CONFLICT (grade, subject_id, course, content_name) DO NOTHING;
+
+  -- 小学6年生 - 社会
+  INSERT INTO public.study_content_types (grade, subject_id, course, content_name, display_order) VALUES
+  (6, v_social_id, 'A', '演習問題集（基本問題）', 1),
+  (6, v_social_id, 'B', '演習問題集（基本問題）', 1),
+  (6, v_social_id, 'B', '演習問題集（練習問題）', 2),
+  (6, v_social_id, 'C', '演習問題集（基本問題）', 1),
+  (6, v_social_id, 'C', '演習問題集（練習問題）', 2),
+  (6, v_social_id, 'C', '演習問題集（応用問題）', 3),
+  (6, v_social_id, 'S', '演習問題集（基本問題）', 1),
+  (6, v_social_id, 'S', '演習問題集（練習問題）', 2),
+  (6, v_social_id, 'S', '演習問題集（応用問題）', 3)
   ON CONFLICT (grade, subject_id, course, content_name) DO NOTHING;
 
 END $$;
