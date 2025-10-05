@@ -504,10 +504,39 @@ export default function SparkPage() {
     setIsSubmitting(true)
 
     try {
-      // Import the Server Action dynamically
-      const { saveStudyLog } = await import("@/app/actions/study-log")
+      // Import the Server Actions dynamically
+      const { saveStudyLog, getContentTypeId } = await import("@/app/actions/study-log")
+      const { getStudySessions } = await import("@/app/actions/study-log")
 
-      // Prepare study logs for each subject and content
+      // 1. Get session_id from Supabase (not from local mapping)
+      const sessionNumber = parseInt(selectedSession.replace("session", ""))
+      const grade = parseInt(studentGrade)
+
+      const sessionsResult = await getStudySessions(grade)
+      if (sessionsResult.error || !sessionsResult.sessions) {
+        alert(`学習回の取得に失敗しました: ${sessionsResult.error}`)
+        setIsSubmitting(false)
+        return
+      }
+
+      const targetSession = sessionsResult.sessions.find((s) => s.session_number === sessionNumber)
+      if (!targetSession) {
+        alert(`学習回 ${sessionNumber} が見つかりません`)
+        setIsSubmitting(false)
+        return
+      }
+
+      const actualSessionId = targetSession.id
+
+      // 2. Map subject IDs to database IDs (算数=1, 国語=2, 理科=3, 社会=4)
+      const subjectIdMap: { [key: string]: number } = {
+        math: 1,
+        japanese: 2,
+        science: 3,
+        social: 4,
+      }
+
+      // 3. Prepare study logs for each subject and content
       const logs: Array<{
         session_id: number
         subject_id: number
@@ -518,17 +547,6 @@ export default function SparkPage() {
         reflection_text?: string
       }> = []
 
-      // Get session number from selectedSession (e.g., "session1" -> 1)
-      const sessionNumber = parseInt(selectedSession.replace("session", ""))
-
-      // Map subject IDs to database IDs (算数=1, 国語=2, 理科=3, 社会=4)
-      const subjectIdMap: { [key: string]: number } = {
-        math: 1,
-        japanese: 2,
-        science: 3,
-        social: 4,
-      }
-
       // For each selected subject, create log entries
       for (const subjectId of selectedSubjects) {
         const dbSubjectId = subjectIdMap[subjectId]
@@ -536,38 +554,40 @@ export default function SparkPage() {
 
         if (!details || !dbSubjectId) continue
 
-        // Map content IDs to database content_type_ids
-        // This is a simplified mapping - in production, you'd fetch this from the database
-        const contentTypeIdMap: { [key: string]: number } = {
-          // These IDs should match the study_content_types table
-          ruirui: 1,
-          kihon: 2,
-          renshu: 3,
-          jissen: 4,
-          kakunin: 5,
-          hatten: 6,
-          ichigyo: 7,
-          kanji: 8,
-          oyo: 9,
-        }
+        // Get available learning content for this subject
+        const availableContent = getAvailableLearningContent(subjectId)
 
         for (const [contentId, correctAnswers] of Object.entries(details)) {
           // Only save if there's a value entered
           if (correctAnswers === undefined || correctAnswers < 0) continue
 
-          // For now, we'll use a simple ID mapping
-          // In production, you'd need to fetch the actual study_content_type_id from the database
-          // based on session_id, subject_id, and content name
-          const contentTypeId = contentTypeIdMap[contentId]
-          if (!contentTypeId) continue
+          // Find content name from availableContent
+          const contentItem = availableContent.find((c) => c.id === contentId)
+          if (!contentItem) continue
+
+          // 4. Get study_content_type_id from Supabase using getContentTypeId
+          const contentTypeResult = await getContentTypeId(
+            grade,
+            dbSubjectId,
+            currentCourse,
+            contentItem.name,
+          )
+
+          if (contentTypeResult.error || !contentTypeResult.id) {
+            console.error(
+              `学習内容タイプIDの取得に失敗: ${contentItem.name}`,
+              contentTypeResult.error,
+            )
+            continue
+          }
 
           // Get total problems for this content
           const maxProblems = getProblemCount(subjectId, contentId)
 
           logs.push({
-            session_id: sessionNumber,
+            session_id: actualSessionId,
             subject_id: dbSubjectId,
-            study_content_type_id: contentTypeId,
+            study_content_type_id: contentTypeResult.id,
             correct_count: correctAnswers,
             total_problems: maxProblems,
             reflection_text: reflection || undefined,
