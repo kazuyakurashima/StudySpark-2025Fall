@@ -941,16 +941,26 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
               <p className="text-sm font-normal text-slate-600 mt-1">昨日0:00〜今日23:59の保護者・指導者からの応援</p>
             </div>
           </CardTitle>
-          {encouragementMessages.length > 3 && (
+          <div className="flex gap-2">
+            {encouragementMessages.length > 3 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAll(!showAll)}
+                className="border-pink-300 text-pink-700 hover:bg-pink-100"
+              >
+                {showAll ? "一部表示" : "全表示"}
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setShowAll(!showAll)}
+              onClick={() => (window.location.href = "/student/encouragement")}
               className="border-pink-300 text-pink-700 hover:bg-pink-100"
             >
-              {showAll ? "一部表示" : "全表示"}
+              全て見る
             </Button>
-          )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4 p-6">
