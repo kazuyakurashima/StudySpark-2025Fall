@@ -58,7 +58,7 @@
 
 ---
 
-### P1-2: 生徒ダッシュボード実装 ✅ 完了 (10/11完了)
+### P1-2: 生徒ダッシュボード実装 ✅ 完了 (11/11完了)
 
 - [x] AIコーチメッセージ表示（テンプレート版）
   - 対応要件: `03-Requirements-Student.md` - ダッシュボード
@@ -101,10 +101,14 @@
   - 実装: `app/actions/dashboard.ts:getLearningCalendarData()` で6週間データ集計
   - `app/student/page.tsx:LearningHistoryCalendar` で濃淡計算（max(入力数, 80%科目数)）
 
-- [ ] 学習カレンダー操作機能
+- [x] 学習カレンダー操作機能
   - 対応要件: `03-Requirements-Student.md`
-  - 検証: 月移動ボタン、判定基準優先度 (入力数 vs 正答率)、凡例表示
-  - **TODO**: 現在は固定2ヶ月表示、月移動機能は未実装
+  - 検証: ✅ 前月/翌月ナビゲーション、今月ボタン、判定基準切り替え (入力数 ↔ 80%以上正答の件数)
+  - 実装:
+    - `app/student/page.tsx:LearningHistoryCalendar` で State 管理 (selectedMonth, criteriaMode)
+    - 前月/翌月/今月ボタンでカレンダー月移動
+    - 判定基準トグルボタンで色の基準切り替え
+    - ツールチップに現在の判定基準を表示
 
 - [x] 今週の科目別進捗バー表示
   - 対応要件: `03-Requirements-Student.md`
@@ -302,12 +306,34 @@ Phase 1完了の条件:
 
 ---
 
-**最終更新:** 2025年10月6日 00:30
+**最終更新:** 2025年10月6日 01:15
 **更新者:** Claude Code / Codex
 
 ---
 
 ## 最新の修正履歴
+
+### 2025年10月6日 01:15 - P1-2 学習カレンダー操作機能完成 (Phase 1 完全完了)
+- **修正内容**:
+  - 学習カレンダーに月ナビゲーション機能追加 (前月/翌月/今月ボタン)
+  - 判定基準切り替え機能追加 (入力数 ↔ 80%以上正答の件数)
+  - State 管理 (selectedMonth, criteriaMode) で動的再描画
+
+- **実装ファイル**:
+  - `app/student/page.tsx:LearningHistoryCalendar`:
+    - useState で selectedMonth, criteriaMode を管理
+    - goToPreviousMonth/goToNextMonth/goToToday 関数追加
+    - 判定基準トグルボタンで色の基準切り替え
+    - ツールチップに現在の判定基準を表示
+    - lucide-react から ChevronLeft, ChevronRight アイコン追加
+
+- **完了機能**:
+  - ✅ 前月/翌月ナビゲーションボタン
+  - ✅ 今月ボタン (現在月以外の月を表示中のみ表示)
+  - ✅ 判定基準切り替え (入力数 ↔ 80%以上正答の件数)
+  - ✅ 選択中の月・基準に従って動的に再描画
+
+- **進捗**: P1-2 が 11/11 完了、Phase 1 が 26/26 完了 (100%)
 
 ### 2025年10月6日 01:00 - P1-2 完了判定ロジック & 応援メッセージ表示機能完成
 - **修正内容**:
