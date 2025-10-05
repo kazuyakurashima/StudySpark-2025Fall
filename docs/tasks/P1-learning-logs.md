@@ -44,9 +44,17 @@
   - 対応要件: `03-Requirements-Student.md`
   - 検証: ✅ `study_logs` テーブルへ保存成功、E2Eテスト完了
   - 実装ファイル:
-    - `app/actions/study-log.ts` - saveStudyLog, getExistingStudyLog, マスターデータ取得
-    - マスターデータ修正 (`supabase/seed.sql`) - 要件定義に完全一致
-  - テスト結果: 算数・国語の学習記録をDBに保存成功
+    - `app/actions/study-log.ts` - saveStudyLog, getExistingStudyLog, getContentTypeId, getStudySessions
+    - `app/student/spark/page.tsx` - session_id と study_content_type_id を Supabase から正しく取得
+    - `supabase/migrations/20251005000001_add_study_date_reflection.sql` - study_date, reflection_text カラム追加
+  - 修正完了:
+    - ✅ study_date, reflection_text の保存・取得
+    - ✅ session_id を Supabase から取得（固定マッピング廃止）
+    - ✅ study_content_type_id を getContentTypeId で取得（固定マッピング廃止）
+  - テストスクリプト:
+    - `scripts/test-save-study-log.ts` - study_date フィルタ動作確認
+    - `scripts/test-study-content-types.ts` - getContentTypes, getContentTypeId 動作確認
+    - `scripts/test-spark-submit.ts` - Spark機能のsubmit完全テスト
 
 ---
 
@@ -253,16 +261,23 @@ Phase 1完了の条件:
 
 ### 実装ファイル
 - **Server Actions** (3ファイル):
-  - `app/actions/study-log.ts` - 学習記録保存・取得
+  - `app/actions/study-log.ts` - 学習記録保存・取得、マスターデータ取得
   - `app/actions/dashboard.ts` - 生徒ダッシュボードデータ
   - `app/actions/parent-dashboard.ts` - 保護者ダッシュボードデータ
 
-- **UIページ** (2ファイル):
+- **UIページ** (3ファイル):
+  - `app/student/spark/page.tsx` - スパーク機能（学習記録入力）
   - `app/student/page.tsx` - 生徒ダッシュボード
   - `app/parent/page.tsx` - 保護者ダッシュボード（1,222行）
 
-- **テストドキュメント**:
+- **データベースマイグレーション**:
+  - `supabase/migrations/20251005000001_add_study_date_reflection.sql` - study_date, reflection_text 追加
+
+- **テストスクリプト**:
   - `scripts/test-phase1.md` - E2Eテスト手順書
+  - `scripts/test-save-study-log.ts` - study_date フィルタテスト
+  - `scripts/test-study-content-types.ts` - getContentTypes/getContentTypeId テスト
+  - `scripts/test-spark-submit.ts` - Spark submit 完全テスト
 
 ### 主要機能
 1. **スパーク機能** - 学習記録入力・保存・更新
@@ -279,5 +294,26 @@ Phase 1完了の条件:
 
 ---
 
-**最終更新:** 2025年10月5日 19:15
+**最終更新:** 2025年10月6日 00:30
 **更新者:** Claude Code / Codex
+
+---
+
+## 最新の修正履歴
+
+### 2025年10月6日 00:30 - P1-1 致命的バグ修正完了
+- **修正内容**:
+  1. **データベーススキーマ追加**: study_logs テーブルに study_date, reflection_text カラム追加
+  2. **session_id 取得修正**: 固定マッピングから Supabase クエリに変更
+  3. **study_content_type_id 取得修正**: 固定マッピングから getContentTypeId() 呼び出しに変更
+
+- **実装ファイル**:
+  - `supabase/migrations/20251005000001_add_study_date_reflection.sql`
+  - `app/actions/study-log.ts` - getContentTypeId(), getStudySessions() 追加
+  - `app/student/spark/page.tsx` - handleSubmit() 完全修正
+
+- **テスト結果**: すべて成功
+  - ✅ study_date, reflection_text が正しく保存される
+  - ✅ session_id が Supabase から正しく取得される
+  - ✅ study_content_type_id が getContentTypeId で正しく取得される
+  - ✅ saveStudyLog が完全に動作する
