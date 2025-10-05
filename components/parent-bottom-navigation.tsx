@@ -18,10 +18,10 @@ const tabs = [
     href: "/parent/goal",
   },
   {
-    id: "spark",
+    id: "encouragement",
     label: "応援",
     icon: Heart,
-    href: "/parent/spark",
+    href: "/parent/encouragement",
   },
   {
     id: "reflect",
@@ -31,7 +31,7 @@ const tabs = [
   },
 ]
 
-export default function ParentBottomNavigation() {
+export function ParentBottomNavigation({ activeTab }: { activeTab?: string } = {}) {
   const pathname = usePathname()
 
   return (
@@ -39,7 +39,7 @@ export default function ParentBottomNavigation() {
       <div className="grid grid-cols-4 h-16">
         {tabs.map((tab) => {
           const Icon = tab.icon
-          const isActive = pathname === tab.href
+          const isActive = activeTab ? activeTab === tab.id : pathname === tab.href
 
           return (
             <Link
@@ -58,3 +58,5 @@ export default function ParentBottomNavigation() {
     </div>
   )
 }
+
+export default ParentBottomNavigation
