@@ -6,8 +6,9 @@ import { revalidatePath } from "next/cache"
 export type StudyLogInput = {
   session_id: number
   subject_id: number
-  content_type_id: number
-  correct_answers: number
+  study_content_type_id: number
+  correct_count: number
+  total_problems: number
   study_date?: string // YYYY-MM-DD format, defaults to today
   reflection_text?: string
 }
@@ -54,16 +55,15 @@ export async function saveStudyLog(logs: StudyLogInput[]) {
         .eq("student_id", student.id)
         .eq("session_id", log.session_id)
         .eq("subject_id", log.subject_id)
-        .eq("content_type_id", log.content_type_id)
-        .eq("study_date", log.study_date || studyDate)
+        .eq("study_content_type_id", log.study_content_type_id)
         .single()
 
       if (existingLog) {
         // Update existing log (楽観的ロック)
         logsToUpdate.push({
           id: existingLog.id,
-          correct_answers: log.correct_answers,
-          reflection_text: log.reflection_text,
+          correct_count: log.correct_count,
+          total_problems: log.total_problems,
           version: existingLog.version,
         })
       } else {
@@ -72,10 +72,9 @@ export async function saveStudyLog(logs: StudyLogInput[]) {
           student_id: student.id,
           session_id: log.session_id,
           subject_id: log.subject_id,
-          content_type_id: log.content_type_id,
-          correct_answers: log.correct_answers,
-          study_date: log.study_date || studyDate,
-          reflection_text: log.reflection_text,
+          study_content_type_id: log.study_content_type_id,
+          correct_count: log.correct_count,
+          total_problems: log.total_problems,
         })
       }
     }
@@ -95,8 +94,8 @@ export async function saveStudyLog(logs: StudyLogInput[]) {
       const { error: updateError } = await supabase
         .from("study_logs")
         .update({
-          correct_answers: log.correct_answers,
-          reflection_text: log.reflection_text,
+          correct_count: log.correct_count,
+          total_problems: log.total_problems,
           version: log.version + 1,
         })
         .eq("id", log.id)
@@ -148,11 +147,10 @@ export async function getExistingStudyLog(sessionId: number, subjectId: number, 
 
     const { data: logs, error: logsError } = await supabase
       .from("study_logs")
-      .select("content_type_id, correct_answers, reflection_text")
+      .select("study_content_type_id, correct_count, total_problems")
       .eq("student_id", student.id)
       .eq("session_id", sessionId)
       .eq("subject_id", subjectId)
-      .eq("study_date", queryStudyDate)
 
     if (logsError) {
       return { error: "データの取得に失敗しました" }

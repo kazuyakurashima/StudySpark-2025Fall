@@ -511,8 +511,9 @@ export default function SparkPage() {
       const logs: Array<{
         session_id: number
         subject_id: number
-        content_type_id: number
-        correct_answers: number
+        study_content_type_id: number
+        correct_count: number
+        total_problems: number
         study_date?: string
         reflection_text?: string
       }> = []
@@ -555,16 +556,20 @@ export default function SparkPage() {
           if (correctAnswers === undefined || correctAnswers < 0) continue
 
           // For now, we'll use a simple ID mapping
-          // In production, you'd need to fetch the actual content_type_id from the database
+          // In production, you'd need to fetch the actual study_content_type_id from the database
           // based on session_id, subject_id, and content name
           const contentTypeId = contentTypeIdMap[contentId]
           if (!contentTypeId) continue
 
+          // Get total problems for this content
+          const maxProblems = getProblemCount(subjectId, contentId)
+
           logs.push({
             session_id: sessionNumber,
             subject_id: dbSubjectId,
-            content_type_id: contentTypeId,
-            correct_answers: correctAnswers,
+            study_content_type_id: contentTypeId,
+            correct_count: correctAnswers,
+            total_problems: maxProblems,
             reflection_text: reflection || undefined,
           })
         }
