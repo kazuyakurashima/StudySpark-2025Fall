@@ -973,8 +973,10 @@ export default function ParentDashboard() {
           // Set first child as default
           if (parentData.children.length > 0) {
             const firstChild = parentData.children[0]
+            const students = Array.isArray(firstChild.students) ? firstChild.students[0] : firstChild.students
+            const profiles = Array.isArray(students?.profiles) ? students?.profiles[0] : students?.profiles
             setSelectedChildId(firstChild.student_id)
-            setSelectedChildName(firstChild.students?.profiles?.display_name || "お子さん")
+            setSelectedChildName(profiles?.display_name || "お子さん")
           }
         }
 
@@ -1116,8 +1118,10 @@ export default function ParentDashboard() {
         {children.length > 1 && (
           <div className="flex gap-2 overflow-x-auto pb-2">
             {children.map((child) => {
-              const childName = child.students?.profiles?.display_name || "お子さん"
-              const childAvatar = child.students?.profiles?.avatar_url || "student1"
+              const students = Array.isArray(child.students) ? child.students[0] : child.students
+              const profiles = Array.isArray(students?.profiles) ? students?.profiles[0] : students?.profiles
+              const childName = profiles?.display_name || "お子さん"
+              const childAvatar = profiles?.avatar_url || "student1"
               const isActive = selectedChildId === child.student_id
 
               return (

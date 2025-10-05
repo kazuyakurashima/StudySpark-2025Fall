@@ -220,26 +220,77 @@ export async function getStudySessions(grade: number) {
 }
 
 /**
- * マスターデータ取得: 学習内容タイプ一覧
+ * マスターデータ取得: 学習内容タイプ一覧（問題数なし）
+ * @param grade - 学年 (5 or 6)
+ * @param subjectId - 科目ID
+ * @param course - コースレベル ('A' | 'B' | 'C' | 'S')
+ *
+ * NOTE: sessionId は使用しません（problem_counts テーブルが未実装のため）
+ * 将来的に問題数が学習回ごとに異なる場合は、problem_counts との JOIN が必要
  */
-export async function getContentTypes(sessionId: number, subjectId: number) {
+export async function getContentTypes(
+  grade: number,
+  subjectId: number,
+  course: "A" | "B" | "C" | "S",
+) {
+  try {
+    const supabase = await createClient()
+
+    // study_content_types のみから取得（問題数は含まない）
+    const { data, error } = await supabase
+      .from("study_content_types")
+      .select("id, content_name, course, display_order")
+      .eq("grade", grade)
+      .eq("subject_id", subjectId)
+      .eq("course", course)
+      .order("display_order")
+
+    if (error) {
+      console.error("Get content types error:", error)
+      return { error: "学習内容データの取得に失敗しました" }
+    }
+
+    return { contentTypes: data || [] }
+  } catch (error) {
+    console.error("Get content types error:", error)
+    return { error: "予期しないエラーが発生しました" }
+  }
+}
+
+/**
+ * 学習内容タイプIDを取得
+ * @param grade - 学年 (5 or 6)
+ * @param subjectId - 科目ID
+ * @param course - コースレベル ('A' | 'B' | 'C' | 'S')
+ * @param contentName - 学習内容名 (例: "類題", "基本問題")
+ * @returns study_content_type_id
+ */
+export async function getContentTypeId(
+  grade: number,
+  subjectId: number,
+  course: "A" | "B" | "C" | "S",
+  contentName: string,
+) {
   try {
     const supabase = await createClient()
 
     const { data, error } = await supabase
       .from("study_content_types")
-      .select("id, name, course_level, problem_count")
-      .eq("session_id", sessionId)
+      .select("id")
+      .eq("grade", grade)
       .eq("subject_id", subjectId)
-      .order("id")
+      .eq("course", course)
+      .eq("content_name", contentName)
+      .single()
 
     if (error) {
-      return { error: "学習内容データの取得に失敗しました" }
+      console.error("Get content type ID error:", error)
+      return { error: "学習内容タイプIDの取得に失敗しました" }
     }
 
-    return { contentTypes: data }
+    return { id: data.id }
   } catch (error) {
-    console.error("Get content types error:", error)
+    console.error("Get content type ID error:", error)
     return { error: "予期しないエラーが発生しました" }
   }
 }

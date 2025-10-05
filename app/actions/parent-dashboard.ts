@@ -102,7 +102,8 @@ export async function getTodayStatusMessage(studentId: number) {
       .eq("id", studentId)
       .single()
 
-    const displayName = student?.profiles?.display_name || "お子さん"
+    const profiles = Array.isArray(student?.profiles) ? student?.profiles[0] : student?.profiles
+    const displayName = profiles?.display_name || "お子さん"
 
     // Get recent logs (last 3 days)
     const threeDaysAgo = new Date()
@@ -266,7 +267,8 @@ export async function getStudentTodayMissionData(studentId: number) {
     } = {}
 
     todayLogs?.forEach((log) => {
-      const subjectName = log.subjects?.name || "不明"
+      const subject = Array.isArray(log.subjects) ? log.subjects[0] : log.subjects
+      const subjectName = subject?.name || "不明"
       if (!subjectMap[subjectName]) {
         subjectMap[subjectName] = { totalCorrect: 0, totalProblems: 0, logs: [] }
       }
@@ -343,11 +345,12 @@ export async function getStudentWeeklyProgress(studentId: number) {
     } = {}
 
     logs?.forEach((log) => {
-      const subjectName = log.subjects?.name || "不明"
+      const subject = Array.isArray(log.subjects) ? log.subjects[0] : log.subjects
+      const subjectName = subject?.name || "不明"
       if (!subjectMap[subjectName]) {
         subjectMap[subjectName] = {
           name: subjectName,
-          color_code: log.subjects?.color_code || "#3b82f6",
+          color_code: subject?.color_code || "#3b82f6",
           totalCorrect: 0,
           totalProblems: 0,
         }

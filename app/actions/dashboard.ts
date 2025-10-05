@@ -354,11 +354,12 @@ export async function getWeeklySubjectProgress() {
     } = {}
 
     logs?.forEach((log) => {
-      const subjectName = log.subjects?.name || "不明"
+      const subject = Array.isArray(log.subjects) ? log.subjects[0] : log.subjects
+      const subjectName = subject?.name || "不明"
       if (!subjectMap[subjectName]) {
         subjectMap[subjectName] = {
           name: subjectName,
-          color_code: log.subjects?.color_code || "#3b82f6",
+          color_code: subject?.color_code || "#3b82f6",
           totalCorrect: 0,
           totalProblems: 0,
         }
@@ -507,7 +508,8 @@ export async function getTodayMissionData() {
     const subjectMap: { [key: string]: { totalCorrect: number; totalProblems: number } } = {}
 
     todayLogs?.forEach((log) => {
-      const subjectName = log.subjects?.name || "不明"
+      const subject = Array.isArray(log.subjects) ? log.subjects[0] : log.subjects
+      const subjectName = subject?.name || "不明"
       if (!subjectMap[subjectName]) {
         subjectMap[subjectName] = { totalCorrect: 0, totalProblems: 0 }
       }
