@@ -915,15 +915,11 @@ export default function StudentDashboard() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const name = localStorage.getItem("userName") || "学習者"
-    const avatar = localStorage.getItem("selectedAvatar") || "student1"
-    setUserName(name)
-    setSelectedAvatar(avatar)
-
     // データ取得
     const fetchData = async () => {
       try {
         const {
+          getStudentDashboardData,
           getAICoachMessage,
           getStudyStreak,
           getRecentStudyLogs,
@@ -935,6 +931,7 @@ export default function StudentDashboard() {
         } = await import("@/app/actions/dashboard")
 
         const [
+          dashboardData,
           coachMsg,
           streakResult,
           logsResult,
@@ -944,6 +941,7 @@ export default function StudentDashboard() {
           calendar,
           weeklySubject
         ] = await Promise.all([
+          getStudentDashboardData(),
           getAICoachMessage(),
           getStudyStreak(),
           getRecentStudyLogs(5),
@@ -953,6 +951,18 @@ export default function StudentDashboard() {
           getLearningCalendarData(),
           getWeeklySubjectProgress()
         ])
+
+        // Set profile data from Supabase
+        if (!dashboardData?.error && dashboardData?.profile) {
+          setUserName(dashboardData.profile.display_name || "学習者")
+          setSelectedAvatar(dashboardData.profile.avatar_url || "student1")
+        } else {
+          // Fallback to localStorage only if Supabase fails
+          const name = localStorage.getItem("userName") || "学習者"
+          const avatar = localStorage.getItem("selectedAvatar") || "student1"
+          setUserName(name)
+          setSelectedAvatar(avatar)
+        }
 
         if (!coachMsg?.error && coachMsg?.message) {
           setAiCoachMessage(coachMsg.message)

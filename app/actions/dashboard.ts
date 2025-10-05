@@ -177,7 +177,7 @@ export async function getStudyStreak() {
 }
 
 /**
- * 直近の学習履歴取得
+ * 直近の学習履歴取得（昨日0:00〜今日23:59）
  */
 export async function getRecentStudyLogs(limit: number = 5) {
   try {
@@ -197,6 +197,13 @@ export async function getRecentStudyLogs(limit: number = 5) {
       return { error: "生徒情報が見つかりません" }
     }
 
+    // Get yesterday 0:00 to today 23:59
+    const today = new Date()
+    today.setHours(23, 59, 59, 999)
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    yesterday.setHours(0, 0, 0, 0)
+
     // Get recent study logs with related data
     const { data: logs, error: logsError } = await supabase
       .from("study_logs")
@@ -206,12 +213,16 @@ export async function getRecentStudyLogs(limit: number = 5) {
         logged_at,
         correct_count,
         total_problems,
+        reflection_text,
         session_id,
         subjects (name, color_code),
-        study_content_types (content_name)
+        study_content_types (content_name),
+        study_sessions (session_number)
       `
       )
       .eq("student_id", student.id)
+      .gte("logged_at", yesterday.toISOString())
+      .lte("logged_at", today.toISOString())
       .order("logged_at", { ascending: false })
       .limit(limit)
 

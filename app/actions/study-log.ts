@@ -43,12 +43,16 @@ export async function saveStudyLog(logs: StudyLogInput[]) {
 
     // Prepare study logs for insertion
     const studyDate = logs[0]?.study_date || new Date().toISOString().split("T")[0]
+    const reflectionText = logs[0]?.reflection_text || null
 
     // Check for existing logs for the same session/subject/content combinations
     const logsToUpdate: any[] = []
     const logsToInsert: any[] = []
 
     for (const log of logs) {
+      const logStudyDate = log.study_date || studyDate
+      const logReflectionText = log.reflection_text || reflectionText
+
       const { data: existingLog } = await supabase
         .from("study_logs")
         .select("id, version")
@@ -56,6 +60,7 @@ export async function saveStudyLog(logs: StudyLogInput[]) {
         .eq("session_id", log.session_id)
         .eq("subject_id", log.subject_id)
         .eq("study_content_type_id", log.study_content_type_id)
+        .eq("study_date", logStudyDate)
         .single()
 
       if (existingLog) {
@@ -64,6 +69,8 @@ export async function saveStudyLog(logs: StudyLogInput[]) {
           id: existingLog.id,
           correct_count: log.correct_count,
           total_problems: log.total_problems,
+          study_date: logStudyDate,
+          reflection_text: logReflectionText,
           version: existingLog.version,
         })
       } else {
@@ -75,6 +82,8 @@ export async function saveStudyLog(logs: StudyLogInput[]) {
           study_content_type_id: log.study_content_type_id,
           correct_count: log.correct_count,
           total_problems: log.total_problems,
+          study_date: logStudyDate,
+          reflection_text: logReflectionText,
         })
       }
     }
@@ -96,6 +105,8 @@ export async function saveStudyLog(logs: StudyLogInput[]) {
         .update({
           correct_count: log.correct_count,
           total_problems: log.total_problems,
+          study_date: log.study_date,
+          reflection_text: log.reflection_text,
           version: log.version + 1,
         })
         .eq("id", log.id)
@@ -147,10 +158,11 @@ export async function getExistingStudyLog(sessionId: number, subjectId: number, 
 
     const { data: logs, error: logsError } = await supabase
       .from("study_logs")
-      .select("study_content_type_id, correct_count, total_problems")
+      .select("study_content_type_id, correct_count, total_problems, reflection_text")
       .eq("student_id", student.id)
       .eq("session_id", sessionId)
       .eq("subject_id", subjectId)
+      .eq("study_date", queryStudyDate)
 
     if (logsError) {
       return { error: "データの取得に失敗しました" }
