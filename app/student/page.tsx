@@ -96,7 +96,6 @@ const LearningHistoryCalendar = ({ calendarData }: { calendarData: { [dateStr: s
   }
 
   // 選択された月のカレンダーデータを生成
-  const monthKey = `${selectedMonth.getFullYear()}-${String(selectedMonth.getMonth() + 1).padStart(2, "0")}`
   const monthName = `${selectedMonth.getFullYear()}年${selectedMonth.getMonth() + 1}月`
 
   const weeks = []
