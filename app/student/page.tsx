@@ -188,7 +188,7 @@ const LearningHistoryCalendar = ({ calendarData }: { calendarData: { [dateStr: s
   )
 }
 
-const TodayMissionCard = ({ todayProgress }: { todayProgress: Array<{subject: string, accuracy: number, correctCount: number, totalProblems: number}> }) => {
+const TodayMissionCard = ({ todayProgress }: { todayProgress: Array<{subject: string, accuracy: number, correctCount: number, totalProblems: number, logCount: number}> }) => {
   const getTodayWeekday = () => {
     const today = new Date()
     return today.getDay() // 0=日曜, 1=月曜, ..., 6=土曜
@@ -228,7 +228,7 @@ const TodayMissionCard = ({ todayProgress }: { todayProgress: Array<{subject: st
     todayProgress.forEach((item) => {
       progressMap[item.subject] = {
         accuracy: item.accuracy,
-        inputCount: 1, // If it exists in todayProgress, at least 1 entry
+        inputCount: item.logCount || 1, // 入力回数（ログ件数）を使用
       }
     })
 
@@ -320,14 +320,19 @@ const TodayMissionCard = ({ todayProgress }: { todayProgress: Array<{subject: st
           needsAction = true
         }
       } else if (mode === "review") {
-        // 復習促進モード：再入力して正答率向上で完了
+        // 復習促進モード：80%以上 OR 2回以上記録で完了
         if (data.inputCount > 0) {
           status = `進捗率${data.accuracy}%`
         }
-        if (data.inputCount === 1 && data.accuracy < 80) {
-          needsAction = true
-        } else if (data.inputCount > 1) {
+        if (data.accuracy >= 80) {
+          // 正答率80%以上は完了
           isCompleted = true
+        } else if (data.inputCount >= 2) {
+          // 80%未満でも2回以上記録済みなら完了
+          isCompleted = true
+        } else if (data.inputCount === 1 && data.accuracy < 80) {
+          // 1回のみ & 80%未満は要アクション
+          needsAction = true
         }
       }
 
@@ -810,6 +815,19 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
 }
 
 const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
+  const [showAll, setShowAll] = useState(false)
+  const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set())
+
+  const toggleCard = (index: number) => {
+    const newExpanded = new Set(expandedCards)
+    if (newExpanded.has(index)) {
+      newExpanded.delete(index)
+    } else {
+      newExpanded.add(index)
+    }
+    setExpandedCards(newExpanded)
+  }
+
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return "記録日時不明"
 
@@ -842,21 +860,37 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
       from: senderProfile?.display_name || "応援者",
       avatar: msg.sender_role === "parent" ? "parent1" : "coach",
       message: baseMessage,
+      senderRole: msg.sender_role || "unknown",
     }
   })
+
+  // 表示するメッセージ数（一部表示は最新3件、全表示は全て）
+  const displayedMessages = showAll ? encouragementMessages : encouragementMessages.slice(0, 3)
 
   return (
     <Card className="bg-gradient-to-br from-pink-50 via-rose-50 to-red-50 border-pink-200/60 shadow-xl backdrop-blur-sm">
       <CardHeader className="pb-4 bg-gradient-to-r from-pink-500/10 to-rose-500/10 rounded-t-lg">
-        <CardTitle className="text-xl font-bold flex items-center gap-3">
-          <div className="p-2 bg-pink-100 rounded-full shadow-sm">
-            <Heart className="h-6 w-6 text-pink-600" />
-          </div>
-          <div>
-            <span className="text-slate-800">直近の応援履歴</span>
-            <p className="text-sm font-normal text-slate-600 mt-1">昨日0:00〜今日23:59の保護者・指導者からの応援</p>
-          </div>
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-xl font-bold flex items-center gap-3">
+            <div className="p-2 bg-pink-100 rounded-full shadow-sm">
+              <Heart className="h-6 w-6 text-pink-600" />
+            </div>
+            <div>
+              <span className="text-slate-800">直近の応援履歴</span>
+              <p className="text-sm font-normal text-slate-600 mt-1">昨日0:00〜今日23:59の保護者・指導者からの応援</p>
+            </div>
+          </CardTitle>
+          {encouragementMessages.length > 3 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAll(!showAll)}
+              className="border-pink-300 text-pink-700 hover:bg-pink-100"
+            >
+              {showAll ? "一部表示" : "全表示"}
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4 p-6">
         {encouragementMessages.length === 0 ? (
@@ -865,36 +899,69 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
             <p className="text-sm text-slate-500 mt-2">保護者や指導者からの応援を待ちましょう！</p>
           </div>
         ) : (
-          encouragementMessages.map((message, index) => (
-            <div
-              key={index}
-              className="bg-white/90 backdrop-blur-sm rounded-xl p-5 border border-pink-100 shadow-lg hover:shadow-xl transition-all duration-300"
-            >
-              <div className="flex items-start gap-4">
-                <Avatar className="h-12 w-12 border-3 border-pink-200 flex-shrink-0 shadow-md">
-                  <AvatarImage src={getAvatarSrc(message.avatar) || "/placeholder.svg"} alt={message.from} />
-                  <AvatarFallback className="bg-pink-100 text-pink-700 font-bold text-lg">
-                    {message.from.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 space-y-3">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span className="font-bold text-slate-800 text-lg">{message.from}</span>
-                    <span className="text-sm text-slate-600 bg-slate-100 px-2 py-1 rounded-full">
-                      {message.recordTime}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <Heart className="h-4 w-4 text-pink-500" />
-                      <span className="text-xs text-pink-600 font-medium">応援</span>
+          displayedMessages.map((message, index) => {
+            const isExpanded = expandedCards.has(index)
+            return (
+              <div
+                key={index}
+                className="bg-white/90 backdrop-blur-sm rounded-xl p-5 border border-pink-100 shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                <div className="flex items-start gap-4">
+                  <Avatar className="h-12 w-12 border-3 border-pink-200 flex-shrink-0 shadow-md">
+                    <AvatarImage src={getAvatarSrc(message.avatar) || "/placeholder.svg"} alt={message.from} />
+                    <AvatarFallback className="bg-pink-100 text-pink-700 font-bold text-lg">
+                      {message.from.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 space-y-3">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="font-bold text-slate-800 text-lg">{message.from}</span>
+                      <span className="text-sm text-slate-600 bg-slate-100 px-2 py-1 rounded-full">
+                        {message.recordTime}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <Heart className="h-4 w-4 text-pink-500" />
+                        <span className="text-xs text-pink-600 font-medium">応援</span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-4 rounded-xl border border-pink-100">
-                    <p className="text-base leading-relaxed text-slate-700 font-medium">{message.message}</p>
+                    {isExpanded ? (
+                      <div className="space-y-3">
+                        <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-4 rounded-xl border border-pink-100">
+                          <p className="text-base leading-relaxed text-slate-700 font-medium">{message.message}</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div className="bg-white p-2 rounded-lg border border-pink-100">
+                            <span className="text-slate-600">送信者: </span>
+                            <span className="font-medium text-slate-800">{message.from}</span>
+                          </div>
+                          <div className="bg-white p-2 rounded-lg border border-pink-100">
+                            <span className="text-slate-600">役割: </span>
+                            <span className="font-medium text-slate-800">
+                              {message.senderRole === "parent" ? "保護者" : "指導者"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-4 rounded-xl border border-pink-100">
+                        <p className="text-base leading-relaxed text-slate-700 font-medium line-clamp-2">
+                          {message.message}
+                        </p>
+                      </div>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleCard(index)}
+                      className="text-pink-600 hover:text-pink-700 hover:bg-pink-50 w-full"
+                    >
+                      {isExpanded ? "閉じる" : "詳細を見る"}
+                    </Button>
                   </div>
                 </div>
               </div>
-            </div>
-          ))
+            )
+          })
         )}
       </CardContent>
     </Card>

@@ -505,16 +505,17 @@ export async function getTodayMissionData() {
     }
 
     // Aggregate by subject
-    const subjectMap: { [key: string]: { totalCorrect: number; totalProblems: number } } = {}
+    const subjectMap: { [key: string]: { totalCorrect: number; totalProblems: number; logCount: number } } = {}
 
     todayLogs?.forEach((log) => {
       const subject = Array.isArray(log.subjects) ? log.subjects[0] : log.subjects
       const subjectName = subject?.name || "不明"
       if (!subjectMap[subjectName]) {
-        subjectMap[subjectName] = { totalCorrect: 0, totalProblems: 0 }
+        subjectMap[subjectName] = { totalCorrect: 0, totalProblems: 0, logCount: 0 }
       }
       subjectMap[subjectName].totalCorrect += log.correct_count || 0
       subjectMap[subjectName].totalProblems += log.total_problems || 0
+      subjectMap[subjectName].logCount += 1 // 入力回数をカウント
     })
 
     const todayProgress = Object.entries(subjectMap).map(([subject, data]) => ({
@@ -522,6 +523,7 @@ export async function getTodayMissionData() {
       accuracy: data.totalProblems > 0 ? Math.round((data.totalCorrect / data.totalProblems) * 100) : 0,
       correctCount: data.totalCorrect,
       totalProblems: data.totalProblems,
+      logCount: data.logCount, // 入力回数を追加
     }))
 
     return { todayProgress }
