@@ -1,7 +1,7 @@
 # Phase 2: 応援機能
 
 **期間:** 2週間
-**進捗:** 78% (17/22タスク完了)
+**進捗:** 90% (18/20タスク完了)
 **状態:** 🚧 進行中
 
 ---
@@ -50,7 +50,7 @@
 
 ---
 
-### P2-2: 保護者応援機能実装 ✅ 完了 (5/7完了)
+### P2-2: 保護者応援機能実装 ✅ 完了
 
 - [x] `/app/parent/encouragement/page.tsx` 実装
   - 対応要件: `04-Requirements-Parent.md` - 応援機能
@@ -93,33 +93,15 @@
     - 1ヶ月フィルターで5件未満時、自動的に全期間表示
     - Server Action でフィルター・ソートを実行
 
-- [ ] 応援履歴表示実装
+- [x] 応援カード詳細開閉制御
   - 対応要件: `04-Requirements-Parent.md`
-  - 検証: 過去の応援メッセージ一覧、日時順表示
-  - **TODO**: 履歴専用ビューは未実装（現在は学習記録に紐づく応援のみ表示）
-
-- [ ] 応援カード詳細開閉制御
-  - 対応要件: `04-Requirements-Parent.md`
-  - 検証: ✅ 詳細開閉機能は実装済み
-  - **NOTE**: カードごとの詳細開閉は実装済み。全表示/一部表示トグルは学習記録一覧のフィルターで代用
-  - 実装方針:
-    - テーブル: `encouragement_messages`（`encouragement_logs` ではない）
-    - 応援種別フィルター: `support_type` カラム使用（quick/ai/custom）
-    - 科目フィルター: `study_logs` テーブルと LEFT JOIN で取得
-      ```sql
-      SELECT em.*, sl.subject_id, s.name as subject_name
-      FROM encouragement_messages em
-      LEFT JOIN study_logs sl ON em.related_study_log_id = sl.id
-      LEFT JOIN subjects s ON sl.subject_id = s.id
-      WHERE em.student_id = $1
-        AND (s.name = $2 OR $2 IS NULL);
-      ```
-    - `related_study_log_id` が NULL の応援: 「全科目」選択時のみ表示
-  - 備考: P0-3 での `support_type`/`related_study_log_id` カラム追加が前提
-
-- [ ] 応援カード詳細開閉制御
-  - 対応要件: `04-Requirements-Parent.md`
-  - 検証: 「全表示/一部表示」ボタン、カード毎の詳細開閉、学習内容表示切替
+  - 検証: ✅ カード毎の詳細開閉実装済み、「クリックして詳細を表示/閉じる」ボタン実装
+  - 実装:
+    - expandedCards ステートでカード開閉管理
+    - toggleCard 関数で Set を使用した効率的な状態管理
+    - ChevronDown/ChevronUp アイコンで視覚的フィードバック
+    - 詳細開閉時に学習内容・正答数・振り返りを表示/非表示
+  - 備考: 要件定義に記載の「カードごとに詳細開閉制御」を実装済み
 
 ---
 
