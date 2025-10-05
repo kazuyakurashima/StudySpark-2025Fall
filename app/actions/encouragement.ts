@@ -614,3 +614,206 @@ export async function sendCoachCustomEncouragement(
 
   return { success: true as const }
 }
+
+// ========================================
+// 生徒向け応援受信機能
+// ========================================
+
+/**
+ * 生徒の直近の応援メッセージを取得（昨日0:00〜今日23:59）
+ */
+export async function getRecentEncouragementMessages() {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false as const, error: "認証エラー: ログインしてください" }
+  }
+
+  // 生徒IDを取得
+  const { data: studentData, error: studentError } = await supabase
+    .from("students")
+    .select("id")
+    .eq("user_id", user.id)
+    .single()
+
+  if (studentError || !studentData) {
+    return { success: false as const, error: "生徒情報の取得に失敗しました" }
+  }
+
+  // Asia/Tokyoタイムゾーンで昨日0:00と今日23:59を計算
+  const now = new Date()
+  const jstOffset = 9 * 60 // UTC+9
+  const nowUTC = new Date(now.getTime() + jstOffset * 60 * 1000)
+
+  const yesterday = new Date(nowUTC)
+  yesterday.setDate(yesterday.getDate() - 1)
+  yesterday.setHours(0, 0, 0, 0)
+
+  const todayEnd = new Date(nowUTC)
+  todayEnd.setHours(23, 59, 59, 999)
+
+  const yesterdayUTC = new Date(yesterday.getTime() - jstOffset * 60 * 1000).toISOString()
+  const todayEndUTC = new Date(todayEnd.getTime() - jstOffset * 60 * 1000).toISOString()
+
+  // 応援メッセージを取得
+  const { data: messages, error } = await supabase
+    .from("encouragement_messages")
+    .select(
+      `
+      *,
+      profiles:sender_id(nickname, avatar),
+      study_logs:related_study_log_id(
+        study_date,
+        total_problems,
+        correct_count,
+        reflection_text,
+        subjects(name),
+        study_sessions(session_number),
+        study_content_types(name)
+      )
+    `
+    )
+    .eq("student_id", studentData.id)
+    .gte("sent_at", yesterdayUTC)
+    .lte("sent_at", todayEndUTC)
+    .order("sent_at", { ascending: false })
+
+  if (error) {
+    console.error("Error fetching recent encouragement messages:", error)
+    return { success: false as const, error: "応援メッセージの取得に失敗しました" }
+  }
+
+  return { success: true as const, messages: messages || [] }
+}
+
+/**
+ * 生徒の全応援メッセージを取得（応援詳細画面用）
+ */
+export async function getAllEncouragementMessages(filters?: {
+  senderRole?: "parent" | "coach" | "all"
+  subject?: string | "all"
+  period?: "1week" | "1month" | "all"
+  sortOrder?: "asc" | "desc"
+}) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false as const, error: "認証エラー: ログインしてください" }
+  }
+
+  // 生徒IDを取得
+  const { data: studentData, error: studentError } = await supabase
+    .from("students")
+    .select("id")
+    .eq("user_id", user.id)
+    .single()
+
+  if (studentError || !studentData) {
+    return { success: false as const, error: "生徒情報の取得に失敗しました" }
+  }
+
+  // 基本クエリ
+  let query = supabase
+    .from("encouragement_messages")
+    .select(
+      `
+      *,
+      profiles:sender_id(nickname, avatar),
+      study_logs:related_study_log_id(
+        study_date,
+        total_problems,
+        correct_count,
+        reflection_text,
+        subjects(name),
+        study_sessions(session_number),
+        study_content_types(name)
+      )
+    `
+    )
+    .eq("student_id", studentData.id)
+
+  // フィルター適用
+  if (filters) {
+    // 送信者ロールフィルター
+    if (filters.senderRole && filters.senderRole !== "all") {
+      query = query.eq("sender_role", filters.senderRole)
+    }
+
+    // 期間フィルター
+    if (filters.period && filters.period !== "all") {
+      const now = new Date()
+      const startDate = new Date()
+
+      if (filters.period === "1week") {
+        startDate.setDate(now.getDate() - 7)
+      } else if (filters.period === "1month") {
+        startDate.setDate(now.getDate() - 30)
+      }
+
+      query = query.gte("sent_at", startDate.toISOString())
+    }
+
+    // ソート順
+    const sortOrder = filters.sortOrder || "desc"
+    query = query.order("sent_at", { ascending: sortOrder === "asc" })
+  } else {
+    query = query.order("sent_at", { ascending: false })
+  }
+
+  const { data: messages, error } = await query
+
+  if (error) {
+    console.error("Error fetching all encouragement messages:", error)
+    return { success: false as const, error: "応援メッセージの取得に失敗しました" }
+  }
+
+  let filteredMessages = messages || []
+
+  // 科目フィルター（クライアント側で実行、related_study_log_idがnullの場合も考慮）
+  if (filters?.subject && filters.subject !== "all") {
+    filteredMessages = filteredMessages.filter((msg: any) => {
+      if (!msg.study_logs) return false
+      const subject = Array.isArray(msg.study_logs.subjects)
+        ? msg.study_logs.subjects[0]?.name
+        : msg.study_logs.subjects?.name
+      return subject === filters.subject
+    })
+  }
+
+  return { success: true as const, messages: filteredMessages }
+}
+
+/**
+ * 応援メッセージを既読にする
+ */
+export async function markEncouragementAsRead(messageId: string) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false as const, error: "認証エラー: ログインしてください" }
+  }
+
+  const { error } = await supabase
+    .from("encouragement_messages")
+    .update({ is_read: true, read_at: new Date().toISOString() })
+    .eq("id", messageId)
+
+  if (error) {
+    console.error("Error marking encouragement as read:", error)
+    return { success: false as const, error: "既読処理に失敗しました" }
+  }
+
+  return { success: true as const }
+}

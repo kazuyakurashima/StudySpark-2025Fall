@@ -1051,12 +1051,13 @@ export default function StudentDashboard() {
           getAICoachMessage,
           getStudyStreak,
           getRecentStudyLogs,
-          getRecentEncouragementMessages,
           getLastLoginInfo,
           getTodayMissionData,
           getLearningCalendarData,
           getWeeklySubjectProgress
         } = await import("@/app/actions/dashboard")
+
+        const { getRecentEncouragementMessages } = await import("@/app/actions/encouragement")
 
         const [
           dashboardData,
@@ -1073,7 +1074,7 @@ export default function StudentDashboard() {
           getAICoachMessage(),
           getStudyStreak(),
           getRecentStudyLogs(5),
-          getRecentEncouragementMessages(3),
+          getRecentEncouragementMessages(),
           getLastLoginInfo(),
           getTodayMissionData(),
           getLearningCalendarData(),
