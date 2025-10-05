@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { BottomNavigation } from "@/components/bottom-navigation"
-import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart } from "lucide-react"
+import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, ChevronLeft, ChevronRight } from "lucide-react"
 
 const mockData = {
   user: {
@@ -62,58 +62,72 @@ const getAvatarSrc = (avatarId: string) => {
   return avatarMap[avatarId] || avatarMap["student1"]
 }
 
-const getLearningIntensity = (date: string, calendarData: { [dateStr: string]: { subjectCount: number; accuracy80Count: number } }) => {
+const getLearningIntensity = (
+  date: string,
+  calendarData: { [dateStr: string]: { subjectCount: number; accuracy80Count: number } },
+  criteriaMode: "input" | "accuracy"
+) => {
   const data = calendarData[date]
   if (!data) return "none"
 
-  const maxCount = Math.max(data.subjectCount, data.accuracy80Count)
-  if (maxCount === 0) return "none"
-  if (maxCount === 1) return "light"
-  if (maxCount === 2) return "medium"
+  // 判定基準に応じて使用する値を選択
+  const count = criteriaMode === "input" ? data.subjectCount : data.accuracy80Count
+
+  if (count === 0) return "none"
+  if (count === 1) return "light"
+  if (count === 2) return "medium"
   return "dark"
 }
 
 const LearningHistoryCalendar = ({ calendarData }: { calendarData: { [dateStr: string]: { subjectCount: number; accuracy80Count: number } } }) => {
-  const today = new Date()
-  const monthsData: { [key: string]: any } = {}
+  const [selectedMonth, setSelectedMonth] = useState(new Date())
+  const [criteriaMode, setCriteriaMode] = useState<"input" | "accuracy">("input")
 
-  for (let monthOffset = 1; monthOffset >= 0; monthOffset--) {
-    const targetMonth = new Date(today.getFullYear(), today.getMonth() - monthOffset, 1)
-    const monthKey = `${targetMonth.getFullYear()}-${String(targetMonth.getMonth() + 1).padStart(2, "0")}`
-    const monthName = `${targetMonth.getMonth() + 1}月`
+  const goToPreviousMonth = () => {
+    setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1, 1))
+  }
 
-    const weeks = []
-    const firstDay = new Date(targetMonth.getFullYear(), targetMonth.getMonth(), 1)
-    const lastDay = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0)
+  const goToNextMonth = () => {
+    setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 1))
+  }
 
-    const startDate = new Date(firstDay)
-    startDate.setDate(startDate.getDate() - firstDay.getDay())
+  const goToToday = () => {
+    setSelectedMonth(new Date())
+  }
 
-    const endDate = new Date(lastDay)
-    endDate.setDate(endDate.getDate() + (6 - lastDay.getDay()))
+  // 選択された月のカレンダーデータを生成
+  const monthKey = `${selectedMonth.getFullYear()}-${String(selectedMonth.getMonth() + 1).padStart(2, "0")}`
+  const monthName = `${selectedMonth.getFullYear()}年${selectedMonth.getMonth() + 1}月`
 
-    const currentDate = new Date(startDate)
-    while (currentDate <= endDate) {
-      const week = []
-      for (let day = 0; day < 7; day++) {
-        const dateStr = currentDate.toISOString().split("T")[0]
-        const intensity = getLearningIntensity(dateStr, calendarData)
-        const isCurrentMonth = currentDate.getMonth() === targetMonth.getMonth()
+  const weeks = []
+  const firstDay = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1)
+  const lastDay = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0)
 
-        week.push({
-          date: dateStr,
-          day: currentDate.getDate(),
-          intensity: isCurrentMonth ? intensity : "none",
-          data: calendarData[dateStr],
-          isCurrentMonth,
-        })
+  const startDate = new Date(firstDay)
+  startDate.setDate(startDate.getDate() - firstDay.getDay())
 
-        currentDate.setDate(currentDate.getDate() + 1)
-      }
-      weeks.push(week)
+  const endDate = new Date(lastDay)
+  endDate.setDate(endDate.getDate() + (6 - lastDay.getDay()))
+
+  const currentDate = new Date(startDate)
+  while (currentDate <= endDate) {
+    const week = []
+    for (let day = 0; day < 7; day++) {
+      const dateStr = currentDate.toISOString().split("T")[0]
+      const intensity = getLearningIntensity(dateStr, calendarData, criteriaMode)
+      const isCurrentMonth = currentDate.getMonth() === selectedMonth.getMonth()
+
+      week.push({
+        date: dateStr,
+        day: currentDate.getDate(),
+        intensity: isCurrentMonth ? intensity : "none",
+        data: calendarData[dateStr],
+        isCurrentMonth,
+      })
+
+      currentDate.setDate(currentDate.getDate() + 1)
     }
-
-    monthsData[monthKey] = { weeks, monthName }
+    weeks.push(week)
   }
 
   const intensityColors = {
@@ -123,16 +137,67 @@ const LearningHistoryCalendar = ({ calendarData }: { calendarData: { [dateStr: s
     dark: "bg-primary border-primary",
   }
 
+  const today = new Date()
+  const isCurrentMonth = selectedMonth.getFullYear() === today.getFullYear() && selectedMonth.getMonth() === today.getMonth()
+
   return (
     <Card className="bg-gradient-to-br from-blue-50 to-primary/10 border-primary/20 shadow-lg">
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg font-bold flex items-center gap-2">
-          <Calendar className="h-6 w-6 text-primary" />
-          学習カレンダー
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg font-bold flex items-center gap-2">
+            <Calendar className="h-6 w-6 text-primary" />
+            学習カレンダー
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCriteriaMode(criteriaMode === "input" ? "accuracy" : "input")}
+              className="text-xs"
+            >
+              {criteriaMode === "input" ? "入力数" : "80%以上"}
+            </Button>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="px-3 sm:px-6">
         <div className="space-y-3 sm:space-y-4">
+          {/* 月ナビゲーション */}
+          <div className="flex items-center justify-between border-b border-slate-300 pb-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={goToPreviousMonth}
+              className="hover:bg-primary/10"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              前月
+            </Button>
+            <div className="flex items-center gap-2">
+              <span className="text-base font-bold text-slate-800">{monthName}</span>
+              {!isCurrentMonth && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToToday}
+                  className="text-xs"
+                >
+                  今月
+                </Button>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={goToNextMonth}
+              className="hover:bg-primary/10"
+            >
+              翌月
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* 曜日ヘッダー */}
           <div className="grid grid-cols-7 gap-1 sm:gap-2">
             {["月", "火", "水", "木", "金", "土", "日"].map((day) => (
               <div
@@ -144,34 +209,28 @@ const LearningHistoryCalendar = ({ calendarData }: { calendarData: { [dateStr: s
             ))}
           </div>
 
-          {Object.entries(monthsData).map(([monthKey, monthData]) => (
-            <div key={monthKey} className="space-y-2">
-              <div className="text-base font-bold text-slate-800 text-left border-b border-slate-300 pb-2">
-                {monthData.monthName}
-              </div>
-
-              {monthData.weeks.map((week: any[], weekIndex: number) => (
-                <div key={weekIndex} className="grid grid-cols-7 gap-1 sm:gap-2">
-                  {week.map((day: any, dayIndex: number) => (
-                    <div
-                      key={dayIndex}
-                      className={`
-                        w-5 h-5 sm:w-6 sm:h-6 rounded-md border-2 transition-all duration-300 hover:scale-110 cursor-pointer shadow-sm
-                        ${intensityColors[day.intensity as keyof typeof intensityColors]}
-                        ${!day.isCurrentMonth ? "opacity-30" : ""}
-                      `}
-                      title={
-                        day.data && day.isCurrentMonth
-                          ? `${day.date}: 学習記録 ${day.data.subjectCount}件 (正答率80%以上: ${day.data.accuracy80Count}件)`
-                          : `${day.date}: 学習記録なし`
-                      }
-                    />
-                  ))}
-                </div>
+          {/* カレンダーグリッド */}
+          {weeks.map((week: any[], weekIndex: number) => (
+            <div key={weekIndex} className="grid grid-cols-7 gap-1 sm:gap-2">
+              {week.map((day: any, dayIndex: number) => (
+                <div
+                  key={dayIndex}
+                  className={`
+                    w-5 h-5 sm:w-6 sm:h-6 rounded-md border-2 transition-all duration-300 hover:scale-110 cursor-pointer shadow-sm
+                    ${intensityColors[day.intensity as keyof typeof intensityColors]}
+                    ${!day.isCurrentMonth ? "opacity-30" : ""}
+                  `}
+                  title={
+                    day.data && day.isCurrentMonth
+                      ? `${day.date}: ${criteriaMode === "input" ? `学習記録 ${day.data.subjectCount}件` : `正答率80%以上 ${day.data.accuracy80Count}件`}`
+                      : `${day.date}: 学習記録なし`
+                  }
+                />
               ))}
             </div>
           ))}
 
+          {/* 凡例 */}
           <div className="flex items-center justify-between text-sm text-slate-600 pt-3 border-t border-slate-300">
             <span className="font-medium">少ない</span>
             <div className="flex items-center gap-2">
@@ -181,6 +240,9 @@ const LearningHistoryCalendar = ({ calendarData }: { calendarData: { [dateStr: s
               <div className="w-4 h-4 rounded-md bg-primary border-2 border-primary shadow-sm"></div>
             </div>
             <span className="font-medium">多い</span>
+          </div>
+          <div className="text-center text-xs text-slate-500">
+            {criteriaMode === "input" ? "入力数ベースで表示中" : "正答率80%以上の件数ベースで表示中"}
           </div>
         </div>
       </CardContent>
