@@ -717,53 +717,45 @@ const WeeklySubjectProgressCard = () => {
   )
 }
 
-const RecentLearningHistoryCard = () => {
-  const recentHistory = [
-    {
-      studentRecordTime: "今日 14:30", // 生徒の記録時刻（降順ソート）
-      session: 2,
-      subject: "算数",
-      content: "類題",
-      correctAnswers: 8,
-      totalQuestions: 10,
-      accuracy: 80,
-      previousAccuracy: 65,
-      reflection: "分数の計算が少しずつ分かってきました",
-    },
-    {
-      studentRecordTime: "今日 10:15",
-      session: 1,
-      subject: "国語",
-      content: "確認問題",
-      correctAnswers: 9,
-      totalQuestions: 10,
-      accuracy: 90,
-      previousAccuracy: null,
-      reflection: "",
-    },
-    {
-      studentRecordTime: "昨日 16:45",
-      session: 3,
-      subject: "理科",
-      content: "演習問題集（基本問題）",
-      correctAnswers: 7,
-      totalQuestions: 10,
-      accuracy: 70,
-      previousAccuracy: 45,
-      reflection: "実験の手順を覚えることができました",
-    },
-    {
-      studentRecordTime: "昨日 09:20",
-      session: 1,
-      subject: "社会",
-      content: "演習問題集（練習問題）",
-      correctAnswers: 6,
-      totalQuestions: 10,
-      accuracy: 60,
-      previousAccuracy: null,
-      reflection: "",
-    },
-  ]
+const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return "記録日時不明"
+
+    const date = new Date(dateStr)
+    if (Number.isNaN(date.getTime())) return "記録日時不明"
+
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    const logDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+
+    if (logDate.getTime() === today.getTime()) {
+      return `今日 ${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`
+    } else if (logDate.getTime() === yesterday.getTime()) {
+      return `昨日 ${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`
+    } else {
+      return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`
+    }
+  }
+
+  const safeLogs = Array.isArray(logs) ? logs : []
+
+  const recentHistory = safeLogs.map((log) => {
+    const loggedAt = log.logged_at || log.created_at || log.study_date
+
+    return {
+      studentRecordTime: formatDate(loggedAt),
+      session: log.study_sessions?.session_number ?? log.session_id ?? 0,
+      subject: log.subjects?.name || "",
+      content: log.study_content_types?.content_name || "",
+      correctAnswers: log.correct_count || 0,
+      totalQuestions: log.total_problems || 0,
+      accuracy: log.total_problems > 0 ? Math.round((log.correct_count / log.total_problems) * 100) : 0,
+      previousAccuracy: null, // TODO: 前回の正答率取得ロジック実装
+      reflection: log.reflection_text || "",
+    }
+  })
 
   const getSubjectColor = (subject: string) => {
     const colors = {
@@ -806,70 +798,77 @@ const RecentLearningHistoryCard = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4 p-6">
-        {recentHistory.map((item, index) => (
-          <div
-            key={index}
-            className="bg-white/90 backdrop-blur-sm rounded-xl p-5 border border-green-100 shadow-lg hover:shadow-xl transition-all duration-300"
-          >
-            <div className="space-y-4">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <Badge className={`text-sm px-3 py-1 border font-medium ${getSubjectColor(item.subject)}`}>
-                    {item.subject}
-                  </Badge>
-                  <span className="text-sm text-slate-600 bg-slate-100 px-3 py-1 rounded-full font-medium">
-                    {item.studentRecordTime}
-                  </span>
-                  <Badge variant="outline" className="text-sm px-3 py-1 border-slate-300 bg-white">
-                    {item.session}回目
+        {recentHistory.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-slate-600">まだ学習記録がありません</p>
+            <p className="text-sm text-slate-500 mt-2">スパーク機能で学習を記録しましょう！</p>
+          </div>
+        ) : (
+          recentHistory.map((item, index) => (
+            <div
+              key={index}
+              className="bg-white/90 backdrop-blur-sm rounded-xl p-5 border border-green-100 shadow-lg hover:shadow-xl transition-all duration-300"
+            >
+              <div className="space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <Badge className={`text-sm px-3 py-1 border font-medium ${getSubjectColor(item.subject)}`}>
+                      {item.subject}
+                    </Badge>
+                    <span className="text-sm text-slate-600 bg-slate-100 px-3 py-1 rounded-full font-medium">
+                      {item.studentRecordTime}
+                    </span>
+                    <Badge variant="outline" className="text-sm px-3 py-1 border-slate-300 bg-white">
+                      {item.session}回目
+                    </Badge>
+                  </div>
+                  <Badge className={`text-sm px-3 py-2 border font-bold ${getAccuracyColor(item.accuracy)}`}>
+                    {item.accuracy}%
                   </Badge>
                 </div>
-                <Badge className={`text-sm px-3 py-2 border font-bold ${getAccuracyColor(item.accuracy)}`}>
-                  {item.accuracy}%
-                </Badge>
-              </div>
 
-              <div className="space-y-3">
-                <p className="font-bold text-slate-800 text-lg">{item.content}</p>
-                <div className="flex items-center justify-between flex-wrap gap-3">
-                  <span className="text-base text-slate-700">
-                    正答数:{" "}
-                    <span className="font-bold text-slate-800">
-                      {item.correctAnswers}/{item.totalQuestions}問
+                <div className="space-y-3">
+                  <p className="font-bold text-slate-800 text-lg">{item.content}</p>
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <span className="text-base text-slate-700">
+                      正答数:{" "}
+                      <span className="font-bold text-slate-800">
+                        {item.correctAnswers}/{item.totalQuestions}問
+                      </span>
                     </span>
-                  </span>
-                  {item.previousAccuracy !== null && (
-                    <div className="flex items-center gap-1">
-                      {(() => {
-                        const improvement = getImprovementDisplay(item.accuracy, item.previousAccuracy)
-                        return improvement ? (
-                          <span
-                            className={`text-sm font-bold ${improvement.color} bg-white px-3 py-1 rounded-full border shadow-sm`}
-                          >
-                            {improvement.icon} {improvement.text}
-                          </span>
-                        ) : null
-                      })()}
+                    {item.previousAccuracy !== null && (
+                      <div className="flex items-center gap-1">
+                        {(() => {
+                          const improvement = getImprovementDisplay(item.accuracy, item.previousAccuracy)
+                          return improvement ? (
+                            <span
+                              className={`text-sm font-bold ${improvement.color} bg-white px-3 py-1 rounded-full border shadow-sm`}
+                            >
+                              {improvement.icon} {improvement.text}
+                            </span>
+                          ) : null
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                  {item.reflection && (
+                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                      <p className="text-sm text-blue-800 leading-relaxed">
+                        <span className="font-semibold">今日の振り返り:</span> {item.reflection}
+                      </p>
                     </div>
                   )}
                 </div>
-                {item.reflection && (
-                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
-                    <p className="text-sm text-blue-800 leading-relaxed">
-                      <span className="font-semibold">今日の振り返り:</span> {item.reflection}
-                    </p>
-                  </div>
-                )}
               </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </CardContent>
     </Card>
   )
 }
 
-const RecentEncouragementCard = () => {
+const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
   const [showAll, setShowAll] = useState(false)
   const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set())
 
@@ -883,76 +882,56 @@ const RecentEncouragementCard = () => {
     setExpandedCards(newExpanded)
   }
 
-  const encouragementMessages = [
-    {
-      recordTime: "今日 15:20", // 保護者/指導者の記録時刻
-      from: "お母さん",
-      avatar: "parent1",
-      message: "算数がんばったね！明日もファイト！",
-      studentRecordTime: "今日 14:30", // 生徒の記録時刻
-      learningDetails: {
-        session: 2,
-        subject: "算数",
-        content: "類題",
-        correctAnswers: 8,
-        totalQuestions: 10,
-        accuracy: 80,
-        previousAccuracy: 65,
-        reflection: "分数の計算が少しずつ分かってきました",
-      },
-    },
-    {
-      recordTime: "今日 11:30",
-      from: "田中先生",
-      avatar: "coach",
-      message: "国語の漢字、きれいに書けていますね！",
-      studentRecordTime: "今日 10:15",
-      learningDetails: {
-        session: 1,
-        subject: "国語",
-        content: "確認問題",
-        correctAnswers: 9,
-        totalQuestions: 10,
-        accuracy: 90,
-        previousAccuracy: null,
-        reflection: "",
-      },
-    },
-    {
-      recordTime: "昨日 17:10",
-      from: "田中先生",
-      avatar: "coach",
-      message: "理科の実験問題、よくできていました",
-      studentRecordTime: "昨日 16:45",
-      learningDetails: {
-        session: 3,
-        subject: "理科",
-        content: "演習問題集（基本問題）",
-        correctAnswers: 7,
-        totalQuestions: 10,
-        accuracy: 70,
-        previousAccuracy: 45,
-        reflection: "実験の手順を覚えることができました",
-      },
-    },
-    {
-      recordTime: "昨日 10:45",
-      from: "お父さん",
-      avatar: "parent2",
-      message: "毎日コツコツ続けてえらいね",
-      studentRecordTime: "昨日 09:20",
-      learningDetails: {
-        session: 1,
-        subject: "社会",
-        content: "演習問題集（練習問題）",
-        correctAnswers: 6,
-        totalQuestions: 10,
-        accuracy: 60,
-        previousAccuracy: null,
-        reflection: "",
-      },
-    },
-  ]
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return "記録日時不明"
+
+    const date = new Date(dateStr)
+    if (Number.isNaN(date.getTime())) return "記録日時不明"
+
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    const logDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+
+    if (logDate.getTime() === today.getTime()) {
+      return `今日 ${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`
+    } else if (logDate.getTime() === yesterday.getTime()) {
+      return `昨日 ${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`
+    } else {
+      return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`
+    }
+  }
+
+  const safeMessages = Array.isArray(messages) ? messages : []
+
+  const encouragementMessages = safeMessages.map((msg) => {
+    const senderProfile = msg.sender_profile || msg.profiles
+    const baseMessage = msg.message_text || msg.message || ""
+
+    return {
+      recordTime: formatDate(msg.sent_at || msg.created_at),
+      from: senderProfile?.display_name || senderProfile?.name || "応援者",
+      avatar: msg.sender_role === "parent" ? "parent1" : "coach",
+      message: baseMessage,
+      studentRecordTime: msg.study_log?.created_at ? formatDate(msg.study_log.created_at) : "",
+      learningDetails: msg.study_log
+        ? {
+            session: msg.study_log.study_sessions?.session_number || msg.study_log.session_id || 0,
+            subject: msg.study_log.subjects?.name || "",
+            content: msg.study_log.study_content_types?.content_name || "",
+            correctAnswers: msg.study_log.correct_count || 0,
+            totalQuestions: msg.study_log.total_problems || 0,
+            accuracy:
+              msg.study_log.total_problems > 0
+                ? Math.round((msg.study_log.correct_count / msg.study_log.total_problems) * 100)
+                : 0,
+            previousAccuracy: null,
+            reflection: msg.study_log.reflection_text || "",
+          }
+        : null,
+    }
+  })
 
   const getSubjectColor = (subject: string) => {
     const colors = {
@@ -1017,114 +996,121 @@ const RecentEncouragementCard = () => {
         </div>
       </CardHeader>
       <CardContent className="space-y-4 p-6">
-        {encouragementMessages.map((message, index) => {
-          const isExpanded = expandedCards.has(index)
-          const shouldShowDetails = showAll || isExpanded
+        {encouragementMessages.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-slate-600">まだ応援メッセージがありません</p>
+            <p className="text-sm text-slate-500 mt-2">保護者や指導者からの応援を待ちましょう！</p>
+          </div>
+        ) : (
+          encouragementMessages.map((message, index) => {
+            const isExpanded = expandedCards.has(index)
+            const shouldShowDetails = showAll || isExpanded
 
-          return (
-            <div
-              key={index}
-              className="bg-white/90 backdrop-blur-sm rounded-xl p-5 border border-pink-100 shadow-lg hover:shadow-xl transition-all duration-300"
-            >
-              <div className="flex items-start gap-4">
-                <Avatar className="h-12 w-12 border-3 border-pink-200 flex-shrink-0 shadow-md">
-                  <AvatarImage src={getAvatarSrc(message.avatar) || "/placeholder.svg"} alt={message.from} />
-                  <AvatarFallback className="bg-pink-100 text-pink-700 font-bold text-lg">
-                    {message.from.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 space-y-3">
-                  {/* デフォルト表示項目 */}
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span className="font-bold text-slate-800 text-lg">{message.from}</span>
-                    <span className="text-sm text-slate-600 bg-slate-100 px-2 py-1 rounded-full">
-                      {message.recordTime}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <Heart className="h-4 w-4 text-pink-500" />
-                      <span className="text-xs text-pink-600 font-medium">応援</span>
-                    </div>
-                  </div>
-                  <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-4 rounded-xl border border-pink-100">
-                    <p className="text-base leading-relaxed text-slate-700 font-medium">{message.message}</p>
-                  </div>
-
-                  {/* 詳細表示項目（条件付き表示） */}
-                  {shouldShowDetails && (
-                    <div className="bg-slate-50/80 backdrop-blur-sm rounded-xl p-4 space-y-3 border border-slate-200">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge
-                          className={`text-xs px-3 py-1 border font-medium ${getSubjectColor(message.learningDetails.subject)}`}
-                        >
-                          {message.learningDetails.subject}
-                        </Badge>
-                        <Badge variant="outline" className="text-xs px-3 py-1 border-slate-300 bg-white">
-                          {message.learningDetails.session}回目
-                        </Badge>
-                        <span className="text-xs text-slate-600 bg-white px-2 py-1 rounded-full border">
-                          生徒記録: {message.studentRecordTime}
-                        </span>
+            return (
+              <div
+                key={index}
+                className="bg-white/90 backdrop-blur-sm rounded-xl p-5 border border-pink-100 shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                <div className="flex items-start gap-4">
+                  <Avatar className="h-12 w-12 border-3 border-pink-200 flex-shrink-0 shadow-md">
+                    <AvatarImage src={getAvatarSrc(message.avatar) || "/placeholder.svg"} alt={message.from} />
+                    <AvatarFallback className="bg-pink-100 text-pink-700 font-bold text-lg">
+                      {message.from.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 space-y-3">
+                    {/* デフォルト表示項目 */}
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="font-bold text-slate-800 text-lg">{message.from}</span>
+                      <span className="text-sm text-slate-600 bg-slate-100 px-2 py-1 rounded-full">
+                        {message.recordTime}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <Heart className="h-4 w-4 text-pink-500" />
+                        <span className="text-xs text-pink-600 font-medium">応援</span>
                       </div>
-                      <div className="space-y-2">
-                        <p className="font-semibold text-slate-800 text-base">{message.learningDetails.content}</p>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <span className="text-sm text-slate-700">
-                              正答数:{" "}
-                              <span className="font-bold">
-                                {message.learningDetails.correctAnswers}/{message.learningDetails.totalQuestions}問
+                    </div>
+                    <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-4 rounded-xl border border-pink-100">
+                      <p className="text-base leading-relaxed text-slate-700 font-medium">{message.message}</p>
+                    </div>
+
+                    {/* 詳細表示項目（条件付き表示） */}
+                    {shouldShowDetails && message.learningDetails && (
+                      <div className="bg-slate-50/80 backdrop-blur-sm rounded-xl p-4 space-y-3 border border-slate-200">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge
+                            className={`text-xs px-3 py-1 border font-medium ${getSubjectColor(message.learningDetails.subject)}`}
+                          >
+                            {message.learningDetails.subject}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs px-3 py-1 border-slate-300 bg-white">
+                            {message.learningDetails.session}回目
+                          </Badge>
+                          <span className="text-xs text-slate-600 bg-white px-2 py-1 rounded-full border">
+                            生徒記録: {message.studentRecordTime}
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          <p className="font-semibold text-slate-800 text-base">{message.learningDetails.content}</p>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                              <span className="text-sm text-slate-700">
+                                正答数:{" "}
+                                <span className="font-bold">
+                                  {message.learningDetails.correctAnswers}/{message.learningDetails.totalQuestions}問
+                                </span>
                               </span>
-                            </span>
-                            <span className="text-sm font-bold text-slate-800">
-                              正答率: <span className="text-lg">{message.learningDetails.accuracy}%</span>
-                            </span>
+                              <span className="text-sm font-bold text-slate-800">
+                                正答率: <span className="text-lg">{message.learningDetails.accuracy}%</span>
+                              </span>
+                            </div>
+                            {message.learningDetails.previousAccuracy !== null && (
+                              <div className="flex items-center gap-1">
+                                {(() => {
+                                  const improvement = getImprovementDisplay(
+                                    message.learningDetails.accuracy,
+                                    message.learningDetails.previousAccuracy,
+                                  )
+                                  return improvement ? (
+                                    <span
+                                      className={`text-sm font-bold ${improvement.color} bg-white px-2 py-1 rounded-full border shadow-sm`}
+                                    >
+                                      {improvement.icon} {improvement.text}
+                                    </span>
+                                  ) : null
+                                })()}
+                              </div>
+                            )}
                           </div>
-                          {message.learningDetails.previousAccuracy !== null && (
-                            <div className="flex items-center gap-1">
-                              {(() => {
-                                const improvement = getImprovementDisplay(
-                                  message.learningDetails.accuracy,
-                                  message.learningDetails.previousAccuracy,
-                                )
-                                return improvement ? (
-                                  <span
-                                    className={`text-sm font-bold ${improvement.color} bg-white px-2 py-1 rounded-full border shadow-sm`}
-                                  >
-                                    {improvement.icon} {improvement.text}
-                                  </span>
-                                ) : null
-                              })()}
+                          {message.learningDetails.reflection && (
+                            <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                              <p className="text-sm text-blue-800">
+                                <span className="font-medium">今日の振り返り:</span> {message.learningDetails.reflection}
+                              </p>
                             </div>
                           )}
                         </div>
-                        {message.learningDetails.reflection && (
-                          <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                            <p className="text-sm text-blue-800">
-                              <span className="font-medium">今日の振り返り:</span> {message.learningDetails.reflection}
-                            </p>
-                          </div>
-                        )}
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {!showAll && (
-                    <div className="text-center pt-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => toggleCardExpansion(index)}
-                        className="text-pink-600 hover:text-pink-700 hover:bg-pink-50 text-sm font-medium transition-all duration-200"
-                      >
-                        {isExpanded ? "クリックして詳細を閉じる" : "クリックして詳細を表示"}
-                      </Button>
-                    </div>
-                  )}
+                    {!showAll && (
+                      <div className="text-center pt-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleCardExpansion(index)}
+                          className="text-pink-600 hover:text-pink-700 hover:bg-pink-50 text-sm font-medium transition-all duration-200"
+                        >
+                          {isExpanded ? "クリックして詳細を閉じる" : "クリックして詳細を表示"}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })
+        )}
       </CardContent>
     </Card>
   )
@@ -1133,15 +1119,70 @@ const RecentEncouragementCard = () => {
 export default function StudentDashboard() {
   const [userName, setUserName] = useState("")
   const [selectedAvatar, setSelectedAvatar] = useState("")
+  const [aiCoachMessage, setAiCoachMessage] = useState("")
+  const [studyStreak, setStudyStreak] = useState(0)
+  const [recentLogs, setRecentLogs] = useState<any[]>([])
+  const [recentMessages, setRecentMessages] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const name = localStorage.getItem("userName") || "学習者"
     const avatar = localStorage.getItem("selectedAvatar") || "student1"
     setUserName(name)
     setSelectedAvatar(avatar)
+
+    // データ取得
+    const fetchData = async () => {
+      try {
+        const { getAICoachMessage, getStudyStreak, getRecentStudyLogs, getRecentEncouragementMessages } = await import(
+          "@/app/actions/dashboard"
+        )
+
+        const [coachMsg, streakResult, logsResult, messagesResult] = await Promise.all([
+          getAICoachMessage(),
+          getStudyStreak(),
+          getRecentStudyLogs(5),
+          getRecentEncouragementMessages(3),
+        ])
+
+        if (!coachMsg?.error && coachMsg?.message) {
+          setAiCoachMessage(coachMsg.message)
+        }
+        if (!streakResult?.error && typeof streakResult?.streak === "number") {
+          setStudyStreak(streakResult.streak)
+        }
+        if (Array.isArray(logsResult?.logs)) {
+          setRecentLogs(logsResult.logs)
+        } else {
+          setRecentLogs([])
+        }
+        if (Array.isArray(messagesResult?.messages)) {
+          setRecentMessages(messagesResult.messages)
+        } else {
+          setRecentMessages([])
+        }
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchData()
   }, [])
 
-  const greetingMessage = getGreetingMessage(userName, mockData.user.streak)
+  const greetingMessage = getGreetingMessage(userName, studyStreak)
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background pb-20 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">読み込み中...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background pb-20 elegant-fade-in">
@@ -1164,7 +1205,7 @@ export default function StudentDashboard() {
               <div className="p-2 bg-primary/10 rounded-full">
                 <Flame className="h-7 w-7" />
               </div>
-              <span className="font-bold text-3xl">{mockData.user.streak}</span>
+              <span className="font-bold text-3xl">{studyStreak}</span>
             </div>
             <p className="text-sm text-muted-foreground font-semibold mt-1">連続学習日数</p>
           </div>
@@ -1193,7 +1234,7 @@ export default function StudentDashboard() {
               <CardContent className="space-y-6">
                 <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border border-white/40 shadow-2xl">
                   <p className="text-lg leading-relaxed text-slate-700 font-medium">
-                    {mockData.aiCoachMessage.message}
+                    {aiCoachMessage || "今日も一緒に頑張ろう！"}
                   </p>
                 </div>
               </CardContent>
@@ -1202,8 +1243,8 @@ export default function StudentDashboard() {
             <TodayMissionCard />
             <LearningHistoryCalendar />
             <WeeklySubjectProgressCard />
-            <RecentEncouragementCard />
-            <RecentLearningHistoryCard />
+            <RecentEncouragementCard messages={recentMessages} />
+            <RecentLearningHistoryCard logs={recentLogs} />
           </div>
 
           <div className="hidden lg:grid lg:grid-cols-3 lg:gap-8">
@@ -1227,15 +1268,15 @@ export default function StudentDashboard() {
                 <CardContent className="space-y-6">
                   <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border border-white/40 shadow-2xl">
                     <p className="text-lg leading-relaxed text-slate-700 font-medium">
-                      {mockData.aiCoachMessage.message}
+                      {aiCoachMessage || "今日も一緒に頑張ろう！"}
                     </p>
                   </div>
                 </CardContent>
               </Card>
 
               <TodayMissionCard />
-              <RecentEncouragementCard />
-              <RecentLearningHistoryCard />
+              <RecentEncouragementCard messages={recentMessages} />
+              <RecentLearningHistoryCard logs={recentLogs} />
             </div>
 
             {/* 右列（サブ - 1/3の幅） */}
