@@ -83,16 +83,42 @@ const LearningHistoryCalendar = ({ calendarData }: { calendarData: { [dateStr: s
   const [selectedMonth, setSelectedMonth] = useState(new Date())
   const [criteriaMode, setCriteriaMode] = useState<"input" | "accuracy">("input")
 
+  // データ取得範囲（6週間前まで）
+  const today = new Date()
+  const sixWeeksAgo = new Date(today)
+  sixWeeksAgo.setDate(today.getDate() - 42)
+
   const goToPreviousMonth = () => {
-    setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1, 1))
+    const newMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1, 1)
+    setSelectedMonth(newMonth)
   }
 
   const goToNextMonth = () => {
-    setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 1))
+    const newMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 1)
+    setSelectedMonth(newMonth)
   }
 
   const goToToday = () => {
     setSelectedMonth(new Date())
+  }
+
+  // 前月・次月ボタンの有効/無効判定
+  const canGoPrevious = () => {
+    const prevMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1, 1)
+    const lastDayOfPrevMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 0)
+    return lastDayOfPrevMonth >= sixWeeksAgo
+  }
+
+  const canGoNext = () => {
+    const nextMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 1)
+    return nextMonth <= today
+  }
+
+  // 選択月がデータ範囲外かチェック
+  const isOutOfRange = () => {
+    const firstDayOfMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1)
+    const lastDayOfMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0)
+    return lastDayOfMonth < sixWeeksAgo || firstDayOfMonth > today
   }
 
   // 選択された月のカレンダーデータを生成
@@ -167,7 +193,8 @@ const LearningHistoryCalendar = ({ calendarData }: { calendarData: { [dateStr: s
               variant="ghost"
               size="sm"
               onClick={goToPreviousMonth}
-              className="hover:bg-primary/10"
+              disabled={!canGoPrevious()}
+              className="hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ChevronLeft className="h-4 w-4" />
               前月
@@ -189,12 +216,25 @@ const LearningHistoryCalendar = ({ calendarData }: { calendarData: { [dateStr: s
               variant="ghost"
               size="sm"
               onClick={goToNextMonth}
-              className="hover:bg-primary/10"
+              disabled={!canGoNext()}
+              className="hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               翌月
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
+
+          {/* データ範囲外の警告メッセージ */}
+          {isOutOfRange() && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
+              <p className="text-sm text-amber-800 font-medium">
+                📊 6週間より前の記録は表示されません
+              </p>
+              <p className="text-xs text-amber-600 mt-1">
+                直近6週間のデータのみ取得しています
+              </p>
+            </div>
+          )}
 
           {/* 曜日ヘッダー */}
           <div className="grid grid-cols-7 gap-1 sm:gap-2">
