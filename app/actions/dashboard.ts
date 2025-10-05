@@ -283,3 +283,276 @@ export async function getRecentEncouragementMessages(limit: number = 3) {
     return { error: "予期しないエラーが発生しました" }
   }
 }
+
+/**
+ * 今週の科目別進捗を取得（月曜開始）
+ */
+export async function getWeeklySubjectProgress() {
+  try {
+    const supabase = await createClient()
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return { error: "認証エラー" }
+    }
+
+    const { data: student } = await supabase.from("students").select("id").eq("user_id", user.id).single()
+
+    if (!student) {
+      return { error: "生徒情報が見つかりません" }
+    }
+
+    // Get this week (Monday to Sunday)
+    const now = new Date()
+    const dayOfWeek = now.getDay()
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+    const monday = new Date(now)
+    monday.setDate(now.getDate() + mondayOffset)
+    monday.setHours(0, 0, 0, 0)
+
+    const sunday = new Date(monday)
+    sunday.setDate(monday.getDate() + 6)
+    sunday.setHours(23, 59, 59, 999)
+
+    const { data: logs, error: logsError } = await supabase
+      .from("study_logs")
+      .select(
+        `
+        id,
+        correct_count,
+        total_problems,
+        subject_id,
+        subjects (name, color_code)
+      `
+      )
+      .eq("student_id", student.id)
+      .gte("logged_at", monday.toISOString())
+      .lte("logged_at", sunday.toISOString())
+
+    if (logsError) {
+      console.error("Get weekly subject progress error:", logsError)
+      return { error: "週次進捗の取得に失敗しました" }
+    }
+
+    // Aggregate by subject
+    const subjectMap: {
+      [key: string]: { name: string; color_code: string; totalCorrect: number; totalProblems: number }
+    } = {}
+
+    logs?.forEach((log) => {
+      const subjectName = log.subjects?.name || "不明"
+      if (!subjectMap[subjectName]) {
+        subjectMap[subjectName] = {
+          name: subjectName,
+          color_code: log.subjects?.color_code || "#3b82f6",
+          totalCorrect: 0,
+          totalProblems: 0,
+        }
+      }
+      subjectMap[subjectName].totalCorrect += log.correct_count || 0
+      subjectMap[subjectName].totalProblems += log.total_problems || 0
+    })
+
+    const progress = Object.values(subjectMap).map((subject) => ({
+      subject: subject.name,
+      colorCode: subject.color_code,
+      accuracy: subject.totalProblems > 0 ? Math.round((subject.totalCorrect / subject.totalProblems) * 100) : 0,
+      correctCount: subject.totalCorrect,
+      totalProblems: subject.totalProblems,
+    }))
+
+    return { progress }
+  } catch (error) {
+    console.error("Get weekly subject progress error:", error)
+    return { error: "予期しないエラーが発生しました" }
+  }
+}
+
+/**
+ * 6週間分の学習カレンダーデータ取得
+ */
+export async function getLearningCalendarData() {
+  try {
+    const supabase = await createClient()
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return { error: "認証エラー" }
+    }
+
+    const { data: student } = await supabase.from("students").select("id").eq("user_id", user.id).single()
+
+    if (!student) {
+      return { error: "生徒情報が見つかりません" }
+    }
+
+    // Get last 6 weeks of data
+    const today = new Date()
+    today.setHours(23, 59, 59, 999)
+    const sixWeeksAgo = new Date(today)
+    sixWeeksAgo.setDate(today.getDate() - 42)
+    sixWeeksAgo.setHours(0, 0, 0, 0)
+
+    const { data: logs, error: logsError } = await supabase
+      .from("study_logs")
+      .select(
+        `
+        id,
+        logged_at,
+        correct_count,
+        total_problems,
+        subject_id
+      `
+      )
+      .eq("student_id", student.id)
+      .gte("logged_at", sixWeeksAgo.toISOString())
+      .lte("logged_at", today.toISOString())
+
+    if (logsError) {
+      console.error("Get learning calendar data error:", logsError)
+      return { error: "カレンダーデータの取得に失敗しました" }
+    }
+
+    // Aggregate by date
+    const dateMap: { [key: string]: { subjectCount: number; accuracy80Count: number } } = {}
+
+    logs?.forEach((log) => {
+      const date = new Date(log.logged_at)
+      date.setHours(0, 0, 0, 0)
+      const dateStr = date.toISOString().split("T")[0]
+
+      if (!dateMap[dateStr]) {
+        dateMap[dateStr] = { subjectCount: 0, accuracy80Count: 0 }
+      }
+
+      dateMap[dateStr].subjectCount += 1
+
+      const accuracy = log.total_problems > 0 ? (log.correct_count / log.total_problems) * 100 : 0
+      if (accuracy >= 80) {
+        dateMap[dateStr].accuracy80Count += 1
+      }
+    })
+
+    return { calendarData: dateMap }
+  } catch (error) {
+    console.error("Get learning calendar data error:", error)
+    return { error: "予期しないエラーが発生しました" }
+  }
+}
+
+/**
+ * 今日のミッションデータ取得
+ */
+export async function getTodayMissionData() {
+  try {
+    const supabase = await createClient()
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return { error: "認証エラー" }
+    }
+
+    const { data: student } = await supabase.from("students").select("id").eq("user_id", user.id).single()
+
+    if (!student) {
+      return { error: "生徒情報が見つかりません" }
+    }
+
+    // Get today's logs
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayEnd = new Date(today)
+    todayEnd.setHours(23, 59, 59, 999)
+
+    const { data: todayLogs, error: logsError } = await supabase
+      .from("study_logs")
+      .select(
+        `
+        id,
+        correct_count,
+        total_problems,
+        subjects (name)
+      `
+      )
+      .eq("student_id", student.id)
+      .gte("logged_at", today.toISOString())
+      .lte("logged_at", todayEnd.toISOString())
+
+    if (logsError) {
+      console.error("Get today mission data error:", logsError)
+      return { error: "今日のミッションデータの取得に失敗しました" }
+    }
+
+    // Aggregate by subject
+    const subjectMap: { [key: string]: { totalCorrect: number; totalProblems: number } } = {}
+
+    todayLogs?.forEach((log) => {
+      const subjectName = log.subjects?.name || "不明"
+      if (!subjectMap[subjectName]) {
+        subjectMap[subjectName] = { totalCorrect: 0, totalProblems: 0 }
+      }
+      subjectMap[subjectName].totalCorrect += log.correct_count || 0
+      subjectMap[subjectName].totalProblems += log.total_problems || 0
+    })
+
+    const todayProgress = Object.entries(subjectMap).map(([subject, data]) => ({
+      subject,
+      accuracy: data.totalProblems > 0 ? Math.round((data.totalCorrect / data.totalProblems) * 100) : 0,
+      correctCount: data.totalCorrect,
+      totalProblems: data.totalProblems,
+    }))
+
+    return { todayProgress }
+  } catch (error) {
+    console.error("Get today mission data error:", error)
+    return { error: "予期しないエラーが発生しました" }
+  }
+}
+
+/**
+ * 最終ログイン日時を取得
+ */
+export async function getLastLoginInfo() {
+  try {
+    const supabase = await createClient()
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return { error: "認証エラー" }
+    }
+
+    // Get user's last sign in from auth metadata
+    const lastSignIn = user.last_sign_in_at
+
+    if (!lastSignIn) {
+      return { lastLoginDays: null, isFirstTime: true }
+    }
+
+    const lastSignInDate = new Date(lastSignIn)
+    const now = new Date()
+    const diffMs = now.getTime() - lastSignInDate.getTime()
+    const diffHours = diffMs / (1000 * 60 * 60)
+    const diffDays = Math.floor(diffHours / 24)
+
+    return {
+      lastLoginDays: diffDays,
+      lastLoginHours: diffHours,
+      isFirstTime: false,
+    }
+  } catch (error) {
+    console.error("Get last login info error:", error)
+    return { error: "予期しないエラーが発生しました" }
+  }
+}
