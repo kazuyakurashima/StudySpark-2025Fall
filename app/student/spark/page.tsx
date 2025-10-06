@@ -11,6 +11,14 @@ import { Calendar, BookOpen, MessageSquare, Save, Sparkles, Flame, Crown, Bot } 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { createClient } from "@/lib/supabase/client"
+import {
+  getStudySessions,
+  getExistingStudyLog,
+  getContentTypes,
+  saveStudyLog,
+  getContentTypeId,
+} from "@/app/actions/study-log"
 
 const subjects = [
   {
@@ -390,37 +398,63 @@ export default function SparkPage() {
   const [reflection, setReflection] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const [currentCourse, setCurrentCourse] = useState<"A" | "B" | "C" | "S">("C") // デモ用にCコースに設定
-  const [weeklyRecords, setWeeklyRecords] = useState(4) // Mock data - デモ用に3以上に設定
-  const [weeklyContentRecords, setWeeklyContentRecords] = useState(3) // Mock data - デモ用に3以上に設定
+  const [currentCourse, setCurrentCourse] = useState<"A" | "B" | "C" | "S">("A")
   const [showReflectionOptions, setShowReflectionOptions] = useState(false)
   const [aiReflections, setAiReflections] = useState<string[]>([])
   const [isGeneratingAI, setIsGeneratingAI] = useState(false)
   const [reflectionMode, setReflectionMode] = useState<"manual" | "ai" | null>(null)
 
   const [studentGrade, setStudentGrade] = useState<string>("6")
+  const [isLoading, setIsLoading] = useState(true)
+  const [dataError, setDataError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const grade = localStorage.getItem("studentGrade") || "6"
-      setStudentGrade(grade)
-      const currentSession = getCurrentLearningSession(grade)
-      setSelectedSession(currentSession)
+    async function fetchInitialData() {
+      try {
+        setIsLoading(true)
+        setDataError(null)
 
-      const goalRecords = localStorage.getItem("goalRecords")
-      if (goalRecords) {
-        try {
-          const records = JSON.parse(goalRecords)
-          // Get the latest course from goal records
-          const latestRecord = records[records.length - 1]
-          if (latestRecord?.course) {
-            setCurrentCourse(latestRecord.course)
-          }
-        } catch (e) {
-          console.log("No goal records found, using default course A")
+        // Fetch student profile to get grade and course
+        const supabase = createClient()
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+
+        if (!user) {
+          setDataError("ログインが必要です")
+          setIsLoading(false)
+          return
         }
+
+        // Get student data
+        const { data: student, error: studentError } = await supabase
+          .from("students")
+          .select("id, grade, course")
+          .eq("user_id", user.id)
+          .single()
+
+        if (studentError || !student) {
+          setDataError("生徒情報の取得に失敗しました")
+          setIsLoading(false)
+          return
+        }
+
+        setStudentGrade(student.grade.toString())
+        setCurrentCourse(student.course)
+
+        // Get current learning session based on grade
+        const currentSession = getCurrentLearningSession(student.grade.toString())
+        setSelectedSession(currentSession)
+
+        setIsLoading(false)
+      } catch (error) {
+        console.error("Initial data fetch error:", error)
+        setDataError("データの読み込みに失敗しました")
+        setIsLoading(false)
       }
     }
+
+    fetchInitialData()
   }, [])
 
   const getCurrentLevel = () => {
@@ -430,10 +464,81 @@ export default function SparkPage() {
   }
 
   const currentLevel = getCurrentLevel()
-  const canAccessFlame = weeklyRecords >= 3
-  const canAccessBlaze = currentLevel === "flame" && weeklyContentRecords >= 3
-  const progressToFlame = Math.min((weeklyRecords / 3) * 100, 100)
-  const progressToBlaze = currentLevel === "flame" ? Math.min((weeklyContentRecords / 3) * 100, 100) : 0
+
+  // Fetch existing study logs when session or subjects change
+  useEffect(() => {
+    async function fetchExistingLogs() {
+      if (!selectedSession || selectedSubjects.length === 0) return
+
+      try {
+        // Get session ID from database
+        const sessionNumber = parseInt(selectedSession.replace("session", ""))
+        const grade = parseInt(studentGrade)
+
+        const sessionsResult = await getStudySessions(grade)
+        if (sessionsResult.error || !sessionsResult.sessions) {
+          return
+        }
+
+        const targetSession = sessionsResult.sessions.find((s) => s.session_number === sessionNumber)
+        if (!targetSession) {
+          return
+        }
+
+        const subjectIdMap: { [key: string]: number } = {
+          math: 1,
+          japanese: 2,
+          science: 3,
+          social: 4,
+        }
+
+        // Fetch existing logs for all selected subjects
+        for (const subjectId of selectedSubjects) {
+          const dbSubjectId = subjectIdMap[subjectId]
+          if (!dbSubjectId) continue
+
+          const result = await getExistingStudyLog(targetSession.id, dbSubjectId)
+          if (result.error || !result.logs || result.logs.length === 0) continue
+
+          // Get content types to map study_content_type_id to content_name
+          const contentTypesResult = await getContentTypes(grade, dbSubjectId, currentCourse)
+          if (contentTypesResult.error || !contentTypesResult.contentTypes) continue
+
+          // Pre-fill the form with existing data
+          const newDetails: { [contentId: string]: number } = {}
+          const availableContent = getAvailableLearningContent(subjectId)
+
+          for (const log of result.logs) {
+            // Find matching content type
+            const contentType = contentTypesResult.contentTypes.find((ct) => ct.id === log.study_content_type_id)
+            if (!contentType) continue
+
+            // Find matching content in UI by name
+            const matchingContent = availableContent.find((c) => c.name === contentType.content_name)
+            if (matchingContent) {
+              newDetails[matchingContent.id] = log.correct_count
+            }
+
+            // Set reflection if available (only once)
+            if (log.reflection_text && !reflection) {
+              setReflection(log.reflection_text)
+            }
+          }
+
+          if (Object.keys(newDetails).length > 0) {
+            setSubjectDetails((prev) => ({
+              ...prev,
+              [subjectId]: newDetails,
+            }))
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch existing logs:", error)
+      }
+    }
+
+    fetchExistingLogs()
+  }, [selectedSession, selectedSubjects.join(","), currentCourse]) // Re-fetch when session, subjects, or course changes
 
   const getAvailableLearningContent = (subjectId: string) => {
     const contentMap = studentGrade === "5" ? grade5LearningContent : grade6LearningContent
@@ -504,10 +609,6 @@ export default function SparkPage() {
     setIsSubmitting(true)
 
     try {
-      // Import the Server Actions dynamically
-      const { saveStudyLog, getContentTypeId } = await import("@/app/actions/study-log")
-      const { getStudySessions } = await import("@/app/actions/study-log")
-
       // 1. Get session_id from Supabase (not from local mapping)
       const sessionNumber = parseInt(selectedSession.replace("session", ""))
       const grade = parseInt(studentGrade)
@@ -652,6 +753,51 @@ export default function SparkPage() {
     if (currentCourse === "A") return "Spark（楽しくスタート）"
     if (currentCourse === "B") return "Flame（成長ステップ）"
     return "Blaze（最高にチャレンジ）"
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 pb-20">
+        <div className="bg-white/95 backdrop-blur-lg border-b border-slate-200/60 shadow-lg p-6">
+          <div className="max-w-4xl mx-auto">
+            <h1 className="text-2xl font-bold text-slate-800">スパーク</h1>
+          </div>
+        </div>
+        <div className="max-w-4xl mx-auto p-6 flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-lg text-slate-600">データを読み込んでいます...</p>
+          </div>
+        </div>
+        <BottomNavigation activeTab="spark" />
+      </div>
+    )
+  }
+
+  if (dataError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 pb-20">
+        <div className="bg-white/95 backdrop-blur-lg border-b border-slate-200/60 shadow-lg p-6">
+          <div className="max-w-4xl mx-auto">
+            <h1 className="text-2xl font-bold text-slate-800">スパーク</h1>
+          </div>
+        </div>
+        <div className="max-w-4xl mx-auto p-6">
+          <Card className="shadow-xl border-0 bg-red-50 backdrop-blur-sm ring-1 ring-red-200">
+            <CardContent className="p-6">
+              <p className="text-lg text-red-800 font-bold">{dataError}</p>
+              <Button
+                onClick={() => window.location.reload()}
+                className="mt-4 bg-red-600 hover:bg-red-700 text-white"
+              >
+                再読み込み
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+        <BottomNavigation activeTab="spark" />
+      </div>
+    )
   }
 
   return (

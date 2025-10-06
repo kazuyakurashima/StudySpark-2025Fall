@@ -156,14 +156,14 @@ export async function generateAIEncouragement(studentId: string, studyLogId: str
   // 保護者情報を取得
   const { data: parentData } = await supabase
     .from("parents")
-    .select("nickname")
+    .select("id, profiles!parents_user_id_fkey(display_name)")
     .eq("user_id", user.id)
     .single()
 
   // 生徒情報を取得
   const { data: studentData } = await supabase
     .from("students")
-    .select("nickname")
+    .select("id, full_name")
     .eq("id", studentId)
     .single()
 
@@ -188,9 +188,9 @@ export async function generateAIEncouragement(studentId: string, studyLogId: str
     studyLog.total_problems > 0 ? Math.round((studyLog.correct_count / studyLog.total_problems) * 100) : 0
 
   const context: EncouragementContext = {
-    studentName: studentData.nickname || "お子さん",
+    studentName: studentData.full_name || "お子さん",
     senderRole: "parent",
-    senderName: parentData?.nickname || "保護者",
+    senderName: (parentData?.profiles as any)?.display_name || "保護者",
     recentPerformance: {
       subject: Array.isArray(studyLog.subjects) ? studyLog.subjects[0]?.name : studyLog.subjects?.name || "不明",
       accuracy,
@@ -317,7 +317,7 @@ export async function getCoachStudents() {
     .from("coach_student_relations")
     .select(`
       student_id,
-      students(id, nickname, avatar, grade)
+      students(id, full_name, grade, profiles!students_user_id_fkey(avatar_url))
     `)
     .eq("coach_id", coachData.id)
 
@@ -367,7 +367,7 @@ export async function getAllStudyLogsForCoach(filters?: {
       correct_count,
       reflection_text,
       created_at,
-      students(id, nickname, avatar, grade),
+      students(id, full_name, grade, profiles!students_user_id_fkey(avatar_url)),
       study_sessions(session_number, grade),
       subjects(name),
       study_content_types(name),
@@ -521,10 +521,10 @@ export async function generateCoachAIEncouragement(studentId: string, studyLogId
   }
 
   // 指導者情報を取得
-  const { data: coachData } = await supabase.from("coaches").select("nickname").eq("user_id", user.id).single()
+  const { data: coachData } = await supabase.from("coaches").select("id, profiles!coaches_user_id_fkey(display_name)").eq("user_id", user.id).single()
 
   // 生徒情報を取得
-  const { data: studentData } = await supabase.from("students").select("nickname").eq("id", studentId).single()
+  const { data: studentData } = await supabase.from("students").select("id, full_name").eq("id", studentId).single()
 
   // 学習記録を取得
   const { data: studyLog } = await supabase
@@ -547,9 +547,9 @@ export async function generateCoachAIEncouragement(studentId: string, studyLogId
     studyLog.total_problems > 0 ? Math.round((studyLog.correct_count / studyLog.total_problems) * 100) : 0
 
   const context: EncouragementContext = {
-    studentName: studentData.nickname || "生徒",
+    studentName: studentData.full_name || "生徒",
     senderRole: "coach",
-    senderName: coachData?.nickname || "指導者",
+    senderName: (coachData?.profiles as any)?.display_name || "指導者",
     recentPerformance: {
       subject: Array.isArray(studyLog.subjects) ? studyLog.subjects[0]?.name : studyLog.subjects?.name || "不明",
       accuracy,
@@ -665,7 +665,7 @@ export async function getRecentEncouragementMessages() {
     .select(
       `
       *,
-      profiles:sender_id(nickname, avatar),
+      profiles!encouragement_messages_sender_id_fkey(display_name, avatar_url),
       study_logs:related_study_log_id(
         study_date,
         total_problems,
@@ -726,7 +726,7 @@ export async function getAllEncouragementMessages(filters?: {
     .select(
       `
       *,
-      profiles:sender_id(nickname, avatar),
+      profiles!encouragement_messages_sender_id_fkey(display_name, avatar_url),
       study_logs:related_study_log_id(
         study_date,
         total_problems,

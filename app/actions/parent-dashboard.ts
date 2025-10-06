@@ -43,7 +43,7 @@ export async function getParentDashboardData() {
 
     // Get children associated with this parent
     const { data: children, error: childrenError } = await supabase
-      .from("parent_student_relations")
+      .from("parent_child_relations")
       .select(
         `
         student_id,

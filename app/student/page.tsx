@@ -7,28 +7,17 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { BottomNavigation } from "@/components/bottom-navigation"
 import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, ChevronLeft, ChevronRight } from "lucide-react"
-
-const mockData = {
-  user: {
-    name: "太郎",
-    avatar: "student1",
-    streak: 7,
-    weeklyTotal: 5,
-  },
-  aiCoachMessage: {
-    message:
-      "太郎さん、今日もStudySparkを開いてくれてありがとう！7日連続の学習、本当に素晴らしいです。君の頑張りをいつも見守っています。今日も一歩ずつ、自分のペースで進んでいきましょう。",
-    timeBasedGreeting: "",
-  },
-  encouragementMessages: [
-    { date: "今日", from: "お母さん", message: "算数がんばったね！明日もファイト！", avatar: "parent1" },
-    { date: "昨日", from: "田中先生", message: "理科の実験問題、よくできていました", avatar: "coach" },
-  ],
-  friends: [
-    { name: "花子", status: "学習中", subject: "算数", avatar: "student2" },
-    { name: "次郎", status: "完了", todayScore: 85, avatar: "student3" },
-  ],
-}
+import {
+  getStudentDashboardData,
+  getAICoachMessage,
+  getStudyStreak,
+  getRecentStudyLogs,
+  getLastLoginInfo,
+  getTodayMissionData,
+  getLearningCalendarData,
+  getWeeklySubjectProgress
+} from "@/app/actions/dashboard"
+import { getRecentEncouragementMessages } from "@/app/actions/encouragement"
 
 function getGreetingMessage(userName: string, lastLoginInfo: { lastLoginDays: number | null, lastLoginHours: number, isFirstTime: boolean } | null) {
   if (!lastLoginInfo || lastLoginInfo.isFirstTime || lastLoginInfo.lastLoginDays === 0) {
@@ -1095,19 +1084,6 @@ export default function StudentDashboard() {
     // データ取得
     const fetchData = async () => {
       try {
-        const {
-          getStudentDashboardData,
-          getAICoachMessage,
-          getStudyStreak,
-          getRecentStudyLogs,
-          getLastLoginInfo,
-          getTodayMissionData,
-          getLearningCalendarData,
-          getWeeklySubjectProgress
-        } = await import("@/app/actions/dashboard")
-
-        const { getRecentEncouragementMessages } = await import("@/app/actions/encouragement")
-
         const [
           dashboardData,
           coachMsg,
@@ -1153,7 +1129,7 @@ export default function StudentDashboard() {
         } else {
           setRecentLogs([])
         }
-        if (Array.isArray(messagesResult?.messages)) {
+        if (messagesResult?.success && Array.isArray(messagesResult?.messages)) {
           setRecentMessages(messagesResult.messages)
         } else {
           setRecentMessages([])
