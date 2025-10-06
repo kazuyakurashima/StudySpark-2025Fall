@@ -659,13 +659,12 @@ export async function getRecentEncouragementMessages() {
   const yesterdayUTC = new Date(yesterday.getTime() - jstOffset * 60 * 1000).toISOString()
   const todayEndUTC = new Date(todayEnd.getTime() - jstOffset * 60 * 1000).toISOString()
 
-  // 応援メッセージを取得
+  // 応援メッセージを取得（送信者情報なし）
   const { data: messages, error } = await supabase
     .from("encouragement_messages")
     .select(
       `
       *,
-      profiles!encouragement_messages_sender_id_fkey(display_name, avatar_url),
       study_logs:related_study_log_id(
         study_date,
         total_problems,
@@ -687,7 +686,23 @@ export async function getRecentEncouragementMessages() {
     return { success: false as const, error: "応援メッセージの取得に失敗しました" }
   }
 
-  return { success: true as const, messages: messages || [] }
+  // 送信者情報を取得（sender_id経由でprofilesを取得）
+  const messagesWithSender = await Promise.all(
+    (messages || []).map(async (msg) => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("display_name, avatar_url")
+        .eq("id", msg.sender_id)
+        .single()
+
+      return {
+        ...msg,
+        sender_profile: profile || { display_name: "不明", avatar_url: null }
+      }
+    })
+  )
+
+  return { success: true as const, messages: messagesWithSender }
 }
 
 /**
@@ -720,13 +735,12 @@ export async function getAllEncouragementMessages(filters?: {
     return { success: false as const, error: "生徒情報の取得に失敗しました" }
   }
 
-  // 基本クエリ
+  // 基本クエリ（送信者情報なし）
   let query = supabase
     .from("encouragement_messages")
     .select(
       `
       *,
-      profiles!encouragement_messages_sender_id_fkey(display_name, avatar_url),
       study_logs:related_study_log_id(
         study_date,
         total_problems,
@@ -788,7 +802,23 @@ export async function getAllEncouragementMessages(filters?: {
     })
   }
 
-  return { success: true as const, messages: filteredMessages }
+  // 送信者情報を取得（sender_id経由でprofilesを取得）
+  const messagesWithSender = await Promise.all(
+    filteredMessages.map(async (msg) => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("display_name, avatar_url")
+        .eq("id", msg.sender_id)
+        .single()
+
+      return {
+        ...msg,
+        sender_profile: profile || { display_name: "不明", avatar_url: null }
+      }
+    })
+  )
+
+  return { success: true as const, messages: messagesWithSender }
 }
 
 /**
