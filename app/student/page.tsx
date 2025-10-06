@@ -162,7 +162,6 @@ const LearningHistoryCalendar = ({ calendarData }: { calendarData: { [dateStr: s
     dark: "bg-primary border-primary",
   }
 
-  const today = new Date()
   const isCurrentMonth = selectedMonth.getFullYear() === today.getFullYear() && selectedMonth.getMonth() === today.getMonth()
 
   return (
