@@ -175,7 +175,7 @@ export default function StudentEncouragementPage() {
         ) : (
           messages.map((msg, index) => {
             const isExpanded = expandedCards.has(index)
-            const senderProfile = msg.profiles
+            const senderProfile = msg.sender_profile
             const studyLog = msg.study_logs
 
             const accuracy =
@@ -223,7 +223,7 @@ export default function StudentEncouragementPage() {
                 <CardContent className="space-y-4">
                   {/* 応援メッセージ */}
                   <div className="bg-white p-4 rounded-lg border border-pink-100">
-                    <p className="text-slate-800 whitespace-pre-wrap">{msg.message_text}</p>
+                    <p className="text-slate-800 whitespace-pre-wrap">{msg.message}</p>
                   </div>
 
                   {/* 詳細表示切り替え */}

@@ -959,13 +959,13 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
   const safeMessages = Array.isArray(messages) ? messages : []
 
   const encouragementMessages = safeMessages.map((msg) => {
-    const senderProfile = msg.profiles
+    const senderProfile = msg.sender_profile
     const baseMessage = msg.message || ""
 
     return {
       recordTime: formatDate(msg.sent_at),
       from: senderProfile?.display_name || "応援者",
-      avatar: msg.sender_role === "parent" ? "parent1" : "coach",
+      avatar: senderProfile?.avatar_url || (msg.sender_role === "parent" ? "parent1" : "coach"),
       message: baseMessage,
       senderRole: msg.sender_role || "unknown",
     }
