@@ -75,23 +75,23 @@ export async function determineWeekType() {
   // 今週のデータ
   const { data: thisWeekLogs } = await supabase
     .from("study_logs")
-    .select("total_questions, correct_answers")
+    .select("total_problems, correct_count")
     .eq("student_id", student.id)
-    .gte("study_date", thisMonday.toISOString())
+    .gte("study_date", thisMonday.toISOString().split('T')[0])
 
   // 先週のデータ
   const { data: lastWeekLogs } = await supabase
     .from("study_logs")
-    .select("total_questions, correct_answers")
+    .select("total_problems, correct_count")
     .eq("student_id", student.id)
-    .gte("study_date", lastMonday.toISOString())
-    .lte("study_date", lastSunday.toISOString())
+    .gte("study_date", lastMonday.toISOString().split('T')[0])
+    .lte("study_date", lastSunday.toISOString().split('T')[0])
 
   // 正答率を計算
   const calculateAccuracy = (logs: any[] | null) => {
     if (!logs || logs.length === 0) return 0
-    const total = logs.reduce((sum, log) => sum + (log.total_questions || 0), 0)
-    const correct = logs.reduce((sum, log) => sum + (log.correct_answers || 0), 0)
+    const total = logs.reduce((sum, log) => sum + (log.total_problems || 0), 0)
+    const correct = logs.reduce((sum, log) => sum + (log.correct_count || 0), 0)
     return total > 0 ? (correct / total) * 100 : 0
   }
 
@@ -106,8 +106,8 @@ export async function determineWeekType() {
   const { data: upcomingTests } = await supabase
     .from("test_schedules")
     .select("test_date, test_types(name)")
-    .gte("test_date", thisMonday.toISOString())
-    .lte("test_date", nextWeek.toISOString())
+    .gte("test_date", thisMonday.toISOString().split('T')[0])
+    .lte("test_date", nextWeek.toISOString().split('T')[0])
 
   const hasUpcomingTest = upcomingTests && upcomingTests.length > 0
 
