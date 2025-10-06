@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 
 /**
  * 生徒の学年に応じたテスト日程を取得
+ * 目標設定期間内のテストのみ取得
  */
 export async function getAvailableTests() {
   const supabase = await createClient()
@@ -32,24 +33,24 @@ export async function getAvailableTests() {
   const now = new Date()
   const tokyoNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Tokyo" }))
 
-  // 表示期間内のテスト日程を取得
+  // 目標設定期間内のテスト日程を取得
   const { data: tests, error: testsError } = await supabase
     .from("test_schedules")
     .select(`
       id,
       test_type_id,
       test_date,
-      display_start_date,
-      display_end_date,
-      test_types (
+      goal_setting_start_date,
+      goal_setting_end_date,
+      test_types!inner (
         id,
         name,
-        target_grade
+        grade
       )
     `)
-    .eq("test_types.target_grade", student.grade)
-    .lte("display_start_date", tokyoNow.toISOString())
-    .gte("display_end_date", tokyoNow.toISOString())
+    .eq("test_types.grade", student.grade)
+    .lte("goal_setting_start_date", tokyoNow.toISOString())
+    .gte("goal_setting_end_date", tokyoNow.toISOString())
     .order("test_date", { ascending: true })
 
   if (testsError) {
@@ -60,7 +61,8 @@ export async function getAvailableTests() {
 }
 
 /**
- * 目標を保存
+ * 目標を保存（コース・組・思いを保存）
+ * 重複時は更新
  */
 export async function saveTestGoal(
   testScheduleId: string,
@@ -96,7 +98,7 @@ export async function saveTestGoal(
     .select("id")
     .eq("student_id", student.id)
     .eq("test_schedule_id", testScheduleId)
-    .single()
+    .maybeSingle()
 
   if (existingGoal) {
     // 既存の目標を更新
@@ -169,13 +171,9 @@ export async function getTestGoal(testScheduleId: string) {
     .select("*")
     .eq("student_id", student.id)
     .eq("test_schedule_id", testScheduleId)
-    .single()
+    .maybeSingle()
 
   if (goalError) {
-    // 目標が見つからない場合はエラーではない
-    if (goalError.code === "PGRST116") {
-      return { goal: null }
-    }
     return { error: goalError.message }
   }
 
