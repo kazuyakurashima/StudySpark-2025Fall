@@ -20,7 +20,11 @@ const getGreetingMessage = (userName: string, lastLoginInfo: { lastLoginDays: nu
   return `お久しぶり、${userName}さん`
 }
 
-const getAvatarSrc = (avatarId: string) => {
+const getAvatarSrc = (avatarId?: string) => {
+  if (avatarId && avatarId.startsWith("http")) {
+    return avatarId
+  }
+
   const avatarMap: { [key: string]: string } = {
     student1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student1-xZFJU5uXJO4DEfUbq1jbTMQUXReyM0.png",
     student2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student2-mZ9Q9oVm43IQoRyxSYytVFYgp3JS1V.png",
@@ -37,7 +41,7 @@ const getAvatarSrc = (avatarId: string) => {
     parent5: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent5-dGCLocpgcZw4lXWRiPmTHkXURBXXoH.png",
     parent6: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent6-gKoeUywhHoKWJ4BPEk69iW6idztaLl.png",
   }
-  return avatarMap[avatarId] || avatarMap["student1"]
+  return avatarMap[avatarId || ""] || avatarMap["student1"]
 }
 
 const getLearningIntensity = (date: string, calendarData: { [dateStr: string]: { subjectCount: number; accuracy80Count: number } }) => {

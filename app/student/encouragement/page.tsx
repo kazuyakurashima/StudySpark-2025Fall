@@ -67,18 +67,19 @@ export default function StudentEncouragementPage() {
     return date.toLocaleDateString("ja-JP", { month: "short", day: "numeric" })
   }
 
-  const getAvatarSrc = (avatarId: string) => {
-    const avatarMap: { [key: string]: string } = {
+  const getAvatarSrc = (avatarUrl?: string | null, senderRole?: "parent" | "coach") => {
+    if (avatarUrl) return avatarUrl
+
+    const defaultAvatars: Record<"parent" | "coach", string> = {
+      parent: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent1-HbhESuJlC27LuGOGupullRXyEUzFLy.png",
       coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/coach-LENT7C1nR9yWT7UBNTHgxnWakF66Pr.png",
-      ai_coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png",
-      parent1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent1-HbhESuJlC27LuGOGupullRXyEUzFLy.png",
-      parent2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent2-zluk4uVJLfzP8dBe0I7v5fVGSn5QfU.png",
-      parent3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent3-EzBDrjsFP5USAgnSPTXjcdNeq1bzSm.png",
-      parent4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent4-YHYTNRnNQ7bRb6aAfTNEFMozjGRlZq.png",
-      parent5: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent5-dGCLocpgcZw4lXWRiPmTHkXURBXXoH.png",
-      parent6: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent6-gKoeUywhHoKWJ4BPEk69iW6idztaLl.png",
     }
-    return avatarMap[avatarId] || avatarMap["parent1"]
+
+    if (senderRole && senderRole in defaultAvatars) {
+      return defaultAvatars[senderRole]
+    }
+
+    return defaultAvatars.parent
   }
 
   return (
@@ -192,12 +193,14 @@ export default function StudentEncouragementPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <Avatar className="h-12 w-12 border-2 border-white shadow-md">
-                        <AvatarImage src={getAvatarSrc(senderProfile?.avatar || "parent1")} />
-                        <AvatarFallback>{senderProfile?.nickname?.[0] || "?"}</AvatarFallback>
+                        <AvatarImage src={getAvatarSrc(senderProfile?.avatar_url, msg.sender_role)} />
+                        <AvatarFallback>
+                          {senderProfile?.display_name?.charAt(0) || (msg.sender_role === "coach" ? "指" : "保")}
+                        </AvatarFallback>
                       </Avatar>
                       <div>
                         <div className="flex items-center gap-2">
-                          <CardTitle className="text-base">{senderProfile?.nickname || "応援者"}</CardTitle>
+                          <CardTitle className="text-base">{senderProfile?.display_name || "応援者"}</CardTitle>
                           <Badge
                             variant="outline"
                             className={
@@ -273,8 +276,8 @@ export default function StudentEncouragementPage() {
                               <span className="text-slate-600">学習内容:</span>
                               <p className="font-medium text-slate-800 mt-1">
                                 {Array.isArray(studyLog.study_content_types)
-                                  ? studyLog.study_content_types[0]?.name
-                                  : studyLog.study_content_types?.name || "不明"}
+                                  ? studyLog.study_content_types[0]?.content_name
+                                  : studyLog.study_content_types?.content_name || "不明"}
                               </p>
                             </div>
                             {accuracy !== null && (

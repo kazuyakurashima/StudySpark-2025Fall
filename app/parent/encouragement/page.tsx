@@ -317,8 +317,8 @@ export default function ParentEncouragementPage() {
                           <span className="text-slate-600">学習内容:</span>
                           <p className="font-medium">
                             {Array.isArray(log.study_content_types)
-                              ? log.study_content_types[0]?.name
-                              : log.study_content_types?.name || "不明"}
+                              ? log.study_content_types[0]?.content_name
+                              : log.study_content_types?.content_name || "不明"}
                           </p>
                         </div>
                         <div>

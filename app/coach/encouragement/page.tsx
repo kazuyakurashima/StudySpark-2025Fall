@@ -262,7 +262,14 @@ export default function CoachEncouragementPage() {
                       {isExpanded && (
                         <div className="space-y-4 pt-4 border-t">
                           <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div><span className="text-slate-600">学習内容:</span><p className="font-medium">{Array.isArray(log.study_content_types) ? log.study_content_types[0]?.name : log.study_content_types?.name || "不明"}</p></div>
+                            <div>
+                              <span className="text-slate-600">学習内容:</span>
+                              <p className="font-medium">
+                                {Array.isArray(log.study_content_types)
+                                  ? log.study_content_types[0]?.content_name
+                                  : log.study_content_types?.content_name || "不明"}
+                              </p>
+                            </div>
                             <div><span className="text-slate-600">正答数:</span><p className="font-medium">{log.correct_count} / {log.total_problems}問</p></div>
                           </div>
 
@@ -281,7 +288,7 @@ export default function CoachEncouragementPage() {
                                       </Badge>
                                       <span className="text-xs text-slate-500">{new Date(msg.created_at).toLocaleString("ja-JP")}</span>
                                     </div>
-                                    <p className="text-sm">{msg.message_text}</p>
+                                    <p className="text-sm">{msg.message}</p>
                                   </div>
                                 ))}
                               </div>

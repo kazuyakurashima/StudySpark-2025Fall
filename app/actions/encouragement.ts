@@ -34,7 +34,7 @@ export async function getStudyLogsForEncouragement(
       created_at,
       study_sessions(session_number, grade),
       subjects(name),
-      study_content_types(name),
+      study_content_types(content_name),
       encouragement_messages(id, message, sender_role, created_at)
     `)
     .eq("student_id", studentId)
@@ -370,7 +370,7 @@ export async function getAllStudyLogsForCoach(filters?: {
       students(id, full_name, grade, profiles!students_user_id_fkey(avatar_url)),
       study_sessions(session_number, grade),
       subjects(name),
-      study_content_types(name),
+      study_content_types(content_name),
       encouragement_messages(id, message, sender_role, created_at, sender_id)
     `)
     .in("student_id", studentIds)
@@ -672,7 +672,7 @@ export async function getRecentEncouragementMessages() {
         reflection_text,
         subjects(name),
         study_sessions(session_number),
-        study_content_types(name)
+        study_content_types(content_name)
       )
     `
     )
@@ -763,7 +763,7 @@ export async function getAllEncouragementMessages(filters?: {
         reflection_text,
         subjects(name),
         study_sessions(session_number),
-        study_content_types(name)
+        study_content_types(content_name)
       )
     `
     )

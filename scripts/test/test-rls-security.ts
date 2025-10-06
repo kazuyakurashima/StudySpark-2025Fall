@@ -14,6 +14,7 @@
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321'
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU'
 
 const adminClient = createClient(supabaseUrl, supabaseServiceKey)
@@ -44,16 +45,17 @@ function logResult(test: string, actual: 'blocked' | 'allowed', error?: string) 
 async function setupTestData() {
   console.log('\n📝 テストデータをセットアップ中...\n')
 
-  // 2人の生徒を作成
+  // 2人の生徒を作成（タイムスタンプで一意性を確保）
+  const timestamp = Date.now()
   const { data: student1, error: s1Error } = await adminClient.auth.admin.createUser({
-    email: 'security-student1@test.local',
+    email: `security-student1-${timestamp}@test.local`,
     password: 'testpass123',
     email_confirm: true,
     user_metadata: { role: 'student' }
   })
 
   const { data: student2, error: s2Error } = await adminClient.auth.admin.createUser({
-    email: 'security-student2@test.local',
+    email: `security-student2-${timestamp}@test.local`,
     password: 'testpass123',
     email_confirm: true,
     user_metadata: { role: 'student' }
@@ -66,8 +68,8 @@ async function setupTestData() {
 
   // profiles作成
   await adminClient.from('profiles').insert([
-    { id: student1!.user.id, role: 'student', nickname: 'テスト生徒1', avatar: 'default' },
-    { id: student2!.user.id, role: 'student', nickname: 'テスト生徒2', avatar: 'default' }
+    { id: student1!.user.id, role: 'student', display_name: 'テスト生徒1', avatar_url: null },
+    { id: student2!.user.id, role: 'student', display_name: 'テスト生徒2', avatar_url: null }
   ])
 
   // students レコード作成
@@ -75,7 +77,7 @@ async function setupTestData() {
     .from('students')
     .insert({
       user_id: student1!.user.id,
-      login_id: 'security-student1',
+      login_id: `security-student1-${timestamp}`,
       full_name: 'セキュリティテスト生徒1',
       grade: 6,
       course: 'C'
@@ -92,7 +94,7 @@ async function setupTestData() {
     .from('students')
     .insert({
       user_id: student2!.user.id,
-      login_id: 'security-student2',
+      login_id: `security-student2-${timestamp}`,
       full_name: 'セキュリティテスト生徒2',
       grade: 6,
       course: 'C'
@@ -107,7 +109,7 @@ async function setupTestData() {
 
   // 保護者を作成（student1の親）
   const { data: parent, error: pError } = await adminClient.auth.admin.createUser({
-    email: 'security-parent@test.local',
+    email: `security-parent-${timestamp}@test.local`,
     password: 'testpass123',
     email_confirm: true,
     user_metadata: { role: 'parent' }
@@ -121,15 +123,17 @@ async function setupTestData() {
   await adminClient.from('profiles').insert({
     id: parent!.user.id,
     role: 'parent',
-    nickname: 'テスト保護者',
-    avatar: 'default'
+    display_name: 'テスト保護者',
+    avatar_url: null
   })
 
   // parents レコード作成
   const { data: parentRecord, error: prError } = await adminClient
     .from('parents')
     .insert({
-      user_id: parent!.user.id
+      user_id: parent!.user.id,
+      full_name: 'テスト保護者',
+      furigana: 'テストホゴシャ'
     })
     .select()
     .single()
@@ -149,7 +153,7 @@ async function setupTestData() {
 
   // 指導者を作成（student1の担当）
   const { data: coach, error: cError } = await adminClient.auth.admin.createUser({
-    email: 'security-coach@test.local',
+    email: `security-coach-${timestamp}@test.local`,
     password: 'testpass123',
     email_confirm: true,
     user_metadata: { role: 'coach' }
@@ -163,8 +167,8 @@ async function setupTestData() {
   await adminClient.from('profiles').insert({
     id: coach!.user.id,
     role: 'coach',
-    nickname: 'テスト指導者',
-    avatar: 'default'
+    display_name: 'テスト指導者',
+    avatar_url: null
   })
 
   // coaches レコード作成
@@ -172,7 +176,9 @@ async function setupTestData() {
     .from('coaches')
     .insert({
       user_id: coach!.user.id,
-      invitation_code: 'TEST123'
+      full_name: 'テスト指導者',
+      furigana: 'テストシドウシャ',
+      invitation_code: null  // NULL許可に変更されたため
     })
     .select()
     .single()
@@ -191,28 +197,40 @@ async function setupTestData() {
     })
 
   // 保護者がstudent1に送ったメッセージを作成
-  const { data: parentMsg } = await adminClient
+  const { data: parentMsg, error: pmError } = await adminClient
     .from('encouragement_messages')
     .insert({
       student_id: studentRecord1!.id,
       sender_id: parent!.user.id,
       sender_role: 'parent',
-      message_text: '保護者からのメッセージ'
+      support_type: 'quick',
+      message: '保護者からのメッセージ'
     })
     .select()
     .single()
 
+  if (pmError) {
+    console.log('保護者メッセージ作成エラー:', pmError.message)
+    return null
+  }
+
   // 指導者がstudent1に送ったメッセージを作成
-  const { data: coachMsg } = await adminClient
+  const { data: coachMsg, error: cmError } = await adminClient
     .from('encouragement_messages')
     .insert({
       student_id: studentRecord1!.id,
       sender_id: coach!.user.id,
       sender_role: 'coach',
-      message_text: '指導者からのメッセージ'
+      support_type: 'quick',
+      message: '指導者からのメッセージ'
     })
     .select()
     .single()
+
+  if (cmError) {
+    console.log('指導者メッセージ作成エラー:', cmError.message)
+    return null
+  }
 
   console.log('✅ テストデータセットアップ完了')
   console.log(`  - 生徒1: ${studentRecord1!.id}`)
@@ -226,16 +244,18 @@ async function setupTestData() {
     parent: parent!.user,
     coach: coach!.user,
     parentMsg: parentMsg!,
-    coachMsg: coachMsg!
+    coachMsg: coachMsg!,
+    parentEmail: `security-parent-${timestamp}@test.local`,
+    coachEmail: `security-coach-${timestamp}@test.local`
   }
 }
 
 async function testParentSecurity(testData: any) {
   console.log('\n👨‍👩‍👧 保護者ロールのセキュリティテスト\n')
 
-  const parentClient = createClient(supabaseUrl, supabaseServiceKey)
+  const parentClient = createClient(supabaseUrl, supabaseAnonKey)
   await parentClient.auth.signInWithPassword({
-    email: 'security-parent@test.local',
+    email: testData.parentEmail,
     password: 'testpass123'
   })
 
@@ -259,20 +279,25 @@ async function testParentSecurity(testData: any) {
       student_id: testData.student2.id,
       sender_id: testData.parent.id,
       sender_role: 'parent',
-      message_text: 'student2宛メッセージ'
+      support_type: 'quick',
+      message: 'student2宛メッセージ'
     })
     .select()
     .single()
 
-  const { error: deleteError } = await parentClient
+  const { error: deleteError, data: deleteData } = await parentClient
     .from('encouragement_messages')
     .delete()
     .eq('id', student2Msg!.id)
+    .select()
+
+  // RLS blocks can manifest as either an error OR 0 rows affected
+  const wasBlocked = deleteError || (deleteData && deleteData.length === 0)
 
   logResult(
     '保護者: 他の生徒宛の自分のメッセージを削除',
-    deleteError ? 'blocked' : 'allowed',
-    deleteError?.message
+    wasBlocked ? 'blocked' : 'allowed',
+    deleteError?.message || (wasBlocked ? 'RLS policy blocked: 0 rows affected' : undefined)
   )
 
   await parentClient.auth.signOut()
@@ -281,9 +306,9 @@ async function testParentSecurity(testData: any) {
 async function testCoachSecurity(testData: any) {
   console.log('\n👨‍🏫 指導者ロールのセキュリティテスト\n')
 
-  const coachClient = createClient(supabaseUrl, supabaseServiceKey)
+  const coachClient = createClient(supabaseUrl, supabaseAnonKey)
   await coachClient.auth.signInWithPassword({
-    email: 'security-coach@test.local',
+    email: testData.coachEmail,
     password: 'testpass123'
   })
 
@@ -306,20 +331,25 @@ async function testCoachSecurity(testData: any) {
       student_id: testData.student2.id,
       sender_id: testData.coach.id,
       sender_role: 'coach',
-      message_text: 'student2宛メッセージ'
+      support_type: 'quick',
+      message: 'student2宛メッセージ'
     })
     .select()
     .single()
 
-  const { error: deleteError } = await coachClient
+  const { error: deleteError, data: deleteData } = await coachClient
     .from('encouragement_messages')
     .delete()
     .eq('id', student2Msg!.id)
+    .select()
+
+  // RLS blocks can manifest as either an error OR 0 rows affected
+  const wasBlocked = deleteError || (deleteData && deleteData.length === 0)
 
   logResult(
     '指導者: 担当外生徒宛の自分のメッセージを削除',
-    deleteError ? 'blocked' : 'allowed',
-    deleteError?.message
+    wasBlocked ? 'blocked' : 'allowed',
+    deleteError?.message || (wasBlocked ? 'RLS policy blocked: 0 rows affected' : undefined)
   )
 
   await coachClient.auth.signOut()

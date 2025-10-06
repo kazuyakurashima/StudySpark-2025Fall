@@ -82,8 +82,8 @@ async function createTestUsers() {
     await adminClient.from('profiles').insert({
       id: student.user.id,
       role: 'student',
-      nickname: 'テスト生徒',
-      avatar: 'smile'
+      display_name: 'テスト生徒',
+      avatar_url: null
     })
 
     const { data: studentData } = await adminClient.from('students').insert({
@@ -100,8 +100,8 @@ async function createTestUsers() {
     await adminClient.from('profiles').insert({
       id: parent.user.id,
       role: 'parent',
-      nickname: 'テスト保護者',
-      avatar: 'smile'
+      display_name: 'テスト保護者',
+      avatar_url: null
     })
 
     const { data: parentData } = await adminClient.from('parents').insert({
@@ -115,8 +115,8 @@ async function createTestUsers() {
     await adminClient.from('profiles').insert({
       id: coach.user.id,
       role: 'coach',
-      nickname: 'テスト指導者',
-      avatar: 'smile'
+      display_name: 'テスト指導者',
+      avatar_url: null
     })
 
     const { data: coachData } = await adminClient.from('coaches').insert({
@@ -174,7 +174,7 @@ async function testStudentRLS(studentUser: any) {
       student_id: 'dummy-id',
       sender_id: studentUser.id,
       sender_role: 'student',
-      message_text: 'テスト',
+      message: 'テスト',
       support_type: 'custom'
     })
 
