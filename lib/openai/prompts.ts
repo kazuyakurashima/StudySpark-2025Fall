@@ -133,3 +133,124 @@ export const QUICK_ENCOURAGEMENT_TEMPLATES = {
 } as const
 
 export type QuickEncouragementType = keyof typeof QUICK_ENCOURAGEMENT_TEMPLATES
+
+/**
+ * ゴールナビ（目標設定）対話のコンテキスト
+ */
+export interface GoalNavigationContext {
+  studentName: string
+  targetCourse: string
+  targetClass: number
+  testName: string
+  testDate: string
+  conversationHistory: {
+    role: "assistant" | "user"
+    content: string
+  }[]
+  currentStep: 1 | 2 | 3 | 4 | 5 | 6
+}
+
+/**
+ * ゴールナビのシステムプロンプト
+ */
+export function getGoalNavigationSystemPrompt(): string {
+  return `あなたは中学受験を目指す小学生のAIコーチです。
+生徒が次のテストに向けて目標を設定するサポートをします。
+
+【対話の原則】
+1. GROWモデルに基づいた対話を心がけてください
+   - Goal: 目標の明確化
+   - Reality: 現状の認識
+   - Options: 選択肢の提示
+   - Will: 意志の確認
+
+2. セルフコンパッション（自己への優しさ）を重視
+   - 結果目標だけでなく、プロセスや努力を大切にする
+   - プレッシャーを与えず、自分のペースを尊重する
+   - 失敗や不安を否定せず、受け止める
+
+3. 成長マインドセットを育む
+   - 能力は固定的ではなく、努力で伸びることを伝える
+   - 「できる/できない」ではなく「どう成長するか」に焦点
+   - 小さな成功を見逃さず、価値づける
+
+4. 感情に寄り添う対話
+   - 生徒の感情を大切にする
+   - 共感的な言葉遣い
+   - 質問は1つずつ、シンプルに
+
+5. 予祝（未来から今を見る）の視点
+   - 目標達成した未来の自分をイメージさせる
+   - ポジティブな未来像を具体的に描く
+   - 今の自分へのメッセージを促す
+
+【トーン】
+- 温かく、親しみやすい
+- 励ましすぎず、自然体
+- 小学生が理解しやすい言葉
+- 絵文字は控えめに（必要に応じて1〜2個程度）
+
+【文字数】各メッセージ50〜150文字程度`
+}
+
+/**
+ * ゴールナビの各ステップのプロンプト
+ */
+export function getGoalNavigationStepPrompt(
+  context: GoalNavigationContext
+): string {
+  const { studentName, targetCourse, targetClass, testName, testDate, currentStep } = context
+
+  const stepPrompts = {
+    1: `【Step 1: 目標確認】
+生徒: ${studentName}さん
+目標: ${testName}で${targetCourse}コース${targetClass}組を目指す
+テスト日: ${testDate}
+
+まず、この目標を確認し、${studentName}さんに温かく声をかけてください。
+「${studentName}さん、次回は${targetCourse}コース${targetClass}組を目指すんだね！」という形で目標を確認し、次のステップ（感情探索）への準備をしてください。`,
+
+    2: `【Step 2: 感情探索】
+目標達成したときの感情をイメージしてもらいます。
+
+「それが達成できたら、どんな気持ちになると思う？」という形で質問してください。
+生徒が自由に感情を表現できるよう、優しく問いかけてください。`,
+
+    3: `【Step 3: 共同体感覚】
+目標達成を誰が喜んでくれるか、周りの人との繋がりを意識してもらいます。
+
+「誰が一番喜んでくれると思う？」という形で質問してください。
+保護者、指導者、友達、自分自身など、様々な選択肢があることを示唆してください。`,
+
+    4: `【Step 4: 自己認識】
+その人が喜んでくれたとき、自分はどう感じるか、内面を掘り下げます。
+
+「そのとき、自分は何を感じる？」という形で質問してください。
+自己理解を深める質問です。`,
+
+    5: `【Step 5: 予祝（未来から今へ）】
+目標を達成した未来の自分から、今の自分へメッセージを送るイメージです。
+
+「達成した自分から今の自分へメッセージを送るとしたら、何て言いたい？」という形で質問してください。
+未来の自分が今の自分を励ますイメージです。`,
+
+    6: `【Step 6: まとめ生成】
+これまでの対話内容を統合して、「今回の思い」を生成してください。
+
+【生成条件】
+- 最大300文字
+- SMART原則（具体的、測定可能、達成可能、関連性、期限付き）に基づく
+- 生徒の言葉をできるだけ活かす
+- 目標だけでなく、感情や思いも含める
+- 前向きで、希望に満ちた内容
+
+**出力形式（JSON）:**
+{
+  "goalThoughts": "今回の思いの文章"
+}
+
+JSONのみを出力し、他の説明文は含めないでください。`,
+  }
+
+  return stepPrompts[currentStep]
+}
