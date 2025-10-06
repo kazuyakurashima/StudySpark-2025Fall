@@ -252,3 +252,117 @@ export async function getCurrentUser() {
     profile,
   }
 }
+
+/**
+ * パスワードリセットメール送信 (保護者・指導者用)
+ */
+export async function sendPasswordResetEmail(email: string) {
+  const supabase = await createClient()
+  const headersList = await headers()
+  const origin = headersList.get("origin") || "http://localhost:3000"
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${origin}/auth/reset-password`,
+  })
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  return {
+    success: true,
+    message: "パスワードリセットメールを送信しました。メールをご確認ください。",
+  }
+}
+
+/**
+ * 生徒のパスワードリセット (保護者専用)
+ */
+export async function resetStudentPassword(
+  studentId: string,
+  newPassword: string
+) {
+  const supabase = await createClient()
+
+  // 現在のユーザーが保護者であることを確認
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: "ログインが必要です" }
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single()
+
+  if (!profile || profile.role !== "parent") {
+    return { error: "保護者のみ実行可能です" }
+  }
+
+  // 保護者と生徒の親子関係を確認
+  const { data: parentRecord } = await supabase
+    .from("parents")
+    .select("id")
+    .eq("user_id", user.id)
+    .single()
+
+  if (!parentRecord) {
+    return { error: "保護者レコードが見つかりません" }
+  }
+
+  const { data: relation } = await supabase
+    .from("parent_child_relations")
+    .select("*")
+    .eq("parent_id", parentRecord.id)
+    .eq("student_id", studentId)
+    .single()
+
+  if (!relation) {
+    return { error: "指定された生徒との親子関係が見つかりません" }
+  }
+
+  // 生徒のuser_idを取得
+  const { data: student } = await supabase
+    .from("students")
+    .select("user_id")
+    .eq("id", studentId)
+    .single()
+
+  if (!student) {
+    return { error: "生徒が見つかりません" }
+  }
+
+  // API Route経由でパスワードを更新（サービスロールキーが必要）
+  try {
+    const headersList = await headers()
+    const origin = headersList.get("origin") || "http://localhost:3000"
+
+    const response = await fetch(`${origin}/api/auth/reset-student-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        userId: student.user_id,
+        newPassword,
+      }),
+    })
+
+    const result = await response.json()
+
+    if (!response.ok || result.error) {
+      return { error: result.error || "パスワードリセットに失敗しました" }
+    }
+
+    return {
+      success: true,
+      message: "生徒のパスワードを変更しました",
+    }
+  } catch (error) {
+    return { error: "サーバーエラーが発生しました" }
+  }
+}

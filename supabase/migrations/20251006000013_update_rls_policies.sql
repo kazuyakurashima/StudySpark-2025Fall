@@ -241,10 +241,24 @@ CREATE POLICY "Parents can manage own sent encouragement messages"
   FOR UPDATE
   TO authenticated
   USING (
-    sender_id = auth.uid() AND sender_role = 'parent'
+    sender_id = auth.uid() AND
+    sender_role = 'parent' AND
+    student_id IN (
+      SELECT pcr.student_id
+      FROM public.parent_child_relations pcr
+      JOIN public.parents p ON p.id = pcr.parent_id
+      WHERE p.user_id = auth.uid()
+    )
   )
   WITH CHECK (
-    sender_id = auth.uid() AND sender_role = 'parent'
+    sender_id = auth.uid() AND
+    sender_role = 'parent' AND
+    student_id IN (
+      SELECT pcr.student_id
+      FROM public.parent_child_relations pcr
+      JOIN public.parents p ON p.id = pcr.parent_id
+      WHERE p.user_id = auth.uid()
+    )
   );
 
 CREATE POLICY "Parents can delete own sent encouragement messages"
@@ -252,7 +266,14 @@ CREATE POLICY "Parents can delete own sent encouragement messages"
   FOR DELETE
   TO authenticated
   USING (
-    sender_id = auth.uid() AND sender_role = 'parent'
+    sender_id = auth.uid() AND
+    sender_role = 'parent' AND
+    student_id IN (
+      SELECT pcr.student_id
+      FROM public.parent_child_relations pcr
+      JOIN public.parents p ON p.id = pcr.parent_id
+      WHERE p.user_id = auth.uid()
+    )
   );
 
 CREATE POLICY "Parents can send encouragement messages to their children"
@@ -288,10 +309,24 @@ CREATE POLICY "Coaches can manage own sent encouragement messages"
   FOR UPDATE
   TO authenticated
   USING (
-    sender_id = auth.uid() AND sender_role = 'coach'
+    sender_id = auth.uid() AND
+    sender_role = 'coach' AND
+    student_id IN (
+      SELECT csr.student_id
+      FROM public.coach_student_relations csr
+      JOIN public.coaches c ON c.id = csr.coach_id
+      WHERE c.user_id = auth.uid()
+    )
   )
   WITH CHECK (
-    sender_id = auth.uid() AND sender_role = 'coach'
+    sender_id = auth.uid() AND
+    sender_role = 'coach' AND
+    student_id IN (
+      SELECT csr.student_id
+      FROM public.coach_student_relations csr
+      JOIN public.coaches c ON c.id = csr.coach_id
+      WHERE c.user_id = auth.uid()
+    )
   );
 
 CREATE POLICY "Coaches can delete own sent encouragement messages"
@@ -299,7 +334,14 @@ CREATE POLICY "Coaches can delete own sent encouragement messages"
   FOR DELETE
   TO authenticated
   USING (
-    sender_id = auth.uid() AND sender_role = 'coach'
+    sender_id = auth.uid() AND
+    sender_role = 'coach' AND
+    student_id IN (
+      SELECT csr.student_id
+      FROM public.coach_student_relations csr
+      JOIN public.coaches c ON c.id = csr.coach_id
+      WHERE c.user_id = auth.uid()
+    )
   );
 
 CREATE POLICY "Coaches can send encouragement messages to assigned students"

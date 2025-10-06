@@ -169,12 +169,18 @@ export default function LoginPage() {
                   >
                     {isLoading ? "ログイン中..." : "ログイン"}
                   </Button>
-                  <div className="text-center">
+                  <div className="space-y-2 text-center">
                     <a
                       href="/register/parent"
-                      className="text-sm text-primary hover:text-primary/80 underline transition-colors"
+                      className="block text-sm text-primary hover:text-primary/80 underline transition-colors"
                     >
                       保護者アカウントをお持ちでない方はこちら
+                    </a>
+                    <a
+                      href="/auth/forgot-password"
+                      className="block text-sm text-muted-foreground hover:text-foreground underline transition-colors"
+                    >
+                      パスワードを忘れた方はこちら
                     </a>
                   </div>
                 </form>
@@ -214,6 +220,14 @@ export default function LoginPage() {
                   >
                     {isLoading ? "ログイン中..." : "ログイン"}
                   </Button>
+                  <div className="text-center">
+                    <a
+                      href="/auth/forgot-password"
+                      className="block text-sm text-muted-foreground hover:text-foreground underline transition-colors"
+                    >
+                      パスワードを忘れた方はこちら
+                    </a>
+                  </div>
                 </form>
               </TabsContent>
             </Tabs>

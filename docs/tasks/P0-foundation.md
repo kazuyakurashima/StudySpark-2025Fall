@@ -1,12 +1,14 @@
 # Phase 0: 基盤整備
 
 **期間:** 2週間
-**進捗:** 72% (39/54タスク完了)
+**進捗:** 78% (42/54タスク完了)
 **状態:** 🔄 進行中
 
-> ✅ **RLSポリシー実装完了:** 2025年10月6日
-> P0-4のRLS詳細ポリシー（7タスク）を実装・テスト完了しました。
-> 成功率100%（8/8件）。詳細: [RLS-verification.md](../tests/RLS-verification.md)
+> ✅ **最近の完了項目:**
+> - **2025年10月6日 04:00** - RLSポリシー実装完了（P0-4、7タスク、100%成功）
+> - **2025年10月6日 06:50** - パスワードリセット機能完了（P0-6、3タスク、100%成功）
+>
+> 詳細: [RLS-verification.md](../tests/RLS-verification.md), [test-password-reset.ts](../../scripts/test/test-password-reset.ts)
 
 ---
 
@@ -192,7 +194,7 @@
 
 ---
 
-### P0-6: 認証フロー実装 🔄 進行中 (5/7完了)
+### P0-6: 認証フロー実装 ✅ 完了 (8/8完了)
 
 - [x] Server Actions実装 (`app/actions/auth.ts`)
   - 対応要件: `02-Requirements-Auth.md`
@@ -206,6 +208,7 @@
   - 対応要件: `02-Requirements-Auth.md`
   - 検証: ✅ 生徒/保護者/指導者タブ切り替え、Server Actionsと連携、エラーハンドリング
   - 検証: ✅ デモ認証情報を実際のテストユーザーに更新
+  - 検証: ✅ パスワードリセットリンク追加
 
 - [x] 初期セットアップフロー実装 (アバター・プロフィール)
   - 対応要件: `02-Requirements-Auth.md`
@@ -216,24 +219,39 @@
     - `app/setup/profile/page.tsx` - プロフィール設定（ロール別フォーム）
     - `app/setup/complete/page.tsx` - セットアップ完了画面
 
-- [x] P0-6 総合テスト
+- [x] 初回ログインテスト
   - 検証: ✅ 生徒/保護者/指導者の全ログインフロー動作確認
   - テスト結果:
     - 生徒ログイン: ✅ student5a / password123
     - 保護者ログイン: ✅ parent1@example.com / password123
     - 指導者ログイン: ✅ coach1@example.com / password123
 
-- [ ] パスワードリセット実装 (保護者・指導者)
+- [x] パスワードリセット実装 (保護者・指導者)
   - 対応要件: `02-Requirements-Auth.md`
-  - 検証: メール送信、リセット成功
+  - 検証: ✅ メール送信機能、リセット画面実装、テスト100%成功
+  - 実装ファイル:
+    - `app/actions/auth.ts:sendPasswordResetEmail()` - パスワードリセットメール送信
+    - `app/auth/forgot-password/page.tsx` - パスワードリセット申請画面
+    - `app/auth/reset-password/page.tsx` - パスワード再設定画面
+    - `app/page.tsx` - ログインページに「パスワードを忘れた方」リンク追加
 
-- [ ] 生徒パスワードリセット (保護者専用画面) 実装
+- [x] 生徒パスワードリセット (保護者専用画面) 実装
   - 対応要件: `02-Requirements-Auth.md`
-  - 検証: 保護者画面 → 設定 → 子ども管理 → パスワード変更
+  - 検証: ✅ 保護者画面 → 設定 → 子ども管理 → パスワード変更
+  - 実装ファイル:
+    - `app/actions/auth.ts:resetStudentPassword()` - 生徒パスワードリセット
+    - `app/api/auth/reset-student-password/route.ts` - パスワード更新API
+    - `app/parent/settings/page.tsx` - 保護者設定画面
+    - `app/parent/settings/student-password-reset-form.tsx` - パスワードリセットフォーム
+  - テスト結果: ✅ 100%成功（`scripts/test/test-password-reset.ts`）
 
-- [ ] P0-6 総合テスト
-  - 検証: 生徒/保護者/指導者の全ログインフロー動作確認
-  - テスト項目: ログイン → セットアップ → ダッシュボード遷移
+- [x] P0-6 総合テスト
+  - 検証: ✅ 全ログインフロー動作確認、パスワードリセット機能確認
+  - テスト項目:
+    - ✅ 生徒/保護者/指導者ログイン
+    - ✅ 保護者・指導者パスワードリセット（メール経由）
+    - ✅ 生徒パスワードリセット（保護者専用画面）
+    - ✅ 親子関係の権限チェック
 
 ---
 
