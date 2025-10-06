@@ -288,21 +288,35 @@ export async function getRecentEncouragementMessages(limit: number = 3) {
       return { error: "応援メッセージの取得に失敗しました" }
     }
 
-    // 送信者情報を別途取得
-    const messagesWithSender = await Promise.all(
-      (messages || []).map(async (msg: any) => {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("display_name, avatar_url")
-          .eq("id", msg.sender_id)
-          .single()
+    // 送信者情報を別途取得（RPC経由で安全に取得）
+    if (!messages || messages.length === 0) {
+      return { messages: [] }
+    }
 
-        return {
+    const senderIds = messages.map((msg: any) => msg.sender_id)
+    const { data: senderProfiles, error: senderError } = await supabase.rpc("get_sender_profiles", {
+      sender_ids: senderIds,
+    })
+
+    if (senderError) {
+      console.error("Error fetching sender profiles:", senderError)
+      // フォールバック: 送信者情報なしで返す
+      return {
+        messages: messages.map((msg: any) => ({
           ...msg,
-          profiles: profile || { display_name: "不明", avatar_url: null }
-        }
-      })
-    )
+          profiles: { display_name: "不明", avatar_url: null },
+        })),
+      }
+    }
+
+    // 送信者情報をマージ
+    const messagesWithSender = messages.map((msg: any) => {
+      const senderProfile = senderProfiles?.find((profile: any) => profile.id === msg.sender_id)
+      return {
+        ...msg,
+        profiles: senderProfile || { display_name: "不明", avatar_url: null },
+      }
+    })
 
     return { messages: messagesWithSender }
   } catch (error) {
