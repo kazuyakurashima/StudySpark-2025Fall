@@ -274,7 +274,7 @@ export async function getRecentEncouragementMessages(limit: number = 3) {
         message,
         sent_at,
         sender_role,
-        profiles!encouragement_messages_sender_id_fkey (display_name, avatar_url)
+        sender_id
       `
       )
       .eq("student_id", student.id)
@@ -288,7 +288,23 @@ export async function getRecentEncouragementMessages(limit: number = 3) {
       return { error: "応援メッセージの取得に失敗しました" }
     }
 
-    return { messages: messages || [] }
+    // 送信者情報を別途取得
+    const messagesWithSender = await Promise.all(
+      (messages || []).map(async (msg: any) => {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("display_name, avatar_url")
+          .eq("id", msg.sender_id)
+          .single()
+
+        return {
+          ...msg,
+          profiles: profile || { display_name: "不明", avatar_url: null }
+        }
+      })
+    )
+
+    return { messages: messagesWithSender }
   } catch (error) {
     console.error("Get encouragement messages error:", error)
     return { error: "予期しないエラーが発生しました" }

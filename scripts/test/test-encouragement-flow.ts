@@ -67,7 +67,7 @@ async function test1_ParentQuickEncouragement() {
         sender_id: parent.user_id,
         sender_role: 'parent',
         support_type: 'quick',
-        message_text: 'いつも頑張っているね',
+        message: 'いつも頑張っているね',
         related_study_log_id: studyLog.id,
       })
       .select()
@@ -105,7 +105,7 @@ async function test2_ParentAIEncouragement() {
         student_id,
         total_problems,
         correct_count,
-        students(nickname),
+        students(id, full_name),
         subjects(name),
         study_sessions(session_number)
       `)
@@ -119,7 +119,7 @@ async function test2_ParentAIEncouragement() {
     // 保護者を取得
     const { data: parent, error: parentError } = await supabase
       .from('parents')
-      .select('user_id, id, nickname')
+      .select('user_id, id, profiles!parents_user_id_fkey(display_name)')
       .limit(1)
       .single()
 
@@ -137,7 +137,7 @@ async function test2_ParentAIEncouragement() {
         sender_id: parent.user_id,
         sender_role: 'parent',
         support_type: 'ai',
-        message_text: testMessage,
+        message: testMessage,
         related_study_log_id: studyLog.id,
       })
       .select()
@@ -199,7 +199,7 @@ async function test3_ParentCustomEncouragement() {
         sender_id: parent.user_id,
         sender_role: 'parent',
         support_type: 'custom',
-        message_text: customMessage,
+        message: customMessage,
         related_study_log_id: studyLog.id,
       })
       .select()
@@ -259,7 +259,7 @@ async function test4_CoachQuickEncouragement() {
         sender_id: coach.user_id,
         sender_role: 'coach',
         support_type: 'quick',
-        message_text: 'すごい！',
+        message: 'すごい！',
         related_study_log_id: studyLog.id,
       })
       .select()
@@ -305,11 +305,11 @@ async function test5_StudentReceiveEncouragement() {
       .from('encouragement_messages')
       .select(`
         id,
-        message_text,
+        message,
         sender_role,
         support_type,
         created_at,
-        profiles:sender_id(nickname)
+        sender_id
       `)
       .eq('student_id', studyLog.student_id)
       .order('created_at', { ascending: false })
