@@ -1,4 +1,4 @@
-import { openai } from "./client"
+import { getOpenAIClient } from "./client"
 
 interface ReflectContext {
   studentName: string
@@ -19,6 +19,7 @@ export async function generateReflectMessage(
   context: ReflectContext
 ): Promise<{ message?: string; error?: string }> {
   try {
+    const openai = getOpenAIClient()
     const systemPrompt = getReflectSystemPrompt()
     const userPrompt = getReflectUserPrompt(context)
 
@@ -56,6 +57,7 @@ export async function generateReflectSummary(
   context: ReflectContext
 ): Promise<{ summary?: string; error?: string }> {
   try {
+    const openai = getOpenAIClient()
     const systemPrompt = `あなたは小学生の学習を支援するAIコーチです。
 週次振り返り対話の内容から、生徒の気づきと成長をまとめてください。
 

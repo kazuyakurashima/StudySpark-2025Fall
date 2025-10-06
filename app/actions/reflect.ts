@@ -153,18 +153,26 @@ export async function startCoachingSession(weekType: string) {
     return { error: "生徒情報が見つかりません" }
   }
 
-  // 今週のセッションが既に存在するかチェック
+  // 今週の開始・終了日を算出
   const now = new Date()
   const tokyoNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Tokyo" }))
-  const thisMonday = new Date(tokyoNow)
-  thisMonday.setDate(tokyoNow.getDate() - ((tokyoNow.getDay() + 6) % 7))
-  thisMonday.setHours(0, 0, 0, 0)
 
+  // 今週の月曜日（週開始日）
+  const weekStartDate = new Date(tokyoNow)
+  weekStartDate.setDate(tokyoNow.getDate() - ((tokyoNow.getDay() + 6) % 7))
+  weekStartDate.setHours(0, 0, 0, 0)
+
+  // 今週の日曜日（週終了日）
+  const weekEndDate = new Date(weekStartDate)
+  weekEndDate.setDate(weekStartDate.getDate() + 6)
+  weekEndDate.setHours(23, 59, 59, 999)
+
+  // 今週のセッションが既に存在するかチェック
   const { data: existingSession } = await supabase
     .from("coaching_sessions")
     .select("id")
     .eq("student_id", student.id)
-    .gte("session_date", thisMonday.toISOString())
+    .eq("week_start_date", weekStartDate.toISOString().split('T')[0])
     .maybeSingle()
 
   if (existingSession) {
@@ -176,10 +184,11 @@ export async function startCoachingSession(weekType: string) {
     .from("coaching_sessions")
     .insert({
       student_id: student.id,
-      session_date: tokyoNow.toISOString(),
-      session_type: "weekly_reflection",
+      week_start_date: weekStartDate.toISOString().split('T')[0],
+      week_end_date: weekEndDate.toISOString().split('T')[0],
       week_type: weekType,
       status: "in_progress",
+      started_at: tokyoNow.toISOString(),
     })
     .select()
     .single()
@@ -206,9 +215,10 @@ export async function saveCoachingMessage(
     .from("coaching_messages")
     .insert({
       session_id: sessionId,
-      message_role: role,
-      message_content: content,
+      role: role,
+      content: content,
       turn_number: turnNumber,
+      sent_at: new Date().toISOString(),
     })
 
   if (error) {
@@ -221,7 +231,7 @@ export async function saveCoachingMessage(
 /**
  * コーチングセッションを完了
  */
-export async function completeCoachingSession(sessionId: string, summary: string) {
+export async function completeCoachingSession(sessionId: string, summary: string, totalTurns: number) {
   const supabase = await createClient()
 
   const { error } = await supabase
@@ -229,6 +239,7 @@ export async function completeCoachingSession(sessionId: string, summary: string
     .update({
       status: "completed",
       summary_text: summary,
+      total_turns: totalTurns,
       completed_at: new Date().toISOString(),
     })
     .eq("id", sessionId)
@@ -265,19 +276,23 @@ export async function getCoachingSessions() {
     .from("coaching_sessions")
     .select(`
       id,
-      session_date,
-      session_type,
+      week_start_date,
+      week_end_date,
       week_type,
       status,
       summary_text,
+      total_turns,
+      started_at,
+      completed_at,
       coaching_messages (
-        message_role,
-        message_content,
-        turn_number
+        role,
+        content,
+        turn_number,
+        sent_at
       )
     `)
     .eq("student_id", student.id)
-    .order("session_date", { ascending: false })
+    .order("week_start_date", { ascending: false })
 
   if (error) {
     return { error: error.message }

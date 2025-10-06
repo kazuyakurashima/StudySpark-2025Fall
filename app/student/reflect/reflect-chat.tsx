@@ -145,7 +145,7 @@ export function ReflectChat({
           setMessages([...updatedMessages, finalMessage])
 
           // セッション完了
-          await completeCoachingSession(sessionId, summaryData.summary)
+          await completeCoachingSession(sessionId, summaryData.summary, turnNumber)
 
           // 完了コールバック
           setTimeout(() => {

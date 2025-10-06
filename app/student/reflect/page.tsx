@@ -268,7 +268,7 @@ export default function ReflectPage() {
                   >
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-sm font-semibold">
-                        {new Date(session.session_date).toLocaleDateString("ja-JP")}
+                        {new Date(session.week_start_date).toLocaleDateString("ja-JP")}
                       </p>
                       <Badge variant="outline">
                         {session.week_type === "growth" ? "成長週" :
