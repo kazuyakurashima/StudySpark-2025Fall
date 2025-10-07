@@ -2,7 +2,8 @@
 
 import type React from "react"
 import Image from "next/image"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,10 +12,19 @@ import { universalLogin } from "@/app/actions/auth"
 import Link from "next/link"
 
 export default function LoginPage() {
+  const searchParams = useSearchParams()
   const [emailOrId, setEmailOrId] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    // 登録完了時のメッセージ表示
+    if (searchParams.get("registered") === "true") {
+      setSuccessMessage("登録が完了しました。ログインしてください。")
+    }
+  }, [searchParams])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -56,6 +66,13 @@ export default function LoginPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {/* 成功メッセージ */}
+            {successMessage && (
+              <div className="mb-4 p-3 bg-green-50 text-green-700 text-sm rounded-md border border-green-200">
+                {successMessage}
+              </div>
+            )}
+
             {/* エラーメッセージ */}
             {error && (
               <div className="mb-4 p-3 bg-destructive/10 text-destructive text-sm rounded-md">
