@@ -144,27 +144,22 @@ export default function LoginPage() {
         </Card>
 
         {/* Demo Account Info */}
-        <details className="mt-6">
-          <summary className="text-sm text-center text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
-            デモアカウント情報を表示
-          </summary>
-          <div className="mt-3 p-4 bg-muted/30 rounded-lg border border-border/50">
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">生徒（小5）</span>
-                <code className="text-xs bg-background px-2 py-1 rounded">demo-student5 / demo2025</code>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">生徒（小6）</span>
-                <code className="text-xs bg-background px-2 py-1 rounded">demo-student6 / demo2025</code>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">保護者</span>
-                <code className="text-xs bg-background px-2 py-1 rounded">demo-parent@example.com / demo2025</code>
-              </div>
+        <div className="mt-6 p-4 bg-muted/30 rounded-lg border border-border/50">
+          <div className="space-y-2.5 text-sm">
+            <div className="flex justify-between items-center gap-3">
+              <span className="text-muted-foreground text-xs">生徒（小5）</span>
+              <code className="text-xs bg-background px-2.5 py-1 rounded font-mono">demo-student5 / demo2025</code>
+            </div>
+            <div className="flex justify-between items-center gap-3">
+              <span className="text-muted-foreground text-xs">生徒（小6）</span>
+              <code className="text-xs bg-background px-2.5 py-1 rounded font-mono">demo-student6 / demo2025</code>
+            </div>
+            <div className="flex justify-between items-center gap-3">
+              <span className="text-muted-foreground text-xs">保護者</span>
+              <code className="text-xs bg-background px-2.5 py-1 rounded font-mono">demo-parent@example.com / demo2025</code>
             </div>
           </div>
-        </details>
+        </div>
       </div>
     </div>
   )
