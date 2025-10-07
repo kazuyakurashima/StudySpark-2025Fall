@@ -1,4 +1,4 @@
-import { getOpenAIClient } from "./client"
+import { getOpenAIClient, getDefaultModel } from "./client"
 
 interface ReflectContext {
   studentName: string
@@ -24,7 +24,7 @@ export async function generateReflectMessage(
     const userPrompt = getReflectUserPrompt(context)
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: getDefaultModel(),
       messages: [
         { role: "system", content: systemPrompt },
         ...context.conversationHistory.map((msg) => ({
@@ -33,8 +33,7 @@ export async function generateReflectMessage(
         })),
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.8,
-      max_tokens: 300,
+      max_completion_tokens: 800,
     })
 
     const message = response.choices[0]?.message?.content
@@ -84,13 +83,12 @@ ${conversationSummary}
 正答率の変化: ${context.accuracyDiff >= 0 ? "+" : ""}${context.accuracyDiff}%`
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: getDefaultModel(),
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.7,
-      max_tokens: 250,
+      max_completion_tokens: 500,
     })
 
     const summary = response.choices[0]?.message?.content

@@ -656,13 +656,15 @@ const TodayMissionCard = ({ todayProgress }: { todayProgress: Array<{subject: st
               ))}
             </div>
 
-            {/* ミッション状況表示 */}
-            <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 border-2 border-primary/20 shadow-lg">
-              <div className="text-center">
-                <h3 className="font-bold text-lg text-slate-800 mb-2">ミッション状況</h3>
-                <p className="text-base text-slate-700 leading-relaxed">{missionData.statusMessage}</p>
+            {/* ミッション状況表示（完了時は非表示） */}
+            {!missionData.allCompleted && (
+              <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 border-2 border-primary/20 shadow-lg">
+                <div className="text-center">
+                  <h3 className="font-bold text-lg text-slate-800 mb-2">ミッション状況</h3>
+                  <p className="text-base text-slate-700 leading-relaxed">{missionData.statusMessage}</p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
       </CardContent>
@@ -670,7 +672,7 @@ const TodayMissionCard = ({ todayProgress }: { todayProgress: Array<{subject: st
   )
 }
 
-const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{subject: string, colorCode: string, accuracy: number, correctCount: number, totalProblems: number, details?: Array<{content: string, remaining: number}>}> }) => {
+const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{subject: string, colorCode: string, accuracy: number, correctCount: number, totalProblems: number, details?: Array<{content: string, correct: number, total: number, remaining: number}>}> }) => {
   const [expandedSubject, setExpandedSubject] = useState<string | null>(null)
 
   const getStatus = (accuracy: number) => {
@@ -680,11 +682,15 @@ const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{
     return "達成"
   }
 
-  const getColor = (accuracy: number) => {
-    if (accuracy === 0) return "gray"
-    if (accuracy < 50) return "blue"
-    if (accuracy < 80) return "yellow"
-    return "green"
+  // 科目名からTailwindカラー名にマッピング
+  const getSubjectColor = (subjectName: string) => {
+    const colorMap: Record<string, string> = {
+      算数: "blue",
+      国語: "pink",
+      理科: "orange",
+      社会: "emerald",
+    }
+    return colorMap[subjectName] || "gray"
   }
 
   const subjectProgress = weeklyProgress.map((item) => ({
@@ -693,7 +699,7 @@ const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{
     correctAnswers: item.correctCount,
     totalQuestions: item.totalProblems,
     progressRate: item.accuracy,
-    color: getColor(item.accuracy),
+    color: getSubjectColor(item.subject),
     details: item.details || []
   }))
 
@@ -710,9 +716,10 @@ const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{
   const getProgressColor = (color: string) => {
     const colors = {
       blue: "bg-blue-500",
-      yellow: "bg-yellow-500",
+      pink: "bg-pink-500",
+      orange: "bg-orange-500",
+      emerald: "bg-emerald-500",
       gray: "bg-gray-400",
-      green: "bg-green-500",
     }
     return colors[color as keyof typeof colors] || "bg-gray-400"
   }
@@ -720,9 +727,10 @@ const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{
   const getProgressBgColor = (color: string) => {
     const colors = {
       blue: "bg-blue-100",
-      yellow: "bg-yellow-100",
+      pink: "bg-pink-100",
+      orange: "bg-orange-100",
+      emerald: "bg-emerald-100",
       gray: "bg-gray-100",
-      green: "bg-green-100",
     }
     return colors[color as keyof typeof colors] || "bg-gray-100"
   }
@@ -775,11 +783,18 @@ const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{
 
             {expandedSubject === subject.subject && subject.details.length > 0 && (
               <div className="bg-white/80 rounded-lg p-4 border border-slate-200 space-y-2">
-                <h4 className="font-medium text-slate-700 mb-2">内容別残数</h4>
+                <h4 className="font-medium text-slate-700 mb-2">学習内容別の詳細</h4>
                 {subject.details.map((detail, detailIndex) => (
-                  <div key={detailIndex} className="flex justify-between items-center text-sm">
-                    <span className="text-slate-600">{detail.content}</span>
-                    <span className="font-medium text-slate-800">{detail.remaining}問</span>
+                  <div key={detailIndex} className="space-y-1">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-700 font-medium">{detail.content}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs text-slate-600">
+                      <span>正解: {detail.correct}問 / 全体: {detail.total}問</span>
+                      <span className={detail.remaining > 0 ? "text-orange-600 font-medium" : "text-green-600 font-medium"}>
+                        {detail.remaining > 0 ? `残り${detail.remaining}問` : "完璧！"}
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -801,6 +816,15 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
     const date = new Date(dateStr)
     if (Number.isNaN(date.getTime())) return "記録日時不明"
 
+    // デバッグ: UTCと変換後の時刻を確認
+    console.log('formatDate debug:', {
+      input: dateStr,
+      utcDate: date.toISOString(),
+      localDate: date.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }),
+      getHours: date.getHours(),
+      getMinutes: date.getMinutes()
+    })
+
     const now = new Date()
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     const yesterday = new Date(today)
@@ -819,7 +843,8 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
   const safeLogs = Array.isArray(logs) ? logs : []
 
   const recentHistory = safeLogs.map((log) => {
-    const loggedAt = log.student_record_time || log.logged_at
+    // Use logged_at for displaying the exact time the log was recorded
+    const loggedAt = log.logged_at
 
     // 学習回の表示を「第N回(M/D〜M/D)」形式にフォーマット
     let sessionDisplay = ""

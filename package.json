@@ -5,6 +5,7 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev",
+    "dev:clean": "./scripts/dev-clean.sh",
     "lint": "next lint",
     "start": "next start"
   },

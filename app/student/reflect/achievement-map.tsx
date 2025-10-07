@@ -97,6 +97,25 @@ export function AchievementMap({ studentGrade, studentCourse }: AchievementMapPr
     return acc
   }, {})
 
+  // 全学習回を生成（小5は19回、小6は15回）
+  const totalSessions = studentGrade === 5 ? 19 : 15
+  const allSessions: Record<string, any> = {}
+
+  // 学習内容のリストを取得（データから）
+  const allContentNames = new Set<string>()
+  Object.values(groupedData).forEach((session: any) => {
+    Object.keys(session).forEach((contentName) => allContentNames.add(contentName))
+  })
+
+  // 全学習回を初期化
+  for (let i = 1; i <= totalSessions; i++) {
+    allSessions[i] = {}
+    // 各学習内容をnullで初期化（データなし）
+    allContentNames.forEach((contentName) => {
+      allSessions[i][contentName] = groupedData[i]?.[contentName] ?? null
+    })
+  }
+
   const currentSubject = subjects.find((s) => s.id === selectedSubject)
 
   return (
@@ -157,7 +176,7 @@ export function AchievementMap({ studentGrade, studentCourse }: AchievementMapPr
                         <tr>
                           <th className="text-left text-sm font-semibold p-2 border-b">学習回</th>
                           {/* 学習内容の列ヘッダー（動的に生成） */}
-                          {Object.keys(groupedData[Object.keys(groupedData)[0]] || {}).map((contentName) => (
+                          {Array.from(allContentNames).map((contentName) => (
                             <th key={contentName} className="text-center text-xs font-semibold p-2 border-b">
                               {contentName}
                             </th>
@@ -165,27 +184,33 @@ export function AchievementMap({ studentGrade, studentCourse }: AchievementMapPr
                         </tr>
                       </thead>
                       <tbody>
-                        {Object.keys(groupedData)
+                        {Object.keys(allSessions)
                           .sort((a, b) => Number(a) - Number(b))
                           .map((sessionNum) => (
                             <tr key={sessionNum}>
                               <td className="text-sm font-medium p-2 border-b">第{sessionNum}回</td>
-                              {Object.keys(groupedData[sessionNum]).map((contentName) => {
-                                const accuracy = groupedData[sessionNum][contentName]
+                              {Array.from(allContentNames).map((contentName) => {
+                                const accuracy = allSessions[sessionNum][contentName]
                                 return (
                                   <td key={contentName} className="p-2 border-b">
                                     <div className="flex justify-center">
-                                      <div
-                                        className={`w-12 h-12 ${getAccuracyColor(
-                                          accuracy,
-                                          subject.color
-                                        )} rounded flex items-center justify-center text-xs font-semibold ${
-                                          accuracy >= 50 ? "text-white" : "text-gray-700"
-                                        }`}
-                                        title={`${accuracy}%`}
-                                      >
-                                        {accuracy}%
-                                      </div>
+                                      {accuracy === null ? (
+                                        <div className="w-12 h-12 bg-gray-50 border-2 border-dashed border-gray-200 rounded flex items-center justify-center">
+                                          <span className="text-gray-300 text-xs">-</span>
+                                        </div>
+                                      ) : (
+                                        <div
+                                          className={`w-12 h-12 ${getAccuracyColor(
+                                            accuracy,
+                                            subject.color
+                                          )} rounded flex items-center justify-center text-xs font-semibold ${
+                                            accuracy >= 50 ? "text-white" : "text-gray-700"
+                                          }`}
+                                          title={`${accuracy}%`}
+                                        >
+                                          {accuracy}%
+                                        </div>
+                                      )}
                                     </div>
                                   </td>
                                 )

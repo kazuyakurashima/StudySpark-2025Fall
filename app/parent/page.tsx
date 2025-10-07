@@ -496,7 +496,7 @@ const ParentTodayMissionCard = ({ todayProgress, studentName }: { todayProgress:
         const message = result.messages[0]
         if (confirm(`AI応援メッセージ:\n"${message}"\n\nこのメッセージを送信しますか？`)) {
           const { sendCustomEncouragement } = await import("@/app/actions/encouragement")
-          const sendResult = await sendCustomEncouragement(selectedChildId.toString(), studyLogId, message)
+          const sendResult = await sendCustomEncouragement(selectedChildId.toString(), studyLogId, message, "ai")
           if (sendResult.success) {
             alert("AI応援メッセージを送信しました！")
           } else {

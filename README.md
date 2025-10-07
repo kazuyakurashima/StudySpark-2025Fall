@@ -73,7 +73,7 @@ StudySparkは、中学受験を目指す小学5〜6年生のための学習支�
 - **Supabase RLS** (Row Level Security)
 
 ### AI
-- **OpenAI GPT-4o-mini** (AIコーチング)
+- **OpenAI GPT-5-mini** (AIコーチング)
 
 ### UI/UX
 - **Radix UI** (アクセシブルなUIコンポーネント)

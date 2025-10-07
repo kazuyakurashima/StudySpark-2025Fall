@@ -197,14 +197,14 @@ export async function getRecentStudyLogs(limit: number = 5) {
       return { error: "生徒情報が見つかりません" }
     }
 
-    // Get recent study logs with related data (no date filtering, just order by logged_at)
+    // Get recent study logs with related data (no date filtering, just order by study_date)
     const { data: logs, error: logsError } = await supabase
       .from("study_logs")
       .select(
         `
         id,
         logged_at,
-        student_record_time,
+        study_date,
         correct_count,
         total_problems,
         reflection_text,
@@ -215,7 +215,8 @@ export async function getRecentStudyLogs(limit: number = 5) {
       `
       )
       .eq("student_id", student.id)
-      .order("student_record_time", { ascending: false })
+      .order("study_date", { ascending: false })
+      .order("logged_at", { ascending: false })
       .limit(limit)
 
     if (logsError) {
@@ -358,7 +359,7 @@ export async function getWeeklySubjectProgress() {
         correct_count,
         total_problems,
         subject_id,
-        content_type_id,
+        study_content_type_id,
         subjects (name, color_code),
         study_content_types (content_name)
       `
@@ -418,6 +419,8 @@ export async function getWeeklySubjectProgress() {
       totalProblems: subject.totalProblems,
       details: Object.entries(subject.contentDetails).map(([content, data]) => ({
         content,
+        correct: data.correct,
+        total: data.total,
         remaining: data.total - data.correct
       }))
     }))

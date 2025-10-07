@@ -18,6 +18,7 @@ import {
   saveStudyLog,
   getContentTypeId,
 } from "@/app/actions/study-log"
+import { generateDailyReflections } from "@/app/actions/ai-reflection"
 
 const subjects = [
   {
@@ -562,16 +563,61 @@ export function SparkClient({ initialData, preselectedSubject }: SparkClientProp
   const generateAIReflections = async () => {
     setIsGeneratingAI(true)
 
-    setTimeout(() => {
+    try {
+      // 学習データを整形
+      const studyData = {
+        subjects: selectedSubjects,
+        details: {} as any,
+      }
+
+      // 各科目の学習内容詳細を追加
+      for (const subjectId of selectedSubjects) {
+        const contentDetails = subjectDetails[subjectId] || {}
+        const availableContent = getAvailableLearningContent(subjectId)
+
+        studyData.details[subjectId] = {}
+
+        for (const content of availableContent) {
+          const maxProblems = getProblemCount(subjectId, content.id)
+          const correctAnswers = contentDetails[content.id] || 0
+
+          if (maxProblems > 0) {
+            studyData.details[subjectId][content.id] = {
+              contentName: content.name,
+              correct: correctAnswers,
+              total: maxProblems,
+            }
+          }
+        }
+      }
+
+      // AI生成を呼び出し
+      const result = await generateDailyReflections(studyData)
+
+      if (result.error) {
+        console.error("AI reflection generation error:", result.error)
+        // エラー時はフォールバックの定型文を使用
+        const studiedSubjects = selectedSubjects.map((id) => subjects.find((s) => s.id === id)?.name).join("、")
+        setAiReflections([
+          `今日は${studiedSubjects}の学習に取り組めました。特に難しい問題にも諦めずに挑戦できたのは素晴らしいことです。`,
+          `${studiedSubjects}を学習する中で、基礎をしっかり理解することの大切さに気づきました。一つひとつ丁寧に取り組むことで理解が深まります。`,
+          `明日は今日間違えた問題を復習し、もし分からない部分があれば先生に質問して、確実に理解してから次に進みます。`,
+        ])
+      } else if (result.reflections) {
+        setAiReflections(result.reflections)
+      }
+    } catch (error) {
+      console.error("Failed to generate AI reflections:", error)
+      // エラー時はフォールバックの定型文を使用
       const studiedSubjects = selectedSubjects.map((id) => subjects.find((s) => s.id === id)?.name).join("、")
-
-      const celebrateReflection = `今日は${studiedSubjects}の学習に取り組めました。特に難しい問題にも諦めずに挑戦できたのは素晴らしいことです。`
-      const insightReflection = `${studiedSubjects}を学習する中で、基礎をしっかり理解することの大切さに気づきました。一つひとつ丁寧に取り組むことで理解が深まります。`
-      const nextStepReflection = `明日は今日間違えた問題を復習し、もし分からない部分があれば先生に質問して、確実に理解してから次に進みます。`
-
-      setAiReflections([celebrateReflection, insightReflection, nextStepReflection])
+      setAiReflections([
+        `今日は${studiedSubjects}の学習に取り組めました。特に難しい問題にも諦めずに挑戦できたのは素晴らしいことです。`,
+        `${studiedSubjects}を学習する中で、基礎をしっかり理解することの大切さに気づきました。一つひとつ丁寧に取り組むことで理解が深まります。`,
+        `明日は今日間違えた問題を復習し、もし分からない部分があれば先生に質問して、確実に理解してから次に進みます。`,
+      ])
+    } finally {
       setIsGeneratingAI(false)
-    }, 2000)
+    }
   }
 
   const handleSubmit = async () => {
