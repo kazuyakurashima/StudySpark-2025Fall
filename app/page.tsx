@@ -136,13 +136,13 @@ export default function LoginPage() {
             <strong className="text-foreground">デモアカウント</strong>
             <br />
             <span className="text-xs mt-2 block">生徒（小5）</span>
-            <strong>demo-student5</strong> / demo2024
+            <strong>demo-student5</strong> / demo2025
             <br />
             <span className="text-xs mt-1 block">生徒（小6）</span>
-            <strong>demo-student6</strong> / demo2024
+            <strong>demo-student6</strong> / demo2025
             <br />
             <span className="text-xs mt-1 block">保護者</span>
-            <strong>demo-parent@example.com</strong> / demo2024
+            <strong>demo-parent@example.com</strong> / demo2025
           </p>
         </div>
       </div>
