@@ -660,7 +660,7 @@ const TodayMissionCard = ({ todayProgress }: { todayProgress: Array<{subject: st
   )
 }
 
-const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{subject: string, colorCode: string, accuracy: number, correctCount: number, totalProblems: number}> }) => {
+const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{subject: string, colorCode: string, accuracy: number, correctCount: number, totalProblems: number, details?: Array<{content: string, remaining: number}>}> }) => {
   const [expandedSubject, setExpandedSubject] = useState<string | null>(null)
 
   const getStatus = (accuracy: number) => {
