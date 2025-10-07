@@ -57,20 +57,20 @@ export function AchievementMap({ studentGrade, studentCourse }: AchievementMapPr
         medium: "bg-blue-400",
         dark: "bg-blue-600",
       },
-      "bg-red-500": {
-        light: "bg-red-200",
-        medium: "bg-red-400",
-        dark: "bg-red-600",
+      "bg-pink-500": {
+        light: "bg-pink-200",
+        medium: "bg-pink-400",
+        dark: "bg-pink-600",
       },
       "bg-orange-500": {
         light: "bg-orange-200",
         medium: "bg-orange-400",
         dark: "bg-orange-600",
       },
-      "bg-green-500": {
-        light: "bg-green-200",
-        medium: "bg-green-400",
-        dark: "bg-green-600",
+      "bg-emerald-500": {
+        light: "bg-emerald-200",
+        medium: "bg-emerald-400",
+        dark: "bg-emerald-600",
       },
     }
 
