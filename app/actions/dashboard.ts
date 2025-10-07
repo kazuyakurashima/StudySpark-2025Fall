@@ -204,6 +204,7 @@ export async function getRecentStudyLogs(limit: number = 5) {
         `
         id,
         logged_at,
+        student_record_time,
         correct_count,
         total_problems,
         reflection_text,
@@ -214,7 +215,7 @@ export async function getRecentStudyLogs(limit: number = 5) {
       `
       )
       .eq("student_id", student.id)
-      .order("logged_at", { ascending: false })
+      .order("student_record_time", { ascending: false })
       .limit(limit)
 
     if (logsError) {

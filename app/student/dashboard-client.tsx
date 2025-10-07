@@ -819,7 +819,7 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
   const safeLogs = Array.isArray(logs) ? logs : []
 
   const recentHistory = safeLogs.map((log) => {
-    const loggedAt = log.logged_at || log.created_at || log.study_date
+    const loggedAt = log.student_record_time || log.logged_at
 
     // 学習回の表示を「第N回(M/D〜M/D)」形式にフォーマット
     let sessionDisplay = ""
