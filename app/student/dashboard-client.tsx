@@ -736,7 +736,13 @@ const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {subjectProgress.map((subject, index) => (
+        {subjectProgress.length === 0 ? (
+          <div className="text-center py-8 text-slate-600">
+            <p>今週の学習記録がまだありません</p>
+            <p className="text-sm mt-2">スパーク機能で学習を記録しましょう！</p>
+          </div>
+        ) : (
+          subjectProgress.map((subject, index) => (
           <div key={index} className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -779,7 +785,8 @@ const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{
               </div>
             )}
           </div>
-        ))}
+        ))
+        )}
       </CardContent>
     </Card>
   )
