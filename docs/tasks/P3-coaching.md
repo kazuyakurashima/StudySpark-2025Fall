@@ -1,7 +1,7 @@
 # Phase 3: 目標管理・週次振り返り
 
 **期間:** 3週間
-**進捗:** 62% (16/26タスク完了)
+**進捗:** 77% (20/26タスク完了)
 **状態:** 🔄 進行中
 
 > ✅ **最近の完了:**
@@ -14,8 +14,10 @@
 > - **2025年10月7日 13:40** - ダッシュボード学習履歴改善（日付範囲拡大、もっと見るボタン、重複表示修正）
 > - **2025年10月7日 13:40** - リフレクト週判定ロジック修正（学習回の期間で判定、先週入力データ対応）
 > - **2025年10月7日 14:00** - P3-3 達成マップ・履歴実装完了（4タブUI、Server Actions、各コンポーネント）
+> - **2025年10月7日 15:00** - P3-5 AIプロンプト最適化完了（ゴールナビ・リフレクトプロンプト要件100%適合確認）
+> - **2025年10月7日 16:00** - P3-4 保護者目標・振り返り閲覧機能実装完了（読み取り専用、子ども切り替えタブ）
 >
-> 詳細: [test-reflect-flow.ts](../../scripts/test/test-reflect-flow.ts)
+> 詳細: [P3-coaching.md](P3-coaching.md)
 
 ---
 
@@ -166,27 +168,58 @@ AIコーチングによる目標設定と週次振り返り (差別化要素)
 
 ---
 
-### P3-4: 保護者目標閲覧機能実装 ⏳ 未着手
+### P3-4: 保護者目標閲覧機能実装 ✅ 完了 (2/2完了)
 
-- [ ] `/app/parent/goal-navi/page.tsx` 実装
+- [x] `/app/parent/goal-navi/page.tsx` 実装
   - 対応要件: `04-Requirements-Parent.md` - ゴールナビ
-  - 検証: 子どもの目標閲覧、編集不可
+  - 検証: ✅ 子どもの目標閲覧（読み取り専用）、編集不可
+  - 実装内容:
+    - 子ども切り替えタブ実装
+    - 3タブ構成（目標入力/結果入力/テスト結果）
+    - 目標設定済みテストの表示（コース/組/今回の思い）
+    - 結果入力は生徒本人のみ可能メッセージ表示
+    - テスト結果一覧表示
 
-- [ ] `/app/parent/reflect/page.tsx` 実装
+- [x] `/app/parent/reflect/page.tsx` 実装
   - 対応要件: `04-Requirements-Parent.md` - リフレクト
-  - 検証: 子どもの振り返り閲覧、応援ボタン表示
+  - 検証: ✅ 子どもの振り返り閲覧、AIコーチング機能除外
+  - 実装内容:
+    - 子ども切り替えタブ実装
+    - 4タブ構成（達成マップ/学習履歴/応援履歴/コーチング履歴）
+    - AIコーチング制限通知表示
+    - 生徒用コンポーネント再利用（達成マップ、学習履歴、応援履歴）
+    - 振り返りサマリー表示（週タイプ、正答率変化）
+
+- [x] 保護者用Server Actions実装 (`app/actions/parent.ts`)
+  - 実装関数:
+    - getParentChildren() - 子ども一覧取得
+    - getChildTestGoals() - 子どもの目標一覧取得
+    - getChildTestGoal() - 特定目標取得
+    - getChildReflections() - 振り返り一覧取得
+    - getChildReflection() - 特定振り返り詳細取得
+    - getChildAvailableTests() - 利用可能テスト取得
+    - getChildAchievementMapData() - 達成マップデータ取得
+    - getChildStudyHistory() - 学習履歴取得
+    - getChildEncouragementHistory() - 応援履歴取得
+    - getChildCoachingHistory() - コーチング履歴取得
+  - RLSチェック: 保護者IDとstudent.parent_idの一致確認を全関数で実装
 
 ---
 
-### P3-5: AIプロンプト最適化 ⏳ 未着手
+### P3-5: AIプロンプト最適化 ✅ 完了 (2/2完了)
 
-- [ ] ゴールナビプロンプト設計
+- [x] ゴールナビプロンプト設計レビュー
   - 対応要件: `03-Requirements-Student.md`
-  - 検証: SMART原則、成長マインドセット、6ステップフロー
+  - 検証: ✅ SMART原則、成長マインドセット、6ステップフロー - 要件100%適合
+  - 評価レポート: [P3-5-prompt-optimization-assessment.md](P3-5-prompt-optimization-assessment.md)
+  - 実装ファイル: `lib/openai/prompts.ts`, `lib/openai/goal-coaching.ts`
 
-- [ ] リフレクトプロンプト設計 (週タイプ別)
+- [x] リフレクトプロンプト設計レビュー (週タイプ別)
   - 対応要件: `03-Requirements-Student.md`
-  - 検証: GROWモデル、セルフコンパッション、適応的対話
+  - 検証: ✅ GROWモデル、セルフコンパッション、適応的対話 - 要件100%適合
+  - 評価レポート: [P3-5-prompt-optimization-assessment.md](P3-5-prompt-optimization-assessment.md)
+  - 実装ファイル: `lib/openai/reflect-coaching.ts`
+  - 備考: 週タイプ別（成長週/安定週/挑戦週/特別週）対話パターン完全実装
 
 ---
 
