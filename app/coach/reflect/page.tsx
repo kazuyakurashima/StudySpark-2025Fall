@@ -63,24 +63,24 @@ export default function CoachReflectPage() {
 
   const learningHistory = [
     {
-      recordDate: "2024年9月6日 18:30",
-      studyDate: "2024年9月6日",
+      recordDate: "2025年9月6日 18:30",
+      studyDate: "2025年9月6日",
       subject: "算数",
       categories: ["授業", "宿題"],
       understanding: { level: "バッチリ理解", emoji: "😄", color: "text-blue-600" },
       reflection: "図形問題の解き方がよく分かりました。特に面積の求め方が理解できて嬉しいです。",
     },
     {
-      recordDate: "2024年9月5日 19:15",
-      studyDate: "2024年9月5日",
+      recordDate: "2025年9月5日 19:15",
+      studyDate: "2025年9月5日",
       subject: "国語",
       categories: ["宿題", "週テスト・復習ナビ"],
       understanding: { level: "できた", emoji: "😊", color: "text-green-600" },
       reflection: "漢字の読み方を間違えたところがあったので、復習します。",
     },
     {
-      recordDate: "2024年9月4日 20:00",
-      studyDate: "2024年9月4日",
+      recordDate: "2025年9月4日 20:00",
+      studyDate: "2025年9月4日",
       subject: "理科",
       categories: ["授業"],
       understanding: { level: "ふつう", emoji: "😐", color: "text-yellow-600" },
@@ -105,7 +105,7 @@ export default function CoachReflectPage() {
 
   const coachingHistory = [
     {
-      date: "2024年9月5日",
+      date: "2025年9月5日",
       time: "15:30-16:00",
       type: "Flame",
       topics: ["学習計画の見直し", "理科の理解度向上"],
@@ -114,7 +114,7 @@ export default function CoachReflectPage() {
       coach: "AIコーチ",
     },
     {
-      date: "2024年9月1日",
+      date: "2025年9月1日",
       time: "16:00-16:30",
       type: "Blaze",
       topics: ["目標設定", "学習習慣の改善"],

@@ -28,7 +28,7 @@ const students = [
     needsAttention: false,
     recentScore: 85,
     subjects: ["算数", "国語"],
-    lastMessage: "2024-08-14",
+    lastMessage: "2025-08-14",
     parentResponse: true,
   },
   {
@@ -45,7 +45,7 @@ const students = [
     needsAttention: false,
     recentScore: 92,
     subjects: ["理科", "社会"],
-    lastMessage: "2024-08-13",
+    lastMessage: "2025-08-13",
     parentResponse: true,
   },
   {
@@ -62,7 +62,7 @@ const students = [
     needsAttention: true,
     recentScore: 68,
     subjects: ["算数"],
-    lastMessage: "2024-08-12",
+    lastMessage: "2025-08-12",
     parentResponse: false,
   },
   {
@@ -79,7 +79,7 @@ const students = [
     needsAttention: false,
     recentScore: 96,
     subjects: ["算数", "国語", "理科"],
-    lastMessage: "2024-08-14",
+    lastMessage: "2025-08-14",
     parentResponse: true,
   },
 ]

@@ -61,7 +61,7 @@ const studentData = {
 const learningHistory = [
   {
     id: "history1",
-    date: "2024-08-14",
+    date: "2025-08-14",
     time: "19:30",
     subject: "算数",
     understanding: "😄バッチリ理解",
@@ -72,7 +72,7 @@ const learningHistory = [
   },
   {
     id: "history2",
-    date: "2024-08-13",
+    date: "2025-08-13",
     time: "20:15",
     subject: "国語",
     understanding: "😐ふつう",
@@ -83,7 +83,7 @@ const learningHistory = [
   },
   {
     id: "history3",
-    date: "2024-08-12",
+    date: "2025-08-12",
     time: "18:45",
     subject: "算数",
     understanding: "😟ちょっと不安",
@@ -94,7 +94,7 @@ const learningHistory = [
   },
   {
     id: "history4",
-    date: "2024-08-11",
+    date: "2025-08-11",
     time: "19:00",
     subject: "理科",
     understanding: "😄バッチリ理解",

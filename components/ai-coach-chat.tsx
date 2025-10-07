@@ -35,9 +35,9 @@ const isSpecialTestWeek = () => {
   // Check if it's near a test date
   const now = new Date()
   const testDates = [
-    new Date("2024-10-05"), // 第６回公開組分けテスト
-    new Date("2024-11-09"), // 第７回公開組分けテスト
-    new Date("2024-12-14"), // 第８回公開組分けテスト
+    new Date("2025-10-05"), // 第６回公開組分けテスト
+    new Date("2025-11-09"), // 第７回公開組分けテスト
+    new Date("2025-12-14"), // 第８回公開組分けテスト
   ]
 
   return testDates.some((testDate) => {
