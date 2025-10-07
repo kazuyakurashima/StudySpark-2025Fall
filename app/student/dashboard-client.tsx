@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -526,13 +527,11 @@ const TodayMissionCard = ({ todayProgress }: { todayProgress: Array<{subject: st
   }
 
   const handleSparkNavigation = (subject?: string) => {
-    console.log(`Navigate to spark for subject: ${subject || "general"}`)
-    // 実際の実装では、スパーク機能への遷移を行う
+    router.push("/student/spark")
   }
 
   const handleReflectNavigation = () => {
-    console.log("Navigate to reflect")
-    // 実際の実装では、リフレクト機能への遷移を行う
+    router.push("/student/reflect")
   }
 
   return (
@@ -1126,6 +1125,8 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
 }
 
 export function StudentDashboardClient({ initialData }: { initialData: DashboardData }) {
+  const router = useRouter()
+
   const {
     userName,
     selectedAvatar,
