@@ -18,9 +18,9 @@ export function AchievementMap({ studentGrade, studentCourse }: AchievementMapPr
 
   const subjects = [
     { id: "math", name: "算数", color: "bg-blue-500" },
-    { id: "japanese", name: "国語", color: "bg-red-500" },
+    { id: "japanese", name: "国語", color: "bg-pink-500" },
     { id: "science", name: "理科", color: "bg-orange-500" },
-    { id: "social", name: "社会", color: "bg-green-500" },
+    { id: "social", name: "社会", color: "bg-emerald-500" },
   ]
 
   useEffect(() => {

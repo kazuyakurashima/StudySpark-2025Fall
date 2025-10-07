@@ -500,9 +500,9 @@ const TodayMissionCard = ({ todayProgress }: { todayProgress: Array<{subject: st
   const getSubjectColor = (subject: string) => {
     const colors = {
       算数: "border-l-4 border-l-blue-500 bg-blue-50/80",
-      国語: "border-l-4 border-l-emerald-500 bg-emerald-50/80",
-      理科: "border-l-4 border-l-purple-500 bg-purple-50/80",
-      社会: "border-l-4 border-l-red-500 bg-red-50/80",
+      国語: "border-l-4 border-l-pink-500 bg-pink-50/80",
+      理科: "border-l-4 border-l-orange-500 bg-orange-50/80",
+      社会: "border-l-4 border-l-emerald-500 bg-emerald-50/80",
     }
     return colors[subject as keyof typeof colors] || "border-l-4 border-l-slate-400 bg-slate-50/80"
   }
@@ -855,9 +855,9 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
   const getSubjectColor = (subject: string) => {
     const colors = {
       算数: "text-blue-600 bg-blue-50 border-blue-200",
-      国語: "text-emerald-600 bg-emerald-50 border-emerald-200",
-      理科: "text-purple-600 bg-purple-50 border-purple-200",
-      社会: "text-red-600 bg-red-50 border-red-200",
+      国語: "text-pink-600 bg-pink-50 border-pink-200",
+      理科: "text-orange-600 bg-orange-50 border-orange-200",
+      社会: "text-emerald-600 bg-emerald-50 border-emerald-200",
     }
     return colors[subject as keyof typeof colors] || "text-slate-600 bg-slate-50 border-slate-200"
   }

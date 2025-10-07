@@ -107,9 +107,9 @@ const sparkRecords = [
 
 const subjectColors = {
   算数: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
-  国語: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
-  理科: { bg: "bg-violet-50", text: "text-violet-700", border: "border-violet-200" },
-  社会: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" },
+  国語: { bg: "bg-pink-50", text: "text-pink-700", border: "border-pink-200" },
+  理科: { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" },
+  社会: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
 }
 
 const categoryColors = {

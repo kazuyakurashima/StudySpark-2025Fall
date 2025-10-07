@@ -350,9 +350,9 @@ export default function CoachSparkPage() {
                               {student.subjects.slice(0, 2).map((subject) => {
                                 const subjectColors: { [key: string]: string } = {
                                   算数: "bg-blue-100 text-blue-800",
-                                  国語: "bg-green-100 text-green-800",
-                                  理科: "bg-purple-100 text-purple-800",
-                                  社会: "bg-orange-100 text-orange-800",
+                                  国語: "bg-pink-100 text-pink-800",
+                                  理科: "bg-orange-100 text-orange-800",
+                                  社会: "bg-emerald-100 text-emerald-800",
                                 }
                                 return (
                                   <Badge

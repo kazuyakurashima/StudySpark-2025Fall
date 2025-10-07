@@ -35,34 +35,34 @@ const subjects = [
     id: "japanese",
     name: "国語",
     color:
+      "bg-gradient-to-br from-pink-50 via-pink-100 to-pink-200 text-pink-900 border-pink-200 hover:from-pink-100 hover:via-pink-200 hover:to-pink-300",
+    accent: "border-l-pink-500",
+    badge: "bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-lg",
+    sliderColor: "from-pink-400 to-pink-600",
+    progressBg: "bg-pink-100",
+    progressFill: "bg-gradient-to-r from-pink-500 to-pink-600",
+  },
+  {
+    id: "science",
+    name: "理科",
+    color:
+      "bg-gradient-to-br from-orange-50 via-orange-100 to-orange-200 text-orange-900 border-orange-200 hover:from-orange-100 hover:via-orange-200 hover:to-orange-300",
+    accent: "border-l-orange-500",
+    badge: "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg",
+    sliderColor: "from-orange-400 to-orange-600",
+    progressBg: "bg-orange-100",
+    progressFill: "bg-gradient-to-r from-orange-500 to-orange-600",
+  },
+  {
+    id: "social",
+    name: "社会",
+    color:
       "bg-gradient-to-br from-emerald-50 via-emerald-100 to-emerald-200 text-emerald-900 border-emerald-200 hover:from-emerald-100 hover:via-emerald-200 hover:to-emerald-300",
     accent: "border-l-emerald-500",
     badge: "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg",
     sliderColor: "from-emerald-400 to-emerald-600",
     progressBg: "bg-emerald-100",
     progressFill: "bg-gradient-to-r from-emerald-500 to-emerald-600",
-  },
-  {
-    id: "science",
-    name: "理科",
-    color:
-      "bg-gradient-to-br from-purple-50 via-purple-100 to-purple-200 text-purple-900 border-purple-200 hover:from-purple-100 hover:via-purple-200 hover:to-purple-300",
-    accent: "border-l-purple-500",
-    badge: "bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg",
-    sliderColor: "from-purple-400 to-purple-600",
-    progressBg: "bg-purple-100",
-    progressFill: "bg-gradient-to-r from-purple-500 to-purple-600",
-  },
-  {
-    id: "social",
-    name: "社会",
-    color:
-      "bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200 text-amber-900 border-amber-200 hover:from-amber-100 hover:via-amber-200 hover:to-amber-300",
-    accent: "border-l-amber-500",
-    badge: "bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg",
-    sliderColor: "from-amber-400 to-amber-600",
-    progressBg: "bg-amber-100",
-    progressFill: "bg-gradient-to-r from-amber-500 to-amber-600",
   },
 ]
 
