@@ -1012,10 +1012,16 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
     const senderProfile = msg.sender_profile
     const baseMessage = msg.message || ""
 
+    // アバターの処理：coach, ai_coach などの不適切な値を適切なデフォルトに変換
+    let avatarUrl = senderProfile?.avatar_url
+    if (!avatarUrl || avatarUrl === "coach" || avatarUrl === "ai_coach") {
+      avatarUrl = msg.sender_role === "parent" ? "parent1" : "parent1" // 保護者のデフォルト画像を使用
+    }
+
     return {
       recordTime: formatDate(msg.sent_at),
       from: senderProfile?.display_name || "応援者",
-      avatar: senderProfile?.avatar_url || (msg.sender_role === "parent" ? "parent1" : "coach"),
+      avatar: avatarUrl,
       message: baseMessage,
       senderRole: msg.sender_role || "unknown",
     }
