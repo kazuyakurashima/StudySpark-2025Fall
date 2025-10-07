@@ -28,7 +28,7 @@ const sparkRecords = [
     id: "record1",
     childName: "太郎",
     childAvatar: "student1",
-    recordDate: "2024-09-06T16:30:00",
+    recordDate: "2025-09-06T16:30:00",
     learningSession: "第3回",
     learningPeriod: "9/14〜9/20",
     hasSupport: true,
@@ -57,7 +57,7 @@ const sparkRecords = [
     id: "record2",
     childName: "みかん",
     childAvatar: "student2",
-    recordDate: "2024-09-06T15:45:00",
+    recordDate: "2025-09-06T15:45:00",
     learningSession: "合不合第3回",
     learningPeriod: "8/31〜9/6",
     hasSupport: false,
@@ -86,7 +86,7 @@ const sparkRecords = [
     id: "record3",
     childName: "太郎",
     childAvatar: "student1",
-    recordDate: "2024-09-05T17:00:00",
+    recordDate: "2025-09-05T17:00:00",
     learningSession: "第2回",
     learningPeriod: "9/7〜9/13",
     hasSupport: false,
@@ -107,9 +107,9 @@ const sparkRecords = [
 
 const subjectColors = {
   算数: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
-  国語: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
-  理科: { bg: "bg-violet-50", text: "text-violet-700", border: "border-violet-200" },
-  社会: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" },
+  国語: { bg: "bg-pink-50", text: "text-pink-700", border: "border-pink-200" },
+  理科: { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" },
+  社会: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
 }
 
 const categoryColors = {

@@ -53,7 +53,8 @@ export async function saveStudyLog(logs: StudyLogInput[]) {
       const logStudyDate = log.study_date || studyDate
       const logReflectionText = log.reflection_text || reflectionText
 
-      const { data: existingLog } = await supabase
+      // maybeSingle()を使用してエラーハンドリングを改善
+      const { data: existingLog, error: checkError } = await supabase
         .from("study_logs")
         .select("id, version")
         .eq("student_id", student.id)
@@ -61,7 +62,13 @@ export async function saveStudyLog(logs: StudyLogInput[]) {
         .eq("subject_id", log.subject_id)
         .eq("study_content_type_id", log.study_content_type_id)
         .eq("study_date", logStudyDate)
-        .single()
+        .maybeSingle()
+
+      // checkErrorがある場合はデータベースエラー（ネットワークエラーなど）
+      if (checkError) {
+        console.error("Check existing log error:", checkError)
+        return { error: `既存記録の確認に失敗しました: ${checkError.message}` }
+      }
 
       if (existingLog) {
         // Update existing log (楽観的ロック)
@@ -88,6 +95,9 @@ export async function saveStudyLog(logs: StudyLogInput[]) {
       }
     }
 
+    // デバッグログ
+    console.log(`saveStudyLog: ${logsToInsert.length} records to insert, ${logsToUpdate.length} records to update`)
+
     // Insert new logs
     if (logsToInsert.length > 0) {
       const { error: insertError } = await supabase.from("study_logs").insert(logsToInsert)
@@ -96,25 +106,38 @@ export async function saveStudyLog(logs: StudyLogInput[]) {
         console.error("Insert error:", insertError)
         return { error: `学習記録の保存に失敗しました: ${insertError.message}` }
       }
+      console.log(`Successfully inserted ${logsToInsert.length} study logs`)
     }
 
     // Update existing logs
-    for (const log of logsToUpdate) {
-      const { error: updateError } = await supabase
-        .from("study_logs")
-        .update({
-          correct_count: log.correct_count,
-          total_problems: log.total_problems,
-          study_date: log.study_date,
-          reflection_text: log.reflection_text,
-          version: log.version + 1,
-        })
-        .eq("id", log.id)
-        .eq("version", log.version) // 楽観的ロック
+    if (logsToUpdate.length > 0) {
+      for (const log of logsToUpdate) {
+        const { error: updateError, data: updateData } = await supabase
+          .from("study_logs")
+          .update({
+            correct_count: log.correct_count,
+            total_problems: log.total_problems,
+            study_date: log.study_date,
+            reflection_text: log.reflection_text,
+            version: log.version + 1,
+            logged_at: new Date().toISOString(), // 更新日時を記録
+          })
+          .eq("id", log.id)
+          .eq("version", log.version) // 楽観的ロック
+          .select()
 
-      if (updateError) {
-        console.error("Update error:", updateError)
-        return { error: `学習記録の更新に失敗しました: ${updateError.message}` }
+        if (updateError) {
+          console.error("Update error:", updateError)
+          return { error: `学習記録の更新に失敗しました: ${updateError.message}` }
+        }
+
+        // 楽観的ロックの競合チェック
+        if (!updateData || updateData.length === 0) {
+          console.error("Optimistic lock conflict: record was modified by another process")
+          return { error: "記録が他の処理で更新されました。再度お試しください。" }
+        }
+
+        console.log(`Successfully updated study log id: ${log.id}`)
       }
     }
 

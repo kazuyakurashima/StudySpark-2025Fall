@@ -281,7 +281,7 @@
 ### バックエンド
 - Supabase (PostgreSQL + Auth + Realtime + Edge Functions)
 - Server Actions (Next.js)
-- ChatGPT API (gpt-5-mini ※要確認: 現在は`gpt-4o-mini`推奨)
+- ChatGPT API (gpt-5-mini ※要確認: 現在は`gpt-5-mini`推奨)
 
 ### 開発環境
 - **本番**: Supabase Project `zlipaeanhcslhintxpej`

@@ -1,7 +1,7 @@
 # Phase 1: 学習記録機能
 
 **期間:** 3週間
-**進捗:** 100% (26/26タスク完了)
+**進捗:** 100% (29/29タスク完了)
 **状態:** ✅ 完了
 
 ---
@@ -171,7 +171,9 @@
     - 未完了: "未完了"ボタン（グレーアウト、disabled）
     - 完了: "応援"/"AI応援"/"詳細を見る"ボタン
     - 詳細展開: 記録時刻、学習回、科目、学習内容、正答率、振り返り表示
-  - **TODO**: AI応援メッセージ生成（ChatGPT API）、応援送信機能は将来実装
+  - **実装済み（Phase 2完了）**: AI応援メッセージ生成（ChatGPT API）、応援送信機能
+    - sendQuickEncouragement, generateAIEncouragement, sendCustomEncouragement
+    - 2025-10-08バグ修正完了（selectedChild未定義エラー、型不整合修正）
 
 - [x] 2列レイアウトとカード配置調整
   - 対応要件: `04-Requirements-Parent.md`
@@ -368,3 +370,40 @@ Phase 1完了の条件:
   - ✅ session_id が Supabase から正しく取得される
   - ✅ study_content_type_id が getContentTypeId で正しく取得される
   - ✅ saveStudyLog が完全に動作する
+
+---
+
+## P1-6: ダッシュボード機能強化 ✅ 完了 (2/3完了)
+
+### タスク
+
+- [x] WeeklySubjectProgressCard 詳細表示実装
+  - 対応要件: `03-Requirements-Student.md`, `04-Requirements-Parent.md`
+  - 内容: 学習内容別の正答数・残問題数を取得し、詳細表示に反映
+  - 実装ファイル:
+    - `app/actions/dashboard.ts` - getWeeklySubjectProgress拡張（study_content_types取得、内容別集計）
+    - `app/student/dashboard-client.tsx` - details配列をpropsから取得
+    - `app/parent/page.tsx` - WeeklySubjectProgressCard型定義にdetails追加
+  - データ構造拡張: `weeklyProgress` に `details: { content: string; remaining: number }[]` を追加
+  - 実装確認: ✅ 詳細表示UIは既存実装済み、データフロー完成
+
+- [x] 保護者ダッシュボード学習カレンダー改善
+  - 対応要件: `04-Requirements-Parent.md`
+  - 内容: 静的2ヶ月表示から、生徒画面と同じナビゲーション／基準切替機能を持つコンポーネントへ置き換え
+  - 実装ファイル:
+    - `app/parent/page.tsx` - LearningHistoryCalendar コンポーネント更新
+  - 機能実装:
+    - ✅ 月ナビゲーション (前月/翌月/今月) - useState(selectedMonth)で管理
+    - ✅ 判定基準切り替え (入力数 ↔ 80%以上正答) - useState(criteriaMode)で管理
+    - ✅ getLearningIntensity関数をコンポーネント内に移動、criteriaModeを反映
+    - ✅ 月単位の週カレンダー生成（他月の日は薄く表示）
+    - ✅ トグルボタンUI追加（CardHeader内）
+  - 実装確認: ✅ 完全にインタラクティブなカレンダーに更新完了
+
+- [x] 今日のミッション応援機能の動作確認とテスト
+  - 対応要件: `04-Requirements-Parent.md`
+  - 内容: handleSendEncouragement / handleAIEncouragement の実装確認
+  - 実装ファイル:
+    - `app/parent/page.tsx` - Server Actions呼び出し実装済み（sendQuickEncouragement, generateAIEncouragement, sendCustomEncouragement）
+    - `app/actions/encouragement.ts` - sendQuickEncouragement, generateAIEncouragement 実装完了
+  - 実装確認: ✅ 保護者ダッシュボードの♥ボタン、✨AIボタンから応援送信可能、生徒ダッシュボードで受信表示

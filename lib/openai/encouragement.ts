@@ -107,8 +107,7 @@ export async function generateEncouragementMessages(
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.8, // 創造性を高める
-      max_tokens: 500,
+      max_completion_tokens: 800,
       response_format: { type: "json_object" },
     })
 

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -34,6 +35,7 @@ interface DashboardData {
     accuracy: number
     correctCount: number
     totalProblems: number
+    details: Array<{ content: string; remaining: number }>
   }>
 }
 
@@ -300,6 +302,8 @@ const LearningHistoryCalendar = ({ calendarData }: { calendarData: { [dateStr: s
 }
 
 const TodayMissionCard = ({ todayProgress }: { todayProgress: Array<{subject: string, accuracy: number, correctCount: number, totalProblems: number, logCount: number}> }) => {
+  const router = useRouter()
+
   const getTodayWeekday = () => {
     const today = new Date()
     return today.getDay() // 0=日曜, 1=月曜, ..., 6=土曜
@@ -496,9 +500,9 @@ const TodayMissionCard = ({ todayProgress }: { todayProgress: Array<{subject: st
   const getSubjectColor = (subject: string) => {
     const colors = {
       算数: "border-l-4 border-l-blue-500 bg-blue-50/80",
-      国語: "border-l-4 border-l-emerald-500 bg-emerald-50/80",
-      理科: "border-l-4 border-l-purple-500 bg-purple-50/80",
-      社会: "border-l-4 border-l-red-500 bg-red-50/80",
+      国語: "border-l-4 border-l-pink-500 bg-pink-50/80",
+      理科: "border-l-4 border-l-orange-500 bg-orange-50/80",
+      社会: "border-l-4 border-l-emerald-500 bg-emerald-50/80",
     }
     return colors[subject as keyof typeof colors] || "border-l-4 border-l-slate-400 bg-slate-50/80"
   }
@@ -525,13 +529,25 @@ const TodayMissionCard = ({ todayProgress }: { todayProgress: Array<{subject: st
   }
 
   const handleSparkNavigation = (subject?: string) => {
-    console.log(`Navigate to spark for subject: ${subject || "general"}`)
-    // 実際の実装では、スパーク機能への遷移を行う
+    if (subject) {
+      // Map subject names to IDs
+      const subjectMap: { [key: string]: string } = {
+        "算数": "math",
+        "国語": "japanese",
+        "理科": "science",
+        "社会": "social"
+      }
+      const subjectId = subjectMap[subject]
+      if (subjectId) {
+        router.push(`/student/spark?subject=${subjectId}`)
+        return
+      }
+    }
+    router.push("/student/spark")
   }
 
   const handleReflectNavigation = () => {
-    console.log("Navigate to reflect")
-    // 実際の実装では、リフレクト機能への遷移を行う
+    router.push("/student/reflect")
   }
 
   return (
@@ -640,18 +656,15 @@ const TodayMissionCard = ({ todayProgress }: { todayProgress: Array<{subject: st
               ))}
             </div>
 
-            {/* ミッション状況表示 */}
-            <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 border-2 border-primary/20 shadow-lg">
-              <div className="text-center">
-                <div className="mb-4">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full mb-3">
-                    <Flag className="h-8 w-8 text-primary" />
-                  </div>
+            {/* ミッション状況表示（完了時は非表示） */}
+            {!missionData.allCompleted && (
+              <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 border-2 border-primary/20 shadow-lg">
+                <div className="text-center">
+                  <h3 className="font-bold text-lg text-slate-800 mb-2">ミッション状況</h3>
+                  <p className="text-base text-slate-700 leading-relaxed">{missionData.statusMessage}</p>
                 </div>
-                <h3 className="font-bold text-lg text-slate-800 mb-2">ミッション状況</h3>
-                <p className="text-base text-slate-700 leading-relaxed">{missionData.statusMessage}</p>
               </div>
-            </div>
+            )}
           </div>
         )}
       </CardContent>
@@ -659,7 +672,7 @@ const TodayMissionCard = ({ todayProgress }: { todayProgress: Array<{subject: st
   )
 }
 
-const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{subject: string, colorCode: string, accuracy: number, correctCount: number, totalProblems: number}> }) => {
+const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{subject: string, colorCode: string, accuracy: number, correctCount: number, totalProblems: number, details?: Array<{content: string, correct: number, total: number, remaining: number}>}> }) => {
   const [expandedSubject, setExpandedSubject] = useState<string | null>(null)
 
   const getStatus = (accuracy: number) => {
@@ -669,11 +682,15 @@ const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{
     return "達成"
   }
 
-  const getColor = (accuracy: number) => {
-    if (accuracy === 0) return "gray"
-    if (accuracy < 50) return "blue"
-    if (accuracy < 80) return "yellow"
-    return "green"
+  // 科目名からTailwindカラー名にマッピング
+  const getSubjectColor = (subjectName: string) => {
+    const colorMap: Record<string, string> = {
+      算数: "blue",
+      国語: "pink",
+      理科: "orange",
+      社会: "emerald",
+    }
+    return colorMap[subjectName] || "gray"
   }
 
   const subjectProgress = weeklyProgress.map((item) => ({
@@ -682,8 +699,8 @@ const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{
     correctAnswers: item.correctCount,
     totalQuestions: item.totalProblems,
     progressRate: item.accuracy,
-    color: getColor(item.accuracy),
-    details: [] as { content: string; remaining: number }[], // TODO: 内容別残数の実装は将来的に追加
+    color: getSubjectColor(item.subject),
+    details: item.details || []
   }))
 
   const getStatusColor = (status: string) => {
@@ -699,9 +716,10 @@ const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{
   const getProgressColor = (color: string) => {
     const colors = {
       blue: "bg-blue-500",
-      yellow: "bg-yellow-500",
+      pink: "bg-pink-500",
+      orange: "bg-orange-500",
+      emerald: "bg-emerald-500",
       gray: "bg-gray-400",
-      green: "bg-green-500",
     }
     return colors[color as keyof typeof colors] || "bg-gray-400"
   }
@@ -709,9 +727,10 @@ const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{
   const getProgressBgColor = (color: string) => {
     const colors = {
       blue: "bg-blue-100",
-      yellow: "bg-yellow-100",
+      pink: "bg-pink-100",
+      orange: "bg-orange-100",
+      emerald: "bg-emerald-100",
       gray: "bg-gray-100",
-      green: "bg-green-100",
     }
     return colors[color as keyof typeof colors] || "bg-gray-100"
   }
@@ -725,7 +744,13 @@ const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {subjectProgress.map((subject, index) => (
+        {subjectProgress.length === 0 ? (
+          <div className="text-center py-8 text-slate-600">
+            <p>今週の学習記録がまだありません</p>
+            <p className="text-sm mt-2">スパーク機能で学習を記録しましょう！</p>
+          </div>
+        ) : (
+          subjectProgress.map((subject, index) => (
           <div key={index} className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -758,17 +783,25 @@ const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{
 
             {expandedSubject === subject.subject && subject.details.length > 0 && (
               <div className="bg-white/80 rounded-lg p-4 border border-slate-200 space-y-2">
-                <h4 className="font-medium text-slate-700 mb-2">内容別残数</h4>
+                <h4 className="font-medium text-slate-700 mb-2">学習内容別の詳細</h4>
                 {subject.details.map((detail, detailIndex) => (
-                  <div key={detailIndex} className="flex justify-between items-center text-sm">
-                    <span className="text-slate-600">{detail.content}</span>
-                    <span className="font-medium text-slate-800">{detail.remaining}問</span>
+                  <div key={detailIndex} className="space-y-1">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-700 font-medium">{detail.content}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs text-slate-600">
+                      <span>正解: {detail.correct}問 / 全体: {detail.total}問</span>
+                      <span className={detail.remaining > 0 ? "text-orange-600 font-medium" : "text-green-600 font-medium"}>
+                        {detail.remaining > 0 ? `残り${detail.remaining}問` : "完璧！"}
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
-        ))}
+        ))
+        )}
       </CardContent>
     </Card>
   )
@@ -782,6 +815,15 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
 
     const date = new Date(dateStr)
     if (Number.isNaN(date.getTime())) return "記録日時不明"
+
+    // デバッグ: UTCと変換後の時刻を確認
+    console.log('formatDate debug:', {
+      input: dateStr,
+      utcDate: date.toISOString(),
+      localDate: date.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }),
+      getHours: date.getHours(),
+      getMinutes: date.getMinutes()
+    })
 
     const now = new Date()
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -801,7 +843,8 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
   const safeLogs = Array.isArray(logs) ? logs : []
 
   const recentHistory = safeLogs.map((log) => {
-    const loggedAt = log.logged_at || log.created_at || log.study_date
+    // Use logged_at for displaying the exact time the log was recorded
+    const loggedAt = log.logged_at
 
     // 学習回の表示を「第N回(M/D〜M/D)」形式にフォーマット
     let sessionDisplay = ""
@@ -829,7 +872,7 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
       correctAnswers: log.correct_count || 0,
       totalQuestions: log.total_problems || 0,
       accuracy: log.total_problems > 0 ? Math.round((log.correct_count / log.total_problems) * 100) : 0,
-      previousAccuracy: null, // TODO: 前回の正答率取得ロジック実装
+      previousAccuracy: null, // FUTURE: 前回の正答率取得（Phase 1後の機能拡張予定）
       reflection: log.reflection_text || "",
     }
   })
@@ -839,9 +882,9 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
   const getSubjectColor = (subject: string) => {
     const colors = {
       算数: "text-blue-600 bg-blue-50 border-blue-200",
-      国語: "text-emerald-600 bg-emerald-50 border-emerald-200",
-      理科: "text-purple-600 bg-purple-50 border-purple-200",
-      社会: "text-red-600 bg-red-50 border-red-200",
+      国語: "text-pink-600 bg-pink-50 border-pink-200",
+      理科: "text-orange-600 bg-orange-50 border-orange-200",
+      社会: "text-emerald-600 bg-emerald-50 border-emerald-200",
     }
     return colors[subject as keyof typeof colors] || "text-slate-600 bg-slate-50 border-slate-200"
   }
@@ -1001,10 +1044,23 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
     const senderProfile = msg.sender_profile
     const baseMessage = msg.message || ""
 
+    // アバターの処理：送信者ロールに応じて適切なデフォルトアバターを設定
+    let avatarUrl = senderProfile?.avatar_url
+    if (!avatarUrl || avatarUrl === "undefined" || avatarUrl === "coach" || avatarUrl === "ai_coach") {
+      // ロールに応じてデフォルトアバターを設定
+      if (msg.sender_role === "parent") {
+        avatarUrl = "parent1"
+      } else if (msg.sender_role === "coach") {
+        avatarUrl = "coach"
+      } else {
+        avatarUrl = "coach" // その他はコーチ画像
+      }
+    }
+
     return {
       recordTime: formatDate(msg.sent_at),
       from: senderProfile?.display_name || "応援者",
-      avatar: senderProfile?.avatar_url || (msg.sender_role === "parent" ? "parent1" : "coach"),
+      avatar: avatarUrl,
       message: baseMessage,
       senderRole: msg.sender_role || "unknown",
     }
@@ -1125,6 +1181,8 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
 }
 
 export function StudentDashboardClient({ initialData }: { initialData: DashboardData }) {
+  const router = useRouter()
+
   const {
     userName,
     selectedAvatar,

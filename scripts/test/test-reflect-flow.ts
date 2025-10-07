@@ -37,7 +37,7 @@ async function test1_timeControl() {
 
   try {
     // 土曜12:00のシミュレーション
-    const saturdayNoon = new Date("2024-09-07T12:00:00+09:00") // 土曜12:00
+    const saturdayNoon = new Date("2025-09-07T12:00:00+09:00") // 土曜12:00
     const dayOfWeek = saturdayNoon.getDay()
     const hours = saturdayNoon.getHours()
 
@@ -47,7 +47,7 @@ async function test1_timeControl() {
     console.log(`   土曜12:00: ${isAvailable ? "✅ 利用可能" : "❌ 利用不可"}`)
 
     // 木曜のシミュレーション
-    const thursday = new Date("2024-09-05T15:00:00+09:00")
+    const thursday = new Date("2025-09-05T15:00:00+09:00")
     const thursdayDayOfWeek = thursday.getDay()
     const isThursdayAvailable = thursdayDayOfWeek >= 6 || thursdayDayOfWeek <= 3
 

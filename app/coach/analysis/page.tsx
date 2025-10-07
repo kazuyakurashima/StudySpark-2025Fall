@@ -37,7 +37,7 @@ const analysisReports: AnalysisReport[] = [
     id: "report1",
     week: "第4回（9/22〜9/28）",
     type: "final",
-    executionDate: new Date("2024-10-02"),
+    executionDate: new Date("2025-10-02"),
     targetWeek: "第4回（9/22〜9/28）",
     categories: {
       goalNavi: {

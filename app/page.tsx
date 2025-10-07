@@ -2,62 +2,42 @@
 
 import type React from "react"
 import Image from "next/image"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { studentLogin, parentLogin, coachLogin } from "@/app/actions/auth"
+import { universalLogin } from "@/app/actions/auth"
+import Link from "next/link"
 
 export default function LoginPage() {
-  const [studentId, setStudentId] = useState("")
-  const [studentPassword, setStudentPassword] = useState("")
-  const [parentEmail, setParentEmail] = useState("")
-  const [parentPassword, setParentPassword] = useState("")
-  const [coachEmail, setCoachEmail] = useState("")
-  const [coachPassword, setCoachPassword] = useState("")
+  const searchParams = useSearchParams()
+  const [emailOrId, setEmailOrId] = useState("")
+  const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
-  const handleStudentLogin = async (e: React.FormEvent) => {
+  useEffect(() => {
+    // 登録完了時のメッセージ表示
+    if (searchParams.get("registered") === "true") {
+      setSuccessMessage("登録が完了しました。ログインしてください。")
+    }
+  }, [searchParams])
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError(null)
 
-    const result = await studentLogin(studentId, studentPassword)
+    const result = await universalLogin(emailOrId, password)
 
     if (result?.error) {
       setError(result.error)
       setIsLoading(false)
     }
     // 成功時は自動リダイレクトされるため、ここでは何もしない
-  }
-
-  const handleParentLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError(null)
-
-    const result = await parentLogin(parentEmail, parentPassword)
-
-    if (result?.error) {
-      setError(result.error)
-      setIsLoading(false)
-    }
-  }
-
-  const handleCoachLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError(null)
-
-    const result = await coachLogin(coachEmail, coachPassword)
-
-    if (result?.error) {
-      setError(result.error)
-      setIsLoading(false)
-    }
   }
 
   return (
@@ -79,175 +59,106 @@ export default function LoginPage() {
         </div>
 
         <Card className="shadow-lg border-0 bg-card/80 backdrop-blur-sm">
-          <CardHeader className="space-y-1">
+          <CardHeader className="space-y-1 pb-6">
             <CardTitle className="text-2xl text-center">ログイン</CardTitle>
-            <CardDescription className="text-center">ロールを選択してログインしてください</CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="student" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="student">生徒</TabsTrigger>
-                <TabsTrigger value="parent">保護者</TabsTrigger>
-                <TabsTrigger value="coach">指導者</TabsTrigger>
-              </TabsList>
+            {/* 成功メッセージ */}
+            {successMessage && (
+              <div className="mb-4 p-3 bg-green-50 text-green-700 text-sm rounded-md border border-green-200">
+                {successMessage}
+              </div>
+            )}
 
-              {/* エラーメッセージ */}
-              {error && (
-                <div className="mt-4 p-3 bg-destructive/10 text-destructive text-sm rounded-md">
-                  {error}
+            {/* エラーメッセージ */}
+            {error && (
+              <div className="mb-4 p-3 bg-destructive/10 text-destructive text-sm rounded-md">
+                {error}
+              </div>
+            )}
+
+            {/* 統合ログインフォーム */}
+            <form onSubmit={handleLogin} className="space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="emailOrId" className="text-base">学習ID / メールアドレス</Label>
+                <Input
+                  id="emailOrId"
+                  type="text"
+                  placeholder="demo-student5"
+                  value={emailOrId}
+                  onChange={(e) => setEmailOrId(e.target.value)}
+                  required
+                  className="h-14 text-base"
+                  autoComplete="username"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-base">パスワード</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="h-14 text-base"
+                  autoComplete="current-password"
+                />
+              </div>
+              <Button
+                type="submit"
+                className="w-full h-14 text-lg font-semibold mt-6"
+                disabled={isLoading}
+              >
+                {isLoading ? "ログイン中..." : "ログイン"}
+              </Button>
+            </form>
+
+            {/* サインアップ・パスワードリセットリンク */}
+            <div className="mt-6 space-y-3">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
                 </div>
-              )}
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">または</span>
+                </div>
+              </div>
 
-              {/* 生徒ログイン */}
-              <TabsContent value="student" className="space-y-4 mt-4">
-                <form onSubmit={handleStudentLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="studentId">ログインID</Label>
-                    <Input
-                      id="studentId"
-                      type="text"
-                      placeholder="ログインIDを入力"
-                      value={studentId}
-                      onChange={(e) => setStudentId(e.target.value)}
-                      required
-                      className="h-12"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="studentPassword">パスワード</Label>
-                    <Input
-                      id="studentPassword"
-                      type="password"
-                      placeholder="パスワードを入力"
-                      value={studentPassword}
-                      onChange={(e) => setStudentPassword(e.target.value)}
-                      required
-                      className="h-12"
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    className="w-full h-12 text-lg font-medium bg-blue-500 hover:bg-blue-600 text-white"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "ログイン中..." : "ログイン"}
-                  </Button>
-                </form>
-              </TabsContent>
-
-              {/* 保護者ログイン */}
-              <TabsContent value="parent" className="space-y-4 mt-4">
-                <form onSubmit={handleParentLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="parentEmail">メールアドレス</Label>
-                    <Input
-                      id="parentEmail"
-                      type="email"
-                      placeholder="メールアドレスを入力"
-                      value={parentEmail}
-                      onChange={(e) => setParentEmail(e.target.value)}
-                      required
-                      className="h-12"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="parentPassword">パスワード</Label>
-                    <Input
-                      id="parentPassword"
-                      type="password"
-                      placeholder="パスワードを入力"
-                      value={parentPassword}
-                      onChange={(e) => setParentPassword(e.target.value)}
-                      required
-                      className="h-12"
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    className="w-full h-12 text-lg font-medium bg-green-500 hover:bg-green-600 text-white"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "ログイン中..." : "ログイン"}
-                  </Button>
-                  <div className="space-y-2 text-center">
-                    <a
-                      href="/register/parent"
-                      className="block text-sm text-primary hover:text-primary/80 underline transition-colors"
-                    >
-                      保護者アカウントをお持ちでない方はこちら
-                    </a>
-                    <a
-                      href="/auth/forgot-password"
-                      className="block text-sm text-muted-foreground hover:text-foreground underline transition-colors"
-                    >
-                      パスワードを忘れた方はこちら
-                    </a>
-                  </div>
-                </form>
-              </TabsContent>
-
-              {/* 指導者ログイン */}
-              <TabsContent value="coach" className="space-y-4 mt-4">
-                <form onSubmit={handleCoachLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="coachEmail">メールアドレス</Label>
-                    <Input
-                      id="coachEmail"
-                      type="email"
-                      placeholder="メールアドレスを入力"
-                      value={coachEmail}
-                      onChange={(e) => setCoachEmail(e.target.value)}
-                      required
-                      className="h-12"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="coachPassword">パスワード</Label>
-                    <Input
-                      id="coachPassword"
-                      type="password"
-                      placeholder="パスワードを入力"
-                      value={coachPassword}
-                      onChange={(e) => setCoachPassword(e.target.value)}
-                      required
-                      className="h-12"
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    className="w-full h-12 text-lg font-medium bg-purple-500 hover:bg-purple-600 text-white"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "ログイン中..." : "ログイン"}
-                  </Button>
-                  <div className="text-center">
-                    <a
-                      href="/auth/forgot-password"
-                      className="block text-sm text-muted-foreground hover:text-foreground underline transition-colors"
-                    >
-                      パスワードを忘れた方はこちら
-                    </a>
-                  </div>
-                </form>
-              </TabsContent>
-            </Tabs>
+              <div className="space-y-2 text-center text-sm">
+                <Link
+                  href="/register/parent"
+                  className="block text-primary hover:text-primary/80 underline transition-colors"
+                >
+                  保護者アカウント新規登録
+                </Link>
+                <Link
+                  href="/auth/forgot-password"
+                  className="block text-muted-foreground hover:text-foreground underline transition-colors"
+                >
+                  パスワードをお忘れの方
+                </Link>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Demo Instructions */}
-        <div className="mt-6 p-4 bg-muted/50 rounded-lg border border-primary/20">
-          <p className="text-sm text-muted-foreground text-center leading-relaxed">
-            <strong className="text-foreground">デモアカウント</strong>
-            <br />
-            <span className="text-xs mt-2 block">生徒（小5）</span>
-            <strong>demo-student5</strong> / demo2025
-            <br />
-            <span className="text-xs mt-1 block">生徒（小6）</span>
-            <strong>demo-student6</strong> / demo2025
-            <br />
-            <span className="text-xs mt-1 block">保護者</span>
-            <strong>demo-parent@example.com</strong> / demo2025
-          </p>
+        {/* Demo Account Info */}
+        <div className="mt-6 p-4 bg-muted/30 rounded-lg border border-border/50">
+          <div className="space-y-2.5 text-sm">
+            <div className="flex justify-between items-center gap-3">
+              <span className="text-muted-foreground text-xs">生徒（小5）</span>
+              <code className="text-xs bg-background px-2.5 py-1 rounded font-mono">demo-student5 / demo2025</code>
+            </div>
+            <div className="flex justify-between items-center gap-3">
+              <span className="text-muted-foreground text-xs">生徒（小6）</span>
+              <code className="text-xs bg-background px-2.5 py-1 rounded font-mono">demo-student6 / demo2025</code>
+            </div>
+            <div className="flex justify-between items-center gap-3">
+              <span className="text-muted-foreground text-xs">保護者</span>
+              <code className="text-xs bg-background px-2.5 py-1 rounded font-mono">demo-parent@example.com / demo2025</code>
+            </div>
+          </div>
         </div>
       </div>
     </div>

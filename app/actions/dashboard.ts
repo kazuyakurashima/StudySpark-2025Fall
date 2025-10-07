@@ -197,13 +197,14 @@ export async function getRecentStudyLogs(limit: number = 5) {
       return { error: "生徒情報が見つかりません" }
     }
 
-    // Get recent study logs with related data (no date filtering, just order by logged_at)
+    // Get recent study logs with related data (no date filtering, just order by study_date)
     const { data: logs, error: logsError } = await supabase
       .from("study_logs")
       .select(
         `
         id,
         logged_at,
+        study_date,
         correct_count,
         total_problems,
         reflection_text,
@@ -214,6 +215,7 @@ export async function getRecentStudyLogs(limit: number = 5) {
       `
       )
       .eq("student_id", student.id)
+      .order("study_date", { ascending: false })
       .order("logged_at", { ascending: false })
       .limit(limit)
 
@@ -357,7 +359,9 @@ export async function getWeeklySubjectProgress() {
         correct_count,
         total_problems,
         subject_id,
-        subjects (name, color_code)
+        study_content_type_id,
+        subjects (name, color_code),
+        study_content_types (content_name)
       `
       )
       .eq("student_id", student.id)
@@ -369,24 +373,42 @@ export async function getWeeklySubjectProgress() {
       return { error: "週次進捗の取得に失敗しました" }
     }
 
-    // Aggregate by subject
+    // Aggregate by subject with content details
     const subjectMap: {
-      [key: string]: { name: string; color_code: string; totalCorrect: number; totalProblems: number }
+      [key: string]: {
+        name: string
+        color_code: string
+        totalCorrect: number
+        totalProblems: number
+        contentDetails: { [contentName: string]: { correct: number; total: number } }
+      }
     } = {}
 
     logs?.forEach((log) => {
       const subject = Array.isArray(log.subjects) ? log.subjects[0] : log.subjects
       const subjectName = subject?.name || "不明"
+      const contentType = Array.isArray(log.study_content_types) ? log.study_content_types[0] : log.study_content_types
+      const contentName = contentType?.content_name || "その他"
+
       if (!subjectMap[subjectName]) {
         subjectMap[subjectName] = {
           name: subjectName,
           color_code: subject?.color_code || "#3b82f6",
           totalCorrect: 0,
           totalProblems: 0,
+          contentDetails: {}
         }
       }
+
       subjectMap[subjectName].totalCorrect += log.correct_count || 0
       subjectMap[subjectName].totalProblems += log.total_problems || 0
+
+      // Track by content type
+      if (!subjectMap[subjectName].contentDetails[contentName]) {
+        subjectMap[subjectName].contentDetails[contentName] = { correct: 0, total: 0 }
+      }
+      subjectMap[subjectName].contentDetails[contentName].correct += log.correct_count || 0
+      subjectMap[subjectName].contentDetails[contentName].total += log.total_problems || 0
     })
 
     const progress = Object.values(subjectMap).map((subject) => ({
@@ -395,6 +417,12 @@ export async function getWeeklySubjectProgress() {
       accuracy: subject.totalProblems > 0 ? Math.round((subject.totalCorrect / subject.totalProblems) * 100) : 0,
       correctCount: subject.totalCorrect,
       totalProblems: subject.totalProblems,
+      details: Object.entries(subject.contentDetails).map(([content, data]) => ({
+        content,
+        correct: data.correct,
+        total: data.total,
+        remaining: data.total - data.correct
+      }))
     }))
 
     return { progress }

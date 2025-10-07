@@ -24,7 +24,7 @@
 
 - [x] OpenAI SDK実装 (`lib/openai/client.ts`)
   - 対応要件: `04-Requirements-Parent.md`, `05-Requirements-Coach.md`
-  - 検証: ✅ gpt-4o-mini接続成功、エラーハンドリング実装
+  - 検証: ✅ gpt-5-mini接続成功、エラーハンドリング実装
   - 実装:
     - シングルトンクライアントパターン
     - タイムアウト・リトライ設定（環境変数）

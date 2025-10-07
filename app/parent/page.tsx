@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import ParentBottomNavigation from "@/components/parent-bottom-navigation"
-import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, Sparkles } from "lucide-react"
+import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, Sparkles, ChevronLeft, ChevronRight } from "lucide-react"
 
 const getGreetingMessage = (userName: string, lastLoginInfo: { lastLoginDays: number | null, lastLoginHours: number, isFirstTime: boolean } | null) => {
   if (!lastLoginInfo || lastLoginInfo.isFirstTime || lastLoginInfo.lastLoginDays === 0) {
@@ -46,58 +46,76 @@ const getAvatarSrc = (avatarId?: string) => {
   return avatarMap[avatarId || ""] || avatarMap["student1"]
 }
 
-const getLearningIntensity = (date: string, calendarData: { [dateStr: string]: { subjectCount: number; accuracy80Count: number } }) => {
-  const data = calendarData[date]
-  if (!data) return "none"
-
-  const maxCount = Math.max(data.subjectCount, data.accuracy80Count)
-  if (maxCount === 0) return "none"
-  if (maxCount === 1) return "light"
-  if (maxCount === 2) return "medium"
-  return "dark"
-}
-
 const LearningHistoryCalendar = ({ calendarData }: { calendarData: { [dateStr: string]: { subjectCount: number; accuracy80Count: number } } }) => {
+  const [selectedMonth, setSelectedMonth] = useState(new Date())
+  const [criteriaMode, setCriteriaMode] = useState<"input" | "accuracy">("input")
+
   const today = new Date()
-  const monthsData: { [key: string]: any } = {}
 
-  for (let monthOffset = 1; monthOffset >= 0; monthOffset--) {
-    const targetMonth = new Date(today.getFullYear(), today.getMonth() - monthOffset, 1)
-    const monthKey = `${targetMonth.getFullYear()}-${String(targetMonth.getMonth() + 1).padStart(2, "0")}`
-    const monthName = `${targetMonth.getMonth() + 1}月`
+  // 判定基準に基づいて濃淡を決定
+  const getLearningIntensity = (date: string) => {
+    const data = calendarData[date]
+    if (!data) return "none"
 
-    const weeks = []
-    const firstDay = new Date(targetMonth.getFullYear(), targetMonth.getMonth(), 1)
-    const lastDay = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0)
+    const count = criteriaMode === "input" ? data.subjectCount : data.accuracy80Count
+    if (count === 0) return "none"
+    if (count === 1) return "light"
+    if (count === 2) return "medium"
+    return "dark"
+  }
 
-    const startDate = new Date(firstDay)
-    startDate.setDate(startDate.getDate() - firstDay.getDay())
+  // ナビゲーション関数
+  const goToPreviousMonth = () => {
+    const newMonth = new Date(selectedMonth)
+    newMonth.setMonth(selectedMonth.getMonth() - 1)
+    setSelectedMonth(newMonth)
+  }
 
-    const endDate = new Date(lastDay)
-    endDate.setDate(endDate.getDate() + (6 - lastDay.getDay()))
+  const goToNextMonth = () => {
+    const newMonth = new Date(selectedMonth)
+    newMonth.setMonth(selectedMonth.getMonth() + 1)
+    setSelectedMonth(newMonth)
+  }
 
-    const currentDate = new Date(startDate)
-    while (currentDate <= endDate) {
-      const week = []
-      for (let day = 0; day < 7; day++) {
-        const dateStr = currentDate.toISOString().split("T")[0]
-        const intensity = getLearningIntensity(dateStr, calendarData)
-        const isCurrentMonth = currentDate.getMonth() === targetMonth.getMonth()
+  const goToToday = () => {
+    setSelectedMonth(new Date())
+  }
 
-        week.push({
-          date: dateStr,
-          day: currentDate.getDate(),
-          intensity: isCurrentMonth ? intensity : "none",
-          data: calendarData[dateStr],
-          isCurrentMonth,
-        })
+  // 選択された月のデータのみ生成
+  const targetMonth = selectedMonth
+  const monthKey = `${targetMonth.getFullYear()}-${String(targetMonth.getMonth() + 1).padStart(2, "0")}`
+  const monthName = `${targetMonth.getFullYear()}年${targetMonth.getMonth() + 1}月`
 
-        currentDate.setDate(currentDate.getDate() + 1)
-      }
-      weeks.push(week)
+  const weeks = []
+  const firstDay = new Date(targetMonth.getFullYear(), targetMonth.getMonth(), 1)
+  const lastDay = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0)
+
+  const startDate = new Date(firstDay)
+  startDate.setDate(startDate.getDate() - firstDay.getDay())
+
+  const endDate = new Date(lastDay)
+  endDate.setDate(endDate.getDate() + (6 - lastDay.getDay()))
+
+  const currentDate = new Date(startDate)
+  while (currentDate <= endDate) {
+    const week = []
+    for (let day = 0; day < 7; day++) {
+      const dateStr = currentDate.toISOString().split("T")[0]
+      // 判定基準に基づいて濃淡を決定
+      const intensity = getLearningIntensity(dateStr)
+      const isCurrentMonth = currentDate.getMonth() === targetMonth.getMonth()
+
+      week.push({
+        date: dateStr,
+        day: currentDate.getDate(),
+        intensity: isCurrentMonth ? intensity : "none",
+        data: calendarData[dateStr],
+        isCurrentMonth,
+      })
+
+      currentDate.setDate(currentDate.getDate() + 1)
     }
-
-    monthsData[monthKey] = { weeks, monthName }
+    weeks.push(week)
   }
 
   const intensityColors = {
@@ -110,15 +128,65 @@ const LearningHistoryCalendar = ({ calendarData }: { calendarData: { [dateStr: s
   return (
     <Card className="bg-gradient-to-br from-blue-50 to-primary/10 border-primary/20 shadow-lg">
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg font-bold flex items-center gap-2">
-          <Calendar className="h-6 w-6 text-primary" />
-          学習カレンダー
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg font-bold flex items-center gap-2">
+            <Calendar className="h-6 w-6 text-primary" />
+            学習カレンダー
+          </CardTitle>
+          <div className="flex gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToPreviousMonth}
+              className="h-7 w-7 p-0"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToToday}
+              className="h-7 px-2 text-xs"
+            >
+              今月
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToNextMonth}
+              className="h-7 w-7 p-0"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        <div className="flex justify-center mt-3">
+          <Button
+            variant={criteriaMode === "input" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setCriteriaMode("input")}
+            className="rounded-r-none text-xs h-7"
+          >
+            入力数
+          </Button>
+          <Button
+            variant={criteriaMode === "accuracy" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setCriteriaMode("accuracy")}
+            className="rounded-l-none text-xs h-7"
+          >
+            80%以上
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="px-3 sm:px-6">
         <div className="space-y-3 sm:space-y-4">
+          <div className="text-base font-bold text-slate-800 text-center">
+            {monthName}
+          </div>
+
           <div className="grid grid-cols-7 gap-1 sm:gap-2">
-            {["月", "火", "水", "木", "金", "土", "日"].map((day) => (
+            {["日", "月", "火", "水", "木", "金", "土"].map((day) => (
               <div
                 key={day}
                 className="text-sm font-semibold text-center text-slate-700 py-1 w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center"
@@ -128,30 +196,22 @@ const LearningHistoryCalendar = ({ calendarData }: { calendarData: { [dateStr: s
             ))}
           </div>
 
-          {Object.entries(monthsData).map(([monthKey, monthData]) => (
-            <div key={monthKey} className="space-y-2">
-              <div className="text-base font-bold text-slate-800 text-left border-b border-slate-300 pb-2">
-                {monthData.monthName}
-              </div>
-
-              {monthData.weeks.map((week: any[], weekIndex: number) => (
-                <div key={weekIndex} className="grid grid-cols-7 gap-1 sm:gap-2">
-                  {week.map((day: any, dayIndex: number) => (
-                    <div
-                      key={dayIndex}
-                      className={`
-                        w-5 h-5 sm:w-6 sm:h-6 rounded-md border-2 transition-all duration-300 hover:scale-110 cursor-pointer shadow-sm
-                        ${intensityColors[day.intensity as keyof typeof intensityColors]}
-                        ${!day.isCurrentMonth ? "opacity-30" : ""}
-                      `}
-                      title={
-                        day.data && day.isCurrentMonth
-                          ? `${day.date}: 学習記録 ${day.data.subjectCount}件 (正答率80%以上: ${day.data.accuracy80Count}件)`
-                          : `${day.date}: 学習記録なし`
-                      }
-                    />
-                  ))}
-                </div>
+          {weeks.map((week: any[], weekIndex: number) => (
+            <div key={weekIndex} className="grid grid-cols-7 gap-1 sm:gap-2">
+              {week.map((day: any, dayIndex: number) => (
+                <div
+                  key={dayIndex}
+                  className={`
+                    w-5 h-5 sm:w-6 sm:h-6 rounded-md border-2 transition-all duration-300 hover:scale-110 cursor-pointer shadow-sm
+                    ${intensityColors[day.intensity as keyof typeof intensityColors]}
+                    ${!day.isCurrentMonth ? "opacity-30" : ""}
+                  `}
+                  title={
+                    day.data && day.isCurrentMonth
+                      ? `${day.date}: 学習記録 ${day.data.subjectCount}件 (正答率80%以上: ${day.data.accuracy80Count}件)`
+                      : `${day.date}: 学習記録なし`
+                  }
+                />
               ))}
             </div>
           ))}
@@ -371,9 +431,9 @@ const ParentTodayMissionCard = ({ todayProgress, studentName }: { todayProgress:
   const getSubjectColor = (subject: string) => {
     const colors = {
       算数: "border-l-4 border-l-blue-500 bg-blue-50/80",
-      国語: "border-l-4 border-l-emerald-500 bg-emerald-50/80",
-      理科: "border-l-4 border-l-purple-500 bg-purple-50/80",
-      社会: "border-l-4 border-l-red-500 bg-red-50/80",
+      国語: "border-l-4 border-l-pink-500 bg-pink-50/80",
+      理科: "border-l-4 border-l-orange-500 bg-orange-50/80",
+      社会: "border-l-4 border-l-emerald-500 bg-emerald-50/80",
     }
     return colors[subject as keyof typeof colors] || "border-l-4 border-l-slate-400 bg-slate-50/80"
   }
@@ -399,17 +459,59 @@ const ParentTodayMissionCard = ({ todayProgress, studentName }: { todayProgress:
     return "今日のミッション！"
   }
 
-  const handleSendEncouragement = (subject: string, logIndex: number) => {
-    // TODO: 実装予定 - 応援メッセージ送信
-    const key = `${subject}-${logIndex}`
-    setEncouragementSent({ ...encouragementSent, [key]: true })
-    console.log(`Send encouragement for ${subject} log ${logIndex}`)
+  const handleSendEncouragement = async (subject: string, logIndex: number, studyLogId?: string) => {
+    if (!selectedChildId || !studyLogId) {
+      alert("学習記録が見つかりません")
+      return
+    }
+
+    try {
+      // Quick encouragement with "がんばったね" template
+      const { sendQuickEncouragement } = await import("@/app/actions/encouragement")
+      const result = await sendQuickEncouragement(selectedChildId.toString(), studyLogId, "heart")
+
+      if (result.success) {
+        const key = `${subject}-${logIndex}`
+        setEncouragementSent({ ...encouragementSent, [key]: true })
+        alert("応援メッセージを送信しました！")
+      } else {
+        alert(`エラー: ${result.error}`)
+      }
+    } catch (error) {
+      console.error("応援送信エラー:", error)
+      alert("応援メッセージの送信に失敗しました")
+    }
   }
 
-  const handleAIEncouragement = (subject: string) => {
-    // TODO: 実装予定 - AI応援メッセージ生成
-    console.log(`Generate AI encouragement for ${subject}`)
-    alert("AI応援機能は近日実装予定です")
+  const handleAIEncouragement = async (subject: string, studyLogId?: string) => {
+    if (!selectedChildId || !studyLogId) {
+      alert("学習記録が見つかりません")
+      return
+    }
+
+    try {
+      const { generateAIEncouragement } = await import("@/app/actions/encouragement")
+      const result = await generateAIEncouragement(selectedChildId.toString(), studyLogId)
+
+      if (result.success && result.messages && result.messages.length > 0) {
+        // result.messages is string[] - show first message
+        const message = result.messages[0]
+        if (confirm(`AI応援メッセージ:\n"${message}"\n\nこのメッセージを送信しますか？`)) {
+          const { sendCustomEncouragement } = await import("@/app/actions/encouragement")
+          const sendResult = await sendCustomEncouragement(selectedChildId.toString(), studyLogId, message, "ai")
+          if (sendResult.success) {
+            alert("AI応援メッセージを送信しました！")
+          } else {
+            alert(`送信エラー: ${sendResult.error}`)
+          }
+        }
+      } else {
+        alert(`エラー: ${result.error || "AI応援メッセージ生成に失敗しました"}`)
+      }
+    } catch (error) {
+      console.error("AI応援エラー:", error)
+      alert("AI応援機能でエラーが発生しました")
+    }
   }
 
   const formatLogTime = (loggedAt: string) => {
@@ -507,19 +609,20 @@ const ParentTodayMissionCard = ({ todayProgress, studentName }: { todayProgress:
                       <div className="space-y-2">
                         <div className="flex gap-2">
                           <Button
-                            onClick={() => handleSendEncouragement(panel.subject, 0)}
+                            onClick={() => handleSendEncouragement(panel.subject, 0, panel.logs?.[0]?.id)}
                             className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all duration-300 ${
                               encouragementSent[`${panel.subject}-0`]
                                 ? "bg-green-100 text-green-700 border border-green-300"
                                 : "bg-pink-500 text-white hover:bg-pink-600"
                             }`}
-                            disabled={encouragementSent[`${panel.subject}-0`]}
+                            disabled={encouragementSent[`${panel.subject}-0`] || !panel.logs?.[0]?.id}
                           >
                             {encouragementSent[`${panel.subject}-0`] ? "応援完了！" : "応援"}
                           </Button>
                           <Button
-                            onClick={() => handleAIEncouragement(panel.subject)}
+                            onClick={() => handleAIEncouragement(panel.subject, panel.logs?.[0]?.id)}
                             className="flex-1 py-2 px-3 rounded-lg text-xs font-bold bg-purple-500 text-white hover:bg-purple-600 transition-all duration-300"
+                            disabled={!panel.logs?.[0]?.id}
                           >
                             <Sparkles className="h-3 w-3 mr-1" />
                             AI応援
@@ -583,7 +686,7 @@ const ParentTodayMissionCard = ({ todayProgress, studentName }: { todayProgress:
   )
 }
 
-const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{subject: string, colorCode: string, accuracy: number, correctCount: number, totalProblems: number}> }) => {
+const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{subject: string, colorCode: string, accuracy: number, correctCount: number, totalProblems: number, details?: Array<{content: string, remaining: number}>}> }) => {
   const [expandedSubject, setExpandedSubject] = useState<string | null>(null)
 
   const getStatus = (accuracy: number) => {
@@ -607,7 +710,7 @@ const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{
     totalQuestions: item.totalProblems,
     progressRate: item.accuracy,
     color: getColor(item.accuracy),
-    details: [] as { content: string; remaining: number }[], // TODO: 内容別残数の実装は将来的に追加
+    details: item.details || [],
   }))
 
   const getStatusColor = (status: string) => {
@@ -733,7 +836,7 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
       correctAnswers: log.correct_count || 0,
       totalQuestions: log.total_problems || 0,
       accuracy: log.total_problems > 0 ? Math.round((log.correct_count / log.total_problems) * 100) : 0,
-      previousAccuracy: null, // TODO: 前回の正答率取得ロジック実装
+      previousAccuracy: null, // FUTURE: 前回の正答率取得（Phase 1後の機能拡張予定）
       reflection: log.reflection_text || "",
     }
   })
@@ -741,9 +844,9 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
   const getSubjectColor = (subject: string) => {
     const colors = {
       算数: "text-blue-600 bg-blue-50 border-blue-200",
-      国語: "text-emerald-600 bg-emerald-50 border-emerald-200",
-      理科: "text-purple-600 bg-purple-50 border-purple-200",
-      社会: "text-red-600 bg-red-50 border-red-200",
+      国語: "text-pink-600 bg-pink-50 border-pink-200",
+      理科: "text-orange-600 bg-orange-50 border-orange-200",
+      社会: "text-emerald-600 bg-emerald-50 border-emerald-200",
     }
     return colors[subject as keyof typeof colors] || "text-slate-600 bg-slate-50 border-slate-200"
   }

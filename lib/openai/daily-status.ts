@@ -219,8 +219,7 @@ export async function generateDailyStatusMessage(
         { role: "system", content: getSystemPrompt() },
         { role: "user", content: getUserPrompt(context) },
       ],
-      temperature: 0.7,
-      max_tokens: 200,
+      max_completion_tokens: 500,
     })
 
     const message = completion.choices[0]?.message?.content?.trim()

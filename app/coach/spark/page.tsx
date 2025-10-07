@@ -28,7 +28,7 @@ const students = [
     needsAttention: false,
     recentScore: 85,
     subjects: ["算数", "国語"],
-    lastMessage: "2024-08-14",
+    lastMessage: "2025-08-14",
     parentResponse: true,
   },
   {
@@ -45,7 +45,7 @@ const students = [
     needsAttention: false,
     recentScore: 92,
     subjects: ["理科", "社会"],
-    lastMessage: "2024-08-13",
+    lastMessage: "2025-08-13",
     parentResponse: true,
   },
   {
@@ -62,7 +62,7 @@ const students = [
     needsAttention: true,
     recentScore: 68,
     subjects: ["算数"],
-    lastMessage: "2024-08-12",
+    lastMessage: "2025-08-12",
     parentResponse: false,
   },
   {
@@ -79,7 +79,7 @@ const students = [
     needsAttention: false,
     recentScore: 96,
     subjects: ["算数", "国語", "理科"],
-    lastMessage: "2024-08-14",
+    lastMessage: "2025-08-14",
     parentResponse: true,
   },
 ]
@@ -350,9 +350,9 @@ export default function CoachSparkPage() {
                               {student.subjects.slice(0, 2).map((subject) => {
                                 const subjectColors: { [key: string]: string } = {
                                   算数: "bg-blue-100 text-blue-800",
-                                  国語: "bg-green-100 text-green-800",
-                                  理科: "bg-purple-100 text-purple-800",
-                                  社会: "bg-orange-100 text-orange-800",
+                                  国語: "bg-pink-100 text-pink-800",
+                                  理科: "bg-orange-100 text-orange-800",
+                                  社会: "bg-emerald-100 text-emerald-800",
                                 }
                                 return (
                                   <Badge

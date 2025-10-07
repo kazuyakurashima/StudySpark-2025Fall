@@ -18,6 +18,7 @@ import {
   saveStudyLog,
   getContentTypeId,
 } from "@/app/actions/study-log"
+import { generateDailyReflections } from "@/app/actions/ai-reflection"
 
 const subjects = [
   {
@@ -35,34 +36,34 @@ const subjects = [
     id: "japanese",
     name: "国語",
     color:
+      "bg-gradient-to-br from-pink-50 via-pink-100 to-pink-200 text-pink-900 border-pink-200 hover:from-pink-100 hover:via-pink-200 hover:to-pink-300",
+    accent: "border-l-pink-500",
+    badge: "bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-lg",
+    sliderColor: "from-pink-400 to-pink-600",
+    progressBg: "bg-pink-100",
+    progressFill: "bg-gradient-to-r from-pink-500 to-pink-600",
+  },
+  {
+    id: "science",
+    name: "理科",
+    color:
+      "bg-gradient-to-br from-orange-50 via-orange-100 to-orange-200 text-orange-900 border-orange-200 hover:from-orange-100 hover:via-orange-200 hover:to-orange-300",
+    accent: "border-l-orange-500",
+    badge: "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg",
+    sliderColor: "from-orange-400 to-orange-600",
+    progressBg: "bg-orange-100",
+    progressFill: "bg-gradient-to-r from-orange-500 to-orange-600",
+  },
+  {
+    id: "social",
+    name: "社会",
+    color:
       "bg-gradient-to-br from-emerald-50 via-emerald-100 to-emerald-200 text-emerald-900 border-emerald-200 hover:from-emerald-100 hover:via-emerald-200 hover:to-emerald-300",
     accent: "border-l-emerald-500",
     badge: "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg",
     sliderColor: "from-emerald-400 to-emerald-600",
     progressBg: "bg-emerald-100",
     progressFill: "bg-gradient-to-r from-emerald-500 to-emerald-600",
-  },
-  {
-    id: "science",
-    name: "理科",
-    color:
-      "bg-gradient-to-br from-purple-50 via-purple-100 to-purple-200 text-purple-900 border-purple-200 hover:from-purple-100 hover:via-purple-200 hover:to-purple-300",
-    accent: "border-l-purple-500",
-    badge: "bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg",
-    sliderColor: "from-purple-400 to-purple-600",
-    progressBg: "bg-purple-100",
-    progressFill: "bg-gradient-to-r from-purple-500 to-purple-600",
-  },
-  {
-    id: "social",
-    name: "社会",
-    color:
-      "bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200 text-amber-900 border-amber-200 hover:from-amber-100 hover:via-amber-200 hover:to-amber-300",
-    accent: "border-l-amber-500",
-    badge: "bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg",
-    sliderColor: "from-amber-400 to-amber-600",
-    progressBg: "bg-amber-100",
-    progressFill: "bg-gradient-to-r from-amber-500 to-amber-600",
   },
 ]
 
@@ -394,15 +395,18 @@ type SparkClientProps = {
       course: "A" | "B" | "C" | "S"
     }
   }
+  preselectedSubject?: string
 }
 
-export function SparkClient({ initialData }: SparkClientProps) {
+export function SparkClient({ initialData, preselectedSubject }: SparkClientProps) {
   const { student } = initialData
   const studentGrade = student.grade.toString()
   const currentCourse = student.course
 
   const [selectedSession, setSelectedSession] = useState(getCurrentLearningSession(studentGrade))
-  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>(
+    preselectedSubject ? [preselectedSubject] : []
+  )
   const [subjectDetails, setSubjectDetails] = useState<{
     [key: string]: {
       [contentId: string]: number // correct answers count
@@ -559,16 +563,61 @@ export function SparkClient({ initialData }: SparkClientProps) {
   const generateAIReflections = async () => {
     setIsGeneratingAI(true)
 
-    setTimeout(() => {
+    try {
+      // 学習データを整形
+      const studyData = {
+        subjects: selectedSubjects,
+        details: {} as any,
+      }
+
+      // 各科目の学習内容詳細を追加
+      for (const subjectId of selectedSubjects) {
+        const contentDetails = subjectDetails[subjectId] || {}
+        const availableContent = getAvailableLearningContent(subjectId)
+
+        studyData.details[subjectId] = {}
+
+        for (const content of availableContent) {
+          const maxProblems = getProblemCount(subjectId, content.id)
+          const correctAnswers = contentDetails[content.id] || 0
+
+          if (maxProblems > 0) {
+            studyData.details[subjectId][content.id] = {
+              contentName: content.name,
+              correct: correctAnswers,
+              total: maxProblems,
+            }
+          }
+        }
+      }
+
+      // AI生成を呼び出し
+      const result = await generateDailyReflections(studyData)
+
+      if (result.error) {
+        console.error("AI reflection generation error:", result.error)
+        // エラー時はフォールバックの定型文を使用
+        const studiedSubjects = selectedSubjects.map((id) => subjects.find((s) => s.id === id)?.name).join("、")
+        setAiReflections([
+          `今日は${studiedSubjects}の学習に取り組めました。特に難しい問題にも諦めずに挑戦できたのは素晴らしいことです。`,
+          `${studiedSubjects}を学習する中で、基礎をしっかり理解することの大切さに気づきました。一つひとつ丁寧に取り組むことで理解が深まります。`,
+          `明日は今日間違えた問題を復習し、もし分からない部分があれば先生に質問して、確実に理解してから次に進みます。`,
+        ])
+      } else if (result.reflections) {
+        setAiReflections(result.reflections)
+      }
+    } catch (error) {
+      console.error("Failed to generate AI reflections:", error)
+      // エラー時はフォールバックの定型文を使用
       const studiedSubjects = selectedSubjects.map((id) => subjects.find((s) => s.id === id)?.name).join("、")
-
-      const celebrateReflection = `今日は${studiedSubjects}の学習に取り組めました。特に難しい問題にも諦めずに挑戦できたのは素晴らしいことです。`
-      const insightReflection = `${studiedSubjects}を学習する中で、基礎をしっかり理解することの大切さに気づきました。一つひとつ丁寧に取り組むことで理解が深まります。`
-      const nextStepReflection = `明日は今日間違えた問題を復習し、もし分からない部分があれば先生に質問して、確実に理解してから次に進みます。`
-
-      setAiReflections([celebrateReflection, insightReflection, nextStepReflection])
+      setAiReflections([
+        `今日は${studiedSubjects}の学習に取り組めました。特に難しい問題にも諦めずに挑戦できたのは素晴らしいことです。`,
+        `${studiedSubjects}を学習する中で、基礎をしっかり理解することの大切さに気づきました。一つひとつ丁寧に取り組むことで理解が深まります。`,
+        `明日は今日間違えた問題を復習し、もし分からない部分があれば先生に質問して、確実に理解してから次に進みます。`,
+      ])
+    } finally {
       setIsGeneratingAI(false)
-    }, 2000)
+    }
   }
 
   const handleSubmit = async () => {

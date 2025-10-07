@@ -1,4 +1,4 @@
-import { getOpenAIClient } from "./client"
+import { getOpenAIClient, getDefaultModel } from "./client"
 import {
   getGoalNavigationSystemPrompt,
   getGoalNavigationStepPrompt,
@@ -35,10 +35,9 @@ export async function generateGoalNavigationMessage(
 
     // AI応答を生成
     const completion = await client.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: getDefaultModel(),
       messages,
-      temperature: 0.7,
-      max_tokens: 500,
+      max_completion_tokens: 800,
     })
 
     const message = completion.choices[0]?.message?.content
@@ -85,10 +84,9 @@ export async function generateGoalThoughts(
 
     // AI応答を生成（JSON形式）
     const completion = await client.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: getDefaultModel(),
       messages,
-      temperature: 0.7,
-      max_tokens: 800,
+      max_completion_tokens: 800,
       response_format: { type: "json_object" },
     })
 

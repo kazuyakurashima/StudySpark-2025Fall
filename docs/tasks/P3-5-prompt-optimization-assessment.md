@@ -285,7 +285,7 @@ export interface EncouragementContext {
 4. **パラメータ設定**
    - temperature: 0.7-0.8（適度な創造性）
    - max_tokens: 250-300（適切な長さ制限）
-   - model: gpt-4o-mini（コスト効率と品質のバランス）
+   - model: gpt-5-mini（コスト効率と品質のバランス）
 
 ---
 
@@ -310,7 +310,7 @@ export interface EncouragementContext {
 
 | 要件セクション | 実装ファイル | 適合性 |
 |--------------|------------|--------|
-| AIコーチングの使用モデル | `lib/openai/client.ts` | ✅ gpt-4o-mini |
+| AIコーチングの使用モデル | `lib/openai/client.ts` | ✅ gpt-5-mini |
 | GROWモデル | `prompts.ts`, `reflect-coaching.ts` | ✅ 完全実装 |
 | SMART目標 | `prompts.ts` (Step 6) | ✅ 明示的指示 |
 | 週タイプ別対話 | `reflect-coaching.ts` | ✅ 4パターン実装 |
