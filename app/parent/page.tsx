@@ -458,7 +458,7 @@ const ParentTodayMissionCard = ({ todayProgress, studentName }: { todayProgress:
   }
 
   const handleSendEncouragement = async (subject: string, logIndex: number, studyLogId?: string) => {
-    if (!selectedChild || !studyLogId) {
+    if (!selectedChildId || !studyLogId) {
       alert("学習記録が見つかりません")
       return
     }
@@ -466,7 +466,7 @@ const ParentTodayMissionCard = ({ todayProgress, studentName }: { todayProgress:
     try {
       // Quick encouragement with "がんばったね" template
       const { sendQuickEncouragement } = await import("@/app/actions/encouragement")
-      const result = await sendQuickEncouragement(selectedChild.id, studyLogId, "heart")
+      const result = await sendQuickEncouragement(selectedChildId.toString(), studyLogId, "heart")
 
       if (result.success) {
         const key = `${subject}-${logIndex}`
@@ -482,21 +482,21 @@ const ParentTodayMissionCard = ({ todayProgress, studentName }: { todayProgress:
   }
 
   const handleAIEncouragement = async (subject: string, studyLogId?: string) => {
-    if (!selectedChild || !studyLogId) {
+    if (!selectedChildId || !studyLogId) {
       alert("学習記録が見つかりません")
       return
     }
 
     try {
       const { generateAIEncouragement } = await import("@/app/actions/encouragement")
-      const result = await generateAIEncouragement(selectedChild.id, studyLogId)
+      const result = await generateAIEncouragement(selectedChildId.toString(), studyLogId)
 
       if (result.success && result.messages && result.messages.length > 0) {
-        // Show AI-generated messages
-        const message = result.messages[0].message
+        // result.messages is string[] - show first message
+        const message = result.messages[0]
         if (confirm(`AI応援メッセージ:\n"${message}"\n\nこのメッセージを送信しますか？`)) {
           const { sendCustomEncouragement } = await import("@/app/actions/encouragement")
-          const sendResult = await sendCustomEncouragement(selectedChild.id, studyLogId, message)
+          const sendResult = await sendCustomEncouragement(selectedChildId.toString(), studyLogId, message)
           if (sendResult.success) {
             alert("AI応援メッセージを送信しました！")
           } else {
