@@ -834,7 +834,7 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
       correctAnswers: log.correct_count || 0,
       totalQuestions: log.total_problems || 0,
       accuracy: log.total_problems > 0 ? Math.round((log.correct_count / log.total_problems) * 100) : 0,
-      previousAccuracy: null, // TODO: 前回の正答率取得ロジック実装
+      previousAccuracy: null, // FUTURE: 前回の正答率取得（Phase 1後の機能拡張予定）
       reflection: log.reflection_text || "",
     }
   })
