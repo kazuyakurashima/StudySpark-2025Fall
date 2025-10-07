@@ -235,15 +235,18 @@ export default function LoginPage() {
         </Card>
 
         {/* Demo Instructions */}
-        <div className="mt-6 p-4 bg-muted/50 rounded-lg">
-          <p className="text-sm text-muted-foreground text-center">
-            <strong>デモ用:</strong>
+        <div className="mt-6 p-4 bg-muted/50 rounded-lg border border-primary/20">
+          <p className="text-sm text-muted-foreground text-center leading-relaxed">
+            <strong className="text-foreground">デモアカウント</strong>
             <br />
-            生徒: student5a / password123
+            <span className="text-xs mt-2 block">生徒（小5）</span>
+            <strong>demo-student5</strong> / demo2024
             <br />
-            保護者: parent1@example.com / password123
+            <span className="text-xs mt-1 block">生徒（小6）</span>
+            <strong>demo-student6</strong> / demo2024
             <br />
-            指導者: coach1@example.com / password123
+            <span className="text-xs mt-1 block">保護者</span>
+            <strong>demo-parent@example.com</strong> / demo2024
           </p>
         </div>
       </div>

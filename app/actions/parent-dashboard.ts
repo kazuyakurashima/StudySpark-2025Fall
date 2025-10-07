@@ -137,6 +137,186 @@ export async function getTodayStatusMessage(studentId: number) {
 }
 
 /**
+ * 今日の様子メッセージ取得（AI生成版）
+ */
+export async function getTodayStatusMessageAI(studentId: number) {
+  try {
+    const supabase = await createClient()
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return { error: "認証エラー" }
+    }
+
+    // Get student info
+    const { data: student, error: studentError } = await supabase
+      .from("students")
+      .select(
+        `
+        id,
+        grade,
+        course,
+        profiles!students_user_id_fkey (display_name)
+      `
+      )
+      .eq("id", studentId)
+      .single()
+
+    if (studentError || !student) {
+      return { error: "生徒情報の取得に失敗しました" }
+    }
+
+    const profiles = Array.isArray(student.profiles) ? student.profiles[0] : student.profiles
+    const displayName = profiles?.display_name || "お子さん"
+
+    // Get today's logs
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayEnd = new Date(today)
+    todayEnd.setHours(23, 59, 59, 999)
+
+    const { data: todayLogs } = await supabase
+      .from("study_logs")
+      .select(
+        `
+        correct_count,
+        total_problems,
+        logged_at,
+        subjects (name),
+        study_content_types (content_name)
+      `
+      )
+      .eq("student_id", studentId)
+      .gte("logged_at", today.toISOString())
+      .lte("logged_at", todayEnd.toISOString())
+      .order("logged_at", { ascending: true })
+
+    // Get study streak
+    const { streak } = await getStudentStreak(studentId)
+
+    // Get weekly trend
+    const oneWeekAgo = new Date(today)
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+    const twoWeeksAgo = new Date(today)
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
+
+    const { data: thisWeekLogs } = await supabase
+      .from("study_logs")
+      .select("correct_count, total_problems")
+      .eq("student_id", studentId)
+      .gte("logged_at", oneWeekAgo.toISOString())
+      .lt("logged_at", today.toISOString())
+
+    const { data: lastWeekLogs } = await supabase
+      .from("study_logs")
+      .select("correct_count, total_problems")
+      .eq("student_id", studentId)
+      .gte("logged_at", twoWeeksAgo.toISOString())
+      .lt("logged_at", oneWeekAgo.toISOString())
+
+    let weeklyTrend: "improving" | "stable" | "declining" | "none" = "none"
+    if (thisWeekLogs && thisWeekLogs.length > 0 && lastWeekLogs && lastWeekLogs.length > 0) {
+      const thisWeekAccuracy =
+        thisWeekLogs.reduce((sum, log) => sum + log.correct_count, 0) /
+        thisWeekLogs.reduce((sum, log) => sum + log.total_problems, 0)
+      const lastWeekAccuracy =
+        lastWeekLogs.reduce((sum, log) => sum + log.correct_count, 0) /
+        lastWeekLogs.reduce((sum, log) => sum + log.total_problems, 0)
+
+      const diff = (thisWeekAccuracy - lastWeekAccuracy) * 100
+      if (diff >= 10) {
+        weeklyTrend = "improving"
+      } else if (diff <= -10) {
+        weeklyTrend = "declining"
+      } else {
+        weeklyTrend = "stable"
+      }
+    }
+
+    // Get recent reflection
+    const { data: recentReflection } = await supabase
+      .from("reflect_sessions")
+      .select("summary")
+      .eq("student_id", studentId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    // Get upcoming test
+    const { data: upcomingTest } = await supabase
+      .from("test_schedules")
+      .select(
+        `
+        test_date,
+        test_types!inner (name, grade)
+      `
+      )
+      .eq("test_types.grade", student.grade)
+      .gt("test_date", today.toISOString())
+      .order("test_date", { ascending: true })
+      .limit(1)
+      .maybeSingle()
+
+    // Format context for AI
+    const context: import("@/lib/openai/daily-status").DailyStatusContext = {
+      studentName: displayName,
+      grade: student.grade,
+      course: student.course,
+      todayLogs:
+        todayLogs?.map((log) => {
+          const subject = Array.isArray(log.subjects) ? log.subjects[0] : log.subjects
+          const content = Array.isArray(log.study_content_types)
+            ? log.study_content_types[0]
+            : log.study_content_types
+          const logDate = new Date(log.logged_at)
+          return {
+            subject: subject?.name || "不明",
+            content: content?.content_name || "不明",
+            correct: log.correct_count,
+            total: log.total_problems,
+            accuracy: log.total_problems > 0 ? Math.round((log.correct_count / log.total_problems) * 100) : 0,
+            time: `${logDate.getHours()}:${String(logDate.getMinutes()).padStart(2, "0")}`,
+          }
+        }) || [],
+      studyStreak: streak || 0,
+      weeklyTrend,
+      recentReflection: recentReflection?.summary,
+      upcomingTest: upcomingTest
+        ? {
+            name: (Array.isArray(upcomingTest.test_types)
+              ? upcomingTest.test_types[0]
+              : upcomingTest.test_types
+            )?.name || "テスト",
+            date: new Date(upcomingTest.test_date).toLocaleDateString("ja-JP"),
+            daysUntil: Math.ceil(
+              (new Date(upcomingTest.test_date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+            ),
+          }
+        : undefined,
+    }
+
+    // Generate AI message
+    const { generateDailyStatusMessage } = await import("@/lib/openai/daily-status")
+    const result = await generateDailyStatusMessage(context)
+
+    if (!result.success) {
+      console.error("AI generation failed, falling back to template")
+      // Fallback to template version
+      return getTodayStatusMessage(studentId)
+    }
+
+    return { message: result.message }
+  } catch (error) {
+    console.error("Get today status message AI error:", error)
+    // Fallback to template version
+    return getTodayStatusMessage(studentId)
+  }
+}
+
+/**
  * 子どもの連続学習日数を計算
  */
 export async function getStudentStreak(studentId: number) {

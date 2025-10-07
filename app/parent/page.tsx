@@ -1002,7 +1002,7 @@ export default function ParentDashboard() {
     const fetchChildData = async () => {
       try {
         const {
-          getTodayStatusMessage,
+          getTodayStatusMessageAI,
           getStudentStreak,
           getStudentTodayMissionData,
           getStudentWeeklyProgress,
@@ -1020,7 +1020,7 @@ export default function ParentDashboard() {
           logsResult,
           messagesResult,
         ] = await Promise.all([
-          getTodayStatusMessage(selectedChildId),
+          getTodayStatusMessageAI(selectedChildId),
           getStudentStreak(selectedChildId),
           getStudentTodayMissionData(selectedChildId),
           getStudentWeeklyProgress(selectedChildId),
@@ -1169,6 +1169,12 @@ export default function ParentDashboard() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border border-white/40 shadow-2xl">
+                  <div className="flex items-start gap-3 mb-4">
+                    <Badge className="bg-gradient-to-r from-blue-500 to-purple-500 text-white border-0 px-3 py-1 flex items-center gap-1">
+                      <Sparkles className="h-3 w-3" />
+                      AI生成
+                    </Badge>
+                  </div>
                   <p className="text-lg leading-relaxed text-slate-700 font-medium">
                     {todayStatusMessage || `${selectedChildName}さんの今日の様子を見守りましょう`}
                   </p>
@@ -1203,6 +1209,12 @@ export default function ParentDashboard() {
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border border-white/40 shadow-2xl">
+                    <div className="flex items-start gap-3 mb-4">
+                      <Badge className="bg-gradient-to-r from-blue-500 to-purple-500 text-white border-0 px-3 py-1 flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" />
+                        AI生成
+                      </Badge>
+                    </div>
                     <p className="text-lg leading-relaxed text-slate-700 font-medium">
                       {todayStatusMessage || `${selectedChildName}さんの今日の様子を見守りましょう`}
                     </p>

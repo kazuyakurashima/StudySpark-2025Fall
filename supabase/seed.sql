@@ -178,9 +178,9 @@ END $$;
 -- ----------------------------------------------------------------------------
 -- 4. テストタイプマスタ
 -- ----------------------------------------------------------------------------
-INSERT INTO public.test_types (grade, name, display_order) VALUES
-(5, '組分けテスト', 1),
-(6, '合不合判定テスト', 1)
+INSERT INTO public.test_types (grade, name, type_category, display_order) VALUES
+(5, '組分けテスト', 'kumibun', 1),
+(6, '合不合判定テスト', 'goufugou', 1)
 ON CONFLICT (grade, name) DO NOTHING;
 
 -- ----------------------------------------------------------------------------
