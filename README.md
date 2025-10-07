@@ -1,113 +1,390 @@
-# StudySpark 2025Fall
+# StudySpark
 
-StudySpark学習管理システム - 生徒・保護者・指導者向けの学習記録・分析プラットフォーム
+**中学受験を目指す小学6年生向けの学習支援Webアプリケーション**
 
-## 環境変数設定
+[![Built with Next.js](https://img.shields.io/badge/Built%20with-Next.js%2014-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![Powered by Supabase](https://img.shields.io/badge/Powered%20by-Supabase-3ECF8E?style=for-the-badge&logo=supabase)](https://supabase.com/)
+[![AI by OpenAI](https://img.shields.io/badge/AI%20by-OpenAI-412991?style=for-the-badge&logo=openai)](https://openai.com/)
 
-### ローカル開発環境 (.env.local)
+---
 
-ローカル開発では `.env.local` ファイルに以下の環境変数を設定してください：
+## 📖 概要
 
-```bash
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+StudySparkは、中学受験を目指す小学5〜6年生のための学習支援アプリです。AIコーチング、学習記録、応援機能を通じて、生徒・保護者・指導者をサポートします。
 
-# Application Configuration
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-SESSION_SECRET=your_session_secret_here_32_chars_min
+### 主な特徴
 
-# AI Configuration (GPT-5-mini)
-OPENAI_API_KEY=your_openai_api_key_here
-OPENAI_MODEL=gpt-5-mini
+- 🤖 **AIコーチング** - GROWモデルに基づく週次振り返りと目標設定
+- 📊 **学習記録** - 日々の学習を簡単に記録・可視化
+- 💪 **応援機能** - 保護者・指導者からのメッセージで学習をサポート
+- 🎯 **目標管理** - SMART原則に基づく目標設定と進捗管理
+- 📈 **可視化** - GitHub風ヒートマップで学習習慣を可視化
 
-# Development
-NODE_ENV=development
+---
 
-# Feature Flags
-ENABLE_AI_COACHING=true
-ENABLE_PUSH_NOTIFICATIONS=false
+## 🎯 プロジェクト進捗
+
+**最終更新:** 2025年10月7日 16:30
+
+### 全体進捗: 68% (121/179タスク完了)
+
+| フェーズ | 説明 | 進捗率 | 状態 |
+|---------|------|--------|------|
+| **P0** | 基盤整備 | 78% (42/54) | 🔄 進行中 |
+| **P1** | 学習記録機能 | 100% (31/31) | ✅ 完了 |
+| **P2** | 応援機能 | 97% (28/29) | ✅ 実質完了 |
+| **P3** | 目標管理・週次振り返り | 77% (20/26) | 🔄 進行中 |
+| **P4** | 指導者分析機能 | 0% (0/18) | ⏳ 未着手 |
+| **P5** | 監査・運用機能 | 0% (0/21) | ⏳ 未着手 |
+
+### ロール別完成度
+
+| ロール | 完成度 | 実用性 | 状態 |
+|--------|--------|--------|------|
+| **生徒** | **85%** | ★★★★★ | ✅ 即使用可能 |
+| **保護者** | **70%** | ★★★☆☆ | ⚠️ 部分的に使用可能（修正必要） |
+| **指導者** | **5%** | ★☆☆☆☆ | ❌ ほぼ未実装 |
+| **管理者** | **0%** | ☆☆☆☆☆ | ❌ 未実装 |
+
+詳細は [ロール別完成度レポート](./docs/tasks/ROLE-COMPLETION-STATUS.md) を参照してください。
+
+---
+
+## 🚀 技術スタック
+
+### フロントエンド
+- **Next.js 14.2.18** (App Router)
+- **React 18.3.1**
+- **TypeScript 5.5.4**
+- **Tailwind CSS 4.1.9**
+
+### バックエンド
+- **Supabase** (PostgreSQL, Auth, Realtime)
+- **Supabase RLS** (Row Level Security)
+
+### AI
+- **OpenAI GPT-4o-mini** (AIコーチング)
+
+### UI/UX
+- **Radix UI** (アクセシブルなUIコンポーネント)
+- **React Hook Form + Zod** (フォームバリデーション)
+- **Recharts** (データ可視化)
+- **Noto Sans JP** (日本語フォント)
+
+---
+
+## 📁 プロジェクト構成
+
+```
+StudySpark-2025Fall/
+├── app/                      # Next.js App Router
+│   ├── student/              # 生徒画面
+│   │   ├── page.tsx          # ダッシュボード
+│   │   ├── spark/            # 学習記録入力
+│   │   ├── goal/             # 目標設定（ゴールナビ）
+│   │   └── reflect/          # 週次振り返り（リフレクト）
+│   ├── parent/               # 保護者画面
+│   │   ├── page.tsx          # ダッシュボード
+│   │   ├── encouragement/    # 応援機能
+│   │   ├── goal-navi/        # 目標閲覧
+│   │   └── reflect/          # 振り返り閲覧
+│   ├── coach/                # 指導者画面
+│   │   ├── page.tsx          # ダッシュボード
+│   │   └── encouragement/    # 応援機能
+│   ├── actions/              # Server Actions
+│   │   ├── spark.ts          # 学習記録
+│   │   ├── goal.ts           # 目標管理
+│   │   ├── reflect.ts        # 振り返り
+│   │   ├── encouragement.ts  # 応援
+│   │   └── parent.ts         # 保護者用
+│   └── api/                  # API Routes
+│       ├── goal/             # 目標API
+│       └── reflect/          # 振り返りAPI
+├── lib/                      # ライブラリ
+│   ├── supabase/             # Supabaseクライアント
+│   └── openai/               # OpenAI統合
+│       ├── client.ts         # クライアント設定
+│       ├── prompts.ts        # プロンプト定義
+│       ├── goal-coaching.ts  # 目標設定AI
+│       └── reflect-coaching.ts # 振り返りAI
+├── components/               # Reactコンポーネント
+│   ├── ui/                   # UIコンポーネント（Radix UI）
+│   ├── bottom-navigation.tsx # 生徒用ナビゲーション
+│   ├── parent-bottom-navigation.tsx
+│   └── coach-bottom-navigation.tsx
+├── supabase/                 # Supabaseプロジェクト
+│   ├── migrations/           # データベースマイグレーション
+│   └── seed.sql              # シードデータ
+├── docs/                     # ドキュメント
+│   ├── 01-Concept.md         # コンセプト
+│   ├── 02-Requirements-Auth.md
+│   ├── 03-Requirements-Student.md
+│   ├── 04-Requirements-Parent.md
+│   ├── 05-Requirements-Coach.md
+│   └── tasks/                # タスク管理
+│       ├── README.md         # 全体進捗
+│       ├── ROLE-COMPLETION-STATUS.md # ロール別完成度
+│       ├── P0-foundation.md
+│       ├── P1-learning-logs.md
+│       ├── P2-encouragement.md
+│       ├── P3-coaching.md
+│       ├── P4-analysis.md
+│       └── P5-operations.md
+└── scripts/                  # スクリプト
+    ├── create-test-users.ts  # テストユーザー作成
+    └── test/                 # テストスクリプト
+        ├── test-reflect-flow.ts
+        ├── test-goal-navigation.ts
+        └── test-parent-screens.ts
 ```
 
-### 本番環境 (Vercel)
+---
 
-本番環境では Vercel の Environment Variables に同名の変数を登録してください。
+## 🏃 セットアップ＆起動
 
-## 重要なセキュリティ事項
+### 前提条件
 
-- **SUPABASE_SERVICE_ROLE_KEY** はserver-onlyで使用されます
-- クライアント側からは参照できないよう静的に保証されています
-- RLSをバイパスする権限を持つため、厳重な管理が必要です
+- Node.js 18.x以上
+- pnpm (推奨) または npm
+- Docker Desktop (Supabaseローカル環境用)
 
-## 開発環境セットアップ
+### 1. リポジトリのクローン
 
-1. 依存関係のインストール
 ```bash
+git clone <repository-url>
+cd StudySpark-2025Fall
+```
+
+### 2. 依存関係のインストール
+
+```bash
+pnpm install
+# または
 npm install
 ```
 
-2. 環境変数の設定
+### 3. Supabaseローカル環境の起動
+
 ```bash
-cp .env.local.example .env.local
-# .env.local を編集して実際の値を設定
+npx supabase start
 ```
 
-3. 開発サーバーの起動
+### 4. 環境変数の設定
+
+`.env.local` ファイルを作成（Supabase起動時に表示される値を使用）:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
+OPENAI_API_KEY=<your-openai-api-key>
+```
+
+### 5. テストユーザーの作成
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL="http://127.0.0.1:54321" \
+SUPABASE_SERVICE_ROLE_KEY="<your-service-role-key>" \
+npx tsx scripts/create-test-users.ts
+```
+
+### 6. 開発サーバーの起動
+
 ```bash
 npm run dev
 ```
 
-## API エンドポイント
+ブラウザで [http://localhost:3000](http://localhost:3000) を開きます。
 
-### Chat API
-- `POST /api/chat` - OpenAI GPT-5-mini との対話API
-- RFC 7807 (JSON Problem Details) 準拠のエラーレスポンス
+---
 
-### 学習記録API
-- `GET /api/students/[studentId]/records` - 学習記録取得
-- `POST /api/students/[studentId]/records` - 学習記録作成・更新
-- `GET /api/students/[studentId]/calendar` - 月次学習カレンダーデータ
+## 🧪 テスト
 
-### 保護者ダッシュボードAPI
-- `GET /api/parents/[parentId]/dashboard` - 子供の週次学習状況
-- `GET /api/parents/[parentId]/coaching` - AI解釈・コーチング提案
-- `GET /api/parents/[parentId]/students` - 保護者の子供一覧
+### テストユーザー
 
-## テスト
+作成されたテストユーザーでログイン可能です:
 
-### E2Eテスト実行
+#### 生徒
+- **ログインID:** `student5a` / **パスワード:** `password123`
+- **ログインID:** `student6a` / **パスワード:** `password123`
+
+#### 保護者
+- **メール:** `parent1@example.com` / **パスワード:** `password123`
+
+#### 指導者
+- **メール:** `coach1@example.com` / **パスワード:** `password123`
+
+### 自動テスト実行
+
 ```bash
-npm run test:e2e
+# リフレクトフローテスト
+NEXT_PUBLIC_SUPABASE_URL="http://127.0.0.1:54321" \
+SUPABASE_SERVICE_ROLE_KEY="<key>" \
+npx tsx scripts/test/test-reflect-flow.ts
+
+# ゴールナビテスト
+npx tsx scripts/test/test-goal-navigation.ts
+
+# 保護者画面テスト
+npx tsx scripts/test/test-parent-screens.ts
 ```
 
-**注意:** Chat API のE2Eテストは `OPENAI_API_KEY` が設定されている場合のみ実行されます。未設定の場合は自動的にスキップされます。
+---
 
-## 技術スタック
+## 📚 主要機能
 
-- **Framework:** Next.js 14.2.x (App Router)
-- **Language:** TypeScript 5.5.x
-- **Database:** Supabase (PostgreSQL + RLS)
-- **Authentication:** Supabase Auth
-- **AI Integration:** OpenAI GPT-5-mini
-- **UI Components:** Radix UI + Tailwind CSS
-- **Validation:** Zod
+### 生徒機能（85%完成）
 
-## 実装済み機能
+#### ✅ ダッシュボード (95%)
+- AIコーチからの個別メッセージ
+- 今日のミッション（科目ローテーション）
+- 学習カレンダー（GitHub風ヒートマップ）
+- 科目別進捗バー
+- 応援メッセージ表示
+- 学習履歴表示
 
-- ✅ 認証システム (T-070)
-- ✅ 学習記録CRUD (T-010) 
-- ✅ 保護者ダッシュボード・AI解釈 (T-030)
-- ✅ カレンダーヒートマップAPI (T-020)
-- ✅ Chat API (OpenAI統合)
+#### ✅ スパーク/学習記録 (100%)
+- 学習回・科目・学習内容選択
+- 正答数/問題数入力
+- リアルタイム正答率計算
+- 今日の振り返り入力
+- 復習週対応
 
-## 開発ルール
+#### ✅ ゴールナビ/目標設定 (90%)
+- テスト選択（学年別）
+- コース・組設定
+- **AI対話（6ステップGROWモデル）**
+  1. 目標確認
+  2. 感情探索
+  3. 共同体感覚
+  4. 自己認識
+  5. 予祝（未来から今へ）
+  6. まとめ生成
+- 「今回の思い」自動生成（SMART原則）
+- 目標保存・更新
 
-- **D-007 (UIロック):** 既存UIのDOM/クラスは変更禁止。data-testid 追加のみ許可
-- **Server-only:** 機密情報を扱うモジュールは `'server-only'` インポートを使用
-- **RFC 7807:** API エラーは JSON Problem Details 形式で統一
-- **RLS準拠:** データベースアクセスは Row Level Security に準拠
+#### ✅ リフレクト/週次振り返り (90%)
+- 利用可能時間制御（土曜12:00〜水曜23:59）
+- **週タイプ判定**
+  - 成長週（正答率10%以上UP）
+  - 安定週（正答率±10%以内）
+  - 挑戦週（正答率10%以上DOWN）
+  - 特別週（テスト直前）
+- **AI対話（3〜6往復、週タイプ別適応）**
+- 振り返りサマリー自動生成
+- LINEライクなチャットUI
+- 4タブ構成（達成マップ/学習履歴/応援履歴/コーチング履歴）
 
-## ライセンス
+### 保護者機能（70%完成）
 
-[LICENSE](./LICENSE) を参照してください。
+#### ✅ 応援機能 (95%)
+- クイック応援（3種類のアイコン）
+- AI応援メッセージ生成（3パターン）
+- カスタムメッセージ送信
+- フィルター・ソート機能
+
+#### ⚠️ ゴールナビ閲覧 (75%)
+- 子どもの目標閲覧（読み取り専用）
+- 子ども切り替えタブ
+- **修正必要:** Server Actionsのparent_child_relations対応
+
+#### ⚠️ リフレクト閲覧 (75%)
+- 子どもの振り返り閲覧（AIコーチング除外）
+- 4タブ構成
+- **修正必要:** Server Actionsのparent_child_relations対応
+
+### 指導者機能（5%完成）
+
+#### ✅ 応援機能 (95%)
+- 担当生徒への応援メッセージ送信
+- AI応援メッセージ生成
+
+#### ⏳ 未実装
+- ダッシュボード
+- 生徒一覧・詳細
+- 分析ツール
+
+---
+
+## 🔑 AIコーチングの特徴
+
+### GROWモデル
+**Goal → Reality → Options → Will** の4段階で生徒の自己理解と成長を促します。
+
+### セルフコンパッション
+結果ではなく**努力**を称賛し、プレッシャーを与えない対話を実現。
+
+### 成長マインドセット
+能力は固定的ではなく、**努力と学習で成長できる**という考え方を基盤とします。
+
+### 適応的対話
+週タイプ（成長週/安定週/挑戦週/特別週）に応じて質問を調整し、生徒一人ひとりに最適な対話を提供。
+
+---
+
+## 📊 データベース構成
+
+### 主要テーブル
+
+- **profiles** - ユーザープロファイル
+- **students** - 生徒情報
+- **parents** - 保護者情報
+- **coaches** - 指導者情報
+- **parent_child_relations** - 親子関係（多対多）
+- **coach_student_relations** - 指導者-生徒関係（多対多）
+- **study_logs** - 学習記録
+- **test_goals** - テスト目標
+- **coaching_sessions** - コーチングセッション
+- **coaching_messages** - コーチングメッセージ
+- **encouragement_messages** - 応援メッセージ
+
+### RLS (Row Level Security)
+
+全テーブルでRLSが有効化されており、ユーザーは自分のデータのみアクセス可能です。
+
+---
+
+## 🐛 既知の問題
+
+### 保護者機能
+⚠️ **Server Actionsの修正が必要**
+
+`/app/actions/parent.ts` の全関数が `students.parent_id` を想定していますが、実際のDBスキーマは `parent_child_relations` テーブルを使用しています。
+
+**対応方法:** [ROLE-COMPLETION-STATUS.md](./docs/tasks/ROLE-COMPLETION-STATUS.md#-修正が必要な箇所) を参照
+
+---
+
+## 📝 ドキュメント
+
+- [全体進捗管理](./docs/tasks/README.md)
+- [ロール別完成度](./docs/tasks/ROLE-COMPLETION-STATUS.md)
+- [コンセプト](./docs/01-Concept.md)
+- [認証要件](./docs/02-Requirements-Auth.md)
+- [生徒機能要件](./docs/03-Requirements-Student.md)
+- [保護者機能要件](./docs/04-Requirements-Parent.md)
+- [指導者機能要件](./docs/05-Requirements-Coach.md)
+
+---
+
+## 🤝 コントリビューション
+
+現在このプロジェクトは開発中です。
+
+---
+
+## 📜 ライセンス
+
+このプロジェクトは非公開プロジェクトです。
+
+---
+
+## 📞 お問い合わせ
+
+プロジェクトに関するお問い合わせは、プロジェクトオーナーまでお願いします。
+
+---
+
+**Built with ❤️ by StudySpark Team**
+
+**最終更新:** 2025年10月7日 16:30

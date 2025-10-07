@@ -17,8 +17,10 @@ export default function ParentGoalPage() {
   ]
 
   const testHistory = [
+    // みかんのテストデータ
     {
       id: "test1",
+      childName: "みかん",
       name: "第3回合不合判定テスト",
       date: "2024-09-08",
       type: "合不合",
@@ -28,6 +30,7 @@ export default function ParentGoalPage() {
     },
     {
       id: "test2",
+      childName: "みかん",
       name: "第2回週テスト",
       date: "2024-09-13",
       type: "週テスト",
@@ -39,6 +42,7 @@ export default function ParentGoalPage() {
     },
     {
       id: "test3",
+      childName: "みかん",
       name: "第4回合不合判定テスト",
       date: "2024-10-05",
       type: "合不合",
@@ -46,9 +50,44 @@ export default function ParentGoalPage() {
       result: { course: "C", class: 25 },
       memo: "思うような結果が出ませんでしたが、次回に向けて頑張ります。",
     },
+    // 太郎のテストデータ
+    {
+      id: "test4",
+      childName: "太郎",
+      name: "第3回合不合判定テスト",
+      date: "2024-09-08",
+      type: "合不合",
+      goal: { course: "C", class: 20 },
+      result: { course: "C", class: 18 },
+      memo: "目標を達成できました！次回はSコースを目指したいです。",
+    },
+    {
+      id: "test5",
+      childName: "太郎",
+      name: "第2回週テスト",
+      date: "2024-09-13",
+      type: "週テスト",
+      goal: { subjects: { 算数: 45, 国語: 50, 理科: 42, 社会: 48 } },
+      result: { subjects: { 算数: 48, 国語: 52, 理科: 40, 社会: 50 } },
+      memo: "算数、国語、社会は目標達成！理科をもう少し頑張りたいです。",
+      achievedCount: 3,
+      totalSubjects: 4,
+    },
+    {
+      id: "test6",
+      childName: "太郎",
+      name: "第4回合不合判定テスト",
+      date: "2024-10-05",
+      type: "合不合",
+      goal: { course: "C", class: 15 },
+      result: { course: "S", class: 22 },
+      memo: "目標を大きく上回る結果が出ました！とても嬉しいです。",
+    },
   ]
 
-  const displayedTests = showMoreTests ? testHistory : testHistory.slice(0, 5)
+  const selectedChildName = children.find((child) => child.id === selectedChild)?.name
+  const filteredTestHistory = testHistory.filter((test) => test.childName === selectedChildName)
+  const displayedTests = showMoreTests ? filteredTestHistory : filteredTestHistory.slice(0, 5)
 
   const isTestAchieved = (test: any) => {
     if (test.type === "合不合") {
@@ -157,7 +196,7 @@ export default function ParentGoalPage() {
                 テスト結果
               </CardTitle>
               <Badge variant="outline" className="text-xs">
-                全{testHistory.length}件
+                全{filteredTestHistory.length}件
               </Badge>
             </div>
           </CardHeader>
@@ -281,10 +320,10 @@ export default function ParentGoalPage() {
                 </Card>
               ))}
 
-              {testHistory.length > 5 && !showMoreTests && (
+              {filteredTestHistory.length > 5 && !showMoreTests && (
                 <div className="text-center">
                   <Button variant="outline" onClick={() => setShowMoreTests(true)} className="text-sm">
-                    もっと見る（残り{testHistory.length - 5}件）
+                    もっと見る（残り{filteredTestHistory.length - 5}件）
                   </Button>
                 </div>
               )}

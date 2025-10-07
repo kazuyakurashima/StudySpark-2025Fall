@@ -1,242 +1,79 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Slider } from "@/components/ui/slider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { BottomNavigation } from "@/components/bottom-navigation"
-import {
-  Calendar,
-  Flag,
-  Save,
-  Bot,
-  Sparkles,
-  Send,
-  Target,
-  PartyPopper,
-  Trophy,
-  TestTube,
-  ArrowUp,
-  ArrowDown,
-} from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { BottomNavigation } from "@/components/bottom-navigation"
+import { Calendar, Flag, Save, Bot, Sparkles, Target, PartyPopper, Award, TrendingUp, CheckCircle2 } from "lucide-react"
+import { GoalNavigationChat } from "./goal-navigation-chat"
+import {
+  getAvailableTests,
+  saveTestGoal,
+  getAllTestGoals,
+  saveTestResult,
+  getAllTestResults,
+} from "@/app/actions/goal"
+import { createClient } from "@/lib/supabase/client"
 
-const goalTestSchedule = [
-  {
-    id: "gohan3",
-    name: "第3回合不合判定テスト",
-    date: "2024-09-07",
-    dateDisplay: "9月7日(日)",
-    displayStart: "2024-08-01",
-    displayEnd: "2024-09-30",
-  },
-  {
-    id: "gohan4",
-    name: "第4回合不合判定テスト",
-    date: "2024-10-05",
-    dateDisplay: "10月5日(日)",
-    displayStart: "2024-09-01",
-    displayEnd: "2024-10-31",
-  },
-  {
-    id: "gohan5",
-    name: "第5回合不合判定テスト",
-    date: "2024-11-16",
-    dateDisplay: "11月16日(土)",
-    displayStart: "2024-10-01",
-    displayEnd: "2024-11-30",
-  },
-  {
-    id: "gohan6",
-    name: "第6回合不合判定テスト",
-    date: "2024-12-07",
-    dateDisplay: "12月7日(日)",
-    displayStart: "2024-11-01",
-    displayEnd: "2024-12-31",
-  },
-  {
-    id: "week2",
-    name: "第2回週テスト",
-    date: "2024-09-13",
-    dateDisplay: "9月13日(土)",
-    displayStart: "2024-08-01",
-    displayEnd: "2024-09-30",
-  },
-  {
-    id: "week3",
-    name: "第3回週テスト",
-    date: "2024-09-20",
-    dateDisplay: "9月20日(土)",
-    displayStart: "2024-08-01",
-    displayEnd: "2024-09-30",
-  },
-  {
-    id: "week4",
-    name: "第4回週テスト",
-    date: "2024-09-27",
-    dateDisplay: "9月27日(土)",
-    displayStart: "2024-08-01",
-    displayEnd: "2024-09-30",
-  },
-  {
-    id: "week5",
-    name: "第5回週テスト",
-    date: "2024-10-11",
-    dateDisplay: "10月11日(土)",
-    displayStart: "2024-09-01",
-    displayEnd: "2024-10-31",
-  },
-  {
-    id: "week6",
-    name: "第6回週テスト",
-    date: "2024-10-18",
-    dateDisplay: "10月18日(土)",
-    displayStart: "2024-09-01",
-    displayEnd: "2024-10-31",
-  },
-  {
-    id: "week7",
-    name: "第7回週テスト",
-    date: "2024-10-25",
-    dateDisplay: "10月25日(土)",
-    displayStart: "2024-09-01",
-    displayEnd: "2024-10-31",
-  },
-  {
-    id: "week8",
-    name: "第8回週テスト",
-    date: "2024-11-08",
-    dateDisplay: "11月8日(土)",
-    displayStart: "2024-10-01",
-    displayEnd: "2024-11-30",
-  },
-  {
-    id: "week9",
-    name: "第9回週テスト",
-    date: "2024-11-22",
-    dateDisplay: "11月22日(土)",
-    displayStart: "2024-10-01",
-    displayEnd: "2024-11-30",
-  },
-  {
-    id: "week10",
-    name: "第10回週テスト",
-    date: "2024-11-29",
-    dateDisplay: "11月29日(土)",
-    displayStart: "2024-10-01",
-    displayEnd: "2024-11-30",
-  },
-]
+interface TestSchedule {
+  id: string
+  test_type_id: string
+  test_date: string
+  test_types: {
+    id: string
+    name: string
+    type_category: string
+  }
+}
 
-const resultTestSchedule = [
-  {
-    id: "gohan3",
-    name: "第3回合不合判定テスト",
-    date: "2024-09-07",
-    dateDisplay: "9月7日(日)",
-    displayStart: "2024-09-07",
-    displayEnd: "2024-10-31",
-  },
-  {
-    id: "gohan4",
-    name: "第4回合不合判定テスト",
-    date: "2024-10-05",
-    dateDisplay: "10月5日(日)",
-    displayStart: "2024-10-05",
-    displayEnd: "2024-11-30",
-  },
-  {
-    id: "gohan5",
-    name: "第5回合不合判定テスト",
-    date: "2024-11-16",
-    dateDisplay: "11月16日(土)",
-    displayStart: "2024-11-16",
-    displayEnd: "2024-12-31",
-  },
-  {
-    id: "gohan6",
-    name: "第6回合不合判定テスト",
-    date: "2024-12-07",
-    dateDisplay: "12月7日(日)",
-    displayStart: "2024-12-07",
-    displayEnd: "2025-01-31",
-  },
-  {
-    id: "week2",
-    name: "第2回週テスト",
-    date: "2024-09-13",
-    dateDisplay: "9月13日(土)",
-    displayStart: "2024-09-13",
-    displayEnd: "2024-10-31",
-  },
-  {
-    id: "week3",
-    name: "第3回週テスト",
-    date: "2024-09-20",
-    dateDisplay: "9月20日(土)",
-    displayStart: "2024-09-20",
-    displayEnd: "2024-10-31",
-  },
-  {
-    id: "week4",
-    name: "第4回週テスト",
-    date: "2024-09-27",
-    dateDisplay: "9月27日(土)",
-    displayStart: "2024-09-27",
-    displayEnd: "2024-10-31",
-  },
-  {
-    id: "week5",
-    name: "第5回週テスト",
-    date: "2024-10-11",
-    dateDisplay: "10月11日(土)",
-    displayStart: "2024-10-11",
-    displayEnd: "2024-11-30",
-  },
-  {
-    id: "week6",
-    name: "第6回週テスト",
-    date: "2024-10-18",
-    dateDisplay: "10月18日(土)",
-    displayStart: "2024-10-18",
-    displayEnd: "2024-11-30",
-  },
-  {
-    id: "week7",
-    name: "第7回週テスト",
-    date: "2024-10-25",
-    dateDisplay: "10月25日(土)",
-    displayStart: "2024-10-25",
-    displayEnd: "2024-11-30",
-  },
-  {
-    id: "week8",
-    name: "第8回週テスト",
-    date: "2024-11-08",
-    dateDisplay: "11月8日(土)",
-    displayStart: "2024-11-08",
-    displayEnd: "2024-12-31",
-  },
-  {
-    id: "week9",
-    name: "第9回週テスト",
-    date: "2024-11-22",
-    dateDisplay: "11月22日(土)",
-    displayStart: "2024-11-22",
-    displayEnd: "2024-12-31",
-  },
-  {
-    id: "week10",
-    name: "第10回週テスト",
-    date: "2024-11-29",
-    dateDisplay: "11月29日(土)",
-    displayStart: "2024-11-29",
-    displayEnd: "2024-12-31",
-  },
-]
+interface TestGoal {
+  id: string
+  test_schedule_id: string
+  target_course: string
+  target_class: number
+  goal_thoughts: string
+  created_at: string
+  test_schedules: {
+    id: string
+    test_date: string
+    test_types: {
+      id: string
+      name: string
+    }
+  }
+}
+
+interface TestResult {
+  id: string
+  test_schedule_id: string
+  math_score: number
+  japanese_score: number
+  science_score: number
+  social_score: number
+  total_score: number
+  math_deviation?: number
+  japanese_deviation?: number
+  science_deviation?: number
+  social_deviation?: number
+  total_deviation?: number
+  result_entered_at: string
+  test_schedules: {
+    id: string
+    test_date: string
+    test_types: {
+      id: string
+      name: string
+    }
+  }
+  goal: TestGoal | null
+}
 
 const courses = [
   { id: "S", name: "Sコース", description: "最難関校" },
@@ -245,503 +82,213 @@ const courses = [
   { id: "A", name: "Aコース", description: "標準校" },
 ]
 
-const subjects = [
-  {
-    id: "math",
-    name: "算数",
-    color: "bg-blue-50 text-blue-700 border-blue-200",
-    sliderColor: "data-[state=active]:bg-blue-500",
-    targetColor: "text-blue-700",
-    buttonColor: "border-blue-200 hover:bg-blue-50 hover:text-blue-700",
-  },
-  {
-    id: "japanese",
-    name: "国語",
-    color: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    sliderColor: "data-[state=active]:bg-emerald-500",
-    targetColor: "text-emerald-700",
-    buttonColor: "border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700",
-  },
-  {
-    id: "science",
-    name: "理科",
-    color: "bg-violet-50 text-violet-700 border-violet-200",
-    sliderColor: "data-[state=active]:bg-violet-500",
-    targetColor: "text-violet-700",
-    buttonColor: "border-violet-200 hover:bg-violet-50 hover:text-violet-700",
-  },
-  {
-    id: "social",
-    name: "社会",
-    color: "bg-amber-50 text-amber-700 border-amber-200",
-    sliderColor: "data-[state=active]:bg-amber-500",
-    targetColor: "text-amber-700",
-    buttonColor: "border-amber-200 hover:bg-amber-50 hover:text-amber-700",
-  },
-]
+export default function GoalPage() {
+  const [studentName, setStudentName] = useState("")
+  const [studentGrade, setStudentGrade] = useState<number | null>(null)
+  const [activeTab, setActiveTab] = useState<"input" | "result" | "test">("input")
 
-const mockPastResults = {
-  math: 52,
-  japanese: 48,
-  science: 45,
-  social: 55,
-}
-
-// Mock past performance data
-const pastPerformance = [
-  { date: "7月", math: 75, japanese: 80, science: 70, social: 85 },
-  { date: "6月", math: 70, japanese: 75, science: 65, social: 80 },
-  { date: "5月", math: 65, japanese: 70, science: 60, social: 75 },
-]
-
-const avatarMap = {
-  ai_coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png",
-}
-
-const coachQuestions = [
-  "今回のテストに向けて、どんな気持ちで取り組みたい？",
-  "前回のテストと比べて、今回特に頑張りたいことはある？",
-  "目標を達成したら、どんな気持ちになると思う？",
-  "今回のテストで一番大切にしたいことは何？",
-]
-
-export default function GoalSettingPage() {
-  const [activeTab, setActiveTab] = useState<"goal" | "result" | "tests">("goal")
-  const [selectedTest, setSelectedTest] = useState("")
+  // 目標入力タブ用
+  const [availableTests, setAvailableTests] = useState<TestSchedule[]>([])
+  const [selectedTest, setSelectedTest] = useState<TestSchedule | null>(null)
   const [selectedCourse, setSelectedCourse] = useState("")
   const [classNumber, setClassNumber] = useState([20])
   const [currentThoughts, setCurrentThoughts] = useState("")
-  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
-  const [goalMode, setGoalMode] = useState<"based_on_results" | "self_decide" | "">("")
-  const [subjectGoals, setSubjectGoals] = useState({
-    math: [50],
-    japanese: [50],
-    science: [50],
-    social: [50],
-  })
-  const [autoProposalMode, setAutoProposalMode] = useState<"equal_plus" | "weakness_boost" | "maintain">(
-    "weakness_boost",
-  )
-
-  const [isGeneratingThoughts, setIsGeneratingThoughts] = useState(false)
-  const [chatMessages, setChatMessages] = useState<Array<{ id: number; sender: "coach" | "student"; message: string }>>(
-    [],
-  )
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
-  const [studentResponse, setStudentResponse] = useState("")
-  const [isChatMode, setIsChatMode] = useState(false)
-  const [studentName] = useState("太郎") // デモ用の名前
   const [isGoalSet, setIsGoalSet] = useState(false)
+  const [showAIChat, setShowAIChat] = useState(false)
   const [showCelebration, setShowCelebration] = useState(false)
-  const [isAiCoachActive, setIsAiCoachActive] = useState(false)
-  const [resultTest, setResultTest] = useState("")
-  const [resultCourse, setResultCourse] = useState("")
-  const [resultClass, setResultClass] = useState([20])
-  const [resultThoughts, setResultThoughts] = useState("")
-  const [subjectScores, setSubjectScores] = useState({
-    math: [75],
-    japanese: [80],
-    science: [70],
-    social: [85],
-  })
+  const [isSaving, setIsSaving] = useState(false)
 
-  const getTestType = (testId: string): "gohan" | "week" => {
-    return testId.startsWith("gohan") ? "gohan" : "week"
-  }
+  // 結果入力タブ用
+  const [testGoals, setTestGoals] = useState<TestGoal[]>([])
+  const [selectedGoalForResult, setSelectedGoalForResult] = useState<TestGoal | null>(null)
+  const [mathScore, setMathScore] = useState("")
+  const [japaneseScore, setJapaneseScore] = useState("")
+  const [scienceScore, setScienceScore] = useState("")
+  const [socialScore, setSocialScore] = useState("")
+  const [mathDeviation, setMathDeviation] = useState("")
+  const [japaneseDeviation, setJapaneseDeviation] = useState("")
+  const [scienceDeviation, setScienceDeviation] = useState("")
+  const [socialDeviation, setSocialDeviation] = useState("")
+  const [totalDeviation, setTotalDeviation] = useState("")
+  const [isSavingResult, setIsSavingResult] = useState(false)
 
-  const handleSubjectToggle = (subjectId: string) => {
-    setSelectedSubjects((prev) =>
-      prev.includes(subjectId) ? prev.filter((id) => id !== subjectId) : [...prev, subjectId],
-    )
-  }
+  // テスト結果タブ用
+  const [testResults, setTestResults] = useState<TestResult[]>([])
 
-  const applyAutoProposal = () => {
-    if (goalMode !== "based_on_results") return
+  useEffect(() => {
+    loadStudentInfo()
+    loadAvailableTests()
+    loadTestGoals()
+    loadTestResults()
+  }, [])
 
-    const newGoals = { ...subjectGoals }
+  const loadStudentInfo = async () => {
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
-    if (autoProposalMode === "equal_plus") {
-      // 全科目 +1
-      selectedSubjects.forEach((subjectId) => {
-        const currentValue = mockPastResults[subjectId as keyof typeof mockPastResults] || 50
-        newGoals[subjectId as keyof typeof newGoals] = [Math.min(80, Math.max(20, currentValue + 1))]
-      })
-    } else if (autoProposalMode === "weakness_boost") {
-      // 弱点底上げ（成績低い順に +3/+2/+1/+0）
-      const sortedSubjects = selectedSubjects.sort((a, b) => {
-        const aScore = mockPastResults[a as keyof typeof mockPastResults] || 50
-        const bScore = mockPastResults[b as keyof typeof mockPastResults] || 50
-        return aScore - bScore
-      })
+    if (user) {
+      const { data: student } = await supabase
+        .from("students")
+        .select("full_name, grade")
+        .eq("user_id", user.id)
+        .single()
 
-      const boosts = [3, 2, 1, 0]
-      sortedSubjects.forEach((subjectId, index) => {
-        const currentValue = mockPastResults[subjectId as keyof typeof mockPastResults] || 50
-        const boost = boosts[index] || 0
-        newGoals[subjectId as keyof typeof newGoals] = [Math.min(80, Math.max(20, currentValue + boost))]
-      })
-    } else if (autoProposalMode === "maintain") {
-      // 現状維持
-      selectedSubjects.forEach((subjectId) => {
-        const currentValue = mockPastResults[subjectId as keyof typeof mockPastResults] || 50
-        newGoals[subjectId as keyof typeof newGoals] = [Math.min(80, Math.max(20, currentValue))]
-      })
+      if (student) {
+        setStudentName(student.full_name)
+        setStudentGrade(student.grade)
+      }
     }
-
-    setSubjectGoals(newGoals)
   }
 
-  const initializeSelfDecideMode = () => {
-    const newGoals = { ...subjectGoals }
-    selectedSubjects.forEach((subjectId) => {
-      newGoals[subjectId as keyof typeof newGoals] = [50]
-    })
-    setSubjectGoals(newGoals)
+  const loadAvailableTests = async () => {
+    const result = await getAvailableTests()
+    if (result.tests) {
+      setAvailableTests(result.tests)
+    }
+  }
+
+  const loadTestGoals = async () => {
+    const result = await getAllTestGoals()
+    if (result.goals) {
+      setTestGoals(result.goals as any)
+    }
+  }
+
+  const loadTestResults = async () => {
+    const result = await getAllTestResults()
+    if (result.results) {
+      setTestResults(result.results as any)
+    }
   }
 
   const handleGoalDecision = () => {
-    const testType = getTestType(selectedTest)
-
-    if (testType === "gohan") {
-      if (!selectedTest || !selectedCourse) {
-        alert("テストとコースを選択してください")
-        return
-      }
-    } else if (testType === "week") {
-      if (!selectedTest || selectedSubjects.length === 0 || !goalMode) {
-        alert("テスト、対象科目、目標設定モードを選択してください")
-        return
-      }
-    }
-
     setIsGoalSet(true)
+    setShowAIChat(true)
     setShowCelebration(true)
-
-    setTimeout(() => {
-      setShowCelebration(false)
-      setIsAiCoachActive(true)
-      startDynamicCoachChat()
-    }, 3000)
+    setTimeout(() => setShowCelebration(false), 3000)
   }
 
-  const startDynamicCoachChat = () => {
-    const testType = getTestType(selectedTest)
-    const selectedTestName = goalTestSchedule.find((t) => t.id === selectedTest)?.name || ""
-
-    let goalDescription = ""
-    if (testType === "gohan") {
-      const selectedCourseName = courses.find((c) => c.id === selectedCourse)?.name || ""
-      const targetClass = classNumber[0]
-      goalDescription = `「${selectedTestName}」で「${selectedCourseName}・${targetClass}組」を目指す`
-    } else {
-      const subjectNames = selectedSubjects.map((id) => subjects.find((s) => s.id === id)?.name).join("、")
-      goalDescription = `「${selectedTestName}」で${subjectNames}の目標偏差値達成を目指す`
-    }
-
-    setIsChatMode(true)
-    setCurrentQuestionIndex(0)
-    setChatMessages([
-      {
-        id: 1,
-        sender: "coach",
-        message: `${studentName}くん、目標設定お疲れさま！🎉\n\n${goalDescription}んだね！\n\nこの目標に向けて、${studentName}くんの気持ちを聞かせて。${coachQuestions[0]}`,
-      },
-    ])
+  const handleAIChatComplete = (goalThoughts: string) => {
+    setCurrentThoughts(goalThoughts)
+    setShowAIChat(false)
   }
 
-  const startCoachChat = () => {
-    if (!isGoalSet) {
-      alert("まず目標を決定してください")
-      return
-    }
-    startDynamicCoachChat()
+  const handleAIChatCancel = () => {
+    setShowAIChat(false)
   }
 
-  const sendStudentResponse = () => {
-    if (!studentResponse.trim()) return
-
-    const newMessages = [
-      ...chatMessages,
-      {
-        id: chatMessages.length + 1,
-        sender: "student" as const,
-        message: studentResponse,
-      },
-    ]
-
-    if (currentQuestionIndex < coachQuestions.length - 1) {
-      const nextIndex = currentQuestionIndex + 1
-      newMessages.push({
-        id: newMessages.length + 1,
-        sender: "coach",
-        message: coachQuestions[nextIndex],
-      })
-      setCurrentQuestionIndex(nextIndex)
-    } else {
-      const finalMessage = `じゃあ、${studentName}くんの今回のテストにかける想いは、こんな感じってことだよね！\n\n「${generateFinalThoughts()}」\n\nこの気持ちを大切に、一緒に頑張ろう！✨`
-      newMessages.push({
-        id: newMessages.length + 1,
-        sender: "coach",
-        message: finalMessage,
-      })
-
-      setTimeout(() => {
-        setCurrentThoughts(generateFinalThoughts())
-        setIsChatMode(false)
-      }, 2000)
-    }
-
-    setChatMessages(newMessages)
-    setStudentResponse("")
-  }
-
-  const generateFinalThoughts = () => {
-    const responses = chatMessages.filter((msg) => msg.sender === "student").map((msg) => msg.message)
-    return `今回の目標に向けて、${responses.join("、")}という気持ちで全力で取り組みます。必ず目標を達成して、成長した自分になりたいです！`
-  }
-
-  const generateThoughts = async () => {
-    setIsGeneratingThoughts(true)
-
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-
-    const generatedThoughts = `今回の目標に向けて、毎日コツコツと勉強を続けて、必ず目標を達成したいです。分からないところは先生に質問して、一つずつ理解を深めていきます。合格に向けて全力で取り組みます！`
-
-    setCurrentThoughts(generatedThoughts)
-    setIsGeneratingThoughts(false)
-  }
-
-  const handleSaveGoals = () => {
-    if (!isGoalSet) {
-      alert("まず目標を決定してください")
+  const handleSaveGoal = async () => {
+    if (!selectedTest || !selectedCourse || !currentThoughts.trim()) {
+      alert("すべての項目を入力してください")
       return
     }
 
-    console.log("Goals saved:", {
-      selectedTest,
-      selectedCourse,
-      classNumber: classNumber[0],
-      currentThoughts,
-    })
-    alert("目標を保存しました！")
-  }
+    setIsSaving(true)
 
-  const handleSaveResults = () => {
-    console.log("Results saved:", {
-      resultTest,
-      resultCourse,
-      resultClass: resultClass[0],
-      subjectScores,
-      resultThoughts,
-    })
-    alert("実績を保存しました！")
-  }
-
-  const getAvailableTests = (isGoalTab: boolean) => {
-    const schedule = isGoalTab ? goalTestSchedule : resultTestSchedule
-    return schedule.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-  }
-
-  const [goalSettingMode, setGoalSettingMode] = useState<"based" | "manual">("based")
-  const [autoSuggestionMode, setAutoSuggestionMode] = useState<string>("weakness_boost")
-
-  const autoSuggestionModes = [
-    {
-      id: "weakness_boost",
-      name: "弱点底上げ",
-      description: "成績が低い科目を重点的に底上げします。",
-    },
-    {
-      id: "equal_plus",
-      name: "全科目+1",
-      description: "全科目の目標値を少し上げます。",
-    },
-    {
-      id: "maintain",
-      name: "現状維持",
-      description: "現状の成績を維持することを目標にします。",
-    },
-  ]
-
-  const canSetGoal =
-    selectedTest &&
-    ((getTestType(selectedTest) === "gohan" && selectedCourse) ||
-      (getTestType(selectedTest) === "week" && goalSettingMode && (goalSettingMode === "manual" || autoSuggestionMode)))
-
-  const getSubjectColor = (subjectId: string) => {
-    switch (subjectId) {
-      case "math":
-        return {
-          badge: "bg-blue-50 text-blue-700 border-blue-200",
-          value: "text-blue-700",
-          background: "border-blue-200 bg-blue-50/30",
-        }
-      case "japanese":
-        return {
-          badge: "bg-emerald-50 text-emerald-700 border-emerald-200",
-          value: "text-emerald-700",
-          background: "border-emerald-200 bg-emerald-50/30",
-        }
-      case "science":
-        return {
-          badge: "bg-violet-50 text-violet-700 border-violet-200",
-          value: "text-violet-700",
-          background: "border-violet-200 bg-violet-50/30",
-        }
-      case "social":
-        return {
-          badge: "bg-amber-50 text-amber-700 border-amber-200",
-          value: "text-amber-700",
-          background: "border-amber-200 bg-amber-50/30",
-        }
-      default:
-        return {
-          badge: "bg-gray-50 text-gray-700 border-gray-200",
-          value: "text-gray-700",
-          background: "border-gray-200 bg-gray-50/30",
-        }
-    }
-  }
-
-  const testHistory = [
-    {
-      id: "test1",
-      name: "第1回 合不合判定テスト",
-      date: "2024-07-07",
-      type: "合不合",
-      goal: { course: "C", class: 25 },
-      result: { course: "B", class: 18 },
-      memo: "目標より良い結果が出ました！",
-    },
-    {
-      id: "test2",
-      name: "第2回 週テスト",
-      date: "2024-07-14",
-      type: "週テスト",
-      goal: { subjects: { 算数: 60, 国語: 55, 理科: 50, 社会: 55 } },
-      result: { subjects: { 算数: 65, 国語: 50, 理科: 45, 社会: 60 } },
-      memo: "国語が少し悪かったので、次回頑張ります。",
-    },
-    {
-      id: "test3",
-      name: "第3回 週テスト",
-      date: "2024-07-21",
-      type: "週テスト",
-      goal: { subjects: { 算数: 65, 国語: 60, 理科: 55, 社会: 60 } },
-      result: { subjects: { 算数: 70, 国語: 58, 理科: 52, 社会: 65 } },
-      memo: "算数と社会で目標を上回りました！",
-    },
-    {
-      id: "test4",
-      name: "第2回 合不合判定テスト",
-      date: "2024-08-04",
-      type: "合不合",
-      goal: { course: "B", class: 20 },
-      result: { course: "B", class: 15 },
-      memo: "目標通りの結果でした。",
-    },
-    {
-      id: "test5",
-      name: "第4回 週テスト",
-      date: "2024-08-11",
-      type: "週テスト",
-      goal: { subjects: { 算数: 70, 国語: 65, 理科: 60, 社会: 65 } },
-      result: { subjects: { 算数: 75, 国語: 62, 理科: 58, 社会: 70 } },
-      memo: "全体的に良い結果でした！",
-    },
-  ]
-
-  const [showMoreTests, setShowMoreTests] = useState(false)
-  const displayedTests = showMoreTests ? testHistory : testHistory.slice(0, 5)
-
-  const isTestAchieved = (test: any) => {
-    if (test.type === "合不合") {
-      const courseOrder = { S: 4, C: 3, B: 2, A: 1 }
-      return courseOrder[test.result.course] >= courseOrder[test.goal.course]
-    } else {
-      return Object.keys(test.goal.subjects).every(
-        (subject) => test.result.subjects[subject] >= test.goal.subjects[subject],
+    try {
+      const { success, error } = await saveTestGoal(
+        selectedTest.id,
+        selectedCourse,
+        classNumber[0],
+        currentThoughts
       )
+
+      if (success) {
+        alert("目標を保存しました！")
+        // リセット
+        setSelectedTest(null)
+        setSelectedCourse("")
+        setClassNumber([20])
+        setCurrentThoughts("")
+        setIsGoalSet(false)
+        // リロード
+        loadTestGoals()
+      } else {
+        alert(error || "保存に失敗しました")
+      }
+    } catch (error) {
+      console.error("保存エラー:", error)
+      alert("保存に失敗しました")
+    } finally {
+      setIsSaving(false)
     }
   }
 
-  const getSubjectDelta = (goalValue: number, resultValue: number) => {
-    const delta = resultValue - goalValue
-    if (delta > 0) {
-      return {
-        value: `+${delta}`,
-        icon: ArrowUp,
-        color: "text-emerald-600",
+  const handleSaveResult = async () => {
+    if (!selectedGoalForResult) {
+      alert("テストを選択してください")
+      return
+    }
+
+    if (!mathScore || !japaneseScore || !scienceScore || !socialScore) {
+      alert("すべての科目の点数を入力してください")
+      return
+    }
+
+    setIsSavingResult(true)
+
+    try {
+      const { success, error } = await saveTestResult(
+        selectedGoalForResult.test_schedule_id,
+        parseInt(mathScore),
+        parseInt(japaneseScore),
+        parseInt(scienceScore),
+        parseInt(socialScore),
+        mathDeviation ? parseFloat(mathDeviation) : undefined,
+        japaneseDeviation ? parseFloat(japaneseDeviation) : undefined,
+        scienceDeviation ? parseFloat(scienceDeviation) : undefined,
+        socialDeviation ? parseFloat(socialDeviation) : undefined,
+        totalDeviation ? parseFloat(totalDeviation) : undefined
+      )
+
+      if (success) {
+        alert("テスト結果を保存しました！")
+        // リセット
+        setSelectedGoalForResult(null)
+        setMathScore("")
+        setJapaneseScore("")
+        setScienceScore("")
+        setSocialScore("")
+        setMathDeviation("")
+        setJapaneseDeviation("")
+        setScienceDeviation("")
+        setSocialDeviation("")
+        setTotalDeviation("")
+        // リロード
+        loadTestResults()
+        setActiveTab("test")
+      } else {
+        alert(error || "保存に失敗しました")
       }
-    } else if (delta < 0) {
-      return {
-        value: `${delta}`,
-        icon: ArrowDown,
-        color: "text-red-600",
-      }
-    } else {
-      return {
-        value: "±0",
-        icon: ArrowUp,
-        color: "text-slate-600",
-      }
+    } catch (error) {
+      console.error("結果保存エラー:", error)
+      alert("保存に失敗しました")
+    } finally {
+      setIsSavingResult(false)
     }
   }
 
-  const courseColors = {
-    goal: {
-      bg: "bg-blue-50",
-      border: "border-blue-200",
-      text: "text-blue-700",
-      gradient: "from-blue-50 to-blue-100",
-    },
-    result: {
-      bg: "bg-emerald-50",
-      border: "border-emerald-200",
-      text: "text-emerald-700",
-      gradient: "from-emerald-50 to-emerald-100",
-    },
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString("ja-JP", {
+      month: "long",
+      day: "numeric",
+      weekday: "short",
+    })
   }
 
-  const subjectColors = {
-    算数: {
-      bg: "bg-blue-50",
-      border: "border-blue-200",
-      text: "text-blue-700",
-      gradient: "from-blue-50 to-blue-100",
-    },
-    国語: {
-      bg: "bg-emerald-50",
-      border: "border-emerald-200",
-      text: "text-emerald-700",
-      gradient: "from-emerald-50 to-emerald-100",
-    },
-    理科: {
-      bg: "bg-violet-50",
-      border: "border-violet-200",
-      text: "text-violet-700",
-      gradient: "from-violet-50 to-violet-100",
-    },
-    社会: {
-      bg: "bg-amber-50",
-      border: "border-amber-200",
-      text: "text-amber-700",
-      gradient: "from-amber-50 to-amber-100",
-    },
+  const getCourseName = (courseId: string) => {
+    return courses.find((c) => c.id === courseId)?.name || courseId
   }
 
-  const getAchievedCount = (test: any) => {
-    if (test.type === "合不合") {
-      return 0
-    } else {
-      return Object.keys(test.goal.subjects).filter(
-        (subject) => test.result.subjects[subject] >= test.goal.subjects[subject],
-      ).length
-    }
-  }
+  const totalScore = mathScore && japaneseScore && scienceScore && socialScore
+    ? parseInt(mathScore) + parseInt(japaneseScore) + parseInt(scienceScore) + parseInt(socialScore)
+    : 0
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-20">
+    <div className="min-h-screen bg-background pb-20 elegant-fade-in">
       {showCelebration && (
         <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
           {[...Array(20)].map((_, i) => (
@@ -751,7 +298,9 @@ export default function GoalSettingPage() {
               style={{
                 left: `${Math.random() * 100}%`,
                 animationDelay: `${Math.random() * 2}s`,
-                backgroundColor: ["#0891b2", "#0284c7", "#0369a1", "#1e40af"][Math.floor(Math.random() * 4)],
+                backgroundColor: ["#0891b2", "#0284c7", "#0369a1", "#1e40af"][
+                  Math.floor(Math.random() * 4)
+                ],
                 width: "10px",
                 height: "10px",
                 borderRadius: "50%",
@@ -759,7 +308,7 @@ export default function GoalSettingPage() {
             />
           ))}
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-8 shadow-2xl pulse-celebration">
+            <div className="bg-white/95 backdrop-blur-lg rounded-2xl p-8 shadow-2xl premium-glow">
               <div className="text-center">
                 <PartyPopper className="h-16 w-16 text-primary mx-auto mb-4" />
                 <h2 className="text-2xl font-bold text-primary mb-2">目標決定！</h2>
@@ -770,75 +319,49 @@ export default function GoalSettingPage() {
         </div>
       )}
 
-      <div className="bg-card/80 backdrop-blur-sm border-b border-border/50 p-3 sm:p-4">
+      <div className="surface-gradient-primary backdrop-blur-lg border-b border-border/30 p-3 sm:p-4 shadow-lg">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2">
             <Flag className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
             ゴールナビ
+            {studentGrade && (
+              <span className="text-sm text-muted-foreground ml-2">(小学{studentGrade}年生)</span>
+            )}
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground">目標を設定して、合格に向けて頑張ろう！</p>
-
-          <div className="flex gap-1 mt-3 sm:mt-4 bg-muted p-1 rounded-lg">
-            <button
-              onClick={() => setActiveTab("goal")}
-              className={`flex-1 px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${
-                activeTab === "goal"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Target className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1 sm:mr-2" />
-              目標入力
-            </button>
-            <button
-              onClick={() => setActiveTab("result")}
-              className={`flex-1 px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${
-                activeTab === "result"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Trophy className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1 sm:mr-2" />
-              実績入力
-            </button>
-            <button
-              onClick={() => setActiveTab("tests")}
-              className={`flex-1 px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${
-                activeTab === "tests"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <TestTube className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1 sm:mr-2" />
-              テスト結果
-            </button>
-          </div>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto p-3 sm:p-4 space-y-4 sm:space-y-6">
-        {activeTab === "goal" ? (
-          <>
+      <div className="max-w-4xl mx-auto p-3 sm:p-4">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "input" | "result" | "test")}>
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="input">目標入力</TabsTrigger>
+            <TabsTrigger value="result">結果入力</TabsTrigger>
+            <TabsTrigger value="test">テスト結果</TabsTrigger>
+          </TabsList>
+
+          {/* 目標入力タブ */}
+          <TabsContent value="input" className="space-y-4 sm:space-y-6 mt-6">
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
               <div className="space-y-4 sm:space-y-6">
-                {!isAiCoachActive && (
-                  <Card className="bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200">
+                {!showAIChat && (
+                  <Card className="card-elevated ai-coach-gradient border-0 shadow-2xl premium-glow">
                     <CardContent className="p-6">
                       <div className="flex items-start gap-4">
                         <div className="flex-shrink-0">
                           <img
-                            src={avatarMap.ai_coach || "/placeholder.svg"}
+                            src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png"
                             alt="AIコーチ"
-                            className="w-12 h-12 rounded-full border-2 border-blue-200"
+                            className="w-12 h-12 rounded-full border-2 border-white/30 shadow-lg"
                           />
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
-                            <Bot className="h-4 w-4 text-blue-600" />
-                            <span className="font-semibold text-blue-800">AIコーチからのアドバイス</span>
+                            <Bot className="h-4 w-4 text-white" />
+                            <span className="font-semibold text-white">AIコーチからのアドバイス</span>
                           </div>
-                          <p className="text-blue-700 leading-relaxed">
-                            今日も目標に向かって頑張ろう！まずは自分の現在の気持ちを正直に選んで、無理のない目標設定をしていこう。
+                          <p className="text-white/90 leading-relaxed">
+                            {studentName}さん、今日も目標に向かって頑張ろう！まずは自分の現在の気持ちを正直に選んで、無理のない目標設定をしていこう。
                             小さな積み重ねが大きな成果につながるよ。一緒に合格を目指そう！✨
                           </p>
                         </div>
@@ -847,7 +370,7 @@ export default function GoalSettingPage() {
                   </Card>
                 )}
 
-                <Card className={isGoalSet ? "opacity-75" : ""}>
+                <Card className={`card-elevated ${isGoalSet ? "opacity-75" : ""}`}>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Calendar className="h-5 w-5 text-primary" />
@@ -857,16 +380,25 @@ export default function GoalSettingPage() {
                   <CardContent className="space-y-3 sm:space-y-4">
                     <div className="space-y-2">
                       <Label className="text-sm sm:text-base">対象テストを選択してください</Label>
-                      <Select value={selectedTest} onValueChange={setSelectedTest} disabled={isGoalSet}>
+                      <Select
+                        value={selectedTest?.id || ""}
+                        onValueChange={(value) => {
+                          const test = availableTests.find((t) => t.id === value)
+                          setSelectedTest(test || null)
+                        }}
+                        disabled={isGoalSet}
+                      >
                         <SelectTrigger className="h-10 sm:h-11">
                           <SelectValue placeholder="テストを選択してください" />
                         </SelectTrigger>
                         <SelectContent>
-                          {getAvailableTests(true).map((test) => (
+                          {availableTests.map((test) => (
                             <SelectItem key={test.id} value={test.id}>
                               <div className="flex flex-col">
-                                <span className="font-medium">{test.name}</span>
-                                <span className="text-xs text-muted-foreground">{test.dateDisplay}</span>
+                                <span className="font-medium">{test.test_types.name}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {formatDate(test.test_date)}
+                                </span>
                               </div>
                             </SelectItem>
                           ))}
@@ -875,23 +407,26 @@ export default function GoalSettingPage() {
                     </div>
 
                     {selectedTest && (
-                      <div className="mt-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                      <div className="mt-4 p-3 surface-gradient-primary rounded-lg border border-primary/20">
                         <p className="text-sm text-primary font-medium">
-                          選択中: {getAvailableTests(true).find((t) => t.id === selectedTest)?.name}
+                          選択中: {selectedTest.test_types.name}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          実施日: {getAvailableTests(true).find((t) => t.id === selectedTest)?.dateDisplay}
+                          実施日: {formatDate(selectedTest.test_date)}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          種類: {getTestType(selectedTest) === "gohan" ? "合不合判定テスト" : "週テスト"}
+                          種類:{" "}
+                          {selectedTest.test_types.type_category === "gohan"
+                            ? "合不合判定テスト"
+                            : "公開組分けテスト"}
                         </p>
                       </div>
                     )}
                   </CardContent>
                 </Card>
 
-                {selectedTest && getTestType(selectedTest) === "gohan" && (
-                  <Card className={isGoalSet ? "opacity-75" : ""}>
+                {selectedTest && (
+                  <Card className={`card-elevated ${isGoalSet ? "opacity-75" : ""}`}>
                     <CardHeader>
                       <CardTitle>目標の設定</CardTitle>
                     </CardHeader>
@@ -904,14 +439,16 @@ export default function GoalSettingPage() {
                               key={course.id}
                               onClick={() => !isGoalSet && setSelectedCourse(course.id)}
                               disabled={isGoalSet}
-                              className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all min-h-[60px] sm:min-h-[70px] ${
+                              className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all duration-300 min-h-[60px] sm:min-h-[70px] ${
                                 selectedCourse === course.id
-                                  ? "border-primary bg-primary/10 shadow-md"
-                                  : "border-border bg-background hover:border-primary/50"
+                                  ? "border-primary bg-primary/10 shadow-lg"
+                                  : "border-border bg-background hover:border-primary/50 hover:shadow-md"
                               } ${isGoalSet ? "cursor-not-allowed" : ""}`}
                             >
                               <div className="font-bold text-base sm:text-lg">{course.name}</div>
-                              <div className="text-xs sm:text-sm text-muted-foreground">{course.description}</div>
+                              <div className="text-xs sm:text-sm text-muted-foreground">
+                                {course.description}
+                              </div>
                             </button>
                           ))}
                         </div>
@@ -919,23 +456,27 @@ export default function GoalSettingPage() {
 
                       <div className="space-y-3 sm:space-y-4">
                         <Label className="text-sm sm:text-base font-medium">目標の組を決めよう</Label>
-                        <div className="px-3 sm:px-4 py-3 sm:py-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border border-blue-200">
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="text-xs sm:text-sm font-medium text-blue-800">目標の組</span>
-                            <div className="px-2 sm:px-3 py-1 bg-blue-600 text-white rounded-full text-xs sm:text-sm font-bold">
+                        <div className="px-4 sm:px-6 py-4 sm:py-5 surface-gradient-primary rounded-2xl border-2 border-primary/20 shadow-lg">
+                          <div className="flex items-center justify-between mb-4">
+                            <span className="text-sm sm:text-base font-semibold text-primary">
+                              目標の組
+                            </span>
+                            <div className="px-4 sm:px-5 py-2 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground rounded-full text-sm sm:text-base font-bold shadow-lg">
                               {classNumber[0]}組
                             </div>
                           </div>
-                          <Slider
-                            value={classNumber}
-                            onValueChange={setClassNumber}
-                            max={40}
-                            min={1}
-                            step={1}
-                            className="w-full"
-                            disabled={isGoalSet}
-                          />
-                          <div className="flex justify-between text-xs text-blue-600 mt-2 font-medium">
+                          <div className="px-2 py-1">
+                            <Slider
+                              value={classNumber}
+                              onValueChange={setClassNumber}
+                              max={40}
+                              min={1}
+                              step={1}
+                              className="w-full"
+                              disabled={isGoalSet}
+                            />
+                          </div>
+                          <div className="flex justify-between text-xs sm:text-sm text-primary/70 mt-3 font-semibold">
                             <span>1組</span>
                             <span>40組</span>
                           </div>
@@ -945,171 +486,39 @@ export default function GoalSettingPage() {
                   </Card>
                 )}
 
-                {selectedTest && getTestType(selectedTest) === "week" && (
-                  <>
-                    <Card className={isGoalSet ? "opacity-75" : ""}>
-                      <CardHeader>
-                        <CardTitle>目標設定の方法を選択してください</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3 sm:space-y-4">
-                        <Label className="text-sm sm:text-base">目標設定の方法を選択してください</Label>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-                          <button
-                            onClick={() => setGoalSettingMode("based")}
-                            className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all min-h-[60px] ${
-                              goalSettingMode === "based"
-                                ? "border-primary bg-primary/10 shadow-md"
-                                : "border-border bg-background hover:border-primary/50"
-                            }`}
-                          >
-                            <div className="text-xs sm:text-sm font-medium">週テスト結果にもとづく</div>
-                          </button>
-                          <button
-                            onClick={() => setGoalSettingMode("manual")}
-                            className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all min-h-[60px] ${
-                              goalSettingMode === "manual"
-                                ? "border-primary bg-primary/10 shadow-md"
-                                : "border-border bg-background hover:border-primary/50"
-                            }`}
-                          >
-                            <div className="text-xs sm:text-sm font-medium">自分で決める</div>
-                          </button>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {goalSettingMode === "based" && (
-                      <Card className={isGoalSet ? "opacity-75" : ""}>
-                        <CardHeader>
-                          <CardTitle>自動提案モード</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3 sm:space-y-4">
-                          <Label className="text-sm sm:text-base">自動提案モードを選択してください</Label>
-                          <div className="grid grid-cols-1 gap-2 sm:gap-3">
-                            {autoSuggestionModes.map((mode) => (
-                              <button
-                                key={mode.id}
-                                onClick={() => setAutoSuggestionMode(mode.id)}
-                                className={`p-3 sm:p-4 rounded-lg border-2 text-left transition-all ${
-                                  autoSuggestionMode === mode.id
-                                    ? "border-primary bg-primary/10 shadow-md"
-                                    : "border-border bg-background hover:border-primary/50"
-                                }`}
-                              >
-                                <div className="text-xs sm:text-sm font-medium">{mode.name}</div>
-                                <div className="text-xs text-muted-foreground mt-1">{mode.description}</div>
-                              </button>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    {goalSettingMode &&
-                      (goalSettingMode === "manual" || (goalSettingMode === "based" && autoSuggestionMode)) && (
-                        <Card className={isGoalSet ? "opacity-75" : ""}>
-                          <CardHeader>
-                            <CardTitle>科目別目標偏差値</CardTitle>
-                          </CardHeader>
-                          <CardContent className="space-y-4">
-                            {subjects.map((subject) => {
-                              const pastResult = mockPastResults[subject.id as keyof typeof mockPastResults]
-                              return (
-                                <div
-                                  key={subject.id}
-                                  className="space-y-3 p-4 rounded-lg border border-slate-100 bg-slate-50/30"
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <div className={`px-3 py-1 rounded-full text-sm font-medium ${subject.color}`}>
-                                      {subject.name}
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                      {goalSettingMode === "based" && (
-                                        <span className="text-xs text-slate-600 bg-slate-100 px-2 py-1 rounded">
-                                          前回: {pastResult}
-                                        </span>
-                                      )}
-                                      <span
-                                        className={`text-sm font-bold ${subject.targetColor} bg-white px-2 py-1 rounded border`}
-                                      >
-                                        目標: {subjectGoals[subject.id as keyof typeof subjectGoals][0]}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <div className="relative">
-                                    <Slider
-                                      value={subjectGoals[subject.id as keyof typeof subjectGoals]}
-                                      onValueChange={(value) =>
-                                        setSubjectGoals((prev) => ({
-                                          ...prev,
-                                          [subject.id]: value,
-                                        }))
-                                      }
-                                      max={80}
-                                      min={20}
-                                      step={1}
-                                      className={`w-full ${subject.sliderColor}`}
-                                      disabled={isGoalSet}
-                                    />
-                                  </div>
-                                  <div className="flex justify-between text-xs text-slate-500">
-                                    <span>20</span>
-                                    <span>80</span>
-                                  </div>
-                                  <div className="flex gap-2 mt-3">
-                                    {[40, 50, 60, 70].map((value) => (
-                                      <Button
-                                        key={value}
-                                        variant="outline"
-                                        size="sm"
-                                        className={`text-xs px-3 py-1 h-7 bg-white transition-colors ${subject.buttonColor}`}
-                                        onClick={() =>
-                                          setSubjectGoals((prev) => ({
-                                            ...prev,
-                                            [subject.id]: [value],
-                                          }))
-                                        }
-                                        disabled={isGoalSet}
-                                      >
-                                        {value}
-                                      </Button>
-                                    ))}
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </CardContent>
-                        </Card>
-                      )}
-                  </>
-                )}
-
-                {!isGoalSet && selectedTest && (
-                  <Card className="bg-gradient-to-r from-primary/10 to-accent/10 border-primary/20">
+                {!isGoalSet && selectedTest && selectedCourse && (
+                  <Card className="card-elevated bg-gradient-to-r from-primary/10 to-accent/10 border-primary/20 shadow-xl">
                     <CardContent className="p-6 text-center">
                       <Target className="h-12 w-12 text-primary mx-auto mb-4" />
-                      <h3 className="text-lg font-bold text-primary mb-2">
-                        {getTestType(selectedTest) === "gohan" ? "目標を決定しよう！" : "今週はこれで行く！"}
-                      </h3>
+                      <h3 className="text-lg font-bold text-primary mb-2">目標を決定しよう！</h3>
                       <p className="text-sm text-muted-foreground mb-4">
-                        {getTestType(selectedTest) === "gohan"
-                          ? "テスト、コース、組を選択したら、目標を決定してください"
-                          : "テスト、科目、目標設定モードを選択したら、目標を決定してください"}
+                        テスト、コース、組を選択したら、目標を決定してください
                       </p>
                       <Button
                         onClick={handleGoalDecision}
-                        disabled={!canSetGoal}
-                        className="w-full h-11 sm:h-12 text-sm sm:text-lg font-medium bg-primary text-primary-foreground hover:bg-primary/90"
+                        className="w-full h-11 sm:h-12 text-sm sm:text-lg font-medium bg-blue-500 text-white hover:bg-blue-600 shadow-lg hover:shadow-xl transition-all duration-300"
                       >
                         <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                        {getTestType(selectedTest) === "gohan" ? "今回の目標はこれにする！" : "今週はこれで行く！"}
+                        今回の目標はこれにする！
                       </Button>
                     </CardContent>
                   </Card>
                 )}
 
-                {isAiCoachActive && (
-                  <Card>
+                {showAIChat && selectedTest && (
+                  <GoalNavigationChat
+                    studentName={studentName}
+                    testName={selectedTest.test_types.name}
+                    testDate={formatDate(selectedTest.test_date)}
+                    targetCourse={selectedCourse}
+                    targetClass={classNumber[0]}
+                    onComplete={handleAIChatComplete}
+                    onCancel={handleAIChatCancel}
+                  />
+                )}
+
+                {isGoalSet && !showAIChat && (
+                  <Card className="card-elevated">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <Sparkles className="h-5 w-5 text-primary" />
@@ -1117,475 +526,350 @@ export default function GoalSettingPage() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      {!isChatMode ? (
-                        <>
-                          <div className="flex gap-2">
-                            <Button
-                              onClick={startCoachChat}
-                              className="flex items-center gap-2 bg-gradient-to-r from-primary to-accent text-white"
-                            >
-                              <Bot className="h-4 w-4" />
-                              AIコーチと話してみる
-                            </Button>
-                          </div>
-
-                          <Textarea
-                            placeholder="この目標に向けてどんな気持ちですか？どうして頑張りたいですか？"
-                            value={currentThoughts}
-                            onChange={(e) => setCurrentThoughts(e.target.value)}
-                            className="min-h-[100px] sm:min-h-[120px] resize-none text-sm sm:text-base"
-                            maxLength={300}
-                          />
-                          <div className="flex justify-between items-center text-xs">
-                            <span className="text-muted-foreground">AIコーチが生成した内容は編集できます</span>
-                            <span className="text-muted-foreground">{currentThoughts.length}/300文字</span>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="space-y-4">
-                          <div className="bg-gray-50 rounded-lg p-4 max-h-80 overflow-y-auto space-y-3">
-                            {chatMessages.map((message) => (
-                              <div
-                                key={message.id}
-                                className={`flex ${message.sender === "student" ? "justify-end" : "justify-start"}`}
-                              >
-                                <div
-                                  className={`flex items-start gap-2 max-w-[80%] ${message.sender === "student" ? "flex-row-reverse" : ""}`}
-                                >
-                                  {message.sender === "coach" && (
-                                    <img
-                                      src={avatarMap.ai_coach || "/placeholder.svg"}
-                                      alt="AIコーチ"
-                                      className="w-8 h-8 rounded-full flex-shrink-0"
-                                    />
-                                  )}
-                                  <div
-                                    className={`px-3 py-2 rounded-lg ${
-                                      message.sender === "student"
-                                        ? "bg-blue-500 text-white"
-                                        : "bg-white border border-gray-200"
-                                    }`}
-                                  >
-                                    <p className="text-sm whitespace-pre-line">{message.message}</p>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-
-                          {currentQuestionIndex < coachQuestions.length && (
-                            <div className="flex gap-2">
-                              <input
-                                type="text"
-                                value={studentResponse}
-                                onChange={(e) => setStudentResponse(e.target.value)}
-                                placeholder="あなたの気持ちを教えて..."
-                                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                onKeyPress={(e) => e.key === "Enter" && sendStudentResponse()}
-                              />
-                              <Button onClick={sendStudentResponse} disabled={!studentResponse.trim()} size="sm">
-                                <Send className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                      <Textarea
+                        placeholder="この目標に向けてどんな気持ちですか？どうして頑張りたいですか？"
+                        value={currentThoughts}
+                        onChange={(e) => setCurrentThoughts(e.target.value)}
+                        className="min-h-[100px] sm:min-h-[120px] resize-none text-sm sm:text-base"
+                        maxLength={300}
+                      />
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-muted-foreground">
+                          AIコーチが生成した内容は編集できます
+                        </span>
+                        <span className="text-muted-foreground">{currentThoughts.length}/300文字</span>
+                      </div>
                     </CardContent>
                   </Card>
                 )}
 
-                {isGoalSet && (
-                  <Button onClick={handleSaveGoals} className="w-full h-11 sm:h-12 text-sm sm:text-lg font-medium">
+                {isGoalSet && !showAIChat && (
+                  <Button
+                    onClick={handleSaveGoal}
+                    disabled={isSaving || !currentThoughts.trim()}
+                    className="w-full h-11 sm:h-12 text-sm sm:text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 bg-blue-500 hover:bg-blue-600 text-white"
+                  >
                     <Save className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                    目標を保存する
+                    {isSaving ? "保存中..." : "目標を保存する"}
                   </Button>
                 )}
               </div>
             </div>
-          </>
-        ) : activeTab === "result" ? (
-          <>
-            <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
-              <CardContent className="p-6">
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0">
-                    <img
-                      src={avatarMap.ai_coach || "/placeholder.svg"}
-                      alt="AIコーチ"
-                      className="w-12 h-12 rounded-full border-2 border-green-200"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Trophy className="h-4 w-4 text-green-600" />
-                      <span className="font-semibold text-green-800">AIコーチからのメッセージ</span>
-                    </div>
-                    <p className="text-green-700 leading-relaxed">
-                      テストお疲れさま！結果はどうだったかな？良い結果も思うようにいかなかった結果も、
-                      すべて次への成長につながる大切な経験だよ。正直に記録して、次の目標に活かそう！✨
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          </TabsContent>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
-              <div className="space-y-4 sm:space-y-6">
-                {activeTab === "result" && (
-                  <div className="space-y-4 sm:space-y-6">
-                    <Card>
+          {/* 結果入力タブ */}
+          <TabsContent value="result" className="space-y-4 mt-6">
+            {testGoals.length === 0 ? (
+              <Card>
+                <CardContent className="py-10 text-center text-muted-foreground">
+                  まだ目標が設定されていません。<br />
+                  先に「目標入力」タブで目標を設定してください。
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                <Card className="card-elevated">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Award className="h-5 w-5 text-primary" />
+                      テスト選択
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <Label>結果を入力するテストを選択してください</Label>
+                    <Select
+                      value={selectedGoalForResult?.id || ""}
+                      onValueChange={(value) => {
+                        const goal = testGoals.find((g) => g.id === value)
+                        setSelectedGoalForResult(goal || null)
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="テストを選択してください" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {testGoals.map((goal) => (
+                          <SelectItem key={goal.id} value={goal.id}>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{goal.test_schedules.test_types.name}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {formatDate(goal.test_schedules.test_date)}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    {selectedGoalForResult && (
+                      <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Flag className="h-4 w-4 text-blue-600" />
+                          <span className="font-medium text-sm">設定した目標</span>
+                        </div>
+                        <div className="text-sm space-y-1">
+                          <p>
+                            <span className="text-gray-600">コース:</span>{" "}
+                            <span className="font-medium">
+                              {getCourseName(selectedGoalForResult.target_course)}
+                            </span>
+                          </p>
+                          <p>
+                            <span className="text-gray-600">組:</span>{" "}
+                            <span className="font-medium">{selectedGoalForResult.target_class}組</span>
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {selectedGoalForResult && (
+                  <>
+                    <Card className="card-elevated">
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                          <Calendar className="h-5 w-5 text-primary" />
-                          テスト選択
+                          <TrendingUp className="h-5 w-5 text-primary" />
+                          点数入力
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-3 sm:space-y-4">
-                        <div className="space-y-2">
-                          <Label className="text-sm sm:text-base">対象テストを選択してください</Label>
-                          <Select value={resultTest} onValueChange={setResultTest}>
-                            <SelectTrigger className="h-10 sm:h-11">
-                              <SelectValue placeholder="テストを選択してください" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {getAvailableTests(false).map((test) => (
-                                <SelectItem key={test.id} value={test.id}>
-                                  <div className="flex flex-col">
-                                    <span className="font-medium">{test.name}</span>
-                                    <span className="text-xs text-muted-foreground">{test.dateDisplay}</span>
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label>算数</Label>
+                            <Input
+                              type="number"
+                              placeholder="点数"
+                              value={mathScore}
+                              onChange={(e) => setMathScore(e.target.value)}
+                              min="0"
+                              max="200"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>算数偏差値（オプション）</Label>
+                            <Input
+                              type="number"
+                              step="0.1"
+                              placeholder="偏差値"
+                              value={mathDeviation}
+                              onChange={(e) => setMathDeviation(e.target.value)}
+                              min="0"
+                              max="100"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>国語</Label>
+                            <Input
+                              type="number"
+                              placeholder="点数"
+                              value={japaneseScore}
+                              onChange={(e) => setJapaneseScore(e.target.value)}
+                              min="0"
+                              max="200"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>国語偏差値（オプション）</Label>
+                            <Input
+                              type="number"
+                              step="0.1"
+                              placeholder="偏差値"
+                              value={japaneseDeviation}
+                              onChange={(e) => setJapaneseDeviation(e.target.value)}
+                              min="0"
+                              max="100"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>理科</Label>
+                            <Input
+                              type="number"
+                              placeholder="点数"
+                              value={scienceScore}
+                              onChange={(e) => setScienceScore(e.target.value)}
+                              min="0"
+                              max="200"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>理科偏差値（オプション）</Label>
+                            <Input
+                              type="number"
+                              step="0.1"
+                              placeholder="偏差値"
+                              value={scienceDeviation}
+                              onChange={(e) => setScienceDeviation(e.target.value)}
+                              min="0"
+                              max="100"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>社会</Label>
+                            <Input
+                              type="number"
+                              placeholder="点数"
+                              value={socialScore}
+                              onChange={(e) => setSocialScore(e.target.value)}
+                              min="0"
+                              max="200"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>社会偏差値（オプション）</Label>
+                            <Input
+                              type="number"
+                              step="0.1"
+                              placeholder="偏差値"
+                              value={socialDeviation}
+                              onChange={(e) => setSocialDeviation(e.target.value)}
+                              min="0"
+                              max="100"
+                            />
+                          </div>
                         </div>
 
-                        {resultTest && (
-                          <div className="mt-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
-                            <p className="text-sm text-primary font-medium">
-                              選択中: {getAvailableTests(false).find((t) => t.id === resultTest)?.name}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              実施日: {getAvailableTests(false).find((t) => t.id === resultTest)?.dateDisplay}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              種類: {getTestType(resultTest) === "gohan" ? "合不合判定テスト" : "週テスト"}
-                            </p>
+                        {totalScore > 0 && (
+                          <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-primary">4科目合計</span>
+                              <span className="text-2xl font-bold text-primary">{totalScore}点</span>
+                            </div>
                           </div>
                         )}
+
+                        <div className="space-y-2">
+                          <Label>4科目合計偏差値（オプション）</Label>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            placeholder="偏差値"
+                            value={totalDeviation}
+                            onChange={(e) => setTotalDeviation(e.target.value)}
+                            min="0"
+                            max="100"
+                          />
+                        </div>
                       </CardContent>
                     </Card>
 
-                    {resultTest && getTestType(resultTest) === "gohan" && (
-                      <Card>
-                        <CardHeader>
-                          <CardTitle>実績の記録</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4 sm:space-y-6">
-                          <div className="space-y-2">
-                            <Label className="text-sm sm:text-base">実際のコース</Label>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-                              {courses.map((course) => (
-                                <button
-                                  key={course.id}
-                                  onClick={() => setResultCourse(course.id)}
-                                  className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all min-h-[60px] sm:min-h-[70px] ${
-                                    resultCourse === course.id
-                                      ? "border-primary bg-primary/10 shadow-md"
-                                      : "border-border bg-background hover:border-primary/50"
-                                  }`}
-                                >
-                                  <div className="font-bold text-base sm:text-lg">{course.name}</div>
-                                  <div className="text-xs sm:text-sm text-muted-foreground">{course.description}</div>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="space-y-3 sm:space-y-4">
-                            <Label className="text-sm sm:text-base font-medium">実際の組</Label>
-                            <div className="px-3 sm:px-4 py-3 sm:py-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">
-                              <div className="flex items-center justify-between mb-3">
-                                <span className="text-xs sm:text-sm font-medium text-green-800">実際の組</span>
-                                <div className="px-2 sm:px-3 py-1 bg-green-600 text-white rounded-full text-xs sm:text-sm font-bold">
-                                  {resultClass[0]}組
-                                </div>
-                              </div>
-                              <Slider
-                                value={resultClass}
-                                onValueChange={setResultClass}
-                                max={40}
-                                min={1}
-                                step={1}
-                                className="w-full"
-                              />
-                              <div className="flex justify-between text-xs text-green-600 mt-2 font-medium">
-                                <span>1組</span>
-                                <span>40組</span>
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    {resultTest && getTestType(resultTest) === "week" && (
-                      <Card>
-                        <CardHeader>
-                          <CardTitle>科目別実績偏差値</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          {subjects.map((subject) => {
-                            const pastResult = mockPastResults[subject.id as keyof typeof mockPastResults]
-                            return (
-                              <div
-                                key={subject.id}
-                                className="space-y-3 p-4 rounded-lg border border-slate-100 bg-slate-50/30"
-                              >
-                                <div className="flex items-center justify-between">
-                                  <div className={`px-3 py-1 rounded-full text-sm font-medium ${subject.color}`}>
-                                    {subject.name}
-                                  </div>
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-xs text-slate-600 bg-slate-100 px-2 py-1 rounded">
-                                      前回: {pastResult}
-                                    </span>
-                                    <span
-                                      className={`text-sm font-bold ${subject.targetColor} bg-white px-2 py-1 rounded border`}
-                                    >
-                                      実績: {subjectScores[subject.id as keyof typeof subjectScores][0]}
-                                    </span>
-                                  </div>
-                                </div>
-                                <div className="relative">
-                                  <Slider
-                                    value={subjectScores[subject.id as keyof typeof subjectScores]}
-                                    onValueChange={(value) =>
-                                      setSubjectScores((prev) => ({
-                                        ...prev,
-                                        [subject.id]: value,
-                                      }))
-                                    }
-                                    max={80}
-                                    min={20}
-                                    step={1}
-                                    className={`w-full ${subject.sliderColor}`}
-                                  />
-                                </div>
-                                <div className="flex justify-between text-xs text-slate-500">
-                                  <span>20</span>
-                                  <span>80</span>
-                                </div>
-                                <div className="flex gap-2 mt-3">
-                                  {[40, 50, 60, 70].map((value) => (
-                                    <Button
-                                      key={value}
-                                      variant="outline"
-                                      size="sm"
-                                      className={`text-xs px-3 py-1 h-7 bg-white transition-colors ${subject.buttonColor}`}
-                                      onClick={() =>
-                                        setSubjectScores((prev) => ({
-                                          ...prev,
-                                          [subject.id]: [value],
-                                        }))
-                                      }
-                                    >
-                                      {value}
-                                    </Button>
-                                  ))}
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    {resultTest && (
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2">
-                            <Sparkles className="h-5 w-5 text-primary" />
-                            テストの振り返り
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          <Textarea
-                            placeholder="今回のテストはどうでしたか？良かった点、改善したい点、次に向けての気持ちを書いてみましょう。"
-                            value={resultThoughts}
-                            onChange={(e) => setResultThoughts(e.target.value)}
-                            className="min-h-[100px] sm:min-h-[120px] resize-none text-sm sm:text-base"
-                            maxLength={300}
-                          />
-                          <div className="flex justify-between items-center text-xs">
-                            <span className="text-muted-foreground">正直な気持ちを書いてみよう</span>
-                            <span className="text-muted-foreground">{resultThoughts.length}/300文字</span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    {resultTest && (
-                      <Button
-                        onClick={handleSaveResults}
-                        className="w-full h-11 sm:h-12 text-sm sm:text-lg font-medium"
-                      >
-                        <Save className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                        実績を保存する
-                      </Button>
-                    )}
-                  </div>
+                    <Button
+                      onClick={handleSaveResult}
+                      disabled={isSavingResult}
+                      className="w-full h-11 sm:h-12 text-sm sm:text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+                    >
+                      <Save className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                      {isSavingResult ? "保存中..." : "結果を保存する"}
+                    </Button>
+                  </>
                 )}
-              </div>
-            </div>
-          </>
-        ) : (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <TestTube className="h-5 w-5 text-primary" />
-                  テスト結果
-                </CardTitle>
-                <Badge variant="outline" className="text-xs">
-                  全{testHistory.length}件
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
+              </>
+            )}
+          </TabsContent>
+
+          {/* テスト結果タブ */}
+          <TabsContent value="test" className="space-y-4 mt-6">
+            {testResults.length === 0 ? (
+              <Card>
+                <CardContent className="py-10 text-center text-muted-foreground">
+                  まだテスト結果がありません
+                </CardContent>
+              </Card>
+            ) : (
               <div className="space-y-4">
-                {displayedTests.map((test) => (
-                  <Card key={test.id} className="border border-border/50 shadow-sm hover:shadow-md transition-shadow">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-semibold text-slate-800">{test.name}</h3>
-                            <Badge
-                              variant={test.type === "合不合" ? "default" : "secondary"}
-                              className="text-xs bg-primary/10 text-primary border-primary/20"
-                            >
-                              {test.type}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-slate-600">
-                            {new Date(test.date).toLocaleDateString("ja-JP", {
-                              year: "numeric",
-                              month: "numeric",
-                              day: "numeric",
-                              weekday: "short",
-                            })}
-                          </p>
-                        </div>
-                        <Badge
-                          variant={isTestAchieved(test) ? "default" : "destructive"}
-                          className={`text-xs font-medium ${
-                            isTestAchieved(test)
-                              ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                              : "bg-red-100 text-red-700 border-red-200"
-                          }`}
-                        >
-                          {isTestAchieved(test) ? "✓ 達成" : "× 未達"}
-                        </Badge>
-                      </div>
+                {testResults.map((result) => (
+                  <Card key={result.id} className="card-elevated">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Calendar className="h-5 w-5 text-primary" />
+                        {result.test_schedules.test_types.name}
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        {formatDate(result.test_schedules.test_date)}
+                      </p>
                     </CardHeader>
-                    <CardContent className="pt-0">
-                      {test.type === "合不合" ? (
-                        <div className="space-y-3">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div
-                              className={`text-center p-4 ${courseColors.goal.bg} ${courseColors.goal.border} border rounded-xl bg-gradient-to-br ${courseColors.goal.gradient} shadow-sm`}
-                            >
-                              <div className="text-xs text-slate-500 mb-2 font-medium">目標</div>
-                              <div className={`font-bold text-xl ${courseColors.goal.text} mb-1`}>
-                                {test.goal.course}コース
-                              </div>
-                              <div className={`text-sm ${courseColors.goal.text} opacity-80`}>{test.goal.class}組</div>
-                            </div>
-                            <div
-                              className={`text-center p-4 ${courseColors.result.bg} ${courseColors.result.border} border rounded-xl bg-gradient-to-br ${courseColors.result.gradient} shadow-sm`}
-                            >
-                              <div className="text-xs text-slate-500 mb-2 font-medium">実績</div>
-                              <div className={`font-bold text-xl ${courseColors.result.text} mb-1`}>
-                                {test.result.course}コース
-                              </div>
-                              <div className={`text-sm ${courseColors.result.text} opacity-80`}>
-                                {test.result.class}組
-                              </div>
-                            </div>
+                    <CardContent className="space-y-4">
+                      {result.goal && (
+                        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Flag className="h-4 w-4 text-blue-600" />
+                            <span className="font-medium text-sm">目標</span>
                           </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="text-sm font-semibold text-slate-700">科目別結果</span>
-                            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                              {test.achievedCount}/{test.totalSubjects}科目 達成
-                            </Badge>
-                          </div>
-                          <div className="grid grid-cols-2 gap-3">
-                            {Object.entries(test.goal.subjects).map(([subject, goalValue]) => {
-                              const resultValue = test.result.subjects[subject as keyof typeof test.result.subjects]
-                              const delta = getSubjectDelta(goalValue, resultValue)
-                              const DeltaIcon = delta.icon
-                              const colors = subjectColors[subject as keyof typeof subjectColors]
-                              const isAchieved = resultValue >= goalValue
-
-                              return (
-                                <div
-                                  key={subject}
-                                  className={`p-3 ${colors.bg} ${colors.border} border rounded-xl bg-gradient-to-br ${colors.gradient} shadow-sm hover:shadow-md transition-all duration-200`}
-                                >
-                                  <div className="flex items-center justify-between mb-2">
-                                    <span className={`text-sm font-semibold ${colors.text}`}>{subject}</span>
-                                    <div className={`flex items-center gap-1 text-xs font-medium ${delta.color}`}>
-                                      <DeltaIcon className="h-3 w-3" />
-                                      {delta.value}
-                                    </div>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <div className="flex justify-between text-xs">
-                                      <span className="text-slate-600">目標</span>
-                                      <span className={`font-medium ${colors.text}`}>{goalValue}</span>
-                                    </div>
-                                    <div className="flex justify-between text-xs">
-                                      <span className="text-slate-600">実績</span>
-                                      <span className={`font-bold ${isAchieved ? "text-emerald-600" : "text-red-600"}`}>
-                                        {resultValue}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              )
-                            })}
+                          <div className="text-sm space-y-1">
+                            <p>
+                              <span className="text-gray-600">コース:</span>{" "}
+                              <span className="font-medium">{getCourseName(result.goal.target_course)}</span>
+                            </p>
+                            <p>
+                              <span className="text-gray-600">組:</span>{" "}
+                              <span className="font-medium">{result.goal.target_class}組</span>
+                            </p>
                           </div>
                         </div>
                       )}
 
-                      {test.memo && (
-                        <div className="mt-4 p-4 bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl border border-slate-200 shadow-sm">
-                          <div className="text-xs text-slate-500 mb-2 font-medium">今回の思い</div>
-                          <p className="text-sm text-slate-700 leading-relaxed">{test.memo}</p>
+                      <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="font-semibold text-primary">結果</span>
+                          <Badge variant="secondary" className="flex items-center gap-1">
+                            <CheckCircle2 className="h-3 w-3" />
+                            入力済み
+                          </Badge>
                         </div>
-                      )}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          <div className="text-center p-2 bg-white rounded">
+                            <div className="text-xs text-gray-600 mb-1">算数</div>
+                            <div className="font-bold text-lg">{result.math_score}点</div>
+                            {result.math_deviation && (
+                              <div className="text-xs text-gray-500">偏差値 {result.math_deviation}</div>
+                            )}
+                          </div>
+                          <div className="text-center p-2 bg-white rounded">
+                            <div className="text-xs text-gray-600 mb-1">国語</div>
+                            <div className="font-bold text-lg">{result.japanese_score}点</div>
+                            {result.japanese_deviation && (
+                              <div className="text-xs text-gray-500">偏差値 {result.japanese_deviation}</div>
+                            )}
+                          </div>
+                          <div className="text-center p-2 bg-white rounded">
+                            <div className="text-xs text-gray-600 mb-1">理科</div>
+                            <div className="font-bold text-lg">{result.science_score}点</div>
+                            {result.science_deviation && (
+                              <div className="text-xs text-gray-500">偏差値 {result.science_deviation}</div>
+                            )}
+                          </div>
+                          <div className="text-center p-2 bg-white rounded">
+                            <div className="text-xs text-gray-600 mb-1">社会</div>
+                            <div className="font-bold text-lg">{result.social_score}点</div>
+                            {result.social_deviation && (
+                              <div className="text-xs text-gray-500">偏差値 {result.social_deviation}</div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-3 pt-3 border-t flex items-center justify-between">
+                          <span className="font-semibold">合計</span>
+                          <div className="text-right">
+                            <div className="text-2xl font-bold text-primary">{result.total_score}点</div>
+                            {result.total_deviation && (
+                              <div className="text-sm text-gray-600">偏差値 {result.total_deviation}</div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="text-xs text-gray-500">
+                        入力日時: {new Date(result.result_entered_at).toLocaleString("ja-JP")}
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
-
-                {testHistory.length > 5 && !showMoreTests && (
-                  <div className="text-center">
-                    <Button variant="outline" onClick={() => setShowMoreTests(true)} className="text-sm">
-                      もっと見る（残り{testHistory.length - 5}件）
-                    </Button>
-                  </div>
-                )}
               </div>
-            </CardContent>
-          </Card>
-        )}
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
 
-      <BottomNavigation activeTab={activeTab} />
+      <BottomNavigation />
     </div>
   )
 }

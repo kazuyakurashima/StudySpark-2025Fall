@@ -4,97 +4,136 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* StudySpark Design System - Sophisticated Blue-Based Design */
-  --background: #ffffff; /* Pure white for clean, spacious feel */
-  --foreground: #6c757d; /* Gray for excellent readability */
-  --card: #f8f9fa; /* Light gray for subtle card backgrounds */
-  --card-foreground: #374151; /* Darker gray for card text */
-  --popover: #ffffff; /* White popover backgrounds */
-  --popover-foreground: #6c757d; /* Gray popover text */
-  --primary: #007bff; /* Primary blue for buttons and highlights */
-  --primary-foreground: #ffffff; /* White text on primary */
-  --secondary: #0056b3; /* Darker blue for secondary actions */
+  /* StudySpark Sophisticated Design System - Inspired by Premium Educational Platforms */
+
+  /* Core Brand Colors - Sophisticated Navy & Warm Neutrals */
+  --background: #fdfcfb; /* Warm off-white for sophisticated feel */
+  --foreground: #2c3e50; /* Deep navy for excellent readability */
+  --card: #ffffff; /* Pure white cards for clean contrast */
+  --card-foreground: #34495e; /* Refined dark blue-gray for card text */
+  --popover: #ffffff; /* Clean white popover backgrounds */
+  --popover-foreground: #2c3e50; /* Deep navy popover text */
+
+  /* Primary Brand Colors - Elegant Navy Blue System */
+  --primary: #3b82f6; /* Changed from dark navy to lighter blue matching StudySpark logo */
+  --primary-foreground: #ffffff; /* Pure white on primary */
+  --secondary: #6366f1; /* Adjusted secondary to complement new primary */
   --secondary-foreground: #ffffff; /* White text on secondary */
-  --muted: #f8f9fa; /* Light gray for muted backgrounds */
-  --muted-foreground: #6c757d; /* Gray for muted text */
-  --accent: #007bff; /* Blue accent for interactive elements */
+
+  /* Accent Colors - Warm Purple & Sophisticated Tones */
+  --accent: #8b5cf6; /* Elegant purple accent */
   --accent-foreground: #ffffff; /* White text on accent */
-  --destructive: #dc3545; /* Red for error states */
+  --muted: #f8fafc; /* Subtle warm gray for muted backgrounds */
+  --muted-foreground: #64748b; /* Sophisticated gray for muted text */
+
+  /* Functional Colors */
+  --destructive: #dc2626; /* Refined red for errors */
   --destructive-foreground: #ffffff; /* White text on destructive */
-  --border: #ced4da; /* Light gray borders */
-  --input: #ffffff; /* White input backgrounds */
-  --ring: rgba(0, 123, 255, 0.5); /* Blue focus ring */
-  --chart-1: #007bff; /* Blue chart color */
-  --chart-2: #0056b3; /* Darker blue chart color */
-  --chart-3: #f8f9fa; /* Light gray chart color */
-  --chart-4: #6c757d; /* Gray chart color */
-  --chart-5: #0056b3; /* Darker blue chart color */
-  --radius: 0.5rem; /* Consistent border radius */
-  --sidebar: #f8f9fa; /* Light gray sidebar */
-  --sidebar-foreground: #374151; /* Dark gray sidebar text */
-  --sidebar-primary: #007bff; /* Blue sidebar primary */
+  --border: #e2e8f0; /* Soft gray borders */
+  --input: #ffffff; /* Clean white input backgrounds */
+  --ring: rgba(139, 92, 246, 0.3); /* Elegant purple focus ring */
+
+  /* Chart Colors - Harmonious Palette */
+  --chart-1: #1e3a8a; /* Navy blue */
+  --chart-2: #3b82f6; /* Medium blue */
+  --chart-3: #8b5cf6; /* Purple */
+  --chart-4: #06b6d4; /* Cyan */
+  --chart-5: #10b981; /* Emerald */
+
+  /* Border Radius - Refined Curves */
+  --radius: 0.75rem; /* Slightly larger radius for premium feel */
+
+  /* Sidebar Colors */
+  --sidebar: #f8fafc; /* Light warm gray sidebar */
+  --sidebar-foreground: #334155; /* Dark gray sidebar text */
+  --sidebar-primary: #1e3a8a; /* Navy sidebar primary */
   --sidebar-primary-foreground: #ffffff; /* White sidebar primary text */
-  --sidebar-accent: #0056b3; /* Darker blue sidebar accent */
+  --sidebar-accent: #8b5cf6; /* Purple sidebar accent */
   --sidebar-accent-foreground: #ffffff; /* White sidebar accent text */
-  --sidebar-border: #ced4da; /* Light gray sidebar border */
-  --sidebar-ring: rgba(0, 123, 255, 0.5); /* Blue sidebar focus ring */
+  --sidebar-border: #e2e8f0; /* Soft sidebar border */
+  --sidebar-ring: rgba(139, 92, 246, 0.3); /* Purple sidebar focus ring */
 
-  /* Subject-specific colors for enhanced visibility */
-  --subject-math: #007bff; /* Blue for Mathematics */
-  --subject-language: #28a745; /* Green for Language Arts */
-  --subject-science: #6f42c1; /* Purple for Science */
-  --subject-social: #dc3545; /* Red for Social Studies */
+  /* Subject-specific colors - Refined Educational Palette */
+  --subject-math: #1e40af; /* Deep blue for Mathematics */
+  --subject-language: #059669; /* Forest green for Language Arts */
+  --subject-science: #7c3aed; /* Rich purple for Science */
+  --subject-social: #dc2626; /* Warm red for Social Studies */
 
-  /* AI Coach Special Gradient Colors - Sophisticated Blue Tones */
-  --ai-coach-gradient-start: #007bff; /* Primary blue start */
-  --ai-coach-gradient-middle: #0056b3; /* Darker blue middle */
-  --ai-coach-gradient-end: #004085; /* Deep blue end */
+  /* AI Coach Special Gradient Colors - Sophisticated Purple-Blue */
+  --ai-coach-gradient-start: #8b5cf6; /* Elegant purple start */
+  --ai-coach-gradient-middle: #6366f1; /* Indigo middle */
+  --ai-coach-gradient-end: #3b82f6; /* Blue end */
+
+  /* Premium Surface Colors */
+  --surface-primary: #ffffff; /* Pure white primary surface */
+  --surface-secondary: #f8fafc; /* Warm gray secondary surface */
+  --surface-tertiary: #f1f5f9; /* Lighter gray tertiary surface */
+
+  /* Text Hierarchy */
+  --text-primary: #1e293b; /* Primary text - dark slate */
+  --text-secondary: #475569; /* Secondary text - medium slate */
+  --text-tertiary: #64748b; /* Tertiary text - light slate */
 }
 
 .dark {
-  --background: #1a1d23; /* Dark sophisticated background */
-  --foreground: #e9ecef; /* Light gray text */
-  --card: #2d3748; /* Dark card background */
-  --card-foreground: #e9ecef; /* Light card text */
-  --popover: #2d3748; /* Dark popover */
-  --popover-foreground: #e9ecef; /* Light popover text */
-  --primary: #0d6efd; /* Brighter blue for dark mode */
+  /* Dark Mode - Sophisticated & Premium */
+  --background: #0f172a; /* Deep navy background */
+  --foreground: #f1f5f9; /* Light slate text */
+  --card: #1e293b; /* Dark slate cards */
+  --card-foreground: #e2e8f0; /* Light card text */
+  --popover: #1e293b; /* Dark popover */
+  --popover-foreground: #e2e8f0; /* Light popover text */
+  --primary: #3b82f6; /* Bright blue for dark mode */
   --primary-foreground: #ffffff; /* White primary text */
-  --secondary: #6ea8fe; /* Lighter blue for dark mode */
+  --secondary: #6366f1; /* Indigo for dark mode */
   --secondary-foreground: #ffffff; /* White secondary text */
-  --muted: #4a5568; /* Muted dark background */
-  --muted-foreground: #a0aec0; /* Light muted text */
-  --accent: #0d6efd; /* Light blue accent for dark mode */
+  --muted: #334155; /* Muted dark background */
+  --muted-foreground: #94a3b8; /* Light muted text */
+  --accent: #a855f7; /* Bright purple accent for dark mode */
   --accent-foreground: #ffffff; /* White accent text */
-  --destructive: #e53e3e; /* Red destructive for dark mode */
+  --destructive: #ef4444; /* Bright red for dark mode */
   --destructive-foreground: #ffffff; /* White destructive text */
-  --border: #4a5568; /* Dark border */
-  --input: #2d3748; /* Dark input */
-  --ring: rgba(13, 110, 253, 0.5); /* Blue focus ring for dark mode */
-  --chart-1: #0d6efd; /* Bright blue chart */
-  --chart-2: #6ea8fe; /* Light blue chart */
-  --chart-3: #f59e0b; /* Orange chart */
-  --chart-4: #f472b6; /* Pink chart */
-  --chart-5: #f87171; /* Light red chart */
-  --sidebar: #2d3748; /* Dark sidebar */
-  --sidebar-foreground: #e9ecef; /* Light sidebar text */
-  --sidebar-primary: #0d6efd; /* Bright blue sidebar primary */
+  --border: #334155; /* Dark border */
+  --input: #1e293b; /* Dark input */
+  --ring: rgba(168, 85, 247, 0.4); /* Purple focus ring for dark mode */
+
+  /* Dark mode chart colors */
+  --chart-1: #3b82f6; /* Bright blue */
+  --chart-2: #6366f1; /* Indigo */
+  --chart-3: #a855f7; /* Purple */
+  --chart-4: #06b6d4; /* Cyan */
+  --chart-5: #10b981; /* Emerald */
+
+  /* Dark sidebar */
+  --sidebar: #1e293b; /* Dark sidebar */
+  --sidebar-foreground: #e2e8f0; /* Light sidebar text */
+  --sidebar-primary: #3b82f6; /* Bright blue sidebar primary */
   --sidebar-primary-foreground: #ffffff; /* White sidebar primary text */
-  --sidebar-accent: #6ea8fe; /* Light blue sidebar accent */
+  --sidebar-accent: #a855f7; /* Purple sidebar accent */
   --sidebar-accent-foreground: #ffffff; /* White sidebar accent text */
-  --sidebar-border: #4a5568; /* Dark sidebar border */
-  --sidebar-ring: rgba(13, 110, 253, 0.5); /* Blue sidebar focus ring */
+  --sidebar-border: #334155; /* Dark sidebar border */
+  --sidebar-ring: rgba(168, 85, 247, 0.4); /* Purple sidebar focus ring */
 
-  /* Subject-specific colors for dark mode */
-  --subject-math: #6ea8fe; /* Light Blue for Mathematics */
-  --subject-language: #51cf66; /* Light Green for Language Arts */
-  --subject-science: #a78bfa; /* Light Purple for Science */
-  --subject-social: #f87171; /* Light Red for Social Studies */
+  /* Subject colors for dark mode */
+  --subject-math: #60a5fa; /* Light blue for Mathematics */
+  --subject-language: #34d399; /* Light green for Language Arts */
+  --subject-science: #a78bfa; /* Light purple for Science */
+  --subject-social: #f87171; /* Light red for Social Studies */
 
-  /* AI Coach Special Gradient Colors for Dark Mode */
-  --ai-coach-gradient-start: #0d6efd; /* Bright blue start */
-  --ai-coach-gradient-middle: #6ea8fe; /* Light blue middle */
-  --ai-coach-gradient-end: #9ec5fe; /* Very light blue end */
+  /* AI Coach gradient for dark mode */
+  --ai-coach-gradient-start: #a855f7; /* Bright purple start */
+  --ai-coach-gradient-middle: #8b5cf6; /* Purple middle */
+  --ai-coach-gradient-end: #6366f1; /* Indigo end */
+
+  /* Dark surface colors */
+  --surface-primary: #1e293b; /* Dark primary surface */
+  --surface-secondary: #334155; /* Medium dark secondary surface */
+  --surface-tertiary: #475569; /* Lighter dark tertiary surface */
+
+  /* Dark text hierarchy */
+  --text-primary: #f1f5f9; /* Primary text - light slate */
+  --text-secondary: #cbd5e1; /* Secondary text - medium light slate */
+  --text-tertiary: #94a3b8; /* Tertiary text - gray slate */
 }
 
 @theme inline {
@@ -141,116 +180,90 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+    /* Enhanced typography with better line height and letter spacing */
+    line-height: 1.6;
+    letter-spacing: -0.01em;
+  }
+
+  /* Premium typography hierarchy */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply text-balance;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+
+  p {
+    @apply text-pretty;
   }
 }
 
-/* AI Coach Special Gradient Classes - Sophisticated Blue Tones */
-.ai-coach-gradient {
-  background: linear-gradient(
-    135deg,
-    var(--ai-coach-gradient-start) 0%,
-    var(--ai-coach-gradient-middle) 50%,
-    var(--ai-coach-gradient-end) 100%
-  );
-}
-
-.ai-coach-gradient-subtle {
-  background: linear-gradient(135deg, rgba(0, 123, 255, 0.1) 0%, rgba(0, 86, 179, 0.1) 50%, rgba(0, 64, 133, 0.1) 100%);
-}
-
-/* Enhanced animations for celebrations */
-@keyframes confetti {
+/* Enhanced animations with sophisticated easing */
+@keyframes elegant-fade-in {
   0% {
-    transform: translateY(0) rotate(0deg);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(-100vh) rotate(720deg);
     opacity: 0;
+    transform: translateY(20px);
   }
-}
-
-@keyframes pulse-celebration {
-  0%,
   100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-}
-
-@keyframes sparkle {
-  0%,
-  100% {
-    opacity: 0;
-    transform: scale(0);
-  }
-  50% {
     opacity: 1;
-    transform: scale(1);
+    transform: translateY(0);
   }
 }
 
-@keyframes ai-coach-glow {
-  0%,
-  100% {
-    box-shadow: 0 0 20px rgba(0, 123, 255, 0.3);
-  }
-  50% {
-    box-shadow: 0 0 30px rgba(0, 123, 255, 0.5);
-  }
-}
-
-.confetti {
-  animation: confetti 3s ease-out forwards;
-}
-
-.pulse-celebration {
-  animation: pulse-celebration 0.6s ease-in-out;
-}
-
-.sparkle {
-  animation: sparkle 1.5s ease-in-out infinite;
-}
-
-.ai-coach-glow {
-  animation: ai-coach-glow 2s ease-in-out infinite;
-}
-
-/* Enhanced animations for mission panels */
-@keyframes mission-pulse {
+@keyframes sophisticated-scale {
   0%,
   100% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.4);
   }
   50% {
     transform: scale(1.02);
-    box-shadow: 0 0 0 10px rgba(0, 123, 255, 0);
   }
 }
 
-@keyframes status-glow {
+@keyframes premium-glow {
   0%,
   100% {
-    box-shadow: 0 0 5px rgba(0, 86, 179, 0.3);
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.15);
   }
   50% {
-    box-shadow: 0 0 15px rgba(0, 86, 179, 0.6);
+    box-shadow: 0 0 40px rgba(139, 92, 246, 0.25);
   }
 }
 
-.mission-pulse {
-  animation: mission-pulse 2s ease-in-out infinite;
+@keyframes refined-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.3);
+  }
+  50% {
+    transform: scale(1.01);
+    box-shadow: 0 0 0 8px rgba(139, 92, 246, 0);
+  }
 }
 
-.status-glow {
-  animation: status-glow 1.5s ease-in-out infinite;
+.elegant-fade-in {
+  animation: elegant-fade-in 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Subject Color Utility Classes */
+.sophisticated-scale {
+  animation: sophisticated-scale 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.premium-glow {
+  animation: premium-glow 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.refined-pulse {
+  animation: refined-pulse 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Subject Color Utility Classes - Refined Educational Palette */
 .subject-math {
   color: var(--subject-math);
 }
@@ -281,4 +294,53 @@
 
 .bg-subject-social {
   background-color: var(--subject-social);
+}
+
+/* Premium card styles for consistent elevation */
+.card-elevated {
+  @apply shadow-lg border-0 bg-white/95 backdrop-blur-sm;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.card-elevated-hover {
+  @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.15), 0 10px 20px -5px rgba(0, 0, 0, 0.08);
+}
+
+/* Sophisticated button styles - Simple and Clean */
+.btn-primary-elegant {
+  @apply bg-primary text-white font-semibold;
+  @apply shadow-lg hover:shadow-xl transition-all duration-300;
+  @apply hover:scale-105 active:scale-95;
+}
+
+.btn-secondary-elegant {
+  @apply bg-white border-2 border-primary text-primary font-semibold;
+  @apply shadow-md hover:shadow-lg hover:bg-primary hover:text-white;
+  @apply transition-all duration-300;
+}
+
+/* Enhanced focus states for accessibility */
+.focus-elegant {
+  @apply focus:outline-none focus:ring-4 focus:ring-accent/20 focus:border-accent;
+  @apply transition-all duration-200;
+}
+
+/* Responsive typography scale */
+@media (max-width: 640px) {
+  body {
+    font-size: 14px;
+  }
+}
+
+@media (min-width: 641px) {
+  body {
+    font-size: 16px;
+  }
+}
+
+@media (min-width: 1024px) {
+  body {
+    font-size: 16px;
+  }
 }

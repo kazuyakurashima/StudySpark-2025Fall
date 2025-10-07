@@ -1,370 +1,306 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { RotateCcw, Calendar, TrendingUp, Clock, BookOpen, History, MessageCircle, Headphones } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import ParentBottomNavigation from "@/components/parent-bottom-navigation"
+import { AchievementMap } from "@/app/student/reflect/achievement-map"
+import { StudyHistory } from "@/app/student/reflect/study-history"
+import { EncouragementHistory } from "@/app/student/reflect/encouragement-history"
+import { CoachingHistory } from "@/app/student/reflect/coaching-history"
+import {
+  getParentChildren,
+  getChildReflections,
+  getChildReflection,
+} from "@/app/actions/parent"
+import {
+  Calendar,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Eye,
+  Users,
+  Bot,
+  Lock,
+} from "lucide-react"
+
+interface Child {
+  id: string
+  full_name: string
+  nickname: string
+  avatar_url: string | null
+  grade: number
+}
+
+interface Reflection {
+  id: string
+  session_number: number
+  week_type: "growth" | "stable" | "challenge" | "special"
+  this_week_accuracy: number
+  last_week_accuracy: number
+  summary: string
+  completed_at: string
+  created_at: string
+}
 
 export default function ParentReflectPage() {
-  const [selectedChild, setSelectedChild] = useState("child1")
+  const [children, setChildren] = useState<Child[]>([])
+  const [selectedChildId, setSelectedChildId] = useState<string>("")
+  const [selectedChild, setSelectedChild] = useState<Child | null>(null)
+  const [reflections, setReflections] = useState<Reflection[]>([])
+  const [selectedReflection, setSelectedReflection] = useState<Reflection | null>(null)
+  const [messages, setMessages] = useState<any[]>([])
+  const [activeTab, setActiveTab] = useState<"map" | "history" | "encouragement" | "coaching">("map")
+  const [loading, setLoading] = useState(true)
 
-  const children = [
-    { id: "child1", name: "みかん", nickname: "みかんちゃん" },
-    { id: "child2", name: "太郎", nickname: "たろう" },
-  ]
-
-  const learningHistory = [
-    {
-      recordedAt: "2024年9月6日 20:30",
-      studyDate: "2024年9月6日",
-      subject: "算数",
-      categories: [
-        { name: "授業", color: "bg-red-100 text-red-800", description: "授業で解いた問題・解き直しの復習を含む" },
-        { name: "宿題", color: "bg-red-100 text-red-800", description: "宿題で出された問題・解き直しの復習を含む" },
-      ],
-      understanding: { level: "バッチリ理解", emoji: "😄", color: "text-green-600" },
-      reflection: "図形問題の解き方がよく理解できました。特に面積の求め方が分かりやすかったです。",
-    },
-    {
-      recordedAt: "2024年9月5日 19:45",
-      studyDate: "2024年9月5日",
-      subject: "国語",
-      categories: [
-        {
-          name: "週テスト・復習ナビ",
-          color: "bg-blue-100 text-blue-800",
-          description: "週テスト範囲の演習や復習・復習ナビでの実施",
-        },
-      ],
-      understanding: { level: "できた", emoji: "😊", color: "text-blue-600" },
-      reflection: "漢字の読み方を間違えやすいところがありましたが、復習して覚えました。",
-    },
-    {
-      recordedAt: "2024年9月4日 21:15",
-      studyDate: "2024年9月4日",
-      subject: "理科",
-      categories: [
-        { name: "授業", color: "bg-red-100 text-red-800", description: "授業で解いた問題・解き直しの復習を含む" },
-        { name: "入試対策・過去問", color: "bg-gray-100 text-gray-800", description: "過去問・入試レベル問題など" },
-      ],
-      understanding: { level: "ふつう", emoji: "😐", color: "text-yellow-600" },
-      reflection: "実験の結果を予想するのが難しかったです。もう少し練習が必要だと思います。",
-    },
-    {
-      recordedAt: "2024年9月3日 18:20",
-      studyDate: "2024年9月3日",
-      subject: "社会",
-      categories: [
-        { name: "宿題", color: "bg-red-100 text-red-800", description: "宿題で出された問題・解き直しの復習を含む" },
-      ],
-      understanding: { level: "ちょっと不安", emoji: "😟", color: "text-orange-600" },
-      reflection: "地理の暗記が大変でした。地図を見ながら覚える方法を試してみます。",
-    },
-  ]
-
-  const coachingHistory = [
-    {
-      date: "2024-09-06",
-      time: "20:45",
-      type: "週間振り返り",
-      duration: "15分",
-      topics: ["算数の図形問題", "学習習慣の改善", "次週の目標設定"],
-      summary:
-        "図形問題の理解が深まってきています。毎日の学習習慣も定着してきているので、この調子で続けましょう。来週は理科の実験問題にも挑戦してみましょう。",
-      coach: "AIコーチ",
-      level: "Blaze",
-    },
-    {
-      date: "2024-09-01",
-      time: "19:30",
-      type: "学習相談",
-      duration: "12分",
-      topics: ["国語の読解問題", "時間管理", "モチベーション向上"],
-      summary:
-        "読解問題で時間がかかりすぎる傾向があります。まずは問題文を素早く読み取る練習をしましょう。毎日少しずつでも続けることが大切です。",
-      coach: "AIコーチ",
-      level: "Flame",
-    },
-    {
-      date: "2024-08-25",
-      time: "18:15",
-      type: "テスト振り返り",
-      duration: "18分",
-      topics: ["合不合判定テスト結果", "弱点分析", "改善計画"],
-      summary:
-        "テスト結果を詳しく分析しました。算数の計算ミスが目立つので、見直しの習慣をつけましょう。理科は良くできているので、この調子で続けてください。",
-      coach: "AIコーチ",
-      level: "Flame",
-    },
-    {
-      date: "2024-08-18",
-      time: "20:00",
-      type: "学習計画相談",
-      duration: "10分",
-      topics: ["夏休み後の学習計画", "科目バランス", "目標設定"],
-      summary:
-        "夏休み明けの学習リズムを整えるための計画を立てました。各科目のバランスを考えて、無理のないペースで進めていきましょう。",
-      coach: "AIコーチ",
-      level: "Spark",
-    },
-  ]
-
-  const levelColors = {
-    Spark: { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" },
-    Flame: { bg: "bg-yellow-50", text: "text-yellow-700", border: "border-yellow-200" },
-    Blaze: { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" },
-  }
-
-  const getAvatarSrc = (avatarId: string) => {
-    const avatarMap: { [key: string]: string } = {
-      ai_coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png",
+  // 子ども一覧を読み込み
+  useEffect(() => {
+    const loadChildren = async () => {
+      const { children, error } = await getParentChildren()
+      if (children && !error) {
+        setChildren(children)
+        if (children.length > 0) {
+          setSelectedChildId(children[0].id)
+          setSelectedChild(children[0])
+        }
+      }
+      setLoading(false)
     }
-    return avatarMap[avatarId] || "/placeholder.svg"
+
+    loadChildren()
+  }, [])
+
+  // 選択された子どものデータを読み込み
+  useEffect(() => {
+    const loadChildData = async () => {
+      if (!selectedChildId) return
+
+      const child = children.find((c) => c.id === selectedChildId)
+      if (child) {
+        setSelectedChild(child)
+      }
+
+      // 振り返り一覧取得
+      const { reflections } = await getChildReflections(selectedChildId)
+      if (reflections) {
+        setReflections(reflections)
+      }
+    }
+
+    loadChildData()
+  }, [selectedChildId, children])
+
+  const getWeekTypeLabel = (weekType: string) => {
+    switch (weekType) {
+      case "growth":
+        return { label: "成長週", icon: TrendingUp, color: "text-green-600" }
+      case "stable":
+        return { label: "安定週", icon: Minus, color: "text-blue-600" }
+      case "challenge":
+        return { label: "挑戦週", icon: TrendingDown, color: "text-orange-600" }
+      case "special":
+        return { label: "特別週", icon: Calendar, color: "text-purple-600" }
+      default:
+        return { label: weekType, icon: Calendar, color: "text-gray-600" }
+    }
   }
 
-  const encouragementMessages = [
-    {
-      from: "お母さん",
-      message: "今日も頑張ったね！明日もファイト！",
-      time: "今日 20:30",
-      type: "parent",
-    },
-    {
-      from: "田中先生",
-      message: "算数の応用問題、よくできていました",
-      time: "今日 18:45",
-      type: "teacher",
-    },
-  ]
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return new Intl.DateTimeFormat("ja-JP", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      weekday: "short",
+    }).format(date)
+  }
 
-  return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-3 mb-4">
-            <RotateCcw className="h-6 w-6 text-primary" />
-            <div>
-              <h1 className="text-xl font-bold text-slate-800">リフレクト</h1>
-              <p className="text-sm text-slate-600">お子さんの学習を振り返ろう</p>
-            </div>
-          </div>
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white pb-20">
+        <div className="container max-w-4xl mx-auto px-4 py-6">
+          <div className="text-center py-20">読み込み中...</div>
+        </div>
+        <ParentBottomNavigation />
+      </div>
+    )
+  }
 
-          <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
-            {children.map((child) => (
-              <Button
-                key={child.id}
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedChild(child.id)}
-                className={`flex-1 rounded-md transition-all ${
-                  selectedChild === child.id
-                    ? "bg-white text-primary shadow-sm font-medium"
-                    : "text-slate-600 hover:text-slate-800 hover:bg-white/50"
-                }`}
-              >
-                {child.name}
-              </Button>
-            ))}
+  if (children.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white pb-20">
+        <div className="container max-w-4xl mx-auto px-4 py-6">
+          <div className="text-center py-20">
+            <Users className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+            <p className="text-gray-600">お子様の情報がありません</p>
           </div>
         </div>
+        <ParentBottomNavigation />
       </div>
+    )
+  }
 
-      <div className="max-w-4xl mx-auto px-4 py-6">
-        <Tabs defaultValue="history" className="space-y-6">
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white pb-20">
+      <div className="container max-w-4xl mx-auto px-4 py-6 space-y-6">
+        {/* ヘッダー */}
+        <div className="text-center space-y-2">
+          <div className="flex items-center justify-center gap-2">
+            <Bot className="h-8 w-8 text-purple-500" />
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+              リフレクト
+            </h1>
+          </div>
+          <p className="text-sm text-gray-600 flex items-center justify-center gap-2">
+            <Eye className="h-4 w-4" />
+            お子様の振り返りを確認できます（読み取り専用）
+          </p>
+        </div>
+
+        {/* 子ども切り替えタブ */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              お子様を選択
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {children.map((child) => (
+                <Button
+                  key={child.id}
+                  variant={selectedChildId === child.id ? "default" : "outline"}
+                  onClick={() => setSelectedChildId(child.id)}
+                  className="flex-shrink-0"
+                >
+                  {child.nickname || child.full_name}
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* AIコーチング制限の通知 */}
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="py-4">
+            <div className="flex items-start gap-3">
+              <Lock className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-amber-900">
+                  AIコーチング機能はお子様本人のみご利用いただけます
+                </p>
+                <p className="text-xs text-amber-700">
+                  保護者様は過去の振り返り履歴、達成マップ、学習履歴、応援履歴をご覧いただけます
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* タブコンテンツ */}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="history" className="flex items-center gap-2">
-              <History className="h-4 w-4" />
-              学習履歴
-            </TabsTrigger>
-            <TabsTrigger value="messages" className="flex items-center gap-2">
-              <MessageCircle className="h-4 w-4" />
-              応援メッセージ
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              分析
-            </TabsTrigger>
-            <TabsTrigger value="coaching" className="flex items-center gap-2">
-              <Headphones className="h-4 w-4" />
-              コーチング履歴
-            </TabsTrigger>
+            <TabsTrigger value="map">達成マップ</TabsTrigger>
+            <TabsTrigger value="history">学習履歴</TabsTrigger>
+            <TabsTrigger value="encouragement">応援履歴</TabsTrigger>
+            <TabsTrigger value="coaching">コーチング履歴</TabsTrigger>
           </TabsList>
 
+          {/* 達成マップタブ */}
+          <TabsContent value="map" className="space-y-4">
+            {selectedChildId && <AchievementMap studentId={selectedChildId} />}
+          </TabsContent>
+
+          {/* 学習履歴タブ */}
           <TabsContent value="history" className="space-y-4">
-            {learningHistory.map((entry, index) => (
-              <Card key={index} className="border-l-4 border-l-primary">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <BookOpen className="h-4 w-4 text-primary" />
-                        <span className="font-bold text-lg">{entry.subject}</span>
-                      </CardTitle>
-                      <div className="flex items-center gap-4 text-sm text-slate-600">
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          記録日時: {entry.recordedAt}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          学習日: {entry.studyDate}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl mb-1">{entry.understanding.emoji}</div>
-                      <div className={`text-sm font-medium ${entry.understanding.color}`}>
-                        {entry.understanding.level}
-                      </div>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <h4 className="text-sm font-medium text-slate-700 mb-2">学習内容</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {entry.categories.map((category, idx) => (
-                        <Badge key={idx} className={`${category.color} border-0`}>
-                          {category.name}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                  {entry.reflection && (
-                    <div>
-                      <h4 className="text-sm font-medium text-slate-700 mb-2">振り返り</h4>
-                      <div className="bg-slate-50 p-3 rounded-lg">
-                        <p className="text-sm text-slate-700">{entry.reflection}</p>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+            {selectedChildId && <StudyHistory studentId={selectedChildId} />}
           </TabsContent>
 
-          <TabsContent value="messages" className="space-y-4">
-            {encouragementMessages.map((msg, index) => (
-              <Card key={index}>
-                <CardContent className="pt-4">
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm ${
-                        msg.type === "parent" ? "bg-pink-500" : "bg-blue-500"
-                      }`}
-                    >
-                      {msg.type === "parent" ? "母" : "先"}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium text-sm">{msg.from}</span>
-                        <span className="text-xs text-gray-500">{msg.time}</span>
-                      </div>
-                      <p className="text-sm text-gray-700">{msg.message}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          {/* 応援履歴タブ */}
+          <TabsContent value="encouragement" className="space-y-4">
+            {selectedChildId && <EncouragementHistory studentId={selectedChildId} />}
           </TabsContent>
 
-          <TabsContent value="analytics" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5" />
-                  学習傾向分析
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="p-4 bg-green-50 rounded-lg">
-                  <h4 className="font-medium text-green-800 mb-2">良い傾向</h4>
-                  <ul className="text-sm text-green-700 space-y-1">
-                    <li>• 毎日継続して学習できています</li>
-                    <li>• 算数の正答率が向上しています</li>
-                  </ul>
-                </div>
-                <div className="p-4 bg-yellow-50 rounded-lg">
-                  <h4 className="font-medium text-yellow-800 mb-2">改善ポイント</h4>
-                  <ul className="text-sm text-yellow-700 space-y-1">
-                    <li>• 理科の応用問題に時間をかけましょう</li>
-                    <li>• 社会の暗記項目を復習しましょう</li>
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
+          {/* コーチング履歴タブ */}
           <TabsContent value="coaching" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Headphones className="h-5 w-5 text-accent" />
-                  コーチング履歴
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {coachingHistory.map((session, index) => (
-                    <div key={index} className="p-4 rounded-lg bg-accent/5 border border-accent/10">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-medium">{session.date}</span>
-                            <Clock className="h-4 w-4 text-muted-foreground ml-2" />
-                            <span className="text-sm text-muted-foreground">{session.time}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
-                              {session.type}
-                            </Badge>
-                            <Badge variant="outline" className="text-xs">
-                              {session.duration}
-                            </Badge>
-                            <Badge
-                              className={`${levelColors[session.level as keyof typeof levelColors].bg} ${levelColors[session.level as keyof typeof levelColors].text} ${levelColors[session.level as keyof typeof levelColors].border}`}
-                            >
-                              {session.level}
-                            </Badge>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt={session.coach} />
-                            <AvatarFallback>AI</AvatarFallback>
-                          </Avatar>
-                          <span className="text-sm font-medium">{session.coach}</span>
-                        </div>
-                      </div>
+            {reflections.length === 0 ? (
+              <Card>
+                <CardContent className="py-10 text-center text-gray-500">
+                  まだ振り返りがありません
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {reflections.map((reflection) => {
+                  const weekTypeInfo = getWeekTypeLabel(reflection.week_type)
+                  const Icon = weekTypeInfo.icon
+                  const accuracyDiff = reflection.this_week_accuracy - reflection.last_week_accuracy
 
-                      <div className="mb-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          <BookOpen className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm font-medium">話し合ったトピック</span>
+                  return (
+                    <Card key={reflection.id} className="hover:shadow-md transition-shadow">
+                      <CardHeader>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Icon className={`h-5 w-5 ${weekTypeInfo.color}`} />
+                              <span className="font-medium">{weekTypeInfo.label}</span>
+                              <Badge variant="outline">第{reflection.session_number}週</Badge>
+                            </div>
+                            <p className="text-sm text-gray-600">
+                              {formatDate(reflection.completed_at)}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm text-gray-600 mb-1">正答率の変化</div>
+                            <div className="flex items-center gap-1">
+                              {accuracyDiff > 0 ? (
+                                <TrendingUp className="h-4 w-4 text-green-600" />
+                              ) : accuracyDiff < 0 ? (
+                                <TrendingDown className="h-4 w-4 text-red-600" />
+                              ) : (
+                                <Minus className="h-4 w-4 text-gray-600" />
+                              )}
+                              <span
+                                className={`font-medium ${
+                                  accuracyDiff > 0
+                                    ? "text-green-600"
+                                    : accuracyDiff < 0
+                                    ? "text-red-600"
+                                    : "text-gray-600"
+                                }`}
+                              >
+                                {accuracyDiff > 0 ? "+" : ""}
+                                {accuracyDiff.toFixed(1)}%
+                              </span>
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {reflection.last_week_accuracy.toFixed(1)}% →{" "}
+                              {reflection.this_week_accuracy.toFixed(1)}%
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                          {session.topics.map((topic, topicIndex) => (
-                            <Badge key={topicIndex} variant="secondary" className="text-xs">
-                              {topic}
-                            </Badge>
-                          ))}
+                      </CardHeader>
+                      <CardContent>
+                        <div className="p-4 bg-purple-50 rounded-lg">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Bot className="h-4 w-4 text-purple-600" />
+                            <span className="text-sm font-medium text-purple-900">
+                              振り返りサマリー
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                            {reflection.summary}
+                          </p>
                         </div>
-                      </div>
-
-                      <div className="p-3 bg-background rounded-lg">
-                        <div className="text-xs text-muted-foreground mb-1">コーチングサマリー</div>
-                        <p className="text-sm">{session.summary}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>

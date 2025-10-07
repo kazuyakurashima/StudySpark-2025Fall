@@ -2,111 +2,201 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Development Commands
+## プロジェクト概要
 
-```bash
-# Development server
-npm run dev
+**StudySpark** は、中学受験を目指す小学6年生向けの学習支援Webアプリです。AIコーチング、学習記録、応援機能を通じて、生徒・保護者・指導者をサポートします。
 
-# Build for production
-npm run build
+## 開発コマンド
 
-# Start production server
-npm start
+### 主要コマンド
+- `npm run dev` - 開発サーバー起動
+- `npm run build` - 本番ビルド
+- `npm run start` - 本番サーバー起動
+- `npm run lint` - ESLint実行
 
-# Linting
-npm run lint
+### パッケージマネージャー
+このプロジェクトは `pnpm` を使用（pnpm-lock.yaml参照）。依存関係のインストールは `pnpm install`。
+
+## 技術スタック（要件定義より）
+
+| レイヤー | 技術 | 実際のバージョン |
+|---------|------|-----------|
+| フロントエンド | Next.js (App Router) | 14.2.18 |
+| | React | 18.3.1 |
+| | TypeScript | 5.5.4 |
+| バックエンド | Supabase | 最新 |
+| 認証 | Supabase Auth | - |
+| UI/UX | Tailwind CSS | 4.1.9 |
+| AI | ChatGPT API | GPT-5-mini |
+
+### 追加ライブラリ
+- **フォーム**: react-hook-form + zod バリデーション
+- **UIコンポーネント**: Radix UI
+- **チャート**: Recharts
+- **フォント**: Noto Sans JP（日本語）
+
+## アプリケーション構造
+
+アプリには**4つのユーザーロール**があり、それぞれ異なるUIを持つ：
+1. **生徒 (student)** - メイン学習インターフェース（ログインID/パスワード認証）
+2. **保護者 (parent)** - モニタリングと応援（メール/パスワード認証）
+3. **指導者 (coach)** - 指導サポートと分析（メール/パスワード認証、招待必須）
+4. **管理者 (admin)** - システム管理（招待のみ、内部発行）
+
+### 主要ルート
+
+**認証・セットアップ:**
+- `/app/page.tsx` - ログイン/新規登録ページ
+- `/app/setup/*` - 初期設定フロー（アバター、プロフィール、名前）
+
+**生徒機能 (`/app/student/*`):**
+- `page.tsx` - ダッシュボード
+- `spark/page.tsx` - 学習記録入力（スパーク）
+- `goal/page.tsx` - 目標管理（ゴールナビ）
+- `reflect/page.tsx` - 週次振り返り（AIコーチング付き）
+
+**保護者機能 (`/app/parent/*`):**
+- `page.tsx` - ダッシュボード
+- `goal-navi/page.tsx` - 生徒の目標閲覧
+- `reflect/page.tsx` - 応援メッセージ送信
+
+**指導者機能 (`/app/coach/*`):**
+- `page.tsx` - ダッシュボード
+- `students/page.tsx` - 生徒一覧
+- `student/[id]/page.tsx` - 個別生徒詳細
+- `analysis/page.tsx` - 分析ツール
+- `encouragement/page.tsx` - 応援メッセージ送信
+
+## コア設計原則
+
+`docs/01-Concept.md` に基づき、以下を実装：
+
+1. **GROWモデルコーチング**（Goal → Reality → Options → Will）
+2. **SMART目標**（Specific, Measurable, Achievable, Relevant, Time-bound）
+3. **セルフコンパッション** - 結果より努力に焦点、プレッシャーを避ける
+4. **成長マインドセット** - 能力は努力と学習で成長する
+
+## コースシステム
+
+生徒は学力レベルに応じてA/B/C/Sコースに分類：
+- **Aコース** → "Spark（楽しくスタート）" - 初心者向け
+- **Bコース** → "Flame（成長ステップ）" - 成長段階
+- **C/Sコース** → "Blaze（最高にチャレンジ）" - 上級挑戦
+
+各コースで異なる学習内容範囲を表示（詳細は `docs/03-Requirements-Student.md` 参照）。
+
+## 学習記録システム
+
+### 学習回
+週単位（第1回、第2回など）で管理：
+- **小学5年生**: 19回（9/1 - 1/25）
+- **小学6年生**: 15回（8/25 - 1/18）
+
+### 科目
+算数、国語、理科、社会
+
+### 学習内容（学年別）
+- **小学5年生**: 類題、基本問題、練習問題、演習問題集など
+- **小学6年生**: １行問題、基本演習、実戦演習など
+
+## 重要なUIパターン
+
+### ナビゲーション
+各ロールに専用ボトムナビゲーション（4タブ構成）：
+- 生徒：`components/bottom-navigation.tsx`
+- 保護者：`components/parent-bottom-navigation.tsx`
+- 指導者：`components/coach-bottom-navigation.tsx`
+
+### ダッシュボードレイアウト
+タブレット/PC：2列、スマホ：1列
+
+**表示要素（上から順に）:**
+1. AIコーチからのメッセージ（毎日個別最適化）
+2. 今日のミッション（月〜土は科目ローテーション、日曜は振り返り）
+3. 学習カレンダー（GitHub風ヒートマップ）
+4. 今週の科目別進捗バー
+5. 直近の応援メッセージ
+6. 直近の学習履歴
+
+### カレンダーの色ロジック
+- 1日の入力数または正答率に基づく色の濃淡
+- 一般表示はブルー系、振り返りビューは科目別色（算数=青、国語=赤、理科=オレンジ、社会=緑）
+- 3段階：薄、中、濃 + 白（データなし）
+
+## AIコーチング実装
+
+### モデル
+ChatGPT API（GPT-5-mini）
+
+### 週次振り返り（リフレクト）
+- **利用可能時間**: 土曜12:00 〜 水曜23:59
+- **対話ターン数**: 3〜6往復
+- **UI**: LINEライクなチャット形式
+
+**週のタイプ別の対話適応:**
+- **成長週**（正答率+10%以上）→ 成功要因を深掘り
+- **安定週**（正答率±10%以内）→ 新しい挑戦を提案
+- **挑戦週**（正答率-10%以上）→ セルフコンパッション重視
+- **特別週**（大きなテスト直前）→ 具体的な対策立案
+
+### 目標設定（ゴールナビ）
+- 「今回の思い」生成にAI対話を使用
+- 6ステップフロー：感情探索 → 共同体感覚 → 自己認識 → 予祝 → まとめ生成
+
+## データ表示パターン
+
+### 進捗追跡
+- **正答率** = 正答数 / 問題数
+- **習得基準**: 80%を閾値とする
+- **色分け**: 
+  - 0-50%（薄）
+  - 50-80%（中）
+  - 80-100%（濃）
+
+### テスト管理
+- **小学5年生**: 組分けテスト（第5回〜新6年）
+- **小学6年生**: 合不合判定テスト（第3回〜第6回）
+- 表示期間制御により、UIに表示されるテストを制限
+
+## 重要な実装詳細
+
+### パスエイリアス
+```typescript
+"@/*" → プロジェクトルート
 ```
+例: `import { Button } from "@/components/ui/button"`
 
-## Project Overview
+### タイムゾーンとスケジュール
+- **タイムゾーン**: Asia/Tokyo
+- **週の定義**: 月曜開始、日曜終了
+- **ミッションローテーション**: 
+  - 月火（ブロックA）: 算数/国語/社会
+  - 水木（ブロックB）: 算数/国語/理科
+  - 金土（ブロックC）: 算数/理科/社会
 
-StudySpark is a Japanese educational web application designed for 6th-grade elementary students preparing for junior high school entrance exams. The app supports students, parents, and coaches with learning management and progress tracking.
+### デモログイン情報
+- 生徒: `student1` で始まるID
+- 保護者: `parent1` で始まるID
+- 指導者: `coach1` で始まるID
 
-## Architecture & Technology Stack
+### ユーザーフロー
+- 初回ユーザー → セットアップフロー（アバター・名前決定、スキップ可能）
+- リピーターユーザー → ロール別ダッシュボード
+- `localStorage.registrationComplete` でセットアップ状態を管理
 
-- **Framework**: Next.js 14.2.x (App Router)
-- **React**: 18.3.x
-- **TypeScript**: 5.5.x
-- **UI Library**: shadcn/ui components with Tailwind CSS
-- **Styling**: Tailwind CSS with CSS variables for theming
-- **Font**: Noto Sans JP (Japanese support)
-- **Icons**: Lucide React
+### コンポーネント構成
+- **UIコンポーネント**: `components/ui/*`（Radix UI使用）
+- **共有コンポーネント**: `components/ai-coach-chat.tsx`（AI対話用）
+- **フォーム**: react-hook-form + zod でバリデーション
 
-## User Roles & Routing Structure
+## 主要ドキュメント
 
-The application supports three main user types, each with dedicated routes:
+`docs/` ディレクトリに詳細な要件定義があります：
 
-### Student (`/student/`)
-- **Home**: `/student/` - Main dashboard
-- **Goal Navigator**: `/student/goal/` - Goal setting and tracking
-- **Spark**: `/student/spark/` - Learning activities
-- **Reflect**: `/student/reflect/` - Progress reflection and chat
+- **`01-Concept.md`** - ビジョン、ステークホルダーニーズ、コーチングフレームワーク
+- **`02-Requirements-Auth.md`** - 認証仕様、技術スタック
+- **`03-Requirements-Student.md`** - 生徒機能（ダッシ���ボード、スパーク、ゴール、リフレクト）
+- **`04-Requirements-Parent.md`** - 保護者機能
+- **`05-Requirements-Coach.md`** - 指導者機能
 
-### Parent (`/parent/`)
-- **Home**: `/parent/` - Parent dashboard
-- **Goal**: `/parent/goal/` - Child's goal overview
-- **Spark**: `/parent/spark/` - Learning activity monitoring
-- **Reflect**: `/parent/reflect/` - Progress discussions
-
-### Coach (`/coach/`)
-- **Home**: `/coach/` - Coach dashboard
-- **Goal**: `/coach/goal/` - Student goal management
-- **Spark**: `/coach/spark/` - Activity assignment and monitoring
-- **Reflect**: `/coach/reflect/` - Student progress review
-
-## Setup Flow
-
-New users go through a multi-step setup process:
-- `/setup/avatar/` - Student avatar selection
-- `/setup/name/` - Name input
-- `/setup/profile/` - Profile completion
-- `/setup/parent-avatar/` - Parent avatar selection
-- `/setup/complete/` - Setup completion
-
-## Component Architecture
-
-### UI Components (`/components/ui/`)
-Built on shadcn/ui system with consistent theming:
-- Form components (Button, Input, Label, Textarea, Select, Checkbox)
-- Layout components (Card, Dialog, Tabs, Avatar)
-- Data display (Badge, Progress, Slider)
-- Navigation (custom bottom navigation components)
-
-### Navigation Components
-- `BottomNavigation` - Student navigation
-- `ParentBottomNavigation` - Parent navigation  
-- `CoachBottomNavigation` - Coach navigation
-
-Each navigation component is role-specific with consistent styling using blue color scheme for active states.
-
-### Key Patterns
-- **Styling**: Uses `cn()` utility from `/lib/utils.ts` for conditional class merging
-- **TypeScript**: Strict mode enabled with comprehensive type checking
-- **Client Components**: Most interactive components use `"use client"` directive
-- **Japanese Localization**: UI text and content are in Japanese
-
-## Configuration Notes
-
-### Next.js Configuration
-- ESLint and TypeScript errors are ignored during builds (`ignoreDuringBuilds: true`)
-- Image optimization is disabled (`unoptimized: true`)
-- This suggests the project prioritizes rapid development/deployment over strict validation
-
-### Authentication & Demo
-- Simple demo authentication system in main page
-- Uses localStorage for registration state tracking
-- Demo users: IDs starting with `student1`, `parent1`, `coach1`
-- Coach codes: `COACH123`, `TEACHER456`, `MENTOR789`
-
-### Import Aliases
-- `@/*` maps to project root
-- `@/components` for UI components
-- `@/lib` for utilities
-- `@/hooks` for custom hooks (if used)
-
-## Development Considerations
-
-- The app uses Japanese text throughout - maintain localization consistency
-- Bottom navigation is fixed and role-specific - test responsive behavior
-- Authentication is demo-only - implement proper auth for production
-- Type checking is disabled in builds - run `npx tsc --noEmit` for type validation during development
+**機能実装時は必ずこれらのドキュメントを参照してください。** 正確なUI仕様、データ構造、ビジネスロジック、曜日別のロジックなどが詳細に記載されています。
