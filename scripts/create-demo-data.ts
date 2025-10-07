@@ -22,7 +22,7 @@ console.log(`📍 Supabase URL: ${supabaseUrl}\n`)
 const DEMO_ACCOUNTS = {
   student5: {
     loginId: "demo-student5",
-    password: "demo2024",
+    password: "demo2025",
     email: "demo-student5@studyspark.local",
     fullName: "山田太郎",
     displayName: "たろう",
@@ -31,7 +31,7 @@ const DEMO_ACCOUNTS = {
   },
   student6: {
     loginId: "demo-student6",
-    password: "demo2024",
+    password: "demo2025",
     email: "demo-student6@studyspark.local",
     fullName: "佐藤花子",
     displayName: "はなちゃん",
@@ -40,7 +40,7 @@ const DEMO_ACCOUNTS = {
   },
   parent: {
     email: "demo-parent@example.com",
-    password: "demo2024",
+    password: "demo2025",
     fullName: "山田一郎（保護者）",
     displayName: "山田父",
   },
