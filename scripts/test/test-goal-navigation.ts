@@ -64,18 +64,17 @@ async function test1_getAvailableTests() {
         id,
         test_type_id,
         test_date,
-        display_start_date,
-        display_end_date,
+        goal_setting_start_date,
+        goal_setting_end_date,
         test_types (
           id,
           name,
-          type_category,
-          target_grade
+          grade
         )
       `)
-      .eq("test_types.target_grade", student.grade)
-      .lte("display_start_date", now.toISOString())
-      .gte("display_end_date", now.toISOString())
+      .eq("test_types.grade", student.grade)
+      .lte("goal_setting_start_date", now.toISOString())
+      .gte("goal_setting_end_date", now.toISOString())
       .order("test_date", { ascending: true })
 
     if (error) {

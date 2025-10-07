@@ -3,6 +3,58 @@
 import { createClient } from "@/lib/supabase/server"
 
 /**
+ * 保護者認証と親子関係の検証を行うヘルパー関数
+ */
+async function verifyParentChildRelation(studentId: string) {
+  const supabase = await createClient()
+
+  // 現在のユーザー取得
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: "ログインが必要です", supabase: null, parent: null, student: null }
+  }
+
+  // 保護者情報取得
+  const { data: parent, error: parentError } = await supabase
+    .from("parents")
+    .select("id")
+    .eq("user_id", user.id)
+    .single()
+
+  if (parentError || !parent) {
+    return { error: "保護者情報が見つかりません", supabase: null, parent: null, student: null }
+  }
+
+  // parent_child_relations経由で親子関係を確認
+  const { data: relation, error: relationError } = await supabase
+    .from("parent_child_relations")
+    .select("student_id")
+    .eq("student_id", studentId)
+    .eq("parent_id", parent.id)
+    .single()
+
+  if (relationError || !relation) {
+    return { error: "子ども情報が見つかりません", supabase: null, parent: null, student: null }
+  }
+
+  // 生徒の基本情報を取得
+  const { data: student, error: studentError } = await supabase
+    .from("students")
+    .select("id, full_name, nickname, grade")
+    .eq("id", studentId)
+    .single()
+
+  if (studentError || !student) {
+    return { error: "生徒情報の取得に失敗しました", supabase: null, parent: null, student: null }
+  }
+
+  return { error: null, supabase, parent, student }
+}
+
+/**
  * 保護者の子ども一覧を取得
  */
 export async function getParentChildren() {
@@ -28,62 +80,39 @@ export async function getParentChildren() {
     return { error: "保護者情報が見つかりません" }
   }
 
-  // 子ども一覧取得
-  const { data: children, error: childrenError } = await supabase
-    .from("students")
+  // parent_child_relations経由で子ども一覧取得
+  const { data: relations, error: relationsError } = await supabase
+    .from("parent_child_relations")
     .select(`
-      id,
-      full_name,
-      nickname,
-      avatar_url,
-      grade
+      student_id,
+      students (
+        id,
+        full_name,
+        nickname,
+        avatar_url,
+        grade
+      )
     `)
     .eq("parent_id", parent.id)
-    .order("created_at", { ascending: true })
 
-  if (childrenError) {
+  if (relationsError) {
     return { error: "子ども情報の取得に失敗しました" }
   }
 
-  return { children: children || [] }
+  // studentsデータを展開
+  const children = relations?.map((r: any) => r.students).filter(Boolean) || []
+
+  return { children }
 }
 
 /**
  * 子どもの目標一覧を取得（保護者用・読み取り専用）
  */
 export async function getChildTestGoals(studentId: string) {
-  const supabase = await createClient()
+  const { error, supabase, student } = await verifyParentChildRelation(studentId)
 
-  // 現在のユーザー取得
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { error: "ログインが必要です" }
-  }
-
-  // 保護者情報取得
-  const { data: parent, error: parentError } = await supabase
-    .from("parents")
-    .select("id")
-    .eq("user_id", user.id)
-    .single()
-
-  if (parentError || !parent) {
-    return { error: "保護者情報が見つかりません" }
-  }
-
-  // 生徒が自分の子どもであることを確認
-  const { data: student, error: studentError } = await supabase
-    .from("students")
-    .select("id, parent_id, full_name, grade")
-    .eq("id", studentId)
-    .eq("parent_id", parent.id)
-    .single()
-
-  if (studentError || !student) {
-    return { error: "子ども情報が見つかりません" }
+  if (error || !supabase || !student) {
+    return { error: error || "認証エラー" }
   }
 
   // 目標一覧を取得
@@ -121,38 +150,10 @@ export async function getChildTestGoals(studentId: string) {
  * 子どもの特定テスト目標を取得（保護者用・読み取り専用）
  */
 export async function getChildTestGoal(studentId: string, testScheduleId: string) {
-  const supabase = await createClient()
+  const { error, supabase, student } = await verifyParentChildRelation(studentId)
 
-  // 現在のユーザー取得
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { error: "ログインが必要です" }
-  }
-
-  // 保護者情報取得
-  const { data: parent, error: parentError } = await supabase
-    .from("parents")
-    .select("id")
-    .eq("user_id", user.id)
-    .single()
-
-  if (parentError || !parent) {
-    return { error: "保護者情報が見つかりません" }
-  }
-
-  // 生徒が自分の子どもであることを確認
-  const { data: student, error: studentError } = await supabase
-    .from("students")
-    .select("id, parent_id, full_name")
-    .eq("id", studentId)
-    .eq("parent_id", parent.id)
-    .single()
-
-  if (studentError || !student) {
-    return { error: "子ども情報が見つかりません" }
+  if (error || !supabase || !student) {
+    return { error: error || "認証エラー" }
   }
 
   // 目標を取得
@@ -189,38 +190,10 @@ export async function getChildTestGoal(studentId: string, testScheduleId: string
  * 子どもの振り返り一覧を取得（保護者用・読み取り専用）
  */
 export async function getChildReflections(studentId: string) {
-  const supabase = await createClient()
+  const { error, supabase, student } = await verifyParentChildRelation(studentId)
 
-  // 現在のユーザー取得
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { error: "ログインが必要です" }
-  }
-
-  // 保護者情報取得
-  const { data: parent, error: parentError } = await supabase
-    .from("parents")
-    .select("id")
-    .eq("user_id", user.id)
-    .single()
-
-  if (parentError || !parent) {
-    return { error: "保護者情報が見つかりません" }
-  }
-
-  // 生徒が自分の子どもであることを確認
-  const { data: student, error: studentError } = await supabase
-    .from("students")
-    .select("id, parent_id, full_name, grade")
-    .eq("id", studentId)
-    .eq("parent_id", parent.id)
-    .single()
-
-  if (studentError || !student) {
-    return { error: "子ども情報が見つかりません" }
+  if (error || !supabase || !student) {
+    return { error: error || "認証エラー" }
   }
 
   // 振り返り一覧を取得（コーチングセッション完了済みのみ）
@@ -251,38 +224,10 @@ export async function getChildReflections(studentId: string) {
  * 子どもの特定振り返りの詳細を取得（保護者用・読み取り専用）
  */
 export async function getChildReflection(studentId: string, sessionId: string) {
-  const supabase = await createClient()
+  const { error, supabase, student } = await verifyParentChildRelation(studentId)
 
-  // 現在のユーザー取得
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { error: "ログインが必要です" }
-  }
-
-  // 保護者情報取得
-  const { data: parent, error: parentError } = await supabase
-    .from("parents")
-    .select("id")
-    .eq("user_id", user.id)
-    .single()
-
-  if (parentError || !parent) {
-    return { error: "保護者情報が見つかりません" }
-  }
-
-  // 生徒が自分の子どもであることを確認
-  const { data: student, error: studentError } = await supabase
-    .from("students")
-    .select("id, parent_id, full_name")
-    .eq("id", studentId)
-    .eq("parent_id", parent.id)
-    .single()
-
-  if (studentError || !student) {
-    return { error: "子ども情報が見つかりません" }
+  if (error || !supabase || !student) {
+    return { error: error || "認証エラー" }
   }
 
   // セッション情報を取得
@@ -325,38 +270,10 @@ export async function getChildReflection(studentId: string, sessionId: string) {
  * 子どもの利用可能なテスト日程を取得（保護者用）
  */
 export async function getChildAvailableTests(studentId: string) {
-  const supabase = await createClient()
+  const { error, supabase, student } = await verifyParentChildRelation(studentId)
 
-  // 現在のユーザー取得
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { error: "ログインが必要です" }
-  }
-
-  // 保護者情報取得
-  const { data: parent, error: parentError } = await supabase
-    .from("parents")
-    .select("id")
-    .eq("user_id", user.id)
-    .single()
-
-  if (parentError || !parent) {
-    return { error: "保護者情報が見つかりません" }
-  }
-
-  // 生徒が自分の子どもであることを確認
-  const { data: student, error: studentError } = await supabase
-    .from("students")
-    .select("id, parent_id, grade")
-    .eq("id", studentId)
-    .eq("parent_id", parent.id)
-    .single()
-
-  if (studentError || !student) {
-    return { error: "子ども情報が見つかりません" }
+  if (error || !supabase || !student) {
+    return { error: error || "認証エラー" }
   }
 
   // 現在日時（Asia/Tokyo）
@@ -395,39 +312,15 @@ export async function getChildAvailableTests(studentId: string) {
 
   return { tests: availableTests, student }
 }
+
 /**
  * 子どもの達成マップデータを取得（保護者用）
  */
 export async function getChildAchievementMapData(studentId: string) {
-  const supabase = await createClient()
+  const { error, supabase } = await verifyParentChildRelation(studentId)
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { error: "ログインが必要です" }
-  }
-
-  const { data: parent, error: parentError } = await supabase
-    .from("parents")
-    .select("id")
-    .eq("user_id", user.id)
-    .single()
-
-  if (parentError || !parent) {
-    return { error: "保護者情報が見つかりません" }
-  }
-
-  const { data: student, error: studentError } = await supabase
-    .from("students")
-    .select("id, parent_id")
-    .eq("id", studentId)
-    .eq("parent_id", parent.id)
-    .single()
-
-  if (studentError || !student) {
-    return { error: "子ども情報が見つかりません" }
+  if (error || !supabase) {
+    return { error: error || "認証エラー" }
   }
 
   const { data: logs, error: logsError } = await supabase
@@ -463,35 +356,10 @@ export async function getChildStudyHistory(
     sortBy?: string
   }
 ) {
-  const supabase = await createClient()
+  const { error, supabase } = await verifyParentChildRelation(studentId)
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { error: "ログインが必要です" }
-  }
-
-  const { data: parent, error: parentError } = await supabase
-    .from("parents")
-    .select("id")
-    .eq("user_id", user.id)
-    .single()
-
-  if (parentError || !parent) {
-    return { error: "保護者情報が見つかりません" }
-  }
-
-  const { data: student, error: studentError } = await supabase
-    .from("students")
-    .select("id, parent_id")
-    .eq("id", studentId)
-    .eq("parent_id", parent.id)
-    .single()
-
-  if (studentError || !student) {
-    return { error: "子ども情報が見つかりません" }
+  if (error || !supabase) {
+    return { error: error || "認証エラー" }
   }
 
   let query = supabase
@@ -521,10 +389,10 @@ export async function getChildStudyHistory(
 
   query = query.order("logged_at", { ascending: false })
 
-  const { data: logs, error } = await query
+  const { data: logs, error: queryError } = await query
 
-  if (error) {
-    return { error: error.message }
+  if (queryError) {
+    return { error: queryError.message }
   }
 
   return { logs: logs || [] }
@@ -539,35 +407,10 @@ export async function getChildEncouragementHistory(
     periodFilter?: string
   }
 ) {
-  const supabase = await createClient()
+  const { error, supabase } = await verifyParentChildRelation(studentId)
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { error: "ログインが必要です" }
-  }
-
-  const { data: parent, error: parentError } = await supabase
-    .from("parents")
-    .select("id")
-    .eq("user_id", user.id)
-    .single()
-
-  if (parentError || !parent) {
-    return { error: "保護者情報が見つかりません" }
-  }
-
-  const { data: student, error: studentError } = await supabase
-    .from("students")
-    .select("id, parent_id")
-    .eq("id", studentId)
-    .eq("parent_id", parent.id)
-    .single()
-
-  if (studentError || !student) {
-    return { error: "子ども情報が見つかりません" }
+  if (error || !supabase) {
+    return { error: error || "認証エラー" }
   }
 
   let query = supabase
@@ -612,10 +455,10 @@ export async function getChildEncouragementHistory(
 
   query = query.order("sent_at", { ascending: false })
 
-  const { data: messages, error } = await query
+  const { data: messages, error: queryError } = await query
 
-  if (error) {
-    return { error: error.message }
+  if (queryError) {
+    return { error: queryError.message }
   }
 
   return { messages: messages || [] }
@@ -630,35 +473,10 @@ export async function getChildCoachingHistory(
     periodFilter?: string
   }
 ) {
-  const supabase = await createClient()
+  const { error, supabase } = await verifyParentChildRelation(studentId)
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { error: "ログインが必要です" }
-  }
-
-  const { data: parent, error: parentError } = await supabase
-    .from("parents")
-    .select("id")
-    .eq("user_id", user.id)
-    .single()
-
-  if (parentError || !parent) {
-    return { error: "保護者情報が見つかりません" }
-  }
-
-  const { data: student, error: studentError } = await supabase
-    .from("students")
-    .select("id, parent_id")
-    .eq("id", studentId)
-    .eq("parent_id", parent.id)
-    .single()
-
-  if (studentError || !student) {
-    return { error: "子ども情報が見つかりません" }
+  if (error || !supabase) {
+    return { error: error || "認証エラー" }
   }
 
   let query = supabase
@@ -695,10 +513,10 @@ export async function getChildCoachingHistory(
 
   query = query.order("completed_at", { ascending: false })
 
-  const { data: sessions, error } = await query
+  const { data: sessions, error: queryError } = await query
 
-  if (error) {
-    return { error: error.message }
+  if (queryError) {
+    return { error: queryError.message }
   }
 
   return { sessions: sessions || [] }
