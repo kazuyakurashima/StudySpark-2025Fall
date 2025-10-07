@@ -59,11 +59,8 @@ export default function LoginPage() {
         </div>
 
         <Card className="shadow-lg border-0 bg-card/80 backdrop-blur-sm">
-          <CardHeader className="space-y-1">
+          <CardHeader className="space-y-1 pb-6">
             <CardTitle className="text-2xl text-center">ログイン</CardTitle>
-            <CardDescription className="text-center">
-              メールアドレスまたは学習IDでログインしてください
-            </CardDescription>
           </CardHeader>
           <CardContent>
             {/* 成功メッセージ */}
@@ -81,37 +78,36 @@ export default function LoginPage() {
             )}
 
             {/* 統合ログインフォーム */}
-            <form onSubmit={handleLogin} className="space-y-4">
+            <form onSubmit={handleLogin} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="emailOrId">メールアドレス / 学習ID</Label>
+                <Label htmlFor="emailOrId" className="text-base">学習ID / メールアドレス</Label>
                 <Input
                   id="emailOrId"
                   type="text"
-                  placeholder="例: student001 または parent@example.com"
+                  placeholder="demo-student5"
                   value={emailOrId}
                   onChange={(e) => setEmailOrId(e.target.value)}
                   required
-                  className="h-12"
+                  className="h-14 text-base"
+                  autoComplete="username"
                 />
-                <p className="text-xs text-muted-foreground">
-                  生徒の方は学習ID（例: student001）、保護者・指導者の方はメールアドレスを入力してください
-                </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">パスワード</Label>
+                <Label htmlFor="password" className="text-base">パスワード</Label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="パスワードを入力"
+                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="h-12"
+                  className="h-14 text-base"
+                  autoComplete="current-password"
                 />
               </div>
               <Button
                 type="submit"
-                className="w-full h-12 text-lg font-medium"
+                className="w-full h-14 text-lg font-semibold mt-6"
                 disabled={isLoading}
               >
                 {isLoading ? "ログイン中..." : "ログイン"}
@@ -147,21 +143,28 @@ export default function LoginPage() {
           </CardContent>
         </Card>
 
-        {/* Demo Instructions */}
-        <div className="mt-6 p-4 bg-muted/50 rounded-lg border border-primary/20">
-          <p className="text-sm text-muted-foreground text-center leading-relaxed">
-            <strong className="text-foreground">デモアカウント</strong>
-            <br />
-            <span className="text-xs mt-2 block">生徒（小5）</span>
-            <strong>demo-student5</strong> / demo2025
-            <br />
-            <span className="text-xs mt-1 block">生徒（小6）</span>
-            <strong>demo-student6</strong> / demo2025
-            <br />
-            <span className="text-xs mt-1 block">保護者</span>
-            <strong>demo-parent@example.com</strong> / demo2025
-          </p>
-        </div>
+        {/* Demo Account Info */}
+        <details className="mt-6">
+          <summary className="text-sm text-center text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+            デモアカウント情報を表示
+          </summary>
+          <div className="mt-3 p-4 bg-muted/30 rounded-lg border border-border/50">
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">生徒（小5）</span>
+                <code className="text-xs bg-background px-2 py-1 rounded">demo-student5 / demo2025</code>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">生徒（小6）</span>
+                <code className="text-xs bg-background px-2 py-1 rounded">demo-student6 / demo2025</code>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">保護者</span>
+                <code className="text-xs bg-background px-2 py-1 rounded">demo-parent@example.com / demo2025</code>
+              </div>
+            </div>
+          </div>
+        </details>
       </div>
     </div>
   )
