@@ -9,6 +9,7 @@ import { createClient } from '@supabase/supabase-js'
 
 // Supabase接続情報
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321'
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU'
 
 // サービスロールクライアント（テストユーザー作成用）
@@ -41,9 +42,12 @@ function logResult(test: string, expected: 'success' | 'fail', actual: 'success'
 async function createTestUsers() {
   console.log('\n📝 テストユーザーを作成中...\n')
 
+  // タイムスタンプで一意性を確保
+  const timestamp = Date.now()
+
   // 生徒ユーザー作成
   const { data: student, error: studentError } = await adminClient.auth.admin.createUser({
-    email: 'rls-student@test.local',
+    email: `rls-student-${timestamp}@test.local`,
     password: 'testpass123',
     email_confirm: true,
     user_metadata: { role: 'student' }
@@ -55,7 +59,7 @@ async function createTestUsers() {
 
   // 保護者ユーザー作成
   const { data: parent, error: parentError } = await adminClient.auth.admin.createUser({
-    email: 'rls-parent@test.local',
+    email: `rls-parent-${timestamp}@test.local`,
     password: 'testpass123',
     email_confirm: true,
     user_metadata: { role: 'parent' }
@@ -67,7 +71,7 @@ async function createTestUsers() {
 
   // 指導者ユーザー作成
   const { data: coach, error: coachError } = await adminClient.auth.admin.createUser({
-    email: 'rls-coach@test.local',
+    email: `rls-coach-${timestamp}@test.local`,
     password: 'testpass123',
     email_confirm: true,
     user_metadata: { role: 'coach' }
@@ -88,7 +92,9 @@ async function createTestUsers() {
 
     const { data: studentData } = await adminClient.from('students').insert({
       user_id: student.user.id,
-      login_id: 'rls-student-test',
+      login_id: `rls-student-${timestamp}`,
+      full_name: 'テスト生徒',
+      furigana: 'テストセイト',
       grade: 6,
       course: 'A'
     }).select().single()
@@ -105,7 +111,9 @@ async function createTestUsers() {
     })
 
     const { data: parentData } = await adminClient.from('parents').insert({
-      user_id: parent.user.id
+      user_id: parent.user.id,
+      full_name: 'テスト保護者',
+      furigana: 'テストホゴシャ'
     }).select().single()
 
     console.log('保護者作成完了:', parentData?.id)
@@ -120,21 +128,31 @@ async function createTestUsers() {
     })
 
     const { data: coachData } = await adminClient.from('coaches').insert({
-      user_id: coach.user.id
+      user_id: coach.user.id,
+      full_name: 'テスト指導者',
+      furigana: 'テストシドウシャ',
+      invitation_code: null
     }).select().single()
 
     console.log('指導者作成完了:', coachData?.id)
   }
 
-  return { student: student?.user, parent: parent?.user, coach: coach?.user }
+  return {
+    student: student?.user,
+    parent: parent?.user,
+    coach: coach?.user,
+    studentEmail: `rls-student-${timestamp}@test.local`,
+    parentEmail: `rls-parent-${timestamp}@test.local`,
+    coachEmail: `rls-coach-${timestamp}@test.local`
+  }
 }
 
-async function testStudentRLS(studentUser: any) {
+async function testStudentRLS(studentUser: any, studentEmail: string) {
   console.log('\n👨‍🎓 生徒ロールのRLSテスト\n')
 
-  const studentClient = createClient(supabaseUrl, supabaseServiceKey)
+  const studentClient = createClient(supabaseUrl, supabaseAnonKey)
   const { error: signInError } = await studentClient.auth.signInWithPassword({
-    email: 'rls-student@test.local',
+    email: studentEmail,
     password: 'testpass123'
   })
 
@@ -188,12 +206,12 @@ async function testStudentRLS(studentUser: any) {
   await studentClient.auth.signOut()
 }
 
-async function testParentRLS(parentUser: any) {
+async function testParentRLS(parentUser: any, parentEmail: string) {
   console.log('\n👨‍👩‍👧 保護者ロールのRLSテスト\n')
 
-  const parentClient = createClient(supabaseUrl, supabaseServiceKey)
+  const parentClient = createClient(supabaseUrl, supabaseAnonKey)
   const { error: signInError } = await parentClient.auth.signInWithPassword({
-    email: 'rls-parent@test.local',
+    email: parentEmail,
     password: 'testpass123'
   })
 
@@ -223,7 +241,7 @@ async function testParentRLS(parentUser: any) {
       subject_id: 'dummy-subject',
       study_content_type_id: 'dummy-type',
       correct_count: 10,
-      total_count: 20
+      total_problems: 20
     })
 
   logResult(
@@ -236,12 +254,12 @@ async function testParentRLS(parentUser: any) {
   await parentClient.auth.signOut()
 }
 
-async function testCoachRLS(coachUser: any) {
+async function testCoachRLS(coachUser: any, coachEmail: string) {
   console.log('\n👨‍🏫 指導者ロールのRLSテスト\n')
 
-  const coachClient = createClient(supabaseUrl, supabaseServiceKey)
+  const coachClient = createClient(supabaseUrl, supabaseAnonKey)
   const { error: signInError } = await coachClient.auth.signInWithPassword({
-    email: 'rls-coach@test.local',
+    email: coachEmail,
     password: 'testpass123'
   })
 
@@ -271,7 +289,7 @@ async function testCoachRLS(coachUser: any) {
       subject_id: 'dummy-subject',
       study_content_type_id: 'dummy-type',
       correct_count: 10,
-      total_count: 20
+      total_problems: 20
     })
 
   logResult(
@@ -339,12 +357,12 @@ async function main() {
 
   try {
     // テストユーザー作成
-    const { student, parent, coach } = await createTestUsers()
+    const { student, parent, coach, studentEmail, parentEmail, coachEmail } = await createTestUsers()
 
     // 各ロールのテスト実行
-    if (student) await testStudentRLS(student)
-    if (parent) await testParentRLS(parent)
-    if (coach) await testCoachRLS(coach)
+    if (student) await testStudentRLS(student, studentEmail)
+    if (parent) await testParentRLS(parent, parentEmail)
+    if (coach) await testCoachRLS(coach, coachEmail)
 
     // サマリー表示
     await printSummary()
