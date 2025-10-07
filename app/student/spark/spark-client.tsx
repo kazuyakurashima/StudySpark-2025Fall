@@ -394,15 +394,18 @@ type SparkClientProps = {
       course: "A" | "B" | "C" | "S"
     }
   }
+  preselectedSubject?: string
 }
 
-export function SparkClient({ initialData }: SparkClientProps) {
+export function SparkClient({ initialData, preselectedSubject }: SparkClientProps) {
   const { student } = initialData
   const studentGrade = student.grade.toString()
   const currentCourse = student.course
 
   const [selectedSession, setSelectedSession] = useState(getCurrentLearningSession(studentGrade))
-  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>(
+    preselectedSubject ? [preselectedSubject] : []
+  )
   const [subjectDetails, setSubjectDetails] = useState<{
     [key: string]: {
       [contentId: string]: number // correct answers count

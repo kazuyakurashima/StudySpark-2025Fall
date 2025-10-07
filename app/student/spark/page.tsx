@@ -2,7 +2,11 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { SparkClient } from "./spark-client"
 
-export default async function SparkPage() {
+export default async function SparkPage({
+  searchParams,
+}: {
+  searchParams: { subject?: string }
+}) {
   const supabase = createClient()
 
   // Get authenticated user
@@ -25,5 +29,5 @@ export default async function SparkPage() {
     redirect("/")
   }
 
-  return <SparkClient initialData={{ student }} />
+  return <SparkClient initialData={{ student }} preselectedSubject={searchParams.subject} />
 }

@@ -529,6 +529,20 @@ const TodayMissionCard = ({ todayProgress }: { todayProgress: Array<{subject: st
   }
 
   const handleSparkNavigation = (subject?: string) => {
+    if (subject) {
+      // Map subject names to IDs
+      const subjectMap: { [key: string]: string } = {
+        "算数": "math",
+        "国語": "japanese",
+        "理科": "science",
+        "社会": "social"
+      }
+      const subjectId = subjectMap[subject]
+      if (subjectId) {
+        router.push(`/student/spark?subject=${subjectId}`)
+        return
+      }
+    }
     router.push("/student/spark")
   }
 
