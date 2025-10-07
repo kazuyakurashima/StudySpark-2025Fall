@@ -302,6 +302,8 @@ const LearningHistoryCalendar = ({ calendarData }: { calendarData: { [dateStr: s
 }
 
 const TodayMissionCard = ({ todayProgress }: { todayProgress: Array<{subject: string, accuracy: number, correctCount: number, totalProblems: number, logCount: number}> }) => {
+  const router = useRouter()
+
   const getTodayWeekday = () => {
     const today = new Date()
     return today.getDay() // 0=日曜, 1=月曜, ..., 6=土曜
