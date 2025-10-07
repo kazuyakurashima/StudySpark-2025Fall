@@ -171,7 +171,9 @@
     - 未完了: "未完了"ボタン（グレーアウト、disabled）
     - 完了: "応援"/"AI応援"/"詳細を見る"ボタン
     - 詳細展開: 記録時刻、学習回、科目、学習内容、正答率、振り返り表示
-  - **TODO**: AI応援メッセージ生成（ChatGPT API）、応援送信機能は将来実装
+  - **実装済み（Phase 2完了）**: AI応援メッセージ生成（ChatGPT API）、応援送信機能
+    - sendQuickEncouragement, generateAIEncouragement, sendCustomEncouragement
+    - 2025-10-08バグ修正完了（selectedChild未定義エラー、型不整合修正）
 
 - [x] 2列レイアウトとカード配置調整
   - 対応要件: `04-Requirements-Parent.md`
