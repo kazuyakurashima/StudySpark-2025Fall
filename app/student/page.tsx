@@ -27,7 +27,7 @@ export default async function StudentDashboard() {
     getStudentDashboardData(),
     getAICoachMessage(),
     getStudyStreak(),
-    getRecentStudyLogs(5),
+    getRecentStudyLogs(50),
     getRecentEncouragementMessages(),
     getLastLoginInfo(),
     getTodayMissionData(),

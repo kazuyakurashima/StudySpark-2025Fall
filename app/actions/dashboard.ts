@@ -197,14 +197,7 @@ export async function getRecentStudyLogs(limit: number = 5) {
       return { error: "生徒情報が見つかりません" }
     }
 
-    // Get yesterday 0:00 to today 23:59
-    const today = new Date()
-    today.setHours(23, 59, 59, 999)
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-    yesterday.setHours(0, 0, 0, 0)
-
-    // Get recent study logs with related data
+    // Get recent study logs with related data (no date filtering, just order by logged_at)
     const { data: logs, error: logsError } = await supabase
       .from("study_logs")
       .select(
@@ -217,12 +210,10 @@ export async function getRecentStudyLogs(limit: number = 5) {
         session_id,
         subjects (name, color_code),
         study_content_types (content_name),
-        study_sessions (session_number)
+        study_sessions (session_number, start_date, end_date)
       `
       )
       .eq("student_id", student.id)
-      .gte("logged_at", yesterday.toISOString())
-      .lte("logged_at", today.toISOString())
       .order("logged_at", { ascending: false })
       .limit(limit)
 

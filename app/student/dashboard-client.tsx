@@ -775,6 +775,8 @@ const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{
 }
 
 const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
+  const [showAll, setShowAll] = useState(false)
+
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return "記録日時不明"
 
@@ -801,9 +803,27 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
   const recentHistory = safeLogs.map((log) => {
     const loggedAt = log.logged_at || log.created_at || log.study_date
 
+    // 学習回の表示を「第N回(M/D〜M/D)」形式にフォーマット
+    let sessionDisplay = ""
+    if (log.study_sessions) {
+      const sessionNum = log.study_sessions.session_number || log.session_id || 0
+      if (log.study_sessions.start_date && log.study_sessions.end_date) {
+        const startDate = new Date(log.study_sessions.start_date)
+        const endDate = new Date(log.study_sessions.end_date)
+        const startStr = `${startDate.getMonth() + 1}/${startDate.getDate()}`
+        const endStr = `${endDate.getMonth() + 1}/${endDate.getDate()}`
+        sessionDisplay = `第${sessionNum}回(${startStr}〜${endStr})`
+      } else {
+        sessionDisplay = `第${sessionNum}回`
+      }
+    } else {
+      sessionDisplay = `第${log.session_id || 0}回`
+    }
+
     return {
+      id: log.id,
       studentRecordTime: formatDate(loggedAt),
-      session: log.study_sessions?.session_number ?? log.session_id ?? 0,
+      session: sessionDisplay,
       subject: log.subjects?.name || "",
       content: log.study_content_types?.content_name || "",
       correctAnswers: log.correct_count || 0,
@@ -813,6 +833,8 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
       reflection: log.reflection_text || "",
     }
   })
+
+  const displayedLogs = showAll ? recentHistory : recentHistory.slice(0, 5)
 
   const getSubjectColor = (subject: string) => {
     const colors = {
@@ -850,7 +872,7 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
           </div>
           <div>
             <span className="text-slate-800">直近の学習履歴</span>
-            <p className="text-sm font-normal text-slate-600 mt-1">昨日0:00〜今日23:59のスパーク機能記録</p>
+            <p className="text-sm font-normal text-slate-600 mt-1">最新のスパーク機能記録</p>
           </div>
         </CardTitle>
       </CardHeader>
@@ -861,9 +883,10 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
             <p className="text-sm text-slate-500 mt-2">スパーク機能で学習を記録しましょう！</p>
           </div>
         ) : (
-          recentHistory.map((item, index) => (
+          <>
+            {displayedLogs.map((item) => (
             <div
-              key={index}
+              key={item.id}
               className="bg-white/90 backdrop-blur-sm rounded-xl p-5 border border-green-100 shadow-lg hover:shadow-xl transition-all duration-300"
             >
               <div className="space-y-4">
@@ -876,7 +899,7 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
                       {item.studentRecordTime}
                     </span>
                     <Badge variant="outline" className="text-sm px-3 py-1 border-slate-300 bg-white">
-                      {item.session}回目
+                      {item.session}
                     </Badge>
                   </div>
                   <Badge className={`text-sm px-3 py-2 border font-bold ${getAccuracyColor(item.accuracy)}`}>
@@ -918,7 +941,19 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
                 </div>
               </div>
             </div>
-          ))
+            ))}
+            {recentHistory.length > 5 && (
+              <div className="flex justify-center pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAll(!showAll)}
+                  className="w-full max-w-xs bg-white hover:bg-green-50 text-green-700 border-green-300 font-medium"
+                >
+                  {showAll ? "閉じる" : `もっと見る (残り${recentHistory.length - 5}件)`}
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </CardContent>
     </Card>

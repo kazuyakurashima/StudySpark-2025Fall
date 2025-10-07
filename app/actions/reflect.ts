@@ -72,20 +72,38 @@ export async function determineWeekType() {
   lastSunday.setDate(lastSunday.getDate() - 1)
   lastSunday.setHours(23, 59, 59, 999)
 
-  // 今週のデータ
-  const { data: thisWeekLogs } = await supabase
-    .from("study_logs")
-    .select("total_problems, correct_count")
-    .eq("student_id", student.id)
-    .gte("study_date", thisMonday.toISOString().split('T')[0])
+  // 過去2週間のデータを取得（study_sessionsと結合して学習回の日付範囲で判定）
+  const twoWeeksAgo = new Date(lastMonday)
+  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 7)
 
-  // 先週のデータ
-  const { data: lastWeekLogs } = await supabase
+  const { data: allRecentLogs } = await supabase
     .from("study_logs")
-    .select("total_problems, correct_count")
+    .select(`
+      total_problems,
+      correct_count,
+      study_date,
+      logged_at,
+      study_sessions!inner(start_date, end_date)
+    `)
     .eq("student_id", student.id)
-    .gte("study_date", lastMonday.toISOString().split('T')[0])
-    .lte("study_date", lastSunday.toISOString().split('T')[0])
+    .gte("study_sessions.start_date", twoWeeksAgo.toISOString().split('T')[0])
+
+  // JavaScript側でフィルタリング（学習回の期間で判定）
+  const thisMondayStr = thisMonday.toISOString().split('T')[0]
+  const lastMondayStr = lastMonday.toISOString().split('T')[0]
+  const lastSundayStr = lastSunday.toISOString().split('T')[0]
+
+  const thisWeekLogs = (allRecentLogs || []).filter(log => {
+    const sessionStartDate = log.study_sessions?.start_date
+    if (!sessionStartDate) return false
+    return sessionStartDate >= thisMondayStr
+  })
+
+  const lastWeekLogs = (allRecentLogs || []).filter(log => {
+    const sessionStartDate = log.study_sessions?.start_date
+    if (!sessionStartDate) return false
+    return sessionStartDate >= lastMondayStr && sessionStartDate <= lastSundayStr
+  })
 
   // 正答率を計算
   const calculateAccuracy = (logs: any[] | null) => {
