@@ -34,6 +34,7 @@ interface DashboardData {
     accuracy: number
     correctCount: number
     totalProblems: number
+    details: Array<{ content: string; remaining: number }>
   }>
 }
 
@@ -683,7 +684,7 @@ const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{
     totalQuestions: item.totalProblems,
     progressRate: item.accuracy,
     color: getColor(item.accuracy),
-    details: [] as { content: string; remaining: number }[], // TODO: 内容別残数の実装は将来的に追加
+    details: item.details || []
   }))
 
   const getStatusColor = (status: string) => {

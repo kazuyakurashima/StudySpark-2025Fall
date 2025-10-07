@@ -24,18 +24,21 @@ StudySparkは、中学受験を目指す小学5〜6年生のための学習支�
 
 ## 🎯 プロジェクト進捗
 
-**最終更新:** 2025年10月7日 16:30
+**最終更新:** 2025年10月8日
 
-### 全体進捗: 68% (121/179タスク完了)
+### 全体進捗: 71% (128/180タスク完了)
 
 | フェーズ | 説明 | 進捗率 | 状態 |
 |---------|------|--------|------|
 | **P0** | 基盤整備 | 78% (42/54) | 🔄 進行中 |
-| **P1** | 学習記録機能 | 100% (31/31) | ✅ 完了 |
+| **P1** | 学習記録機能 | 97% (28/29) | 🔄 進行中 |
 | **P2** | 応援機能 | 97% (28/29) | ✅ 実質完了 |
-| **P3** | 目標管理・週次振り返り | 77% (20/26) | 🔄 進行中 |
+| **P3** | 目標管理・週次振り返り | 100% (26/26) | ✅ 完了 |
+| **P3+** | 追加機能強化 | 100% (2/2) | ✅ 完了 |
 | **P4** | 指導者分析機能 | 0% (0/18) | ⏳ 未着手 |
 | **P5** | 監査・運用機能 | 0% (0/21) | ⏳ 未着手 |
+
+**詳細なタスク管理:** [docs/tasks/TASK_MANAGEMENT.md](docs/tasks/TASK_MANAGEMENT.md)
 
 ### ロール別完成度
 
@@ -46,7 +49,6 @@ StudySparkは、中学受験を目指す小学5〜6年生のための学習支�
 | **指導者** | **5%** | ★☆☆☆☆ | ❌ ほぼ未実装 |
 | **管理者** | **0%** | ☆☆☆☆☆ | ❌ 未実装 |
 
-詳細は [ロール別完成度レポート](./docs/tasks/ROLE-COMPLETION-STATUS.md) を参照してください。
 
 ---
 
@@ -122,14 +124,8 @@ StudySpark-2025Fall/
 │   ├── 04-Requirements-Parent.md
 │   ├── 05-Requirements-Coach.md
 │   └── tasks/                # タスク管理
-│       ├── README.md         # 全体進捗
-│       ├── ROLE-COMPLETION-STATUS.md # ロール別完成度
-│       ├── P0-foundation.md
-│       ├── P1-learning-logs.md
-│       ├── P2-encouragement.md
-│       ├── P3-coaching.md
-│       ├── P4-analysis.md
-│       └── P5-operations.md
+│       ├── TASK_MANAGEMENT.md # 全体進捗とタスク一覧
+│       └── ROLE-COMPLETION-STATUS.md # ロール別完成度
 └── scripts/                  # スクリプト
     ├── create-test-users.ts  # テストユーザー作成
     └── test/                 # テストスクリプト
@@ -357,8 +353,11 @@ npx tsx scripts/test/test-parent-screens.ts
 
 ## 📝 ドキュメント
 
-- [全体進捗管理](./docs/tasks/README.md)
-- [ロール別完成度](./docs/tasks/ROLE-COMPLETION-STATUS.md)
+### 開発管理
+- [タスク管理・全体進捗](./docs/tasks/TASK_MANAGEMENT.md)
+- [ロール別完成度レポート](./docs/tasks/ROLE-COMPLETION-STATUS.md)
+
+### 要件定義
 - [コンセプト](./docs/01-Concept.md)
 - [認証要件](./docs/02-Requirements-Auth.md)
 - [生徒機能要件](./docs/03-Requirements-Student.md)
@@ -387,4 +386,4 @@ npx tsx scripts/test/test-parent-screens.ts
 
 **Built with ❤️ by StudySpark Team**
 
-**最終更新:** 2025年10月7日 16:30
+**最終更新:** 2025年10月8日 10:00
