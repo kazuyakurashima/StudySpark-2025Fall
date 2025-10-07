@@ -2,7 +2,7 @@
 
 import type React from "react"
 import Image from "next/image"
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,20 +11,25 @@ import { Label } from "@/components/ui/label"
 import { universalLogin } from "@/app/actions/auth"
 import Link from "next/link"
 
-export default function LoginPage() {
+function SuccessMessageHandler({ setSuccessMessage }: { setSuccessMessage: (msg: string | null) => void }) {
   const searchParams = useSearchParams()
-  const [emailOrId, setEmailOrId] = useState("")
-  const [password, setPassword] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   useEffect(() => {
     // 登録完了時のメッセージ表示
     if (searchParams.get("registered") === "true") {
       setSuccessMessage("登録が完了しました。ログインしてください。")
     }
-  }, [searchParams])
+  }, [searchParams, setSuccessMessage])
+
+  return null
+}
+
+function LoginPageContent() {
+  const [emailOrId, setEmailOrId] = useState("")
+  const [password, setPassword] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -42,6 +47,9 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center p-4">
+      <Suspense fallback={null}>
+        <SuccessMessageHandler setSuccessMessage={setSuccessMessage} />
+      </Suspense>
       <div className="w-full max-w-md">
         {/* Logo and Title */}
         <div className="text-center mb-8">
@@ -163,4 +171,8 @@ export default function LoginPage() {
       </div>
     </div>
   )
+}
+
+export default function LoginPage() {
+  return <LoginPageContent />
 }
