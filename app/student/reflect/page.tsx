@@ -4,8 +4,13 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BottomNavigation } from "@/components/bottom-navigation"
 import { ReflectChat } from "./reflect-chat"
+import { AchievementMap } from "./achievement-map"
+import { StudyHistory } from "./study-history"
+import { EncouragementHistory } from "./encouragement-history"
+import { CoachingHistory } from "./coaching-history"
 import {
   checkReflectAvailability,
   determineWeekType,
@@ -27,6 +32,8 @@ import {
 
 export default function ReflectPage() {
   const [studentName, setStudentName] = useState("")
+  const [studentGrade, setStudentGrade] = useState(5)
+  const [studentCourse, setStudentCourse] = useState("A")
   const [isAvailable, setIsAvailable] = useState(false)
   const [currentDay, setCurrentDay] = useState("")
   const [currentTime, setCurrentTime] = useState("")
@@ -52,12 +59,14 @@ export default function ReflectPage() {
     if (user) {
       const { data: student } = await supabase
         .from("students")
-        .select("full_name")
+        .select("full_name, grade, course")
         .eq("user_id", user.id)
         .single()
 
       if (student) {
         setStudentName(student.full_name)
+        setStudentGrade(student.grade)
+        setStudentCourse(student.course)
       }
     }
   }
@@ -242,51 +251,31 @@ export default function ReflectPage() {
           </Card>
         )}
 
-        {pastSessions.length > 0 && (
-          <Card className="card-elevated">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <History className="h-5 w-5 text-primary" />
-                  過去の振り返り
-                </CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowHistory(!showHistory)}
-                >
-                  {showHistory ? "閉じる" : "表示する"}
-                </Button>
-              </div>
-            </CardHeader>
-            {showHistory && (
-              <CardContent className="space-y-4">
-                {pastSessions.slice(0, 5).map((session) => (
-                  <div
-                    key={session.id}
-                    className="p-4 bg-muted/30 rounded-lg"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-semibold">
-                        {new Date(session.week_start_date).toLocaleDateString("ja-JP")}
-                      </p>
-                      <Badge variant="outline">
-                        {session.week_type === "growth" ? "成長週" :
-                         session.week_type === "stable" ? "安定週" :
-                         session.week_type === "challenge" ? "挑戦週" : "特別週"}
-                      </Badge>
-                    </div>
-                    {session.summary_text && (
-                      <p className="text-sm text-muted-foreground">
-                        {session.summary_text}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </CardContent>
-            )}
-          </Card>
-        )}
+        {/* 4つのタブ表示 */}
+        <Tabs defaultValue="achievement" className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="achievement">達成マップ</TabsTrigger>
+            <TabsTrigger value="history">学習履歴</TabsTrigger>
+            <TabsTrigger value="encouragement">応援履歴</TabsTrigger>
+            <TabsTrigger value="coaching">コーチング履歴</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="achievement" className="mt-6">
+            <AchievementMap studentGrade={studentGrade} studentCourse={studentCourse} />
+          </TabsContent>
+
+          <TabsContent value="history" className="mt-6">
+            <StudyHistory />
+          </TabsContent>
+
+          <TabsContent value="encouragement" className="mt-6">
+            <EncouragementHistory />
+          </TabsContent>
+
+          <TabsContent value="coaching" className="mt-6">
+            <CoachingHistory />
+          </TabsContent>
+        </Tabs>
       </div>
 
       <BottomNavigation />

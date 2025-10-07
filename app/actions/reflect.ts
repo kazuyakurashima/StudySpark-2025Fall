@@ -318,3 +318,325 @@ export async function getCoachingSessions() {
 
   return { sessions }
 }
+
+/**
+ * 達成マップデータを取得（科目別正答率マップ）
+ */
+export async function getAchievementMapData(subjectId?: string) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: "ログインが必要です" }
+  }
+
+  const { data: student } = await supabase
+    .from("students")
+    .select("id, grade, course")
+    .eq("user_id", user.id)
+    .single()
+
+  if (!student) {
+    return { error: "生徒情報が見つかりません" }
+  }
+
+  // 学習記録を取得（科目フィルター対応）
+  let query = supabase
+    .from("study_logs")
+    .select(`
+      id,
+      study_date,
+      correct_count,
+      total_problems,
+      session_id,
+      study_sessions (session_number, start_date, end_date),
+      subjects (id, name, color_code),
+      study_content_types (id, content_name)
+    `)
+    .eq("student_id", student.id)
+    .order("study_date", { ascending: true })
+
+  if (subjectId) {
+    query = query.eq("subject_id", subjectId)
+  }
+
+  const { data: logs, error } = await query
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  return {
+    logs: logs || [],
+    studentGrade: student.grade,
+    studentCourse: student.course
+  }
+}
+
+/**
+ * 学習履歴データを取得（フィルター・ソート対応）
+ */
+export async function getStudyHistory(params?: {
+  subjectFilter?: string // 'all' | 'math' | 'japanese' | 'science' | 'social'
+  periodFilter?: string // '1week' | '1month' | 'all'
+  sortBy?: string // 'date' | 'session' | 'accuracy'
+}) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: "ログインが必要です" }
+  }
+
+  const { data: student } = await supabase
+    .from("students")
+    .select("id")
+    .eq("user_id", user.id)
+    .single()
+
+  if (!student) {
+    return { error: "生徒情報が見つかりません" }
+  }
+
+  // 期間フィルター
+  let query = supabase
+    .from("study_logs")
+    .select(`
+      id,
+      logged_at,
+      study_date,
+      correct_count,
+      total_problems,
+      reflection_text,
+      session_id,
+      subjects (id, name, color_code),
+      study_content_types (content_name),
+      study_sessions (session_number, start_date, end_date)
+    `)
+    .eq("student_id", student.id)
+
+  // 科目フィルター
+  if (params?.subjectFilter && params.subjectFilter !== 'all') {
+    const subjectMap: Record<string, string> = {
+      'math': '算数',
+      'japanese': '国語',
+      'science': '理科',
+      'social': '社会'
+    }
+    const subjectName = subjectMap[params.subjectFilter]
+    if (subjectName) {
+      const { data: subject } = await supabase
+        .from("subjects")
+        .select("id")
+        .eq("name", subjectName)
+        .single()
+
+      if (subject) {
+        query = query.eq("subject_id", subject.id)
+      }
+    }
+  }
+
+  // 期間フィルター
+  if (params?.periodFilter === '1week') {
+    const oneWeekAgo = new Date()
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+    query = query.gte("logged_at", oneWeekAgo.toISOString())
+  } else if (params?.periodFilter === '1month') {
+    const oneMonthAgo = new Date()
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1)
+    query = query.gte("logged_at", oneMonthAgo.toISOString())
+  }
+
+  // ソート
+  const sortBy = params?.sortBy || 'date'
+  if (sortBy === 'date') {
+    query = query.order("logged_at", { ascending: false })
+  } else if (sortBy === 'session') {
+    query = query.order("session_id", { ascending: false })
+  }
+  // 正答率ソートはクライアント側で処理
+
+  const { data: logs, error } = await query
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  return { logs: logs || [] }
+}
+
+/**
+ * 応援履歴データを取得（フィルター・ソート対応）
+ */
+export async function getEncouragementHistory(params?: {
+  subjectFilter?: string
+  periodFilter?: string
+  sortBy?: string
+  displayMode?: 'full' | 'partial'
+}) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: "ログインが必要です" }
+  }
+
+  const { data: student } = await supabase
+    .from("students")
+    .select("id")
+    .eq("user_id", user.id)
+    .single()
+
+  if (!student) {
+    return { error: "生徒情報が見つかりません" }
+  }
+
+  let query = supabase
+    .from("encouragement_messages")
+    .select(`
+      id,
+      message,
+      sent_at,
+      is_read,
+      created_at,
+      sender_id,
+      sender_profile:user_profiles!encouragement_messages_sender_id_fkey (
+        full_name,
+        nickname,
+        avatar,
+        role
+      ),
+      study_logs (
+        id,
+        logged_at,
+        study_date,
+        correct_count,
+        total_problems,
+        reflection_text,
+        session_id,
+        subjects (name, color_code),
+        study_content_types (content_name),
+        study_sessions (session_number, start_date, end_date)
+      )
+    `)
+    .eq("recipient_id", student.id)
+
+  // 科目フィルター（study_logs経由）
+  // 期間フィルター
+  if (params?.periodFilter === '1week') {
+    const oneWeekAgo = new Date()
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+    query = query.gte("sent_at", oneWeekAgo.toISOString())
+  } else if (params?.periodFilter === '1month') {
+    const oneMonthAgo = new Date()
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1)
+    query = query.gte("sent_at", oneMonthAgo.toISOString())
+  }
+
+  // ソート
+  query = query.order("sent_at", { ascending: false })
+
+  const { data: messages, error } = await query
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  return { messages: messages || [] }
+}
+
+/**
+ * コーチング履歴データを取得（詳細版）
+ */
+export async function getCoachingHistory(params?: {
+  periodFilter?: string
+}) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: "ログインが必要です" }
+  }
+
+  const { data: student } = await supabase
+    .from("students")
+    .select("id")
+    .eq("user_id", user.id)
+    .single()
+
+  if (!student) {
+    return { error: "生徒情報が見つかりません" }
+  }
+
+  let query = supabase
+    .from("coaching_sessions")
+    .select(`
+      id,
+      week_start_date,
+      week_end_date,
+      week_type,
+      status,
+      summary_text,
+      total_turns,
+      started_at,
+      completed_at,
+      coaching_messages (
+        role,
+        content,
+        turn_number,
+        sent_at
+      )
+    `)
+    .eq("student_id", student.id)
+    .eq("status", "completed")
+
+  // 期間フィルター
+  if (params?.periodFilter === '1week') {
+    const oneWeekAgo = new Date()
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+    query = query.gte("completed_at", oneWeekAgo.toISOString())
+  } else if (params?.periodFilter === '1month') {
+    const oneMonthAgo = new Date()
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1)
+    query = query.gte("completed_at", oneMonthAgo.toISOString())
+  }
+
+  query = query.order("week_start_date", { ascending: false })
+
+  const { data: sessions, error } = await query
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  // 応援メッセージも取得（コーチングセッションの期間に送信されたもの）
+  const sessionsWithEncouragement = await Promise.all(
+    (sessions || []).map(async (session) => {
+      const { data: encouragements } = await supabase
+        .from("encouragement_messages")
+        .select(`
+          id,
+          message,
+          sent_at,
+          sender_profile:user_profiles!encouragement_messages_sender_id_fkey (
+            full_name,
+            nickname,
+            avatar,
+            role
+          )
+        `)
+        .eq("recipient_id", student.id)
+        .gte("sent_at", session.week_start_date)
+        .lte("sent_at", session.week_end_date)
+        .order("sent_at", { ascending: true })
+
+      return {
+        ...session,
+        encouragements: encouragements || []
+      }
+    })
+  )
+
+  return { sessions: sessionsWithEncouragement }
+}
