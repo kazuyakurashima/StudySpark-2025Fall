@@ -5,8 +5,86 @@ import { redirect } from "next/navigation"
 import { headers } from "next/headers"
 
 /**
+ * 共通ログイン (メールアドレス or 学習ID + パスワード)
+ * 入力値を自動判別してログイン処理を行う
+ */
+export async function universalLogin(input: string, password: string) {
+  const supabase = await createClient()
+
+  let authData = null
+  let authError = null
+
+  // 1. まずメールアドレスとして認証を試行
+  const emailAttempt = await supabase.auth.signInWithPassword({
+    email: input,
+    password,
+  })
+
+  if (emailAttempt.data?.user) {
+    authData = emailAttempt.data
+  } else {
+    // 2. 失敗した場合、学習IDとして認証を試行
+    const studentEmail = `${input}@studyspark.local`
+    const studentAttempt = await supabase.auth.signInWithPassword({
+      email: studentEmail,
+      password,
+    })
+
+    if (studentAttempt.data?.user) {
+      authData = studentAttempt.data
+    } else {
+      authError = studentAttempt.error
+    }
+  }
+
+  // 3. 両方失敗した場合
+  if (!authData || authError) {
+    return { error: "メールアドレス／IDまたはパスワードが違います" }
+  }
+
+  // 4. プロフィール確認
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, setup_completed")
+    .eq("id", authData.user.id)
+    .single()
+
+  if (!profile) {
+    return { error: "プロフィールが見つかりません" }
+  }
+
+  // 5. ロール別リダイレクト
+  const role = profile.role
+  const setupCompleted = profile.setup_completed
+
+  // セットアップ未完了の場合
+  if (!setupCompleted) {
+    if (role === "student") {
+      redirect("/setup/avatar")
+    } else if (role === "parent") {
+      redirect("/setup/parent-avatar")
+    }
+    // coach/adminはセットアップ不要
+  }
+
+  // ロール別ダッシュボードへリダイレクト
+  if (role === "student") {
+    redirect("/student")
+  } else if (role === "parent") {
+    redirect("/parent")
+  } else if (role === "coach") {
+    redirect("/coach")
+  } else if (role === "admin") {
+    redirect("/admin")
+  }
+
+  return { error: "不明なロールです" }
+}
+
+/**
  * 生徒ログイン (ログインID + パスワード)
  * ログインIDからメールアドレスを生成して Supabase Auth で認証
+ * @deprecated universalLogin を使用してください
  */
 export async function studentLogin(loginId: string, password: string) {
   const supabase = await createClient()

@@ -1,7 +1,7 @@
 # Phase 0: 基盤整備
 
 **期間:** 2週間
-**進捗:** 78% (42/54タスク完了)
+**進捗:** 78% (47/60タスク完了)
 **状態:** 🔄 進行中
 
 > ✅ **最近の完了項目:**
@@ -280,6 +280,62 @@
   - 対応要件: `02-Requirements-Auth.md`
   - 検証: 管理者権限で全データアクセス可能
   - **備考:** Phase 1以降で実装予定
+
+---
+
+### P0-9: ログインフォーム共通化 ✅ 完了 (5/6完了)
+
+- [x] 共通ログインServer Action実装
+  - 対応要件: `02-Requirements-Auth.md`
+  - 内容: メールアドレス／学習IDの自動判別ログイン機能
+  - 実装ファイル: `app/actions/auth.ts`
+  - ロジック:
+    1. 入力値をメールとして `signInWithPassword` を試行
+    2. 失敗時は `${input}@studyspark.local` 形式で再試行（生徒ID判定）
+    3. 成功後は `profiles.role` を参照して自動リダイレクト
+  - リダイレクト先: student → /student, parent → /parent, coach → /coach
+  - setup_completed未完了時は対応するセットアップページへ
+
+- [x] ログインページUI統合
+  - 対応要件: `02-Requirements-Auth.md`
+  - 内容: 3タブ形式から1フォーム形式へ変更
+  - 実装ファイル: `app/page.tsx`
+  - UI要素:
+    - メールアドレス／学習ID 入力欄（placeholder: "例: student001 または parent@example.com"）
+    - パスワード入力欄
+    - ログインボタン
+    - サインアップリンク（保護者新規登録）
+    - パスワードリセットリンク
+  - エラー表示: 「メールアドレス／IDまたはパスワードが違います」
+  - 実装確認: ✅ 統合フォーム実装完了、デモアカウント表示維持
+
+- [x] ロール別自動リダイレクト実装
+  - 対応要件: `02-Requirements-Auth.md`
+  - 内容: 認証成功後、profiles.roleに基づいて適切なダッシュボードへ遷移
+  - 実装ファイル: `app/actions/auth.ts` (universalLogin内)
+  - 実装確認: ✅ 4ロール全対応（student/parent/coach/admin）
+
+- [x] エラーハンドリングとUX改善
+  - 対応要件: UX要件
+  - 内容: ローディング状態、エラーメッセージ、入力例表示
+  - 実装ファイル: `app/page.tsx`
+  - 実装確認: ✅ ローディング状態、汎用エラーメッセージ、ヘルプテキスト実装
+
+- [x] 既存サインアップフロー保護
+  - 対応要件: `02-Requirements-Auth.md`
+  - 内容: parentSignUp、指導者招待フロー、生徒アカウント作成APIは変更なし
+  - 検証: ✅ auth.ts内の既存関数に変更なし（@deprecated追加のみ）
+  - 確認: parentSignUp, API Route (parent-signup, reset-student-password) 影響なし
+
+- [ ] 動作確認テスト
+  - 対応要件: 全般
+  - 内容: README.md、`02-Requirements-Auth.md` に新ログイン方式を記載
+  - テスト:
+    - 生徒ID（例: student001）でログイン成功
+    - 保護者メールでログイン成功
+    - 指導者メールでログイン成功
+    - 誤入力時の適切なエラー表示
+    - setup_completed=false時のセットアップページ遷移
 
 ---
 
