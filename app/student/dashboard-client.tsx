@@ -1190,8 +1190,8 @@ export function StudentDashboardClient({ initialData }: { initialData: Dashboard
                 <CardTitle className="text-xl font-bold flex items-center gap-4">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-16 w-16 border-3 border-white/30 shadow-2xl ring-2 ring-white/20">
-                      <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
-                      <AvatarFallback className="bg-white/20 text-white font-bold text-lg">AI</AvatarFallback>
+                      <AvatarImage src={getAvatarSrc(selectedAvatar) || "/placeholder.svg"} alt={userName} />
+                      <AvatarFallback className="bg-white/20 text-white font-bold text-lg">{userName.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <span className="text-slate-800 font-bold text-xl bg-white/95 px-6 py-3 rounded-2xl shadow-xl backdrop-blur-sm">
                       AIコーチからのメッセージ
@@ -1224,8 +1224,8 @@ export function StudentDashboardClient({ initialData }: { initialData: Dashboard
                   <CardTitle className="text-xl font-bold flex items-center gap-4">
                     <div className="flex items-center gap-3">
                       <Avatar className="h-16 w-16 border-3 border-white/30 shadow-2xl ring-2 ring-white/20">
-                        <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
-                        <AvatarFallback className="bg-white/20 text-white font-bold text-lg">AI</AvatarFallback>
+                        <AvatarImage src={getAvatarSrc(selectedAvatar) || "/placeholder.svg"} alt={userName} />
+                        <AvatarFallback className="bg-white/20 text-white font-bold text-lg">{userName.charAt(0)}</AvatarFallback>
                       </Avatar>
                       <span className="text-slate-800 font-bold text-xl bg-white/95 px-6 py-3 rounded-2xl shadow-xl backdrop-blur-sm">
                         AIコーチからのメッセージ
