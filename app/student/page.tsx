@@ -11,6 +11,8 @@ import {
 } from "@/app/actions/dashboard"
 import { getRecentEncouragementMessages } from "@/app/actions/encouragement"
 
+export const dynamic = 'force-dynamic'
+
 export default async function StudentDashboard() {
   // Fetch all data in parallel on the server
   const [
