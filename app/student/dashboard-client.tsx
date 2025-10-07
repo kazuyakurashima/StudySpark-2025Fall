@@ -1012,10 +1012,17 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
     const senderProfile = msg.sender_profile
     const baseMessage = msg.message || ""
 
-    // アバターの処理：coach, ai_coach などの不適切な値を適切なデフォルトに変換
+    // アバターの処理：送信者ロールに応じて適切なデフォルトアバターを設定
     let avatarUrl = senderProfile?.avatar_url
-    if (!avatarUrl || avatarUrl === "coach" || avatarUrl === "ai_coach") {
-      avatarUrl = msg.sender_role === "parent" ? "parent1" : "parent1" // 保護者のデフォルト画像を使用
+    if (!avatarUrl || avatarUrl === "undefined" || avatarUrl === "coach" || avatarUrl === "ai_coach") {
+      // ロールに応じてデフォルトアバターを設定
+      if (msg.sender_role === "parent") {
+        avatarUrl = "parent1"
+      } else if (msg.sender_role === "coach") {
+        avatarUrl = "coach"
+      } else {
+        avatarUrl = "coach" // その他はコーチ画像
+      }
     }
 
     return {
@@ -1196,8 +1203,8 @@ export function StudentDashboardClient({ initialData }: { initialData: Dashboard
                 <CardTitle className="text-xl font-bold flex items-center gap-4">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-16 w-16 border-3 border-white/30 shadow-2xl ring-2 ring-white/20">
-                      <AvatarImage src={getAvatarSrc(selectedAvatar) || "/placeholder.svg"} alt={userName} />
-                      <AvatarFallback className="bg-white/20 text-white font-bold text-lg">{userName.charAt(0)}</AvatarFallback>
+                      <AvatarImage src={getAvatarSrc("coach") || "/placeholder.svg"} alt="AIコーチ" />
+                      <AvatarFallback className="bg-white/20 text-white font-bold text-lg">AI</AvatarFallback>
                     </Avatar>
                     <span className="text-slate-800 font-bold text-xl bg-white/95 px-6 py-3 rounded-2xl shadow-xl backdrop-blur-sm">
                       AIコーチからのメッセージ
@@ -1230,8 +1237,8 @@ export function StudentDashboardClient({ initialData }: { initialData: Dashboard
                   <CardTitle className="text-xl font-bold flex items-center gap-4">
                     <div className="flex items-center gap-3">
                       <Avatar className="h-16 w-16 border-3 border-white/30 shadow-2xl ring-2 ring-white/20">
-                        <AvatarImage src={getAvatarSrc(selectedAvatar) || "/placeholder.svg"} alt={userName} />
-                        <AvatarFallback className="bg-white/20 text-white font-bold text-lg">{userName.charAt(0)}</AvatarFallback>
+                        <AvatarImage src={getAvatarSrc("coach") || "/placeholder.svg"} alt="AIコーチ" />
+                        <AvatarFallback className="bg-white/20 text-white font-bold text-lg">AI</AvatarFallback>
                       </Avatar>
                       <span className="text-slate-800 font-bold text-xl bg-white/95 px-6 py-3 rounded-2xl shadow-xl backdrop-blur-sm">
                         AIコーチからのメッセージ
