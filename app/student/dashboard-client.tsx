@@ -1044,16 +1044,18 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
     const senderProfile = msg.sender_profile
     const baseMessage = msg.message || ""
 
-    // アバターの処理：送信者ロールに応じて適切なデフォルトアバターを設定
+    // アバターの処理：送信者プロフィールから取得、なければデフォルト
     let avatarUrl = senderProfile?.avatar_url
-    if (!avatarUrl || avatarUrl === "undefined" || avatarUrl === "coach" || avatarUrl === "ai_coach") {
+
+    // 無効なアバターURLの場合のみデフォルトを設定
+    if (!avatarUrl || avatarUrl === "undefined") {
       // ロールに応じてデフォルトアバターを設定
       if (msg.sender_role === "parent") {
-        avatarUrl = "parent1"
+        avatarUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=parent"
       } else if (msg.sender_role === "coach") {
-        avatarUrl = "coach"
+        avatarUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=coach"
       } else {
-        avatarUrl = "coach" // その他はコーチ画像
+        avatarUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=ai_coach"
       }
     }
 
