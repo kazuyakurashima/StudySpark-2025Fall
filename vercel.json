@@ -1,0 +1,15 @@
+{
+  "redirects": [
+    {
+      "source": "/:path*",
+      "destination": "https://study-spark-2025-fall.vercel.app/:path*",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "v0-character-portraits-pxamg281r-gskaz224-gmailcoms-projects.vercel.app"
+        }
+      ]
+    }
+  ]
+}
