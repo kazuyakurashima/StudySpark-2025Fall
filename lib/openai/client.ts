@@ -56,5 +56,5 @@ export function handleOpenAIError(error: unknown): string {
  * デフォルトモデル名を取得
  */
 export function getDefaultModel(): string {
-  return process.env.OPENAI_MODEL || "gpt-5-mini"
+  return process.env.OPENAI_MODEL || "gpt-5-nano"
 }

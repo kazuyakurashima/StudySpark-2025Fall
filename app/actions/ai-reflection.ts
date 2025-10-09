@@ -82,7 +82,7 @@ ${studyDetails}
 上記の学習記録に基づいて、指定された形式で3つの異なる視点から振り返り文を生成してください。`
 
     console.log("AI reflection API call starting with model:", getDefaultModel())
-    console.log("Max completion tokens: 600")
+    console.log("Max completion tokens: 300")
 
     const response = await openai.chat.completions.create({
       model: getDefaultModel(),
@@ -90,7 +90,8 @@ ${studyDetails}
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      max_completion_tokens: 600,
+      max_completion_tokens: 300,
+      temperature: 0.7,
     })
 
     console.log("API response received:", JSON.stringify({
