@@ -91,7 +91,6 @@ ${studyDetails}
         { role: "user", content: userPrompt },
       ],
       max_completion_tokens: 300,
-      temperature: 0.7,
     })
 
     console.log("API response received:", JSON.stringify({
