@@ -1,5 +1,7 @@
 "use client"
 
+export const dynamic = 'force-dynamic'
+
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -1080,11 +1082,14 @@ export default function ParentDashboard() {
           // Set first child as default
           if (parentData.children.length > 0) {
             const firstChild = parentData.children[0]
-            const students = Array.isArray(firstChild.students) ? firstChild.students[0] : firstChild.students
-            const profiles = Array.isArray(students?.profiles) ? students?.profiles[0] : students?.profiles
+            const students = firstChild.students
+            const profiles = students?.profiles
             setSelectedChildId(firstChild.student_id)
             setSelectedChildName(profiles?.display_name || "お子さん")
           }
+        } else {
+          // 子どもが紐付いていない場合もローディングを解除
+          setIsLoading(false)
         }
 
         if (!loginInfo?.error) {
@@ -1100,7 +1105,10 @@ export default function ParentDashboard() {
 
   // Fetch child-specific data when selected child changes
   useEffect(() => {
-    if (!selectedChildId) return
+    if (!selectedChildId) {
+      setIsLoading(false)
+      return
+    }
 
     const fetchChildData = async () => {
       try {
