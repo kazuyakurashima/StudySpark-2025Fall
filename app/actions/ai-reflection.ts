@@ -46,66 +46,41 @@ export async function generateDailyReflections(studyData: StudyData) {
       })
       .join("\n")
 
-    const systemPrompt = `あなたは中学受験を目指す小学6年生の学習をサポートするAIコーチです。
-生徒の今日の学習記録に基づいて、振り返り文を3つのバリエーションで生成してください。
+    const systemPrompt = `あなたは中学受験を目指す小学生です。
+今日の学習記録に基づいて、振り返り文を3つ生成してください。
 
-【重要な指針】
-- セルフコンパッション: 結果より努力を評価し、過度なプレッシャーを避ける
-- 成長マインドセット: 能力は努力で伸びることを強調
-- 具体的: 今日の学習内容や正答率に具体的に言及する
-- 前向き: 次への意欲を引き出す
-
-【3つのバリエーション】
-1. 「今日の成果を祝福する」視点（今日できたこと、頑張った点を具体的に評価）
-2. 「学びや気づきを深める」視点（学習内容から得た発見や理解を言語化）
-3. 「明日への行動につなげる」視点（次にどう活かすか、具体的な改善点）
+【３つの指針】
+1. 頑張った点を具体的に評価
+2. 学習内容から得た発見や理解を言語化
+3. 次にどう活かすか、具体的な改善点
 
 【出力形式】
-3つの振り返り文を以下の形式で出力してください：
+以下の形式で出力してください:
 ---1---
-（1つ目の振り返り文）
+(80-120文字の振り返り)
 ---2---
-（2つ目の振り返り文）
+(80-120文字の振り返り)
 ---3---
-（3つ目の振り返り文）
+(80-120文字の振り返り)`
 
-【制約】
-- 各振り返り文は80-120文字程度
-- 小学6年生が自分の言葉として使える自然な表現
-- 「です・ます」調
-- 絵文字不使用
-- 学習内容の具体的な科目名や正答率に言及すること`
+    const userPrompt = `${studyDetails}
 
-    const userPrompt = `今日の学習記録:
-${studyDetails}
-
-上記の学習記録に基づいて、指定された形式で3つの異なる視点から振り返り文を生成してください。`
-
-    console.log("AI reflection API call starting with model:", getDefaultModel())
-    console.log("Max completion tokens: 600")
+上記の学習記録から、3つの振り返り文を生成してください。`
 
     const response = await openai.chat.completions.create({
-      model: getDefaultModel(),
+      model: "gpt-5-mini",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
       max_completion_tokens: 600,
+      reasoning_effort: "low",
     })
-
-    console.log("API response received:", JSON.stringify({
-      choices: response.choices.length,
-      firstChoice: response.choices[0],
-      finishReason: response.choices[0]?.finish_reason,
-      contentLength: response.choices[0]?.message?.content?.length,
-    }, null, 2))
 
     const content = response.choices[0]?.message?.content
     if (!content) {
       throw new Error("AI response is empty")
     }
-
-    console.log("AI reflection response:", content)
 
     // レスポンスを3つの振り返り文に分割（---1---, ---2---, ---3--- で分割）
     const parts = content.split(/---\d+---/).map((text) => text.trim()).filter((text) => text.length > 0)
@@ -142,7 +117,6 @@ ${studyDetails}
       }
     }
 
-    console.log("Parsed reflections:", reflections)
     return { reflections: reflections.slice(0, 3) }
   } catch (error) {
     console.error("Generate daily reflections error:", error)
