@@ -1,243 +1,433 @@
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent } from "@/components/ui/card"
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { BarChart3, ChevronRight, ChevronDown, Target, TrendingUp, BookOpen, Heart, MessageCircle } from "lucide-react"
+import {
+  BarChart3,
+  ChevronDown,
+  ChevronRight,
+  Loader2,
+  TrendingUp,
+  AlertCircle,
+  Calendar,
+  Users,
+} from "lucide-react"
 import { CoachBottomNavigation } from "@/components/coach-bottom-navigation"
+import { getCoachStudents, type CoachStudent } from "@/app/actions/coach"
+import {
+  generateWeeklyAnalysis,
+  getStoredWeeklyAnalysis,
+  getWeeklyAnalysisData,
+} from "@/app/actions/weekly-analysis"
 
-interface AnalysisReport {
+interface WeeklyAnalysis {
   id: string
-  week: string
-  type: "intermediate" | "final"
-  executionDate: Date
-  targetWeek: string
-  categories: {
-    goalNavi: AnalysisSummary
-    achievementMap: AnalysisSummary
-    learningHistory: AnalysisSummary
-    encouragementHistory: AnalysisSummary
-    coachingHistory: AnalysisSummary
-  }
+  student_id: string
+  week_start_date: string
+  week_end_date: string
+  strengths: string
+  challenges: string
+  advice: string
+  generated_at: string
+  generated_by_batch: boolean
 }
-
-interface AnalysisSummary {
-  summary: string
-  details: {
-    byGrade?: string
-    bySubject?: string
-    trend?: string
-    suggestions?: string
-  }
-}
-
-const analysisReports: AnalysisReport[] = [
-  {
-    id: "report1",
-    week: "第4回（9/22〜9/28）",
-    type: "final",
-    executionDate: new Date("2025-10-02"),
-    targetWeek: "第4回（9/22〜9/28）",
-    categories: {
-      goalNavi: {
-        summary: "全体の目標達成率は78%で、先週比+5%の向上。算数の達成率が特に高く85%を記録。",
-        details: {
-          byGrade: "小学5年: 4.2時間、小学6年: 4.8時間",
-          bySubject: "算数: 35%, 国語: 30%, 理科: 20%, 社会: 15%",
-          trend: "朝学習を実施している生徒は週平均6時間と高い傾向。",
-          suggestions: "社会の学習時間が少ない生徒には、興味関心を引き出す教材を提案。",
-        },
-      },
-      achievementMap: {
-        summary: "週次目標の達成率は72%。小目標の設定がSMART基準を満たしている生徒ほど達成率が高い傾向。",
-        details: {
-          byGrade: "小学5年: 68%, 小学6年: 76%",
-          bySubject: "算数: 80%, 国語: 70%, 理科: 65%, 社会: 60%",
-          trend: "SMART基準を満たす目標設定をしている生徒の達成率は85%と高い。",
-          suggestions: "目標設定時にSMART基準を意識するよう指導を強化。",
-        },
-      },
-      learningHistory: {
-        summary: "週平均学習時間は4.5時間。平日の学習時間が先週比+15分増加し、習慣化が進んでいる。",
-        details: {
-          byGrade: "小学5年: 4.2時間、小学6年: 4.8時間",
-          bySubject: "算数: 35%, 国語: 30%, 理科: 20%, 社会: 15%",
-          trend: "朝学習を実施している生徒は週平均6時間と高い傾向。",
-          suggestions: "社会の学習時間が少ない生徒には、興味関心を引き出す教材を提案。",
-        },
-      },
-      encouragementHistory: {
-        summary: "応援総数は週156件。個別メッセージを受けた生徒は習慣の学習時間が平均30%増加。",
-        details: {
-          byGrade: "小学5年: 70件、小学6年: 86件",
-          bySubject: "算数: 45件、国語: 40件、理科: 35件、社会: 36件",
-          trend: "保護者からの応援が多い生徒ほど学習継続率が高い（95%）。",
-          suggestions: "応援が少ない生徒には、保護者への働きかけを強化。",
-        },
-      },
-      coachingHistory: {
-        summary: "Will設定数は週50件。SMART度の平均は3.5/5。具体性と計測可能性は高いが、時間制約の設定が不十分。",
-        details: {
-          byGrade: "小学5年: 22件、小学6年: 28件",
-          bySubject: "算数: 15件、国語: 12件、理科: 11件、社会: 12件",
-          trend: "SMART度が高いWillほど達成率が高い（SMART度4以上: 85%達成）。",
-          suggestions: "時間制約を明確にすることで達成率の向上が期待できる。",
-        },
-      },
-    },
-  },
-]
 
 export default function AnalysisPage() {
-  const [selectedReport, setSelectedReport] = useState<AnalysisReport>(analysisReports[0])
-  const [expandedCategory, setExpandedCategory] = useState<string | null>(null)
+  const [students, setStudents] = useState<CoachStudent[]>([])
+  const [selectedStudentId, setSelectedStudentId] = useState<string>("")
+  const [selectedWeek, setSelectedWeek] = useState<Date>(getLastMonday())
+  const [analysis, setAnalysis] = useState<WeeklyAnalysis | null>(null)
+  const [analysisData, setAnalysisData] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [generating, setGenerating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({
+    strengths: true,
+    challenges: true,
+    advice: true,
+  })
 
-  const categories = [
-    {
-      id: "goalNavi",
-      label: "ゴールナビのテスト結果",
-      icon: Target,
-      bgColor: "bg-blue-50 dark:bg-blue-950/20",
-      iconColor: "text-blue-600",
-    },
-    {
-      id: "achievementMap",
-      label: "達成マップの分析",
-      icon: TrendingUp,
-      bgColor: "bg-green-50 dark:bg-green-950/20",
-      iconColor: "text-green-600",
-    },
-    {
-      id: "learningHistory",
-      label: "学習履歴の分析",
-      icon: BookOpen,
-      bgColor: "bg-purple-50 dark:bg-purple-950/20",
-      iconColor: "text-purple-600",
-    },
-    {
-      id: "encouragementHistory",
-      label: "応援履歴の分析",
-      icon: Heart,
-      bgColor: "bg-pink-50 dark:bg-pink-950/20",
-      iconColor: "text-pink-600",
-    },
-    {
-      id: "coachingHistory",
-      label: "コーチング履歴の分析",
-      icon: MessageCircle,
-      bgColor: "bg-orange-50 dark:bg-orange-950/20",
-      iconColor: "text-orange-600",
-    },
-  ]
+  useEffect(() => {
+    async function loadStudents() {
+      const result = await getCoachStudents()
+      if (result.students) {
+        setStudents(result.students)
+        if (result.students.length > 0) {
+          setSelectedStudentId(result.students[0].id)
+        }
+      }
+    }
+    loadStudents()
+  }, [])
 
-  const toggleCategory = (categoryId: string) => {
-    setExpandedCategory(expandedCategory === categoryId ? null : categoryId)
+  useEffect(() => {
+    if (!selectedStudentId) return
+
+    async function loadAnalysis() {
+      setLoading(true)
+      setError(null)
+
+      const weekEnd = new Date(selectedWeek)
+      weekEnd.setDate(weekEnd.getDate() + 6)
+
+      const storedResult = await getStoredWeeklyAnalysis(selectedStudentId, selectedWeek)
+
+      if (storedResult.error) {
+        setError(storedResult.error)
+      } else if (storedResult.analysis) {
+        setAnalysis(storedResult.analysis)
+      } else {
+        setAnalysis(null)
+      }
+
+      const dataResult = await getWeeklyAnalysisData(selectedStudentId, selectedWeek, weekEnd)
+
+      if (dataResult.error) {
+        setError(dataResult.error)
+      } else {
+        setAnalysisData(dataResult)
+      }
+
+      setLoading(false)
+    }
+
+    loadAnalysis()
+  }, [selectedStudentId, selectedWeek])
+
+  async function handleGenerateAnalysis() {
+    if (!selectedStudentId) return
+
+    setGenerating(true)
+    setError(null)
+
+    const weekEnd = new Date(selectedWeek)
+    weekEnd.setDate(weekEnd.getDate() + 6)
+
+    const result = await generateWeeklyAnalysis(selectedStudentId, selectedWeek, weekEnd)
+
+    if (result.error) {
+      setError(result.error)
+    } else if (result.analysis) {
+      setAnalysis(result.analysis)
+    }
+
+    setGenerating(false)
   }
+
+  const toggleSection = (section: string) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }))
+  }
+
+  const selectedStudent = students.find((s) => s.id === selectedStudentId)
+  const weekEnd = new Date(selectedWeek)
+  weekEnd.setDate(weekEnd.getDate() + 6)
 
   return (
     <div className="min-h-screen bg-background pb-20">
       <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <BarChart3 className="h-6 w-6 text-primary" />
+        <Card className="border-l-4 border-l-primary">
+          <CardContent className="p-6">
+            <h1 className="text-2xl md:text-3xl font-bold mb-2 flex items-center gap-2">
+              <BarChart3 className="h-6 w-6 md:h-7 md:w-7" />
+              週次AI分析
+            </h1>
+            <p className="text-muted-foreground">生徒の学習状況を週単位で分析</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4 md:p-6 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  生徒選択
+                </label>
+                <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="生徒を選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {students.map((student) => (
+                      <SelectItem key={student.id} value={student.id}>
+                        {student.full_name} ({student.grade})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  分析週選択
+                </label>
+                <Select
+                  value={selectedWeek.toISOString()}
+                  onValueChange={(value) => setSelectedWeek(new Date(value))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getLast4Mondays().map((monday) => (
+                      <SelectItem key={monday.toISOString()} value={monday.toISOString()}>
+                        {formatWeekRange(monday)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold">週次AI分析レポート</h1>
-          </div>
-          <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 border-0 px-4 py-2 text-sm">
-            最終分析（木曜日）
-          </Badge>
-        </div>
+          </CardContent>
+        </Card>
 
-        {/* Report Selection */}
-        <div className="flex justify-end">
-          <Select
-            value={selectedReport.id}
-            onValueChange={(value) => {
-              const report = analysisReports.find((r) => r.id === value)
-              if (report) setSelectedReport(report)
-            }}
-          >
-            <SelectTrigger className="w-full sm:w-64">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {analysisReports.map((report) => (
-                <SelectItem key={report.id} value={report.id}>
-                  {report.week}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {error && (
+          <Card className="border-destructive">
+            <CardContent className="p-4 flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              <span>{error}</span>
+            </CardContent>
+          </Card>
+        )}
 
-        {/* Analysis Categories */}
-        <div className="space-y-4">
-          {categories.map((category) => {
-            const categoryData = selectedReport.categories[category.id as keyof typeof selectedReport.categories]
-            const isExpanded = expandedCategory === category.id
-            const Icon = category.icon
+        {loading && (
+          <Card>
+            <CardContent className="p-12 flex justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </CardContent>
+          </Card>
+        )}
 
-            return (
-              <Card
-                key={category.id}
-                className={`${category.bgColor} border-0 cursor-pointer hover:shadow-md transition-all duration-200`}
-                onClick={() => toggleCategory(category.id)}
-              >
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-4 flex-1 min-w-0">
-                      <div className={`p-3 rounded-full ${category.iconColor} bg-white dark:bg-gray-800 flex-shrink-0`}>
-                        <Icon className="h-6 w-6" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-bold mb-2">{category.label}</h3>
-                        <p className="text-sm leading-relaxed text-foreground/80">{categoryData.summary}</p>
-
-                        {/* Expanded Details */}
-                        {isExpanded && (
-                          <div className="mt-6 space-y-4 pt-4 border-t border-border/30">
-                            <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
-                              <h4 className="font-semibold text-sm mb-3">学年別</h4>
-                              <p className="text-sm text-muted-foreground">{categoryData.details.byGrade}</p>
-                            </div>
-
-                            <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
-                              <h4 className="font-semibold text-sm mb-3">科目別</h4>
-                              <p className="text-sm text-muted-foreground">{categoryData.details.bySubject}</p>
-                            </div>
-
-                            <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
-                              <h4 className="font-semibold text-sm mb-3">トレンド</h4>
-                              <p className="text-sm text-muted-foreground">{categoryData.details.trend}</p>
-                            </div>
-
-                            <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
-                              <h4 className="font-semibold text-sm mb-3">示唆・提案</h4>
-                              <p className="text-sm text-muted-foreground">{categoryData.details.suggestions}</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex-shrink-0">
-                      {isExpanded ? (
-                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                      ) : (
-                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                      )}
-                    </div>
-                  </div>
+        {!loading && selectedStudent && (
+          <>
+            {!analysis && (
+              <Card>
+                <CardContent className="p-6 text-center space-y-4">
+                  <p className="text-muted-foreground">この週の分析はまだ生成されていません</p>
+                  <Button onClick={handleGenerateAnalysis} disabled={generating}>
+                    {generating ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        分析生成中...
+                      </>
+                    ) : (
+                      <>
+                        <TrendingUp className="mr-2 h-4 w-4" />
+                        AI分析を生成
+                      </>
+                    )}
+                  </Button>
                 </CardContent>
               </Card>
-            )
-          })}
-        </div>
+            )}
+
+            {analysis && (
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-xl">
+                          {selectedStudent.full_name}さんの週次分析
+                        </CardTitle>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {formatWeekRange(selectedWeek)}
+                        </p>
+                      </div>
+                      <Badge variant={analysis.generated_by_batch ? "secondary" : "default"}>
+                        {analysis.generated_by_batch ? "自動生成" : "手動生成"}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                </Card>
+
+                <Card>
+                  <CardHeader
+                    className="cursor-pointer hover:bg-accent/50 transition-colors"
+                    onClick={() => toggleSection("strengths")}
+                  >
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-green-500" />
+                        強み・良かった点
+                      </CardTitle>
+                      {expandedSections.strengths ? (
+                        <ChevronDown className="h-5 w-5" />
+                      ) : (
+                        <ChevronRight className="h-5 w-5" />
+                      )}
+                    </div>
+                  </CardHeader>
+                  {expandedSections.strengths && (
+                    <CardContent>
+                      <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">
+                        {analysis.strengths}
+                      </p>
+                    </CardContent>
+                  )}
+                </Card>
+
+                <Card>
+                  <CardHeader
+                    className="cursor-pointer hover:bg-accent/50 transition-colors"
+                    onClick={() => toggleSection("challenges")}
+                  >
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-yellow-500" />
+                        課題・改善点
+                      </CardTitle>
+                      {expandedSections.challenges ? (
+                        <ChevronDown className="h-5 w-5" />
+                      ) : (
+                        <ChevronRight className="h-5 w-5" />
+                      )}
+                    </div>
+                  </CardHeader>
+                  {expandedSections.challenges && (
+                    <CardContent>
+                      <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">
+                        {analysis.challenges}
+                      </p>
+                    </CardContent>
+                  )}
+                </Card>
+
+                <Card>
+                  <CardHeader
+                    className="cursor-pointer hover:bg-accent/50 transition-colors"
+                    onClick={() => toggleSection("advice")}
+                  >
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-blue-500" />
+                        具体的アドバイス
+                      </CardTitle>
+                      {expandedSections.advice ? (
+                        <ChevronDown className="h-5 w-5" />
+                      ) : (
+                        <ChevronRight className="h-5 w-5" />
+                      )}
+                    </div>
+                  </CardHeader>
+                  {expandedSections.advice && (
+                    <CardContent>
+                      <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">
+                        {analysis.advice}
+                      </p>
+                    </CardContent>
+                  )}
+                </Card>
+
+                {analysisData && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">学習データサマリー</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div>
+                        <h4 className="font-semibold mb-2">学習実績</h4>
+                        <p className="text-sm text-muted-foreground">
+                          学習日数: {analysisData.study?.totalStudyDays}日
+                        </p>
+                        <div className="mt-2 space-y-1">
+                          {analysisData.study?.subjectSummary?.map((s: any) => (
+                            <div key={s.subject} className="text-sm flex justify-between">
+                              <span>{s.subject}</span>
+                              <span className="text-muted-foreground">
+                                正答率 {s.accuracy}% ({s.correctAnswers}/{s.totalProblems}問)
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="font-semibold mb-2">応援状況</h4>
+                        <p className="text-sm text-muted-foreground">
+                          総数: {analysisData.encouragement?.stats?.total}件 (保護者:{" "}
+                          {analysisData.encouragement?.stats?.byRole.parent}件、指導者:{" "}
+                          {analysisData.encouragement?.stats?.byRole.coach}件)
+                        </p>
+                      </div>
+
+                      <div>
+                        <h4 className="font-semibold mb-2">振り返り・目標</h4>
+                        <p className="text-sm text-muted-foreground">
+                          振り返り: {analysisData.reflection?.reflections?.length || 0}回 | 目標設定:{" "}
+                          {analysisData.goal?.goals?.length || 0}回
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <Card>
+                  <CardContent className="p-4 flex justify-center">
+                    <Button variant="outline" onClick={handleGenerateAnalysis} disabled={generating}>
+                      {generating ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          再生成中...
+                        </>
+                      ) : (
+                        <>
+                          <TrendingUp className="mr-2 h-4 w-4" />
+                          分析を再生成
+                        </>
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       <CoachBottomNavigation />
     </div>
   )
+}
+
+function getLastMonday(): Date {
+  const today = new Date()
+  const day = today.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  const monday = new Date(today)
+  monday.setDate(today.getDate() + diff - 7)
+  monday.setHours(0, 0, 0, 0)
+  return monday
+}
+
+function getLast4Mondays(): Date[] {
+  const mondays: Date[] = []
+  let current = getLastMonday()
+
+  for (let i = 0; i < 4; i++) {
+    mondays.push(new Date(current))
+    current = new Date(current)
+    current.setDate(current.getDate() - 7)
+  }
+
+  return mondays
+}
+
+function formatWeekRange(monday: Date): string {
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+
+  const formatter = new Intl.DateTimeFormat("ja-JP", {
+    month: "numeric",
+    day: "numeric",
+  })
+
+  return `${formatter.format(monday)} 〜 ${formatter.format(sunday)}`
 }
