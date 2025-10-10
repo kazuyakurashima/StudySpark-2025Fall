@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
-import { generateWeeklyAnalysis } from "@/app/actions/weekly-analysis"
+import { generateWeeklyAnalysisForBatch } from "@/app/actions/weekly-analysis"
 
 // Supabase Admin Client（バッチ処理用）
 function getSupabaseAdmin() {
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
         try {
           console.log(`  🔄 ${student.full_name}さんの分析を生成中... (試行 ${attempt}/${maxRetries})`)
 
-          const result = await generateWeeklyAnalysis(student.id, weekStart, weekEnd)
+          const result = await generateWeeklyAnalysisForBatch(student.id, weekStart, weekEnd)
 
           if (result.error) {
             throw new Error(result.error)
