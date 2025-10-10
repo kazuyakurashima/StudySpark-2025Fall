@@ -1,67 +1,39 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Home, Flag, Map, BookOpen, Heart, MessageCircle, X, Users } from "lucide-react"
+import { Home, Flag, Map, BookOpen, Heart, MessageCircle, X, Users, Loader2 } from "lucide-react"
 import { CoachBottomNavigation } from "@/components/coach-bottom-navigation"
-
-interface Student {
-  id: string
-  name: string
-  nickname: string
-  avatar: string
-  grade: string
-}
-
-const students: Student[] = [
-  {
-    id: "student1",
-    name: "田中太郎",
-    nickname: "たんじろう",
-    avatar: "student1",
-    grade: "小学5年",
-  },
-  {
-    id: "student2",
-    name: "佐藤花子",
-    nickname: "はなちゃん",
-    avatar: "student2",
-    grade: "小学6年",
-  },
-  {
-    id: "student3",
-    name: "鈴木次郎",
-    nickname: "じろう",
-    avatar: "student3",
-    grade: "小学5年",
-  },
-  {
-    id: "student4",
-    name: "高橋美咲",
-    nickname: "みさき",
-    avatar: "student4",
-    grade: "小学6年",
-  },
-]
+import { getCoachStudents, type CoachStudent } from "@/app/actions/coach"
 
 export default function StudentsListPage() {
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
+  const [students, setStudents] = useState<CoachStudent[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedStudent, setSelectedStudent] = useState<CoachStudent | null>(null)
   const [selectedView, setSelectedView] = useState<string | null>(null)
   const [gradeFilter, setGradeFilter] = useState<string>("all")
 
-  const getAvatarSrc = (avatarId: string) => {
-    const avatarMap: { [key: string]: string } = {
-      student1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student1-xZFJU5uXJO4DEfUbq1jbTMQUXReyM0.png",
-      student2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student2-mZ9Q9oVm43IQoRyxSYytVFYgp3JS1V.png",
-      student3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student3-teUpOKnopXNhE2vGFtvz9RWtC7O6kv.png",
-      student4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student4-pKazGXekCT1H5kzHBqmfOrM1968hML.png",
+  useEffect(() => {
+    async function loadStudents() {
+      setLoading(true)
+      const result = await getCoachStudents()
+
+      if (result.error) {
+        setError(result.error)
+      } else if (result.students) {
+        setStudents(result.students)
+      }
+
+      setLoading(false)
     }
-    return avatarMap[avatarId] || avatarMap["student1"]
-  }
+
+    loadStudents()
+  }, [])
 
   const actionButtons = [
     { id: "home", label: "ホーム", icon: Home, description: "学習カレンダー、今日のミッション！、今週の進捗など" },
@@ -72,7 +44,7 @@ export default function StudentsListPage() {
     { id: "coaching-history", label: "コーチング履歴", icon: MessageCircle, description: "コーチング履歴を閲覧" },
   ]
 
-  const handleActionClick = (student: Student, actionId: string) => {
+  const handleActionClick = (student: CoachStudent, actionId: string) => {
     setSelectedStudent(student)
     setSelectedView(actionId)
   }
@@ -87,6 +59,29 @@ export default function StudentsListPage() {
     return student.grade === gradeFilter
   })
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background pb-20 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background pb-20">
+        <div className="max-w-7xl mx-auto p-4 md:p-6">
+          <Card className="border-destructive">
+            <CardContent className="p-6 text-center">
+              <p className="text-destructive">{error}</p>
+            </CardContent>
+          </Card>
+        </div>
+        <CoachBottomNavigation />
+      </div>
+    )
+  }
+
   if (selectedStudent && selectedView) {
     return (
       <div className="min-h-screen bg-background pb-20">
@@ -97,7 +92,7 @@ export default function StudentsListPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h1 className="text-xl md:text-2xl font-bold mb-2">
-                    {selectedStudent.name}さんの{actionButtons.find((a) => a.id === selectedView)?.label}
+                    {selectedStudent.full_name}さんの{actionButtons.find((a) => a.id === selectedView)?.label}
                   </h1>
                   <p className="text-muted-foreground text-sm md:text-base">
                     {actionButtons.find((a) => a.id === selectedView)?.description}
@@ -114,7 +109,7 @@ export default function StudentsListPage() {
           <Card>
             <CardContent className="p-8 text-center">
               <p className="text-muted-foreground">
-                ここに{selectedStudent.name}さんの{actionButtons.find((a) => a.id === selectedView)?.label}
+                ここに{selectedStudent.full_name}さんの{actionButtons.find((a) => a.id === selectedView)?.label}
                 が表示されます
               </p>
             </CardContent>
@@ -172,12 +167,16 @@ export default function StudentsListPage() {
                       {/* Student Info */}
                       <div className="flex items-center gap-3 md:gap-4">
                         <Avatar className="h-14 w-14 md:h-16 md:w-16 border-2 border-border">
-                          <AvatarImage src={getAvatarSrc(student.avatar) || "/placeholder.svg"} alt={student.name} />
-                          <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
+                          <AvatarImage src={student.avatar_url || "/placeholder.svg"} alt={student.full_name} />
+                          <AvatarFallback>{student.full_name.charAt(0)}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-base md:text-lg truncate">{student.name}</div>
-                          <div className="text-sm text-muted-foreground truncate">ニックネーム: {student.nickname}</div>
+                          <div className="font-semibold text-base md:text-lg truncate">{student.full_name}</div>
+                          {student.nickname && (
+                            <div className="text-sm text-muted-foreground truncate">
+                              ニックネーム: {student.nickname}
+                            </div>
+                          )}
                           <Badge variant="secondary" className="mt-1">
                             {student.grade}
                           </Badge>
