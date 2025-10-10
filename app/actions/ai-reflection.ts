@@ -68,7 +68,7 @@ export async function generateDailyReflections(studyData: StudyData) {
 上記の学習記録から、3つの振り返り文を生成してください。`
 
     const response = await openai.chat.completions.create({
-      model: "gpt-5-mini",
+      model: getDefaultModel(),
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
