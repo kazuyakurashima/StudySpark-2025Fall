@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -9,101 +9,32 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeft, Send, Bot, TrendingUp, Calendar, BookOpen, Target, MessageSquare, Sparkles } from "lucide-react"
+import { getStudentDetail, getStudentLearningHistory, sendEncouragementToStudent } from "@/app/actions/coach"
 
-// Mock data - 実際の実装では props や API から取得
-const studentData = {
-  student1: {
-    id: "student1",
-    name: "田中太郎",
-    nickname: "たんじろう",
-    avatar: "student1",
-    class: "6A",
-    streak: 7,
-    weekRing: 8.5,
-    recentScore: 85,
-    subjects: ["算数", "国語"],
-  },
-  student2: {
-    id: "student2",
-    name: "佐藤花子",
-    nickname: "はなちゃん",
-    avatar: "student2",
-    class: "6A",
-    streak: 3,
-    weekRing: 6.8,
-    recentScore: 92,
-    subjects: ["理科", "社会"],
-  },
-  student3: {
-    id: "student3",
-    name: "鈴木次郎",
-    nickname: "じろう",
-    avatar: "student3",
-    class: "6B",
-    streak: 1,
-    weekRing: 4.2,
-    recentScore: 68,
-    subjects: ["算数"],
-  },
-  student4: {
-    id: "student4",
-    name: "高橋美咲",
-    nickname: "みさき",
-    avatar: "student4",
-    class: "6B",
-    streak: 12,
-    weekRing: 9.2,
-    recentScore: 96,
-    subjects: ["算数", "国語", "理科"],
-  },
+interface Student {
+  id: string
+  full_name: string
+  nickname: string | null
+  avatar_url: string | null
+  grade: string
+  course: string | null
+  streak: number
+  weekRing: number
+  recentScore: number
 }
 
-const learningHistory = [
-  {
-    id: "history1",
-    date: "2025-08-14",
-    time: "19:30",
-    subject: "算数",
-    understanding: "😄バッチリ理解",
-    reflection: "分数の計算がよく分かりました。特に約分のコツが掴めて嬉しいです。",
-    hasCoachResponse: true,
-    coachMessage: "約分のコツを掴めたのは素晴らしいですね！この調子で応用問題にも挑戦してみましょう。",
-    hoursAgo: 2,
-  },
-  {
-    id: "history2",
-    date: "2025-08-13",
-    time: "20:15",
-    subject: "国語",
-    understanding: "😐ふつう",
-    reflection: "漢字の読み方を練習しました。難しい漢字もありましたが、頑張りました。",
-    hasCoachResponse: false,
-    coachMessage: "",
-    hoursAgo: 26,
-  },
-  {
-    id: "history3",
-    date: "2025-08-12",
-    time: "18:45",
-    subject: "算数",
-    understanding: "😟ちょっと不安",
-    reflection: "小数の割り算が難しかったです。計算ミスが多くて困りました。",
-    hasCoachResponse: false,
-    coachMessage: "",
-    hoursAgo: 50,
-  },
-  {
-    id: "history4",
-    date: "2025-08-11",
-    time: "19:00",
-    subject: "理科",
-    understanding: "😄バッチリ理解",
-    reflection: "植物の光合成について学習しました。実験の結果が面白かったです。",
-    hasCoachResponse: true,
-    coachMessage: "実験に興味を持って取り組めているのが素晴らしいです！",
-    hoursAgo: 74,
-  },
-]
+interface StudyLog {
+  id: string
+  created_at: string
+  subject: string
+  understanding_level: number
+  reflection: string | null
+  total_questions: number
+  correct_count: number
+  hasCoachResponse: boolean
+  coachMessage: string
+  encouragementId: string | null
+}
 
 interface AIMessage {
   type: "celebrate" | "insight" | "nextstep"
@@ -116,81 +47,182 @@ export default function StudentDetailPage() {
   const router = useRouter()
   const studentId = params.id as string
 
+  const [student, setStudent] = useState<Student | null>(null)
+  const [studyLogs, setStudyLogs] = useState<StudyLog[]>([])
+  const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("all")
-  const [selectedHistory, setSelectedHistory] = useState<any>(null)
+  const [selectedHistory, setSelectedHistory] = useState<StudyLog | null>(null)
   const [aiMessages, setAiMessages] = useState<AIMessage[]>([])
   const [isGeneratingAI, setIsGeneratingAI] = useState(false)
   const [customMessage, setCustomMessage] = useState("")
 
-  const student = studentData[studentId as keyof typeof studentData]
+  useEffect(() => {
+    loadStudentData()
+  }, [studentId])
 
-  if (!student) {
-    return <div>生徒が見つかりません</div>
-  }
+  const loadStudentData = async () => {
+    setLoading(true)
 
-  const getAvatarSrc = (avatarId: string) => {
-    const avatarMap: { [key: string]: string } = {
-      student1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student1-xZFJU5uXJO4DEfUbq1jbTMQUXReyM0.png",
-      student2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student2-mZ9Q9oVm43IQoRyxSYytVFYgp3JS1V.png",
-      student3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student3-teUpOKnopXNhE2vGFtvz9RWtC7O6kv.png",
-      student4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student4-pKazGXekCT1H5kzHBqmfOrM1968hML.png",
+    // 生徒詳細を取得
+    const detailResult = await getStudentDetail(studentId)
+    if (detailResult.error) {
+      console.error(detailResult.error)
+      setLoading(false)
+      return
     }
-    return avatarMap[avatarId] || avatarMap["student1"]
+
+    setStudent(detailResult.student as Student)
+
+    // 学習履歴を取得
+    const historyResult = await getStudentLearningHistory(studentId, 30)
+    if (historyResult.error) {
+      console.error(historyResult.error)
+    } else {
+      setStudyLogs(historyResult.studyLogs as StudyLog[])
+    }
+
+    setLoading(false)
   }
 
-  const filteredHistory = activeTab === "all" ? learningHistory : learningHistory.filter((h) => !h.hasCoachResponse)
+  const getUnderstandingEmoji = (level: number) => {
+    if (level >= 4) return "😄バッチリ理解"
+    if (level === 3) return "😐ふつう"
+    return "😟ちょっと不安"
+  }
 
-  const generateAIMessages = async (historyItem: any) => {
+  const getSubjectLabel = (subject: string) => {
+    const subjectMap: Record<string, string> = {
+      math: "算数",
+      japanese: "国語",
+      science: "理科",
+      social: "社会",
+    }
+    return subjectMap[subject] || subject
+  }
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleString("ja-JP", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
+
+  const getHoursAgo = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+    return diffHours
+  }
+
+  const filteredHistory = activeTab === "all" ? studyLogs : studyLogs.filter((h) => !h.hasCoachResponse)
+
+  const generateAIMessages = async (historyItem: StudyLog) => {
     setIsGeneratingAI(true)
     setSelectedHistory(historyItem)
 
-    // Simulate AI generation delay
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    try {
+      const response = await fetch("/api/coach/encouragement-suggestions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          studentName: student?.nickname || student?.full_name || "",
+          subject: getSubjectLabel(historyItem.subject),
+          understandingLevel: historyItem.understanding_level,
+          reflection: historyItem.reflection || "",
+          correctRate: (historyItem.correct_count / historyItem.total_questions) * 100,
+          streak: student?.streak || 0,
+        }),
+      })
 
-    const messages: AIMessage[] = [
-      {
-        type: "celebrate",
-        title: "成果を称える",
-        message: `${student.nickname}さん、${historyItem.subject}の学習お疲れさまでした！${historyItem.understanding.includes("バッチリ") ? "完璧な理解ですね。" : historyItem.understanding.includes("ふつう") ? "しっかりと取り組めていますね。" : "難しい内容にもチャレンジしていて立派です。"}継続して頑張っている姿勢が素晴らしいです。`,
-      },
-      {
-        type: "insight",
-        title: "学習への気づき",
-        message: `「${historyItem.reflection}」という振り返り、とても良い観察ですね。${historyItem.subject}では${historyItem.understanding.includes("不安") ? "苦手な部分を明確にできているのが成長の証拠です。" : "理解が深まってきているのが分かります。"}この調子で自分の学習を見つめ続けてください。`,
-      },
-      {
-        type: "nextstep",
-        title: "次のステップ提案",
-        message: `${student.nickname}さんの${historyItem.subject}の取り組み、${student.streak}日連続の学習習慣が身についていますね。${historyItem.understanding.includes("不安") ? "次は基礎問題を3問だけ復習してみましょう。" : historyItem.understanding.includes("ふつう") ? "応用問題にも挑戦してみる準備ができていそうです。" : "今の理解度なら、さらに発展的な内容も楽しめそうですね。"}`,
-      },
-    ]
+      const data = await response.json()
 
-    setAiMessages(messages)
+      if (data.error || !response.ok) {
+        console.error("AI生成エラー:", data.error)
+        // フォールバック：簡易的なメッセージを生成
+        setAiMessages([
+          {
+            type: "celebrate",
+            title: "成果を称える",
+            message: `${student?.nickname || student?.full_name}さん、${getSubjectLabel(historyItem.subject)}の学習お疲れさまでした！継続して頑張っている姿勢が素晴らしいです。`,
+          },
+          {
+            type: "insight",
+            title: "学習への気づき",
+            message: `「${historyItem.reflection}」という振り返り、とても良い観察ですね。この調子で自分の学習を見つめ続けてください。`,
+          },
+          {
+            type: "nextstep",
+            title: "次のステップ提案",
+            message: `${student?.nickname || student?.full_name}さんの${getSubjectLabel(historyItem.subject)}の取り組み、継続できていますね。次も同じペースで頑張りましょう。`,
+          },
+        ])
+      } else {
+        setAiMessages(data.suggestions || [])
+      }
+    } catch (error) {
+      console.error("AI生成エラー:", error)
+      // エラー時のフォールバック
+      setAiMessages([
+        {
+          type: "celebrate",
+          title: "成果を称える",
+          message: `学習お疲れさまでした！継続して頑張っている姿勢が素晴らしいです。`,
+        },
+      ])
+    }
+
     setIsGeneratingAI(false)
   }
 
-  const sendMessage = (message: string) => {
-    console.log("Sending message to student:", {
-      studentId: student.id,
-      studentName: student.name,
-      message,
-      historyId: selectedHistory?.id,
-    })
+  const sendMessage = async (message: string) => {
+    if (!selectedHistory || !student) return
 
-    alert(`${student.nickname}さんに応援メッセージを送信しました！`)
+    const result = await sendEncouragementToStudent(student.id, selectedHistory.id, message)
 
-    // Update history item as responded
-    if (selectedHistory) {
-      const historyIndex = learningHistory.findIndex((h) => h.id === selectedHistory.id)
-      if (historyIndex !== -1) {
-        learningHistory[historyIndex].hasCoachResponse = true
-        learningHistory[historyIndex].coachMessage = message
-      }
+    if (result.error) {
+      alert(`エラー: ${result.error}`)
+      return
     }
+
+    alert(`${student.nickname || student.full_name}さんに応援メッセージを送信しました！`)
+
+    // 学習履歴を再読み込み
+    await loadStudentData()
 
     setSelectedHistory(null)
     setAiMessages([])
     setCustomMessage("")
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">読み込み中...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!student) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-lg text-muted-foreground">生徒が見つかりません</p>
+          <Button onClick={() => router.back()} className="mt-4">
+            戻る
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -203,13 +235,13 @@ export default function StudentDetailPage() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <Avatar className="h-12 w-12">
-              <AvatarImage src={getAvatarSrc(student.avatar) || "/placeholder.svg"} alt={student.name} />
-              <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
+              <AvatarImage src={student.avatar_url || "/placeholder.svg"} alt={student.full_name} />
+              <AvatarFallback>{student.full_name.charAt(0)}</AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-xl font-bold text-foreground">{student.name}</h1>
+              <h1 className="text-xl font-bold text-foreground">{student.full_name}</h1>
               <p className="text-sm text-muted-foreground">
-                ニックネーム: {student.nickname} | {student.class}
+                ニックネーム: {student.nickname || "未設定"} | {student.grade} | {student.course || "未設定"}コース
               </p>
             </div>
           </div>
@@ -241,7 +273,7 @@ export default function StudentDetailPage() {
                 </div>
                 <div>
                   <div className="text-2xl font-bold">{student.weekRing}</div>
-                  <div className="text-sm text-muted-foreground">週リング</div>
+                  <div className="text-sm text-muted-foreground">今週の学習</div>
                 </div>
               </div>
             </CardContent>
@@ -268,7 +300,7 @@ export default function StudentDetailPage() {
                   <MessageSquare className="h-5 w-5 text-orange-600" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold">{filteredHistory.filter((h) => !h.hasCoachResponse).length}</div>
+                  <div className="text-2xl font-bold">{studyLogs.filter((h) => !h.hasCoachResponse).length}</div>
                   <div className="text-sm text-muted-foreground">未応援</div>
                 </div>
               </div>
@@ -287,89 +319,99 @@ export default function StudentDetailPage() {
           <CardContent>
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList>
-                <TabsTrigger value="all">全履歴 ({learningHistory.length})</TabsTrigger>
+                <TabsTrigger value="all">全履歴 ({studyLogs.length})</TabsTrigger>
                 <TabsTrigger value="unresponded" className="relative">
-                  未応援 ({learningHistory.filter((h) => !h.hasCoachResponse).length})
-                  {learningHistory.filter((h) => !h.hasCoachResponse).length > 0 && (
+                  未応援 ({studyLogs.filter((h) => !h.hasCoachResponse).length})
+                  {studyLogs.filter((h) => !h.hasCoachResponse).length > 0 && (
                     <Badge className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5">
-                      {learningHistory.filter((h) => !h.hasCoachResponse).length}
+                      {studyLogs.filter((h) => !h.hasCoachResponse).length}
                     </Badge>
                   )}
                 </TabsTrigger>
               </TabsList>
 
               <TabsContent value="all" className="space-y-4 mt-4">
-                <div className="space-y-3">
-                  {learningHistory.map((history) => (
-                    <div
-                      key={history.id}
-                      className={`p-4 rounded-lg border-2 transition-all ${
-                        !history.hasCoachResponse
-                          ? "border-l-4 border-l-orange-500 bg-orange-50"
-                          : "border-border bg-background"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <Badge className="bg-blue-100 text-blue-800">{history.subject}</Badge>
-                            <span className="text-sm text-muted-foreground">
-                              {history.date} {history.time}
-                            </span>
-                            <span className="text-xs text-muted-foreground">{history.hoursAgo}時間前</span>
-                          </div>
-                          <div className="mb-2">
-                            <span className="text-lg mr-2">{history.understanding}</span>
-                          </div>
-                          <p className="text-sm text-foreground mb-3">{history.reflection}</p>
-                          {history.hasCoachResponse && (
-                            <div className="bg-blue-50 border-l-4 border-l-blue-500 p-3 rounded">
-                              <div className="flex items-center gap-2 mb-1">
-                                <Bot className="h-4 w-4 text-blue-600" />
-                                <span className="text-sm font-medium text-blue-800">指導者からの応援</span>
-                              </div>
-                              <p className="text-sm text-blue-700">{history.coachMessage}</p>
+                {studyLogs.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">学習履歴がありません</div>
+                ) : (
+                  <div className="space-y-3">
+                    {studyLogs.map((history) => (
+                      <div
+                        key={history.id}
+                        className={`p-4 rounded-lg border-2 transition-all ${
+                          !history.hasCoachResponse
+                            ? "border-l-4 border-l-orange-500 bg-orange-50"
+                            : "border-border bg-background"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <Badge className="bg-blue-100 text-blue-800">{getSubjectLabel(history.subject)}</Badge>
+                              <span className="text-sm text-muted-foreground">{formatDate(history.created_at)}</span>
+                              <span className="text-xs text-muted-foreground">{getHoursAgo(history.created_at)}時間前</span>
                             </div>
+                            <div className="mb-2">
+                              <span className="text-lg mr-2">{getUnderstandingEmoji(history.understanding_level)}</span>
+                              <span className="text-sm text-muted-foreground">
+                                正答率: {Math.round((history.correct_count / history.total_questions) * 100)}%
+                              </span>
+                            </div>
+                            <p className="text-sm text-foreground mb-3">{history.reflection || "振り返りなし"}</p>
+                            {history.hasCoachResponse && (
+                              <div className="bg-blue-50 border-l-4 border-l-blue-500 p-3 rounded">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Bot className="h-4 w-4 text-blue-600" />
+                                  <span className="text-sm font-medium text-blue-800">指導者からの応援</span>
+                                </div>
+                                <p className="text-sm text-blue-700">{history.coachMessage}</p>
+                              </div>
+                            )}
+                          </div>
+                          {!history.hasCoachResponse && (
+                            <Button size="sm" onClick={() => generateAIMessages(history)} className="ml-4">
+                              <Sparkles className="h-4 w-4 mr-1" />
+                              応援する
+                            </Button>
                           )}
                         </div>
-                        {!history.hasCoachResponse && (
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="unresponded" className="space-y-4 mt-4">
+                {filteredHistory.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">未応援の学習履歴がありません</div>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredHistory.map((history) => (
+                      <div key={history.id} className="p-4 rounded-lg border-l-4 border-l-orange-500 bg-orange-50">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <Badge className="bg-blue-100 text-blue-800">{getSubjectLabel(history.subject)}</Badge>
+                              <span className="text-sm text-muted-foreground">{formatDate(history.created_at)}</span>
+                              <span className="text-xs text-muted-foreground">{getHoursAgo(history.created_at)}時間前</span>
+                            </div>
+                            <div className="mb-2">
+                              <span className="text-lg mr-2">{getUnderstandingEmoji(history.understanding_level)}</span>
+                              <span className="text-sm text-muted-foreground">
+                                正答率: {Math.round((history.correct_count / history.total_questions) * 100)}%
+                              </span>
+                            </div>
+                            <p className="text-sm text-foreground">{history.reflection || "振り返りなし"}</p>
+                          </div>
                           <Button size="sm" onClick={() => generateAIMessages(history)} className="ml-4">
                             <Sparkles className="h-4 w-4 mr-1" />
                             応援する
                           </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="unresponded" className="space-y-4 mt-4">
-                <div className="space-y-3">
-                  {filteredHistory.map((history) => (
-                    <div key={history.id} className="p-4 rounded-lg border-l-4 border-l-orange-500 bg-orange-50">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <Badge className="bg-blue-100 text-blue-800">{history.subject}</Badge>
-                            <span className="text-sm text-muted-foreground">
-                              {history.date} {history.time}
-                            </span>
-                            <span className="text-xs text-muted-foreground">{history.hoursAgo}時間前</span>
-                          </div>
-                          <div className="mb-2">
-                            <span className="text-lg mr-2">{history.understanding}</span>
-                          </div>
-                          <p className="text-sm text-foreground">{history.reflection}</p>
                         </div>
-                        <Button size="sm" onClick={() => generateAIMessages(history)} className="ml-4">
-                          <Sparkles className="h-4 w-4 mr-1" />
-                          応援する
-                        </Button>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
           </CardContent>
@@ -384,7 +426,7 @@ export default function StudentDetailPage() {
                 AI応援メッセージ生成
               </CardTitle>
               <p className="text-sm text-muted-foreground">
-                {selectedHistory.subject}の学習記録に対する個別最適化された応援メッセージ
+                {getSubjectLabel(selectedHistory.subject)}の学習記録に対する個別最適化された応援メッセージ
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
