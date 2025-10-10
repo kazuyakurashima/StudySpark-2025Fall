@@ -23,12 +23,12 @@
 |---------|------|--------|------|----------|
 | **P0** | 基盤整備 | 81% (52/64) | 🔄 進行中 | [P0-foundation.md](P0-foundation.md) |
 | **P1** | 学習記録機能 | 100% (29/29) | ✅ 完了 | [P1-learning-logs.md](P1-learning-logs.md) |
-| **P2** | 応援機能 | 97% (28/29) | ✅ 実質完了 | [P2-encouragement.md](P2-encouragement.md) |
+| **P2** | 応援機能 | 100% (28/28) | ✅ 完了 | [P2-encouragement.md](P2-encouragement.md) |
 | **P3** | 目標管理・週次振り返り | 100% (26/26) | ✅ 完了 | [P3-coaching.md](P3-coaching.md) |
 | **P3+** | 追加機能強化 | 100% (2/2) | ✅ 完了 | - |
 | **P4** | 指導者分析機能 | 0% (0/18) | ⏳ 未着手 | [P4-analysis.md](P4-analysis.md) |
 | **P5** | 監査・運用機能 | 0% (0/21) | ⏳ 未着手 | [P5-operations.md](P5-operations.md) |
-| **合計** | - | **72%** (137/189) | 🔄 進行中 | - |
+| **合計** | - | **73%** (137/188) | 🔄 進行中 | - |
 
 **凡例:**
 - ✅ 完了
@@ -313,50 +313,6 @@
 - **P2-5:** Phase 2 総合テスト ✅ (2/2タスク)
   - E2Eテストスクリプト、包括的テスト結果ドキュメント
 
-### Phase 3: 目標管理・週次振り返り ✅ 完了 (100%)
-- ✅ **P3-1: ゴールナビ実装完了（6/6完了）** - **2025-10-06 16:30完了**
-  - ✅ Server Actions実装 (app/actions/goal.ts)
-  - ✅ AI対話システム実装 (lib/openai/goal-coaching.ts)
-  - ✅ プロンプト設計 (lib/openai/prompts.ts)
-  - ✅ データモデル拡張（target_course, target_class, goal_thoughts）
-  - ✅ UI実装（データベース連携、6ステップ対話チャット）
-  - ✅ API Routes実装
-
-- ✅ **P3-2: リフレクト実装完了（5/5完了）** - **2025-10-06 17:00完了**
-  - ✅ Server Actions実装 (app/actions/reflect.ts)
-    - checkReflectAvailability() - 時間制御（土曜12:00〜水曜23:59）
-    - determineWeekType() - 週タイプ判定（成長週/安定週/挑戦週/特別週）
-    - startCoachingSession() - セッション開始
-    - saveCoachingMessage() - メッセージ保存
-    - completeCoachingSession() - セッション完了
-  - ✅ AI対話システム実装 (lib/openai/reflect-coaching.ts)
-    - GROWモデル + 週タイプ別適応
-    - 3〜6往復の対話ターン制御
-    - サマリー自動生成
-  - ✅ LINEライクチャットUI (app/student/reflect/reflect-chat.tsx)
-  - ✅ メインページ実装 (app/student/reflect/page.tsx)
-  - ✅ API Routes実装 (/api/reflect/message, /api/reflect/summary)
-
-- ✅ **P3-3: 達成マップ・履歴（5/5完了）** - **2025-10-07 14:00完了**
-  - ✅ 4タブUI、GitHub風ヒートマップ、フィルター・ソート完全実装
-
-- ✅ **P3-5: AIプロンプト最適化（2/2完了）** - **2025-10-07 15:00完了**
-  - ✅ ゴールナビプロンプトレビュー（要件100%適合確認）
-  - ✅ リフレクトプロンプトレビュー（要件100%適合確認）
-  - ✅ 評価レポート作成 ([P3-5-prompt-optimization-assessment.md](P3-5-prompt-optimization-assessment.md))
-
-- ✅ **P3-4: 保護者目標・振り返り閲覧機能（2/2完了）** - **2025-10-07 16:00完了**
-  - ✅ `/app/parent/goal-navi/page.tsx` 実装（読み取り専用、子ども切り替えタブ）
-  - ✅ `/app/parent/reflect/page.tsx` 実装（AIコーチング除外、4タブUI）
-  - ✅ 保護者用Server Actions実装（10個の関数、parent_child_relations対応、RLS完全対応）
-
-- ✅ **P3-6: Phase 3 総合テスト（3/3完了）** - **2025-10-07 18:00完了**
-  - ✅ ゴールナビE2Eテスト: **5/5 PASS (100%)**
-  - ✅ リフレクトE2Eテスト: **6/6 PASS (100%)**
-  - ✅ parent.ts重大バグ修正: parent_child_relations対応完了
-
-> ✅ **Phase 3完了:** ゴールナビ、リフレクト（週次振り返りAI対話）、達成マップ・履歴（4タブUI完成）、保護者閲覧機能、AIプロンプト最適化、E2Eテスト（100%成功）
-
 ### Phase 4-5: 未着手 ⏳
-- Phase 4: 指導者分析機能 (0/13タスク)
-- Phase 5: 監査・運用機能 (0/13タスク)
+- Phase 4: 指導者分析機能 (0/18タスク)
+- Phase 5: 監査・運用機能 (0/21タスク)
