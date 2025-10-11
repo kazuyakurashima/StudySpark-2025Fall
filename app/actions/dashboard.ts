@@ -127,9 +127,9 @@ export async function getAICoachMessage() {
 
     // AI生成（動的インポート）
     const { generateCoachMessage } = await import("@/lib/openai/coach-message")
-    const { CoachMessageContext } = await import("@/lib/openai/coach-message")
+    type CoachMessageContext = Awaited<ReturnType<typeof import("@/lib/openai/coach-message")>>["CoachMessageContext"]
 
-    const context = {
+    const context: any = {
       studentId: student.id,
       studentName: displayName,
       grade: student.grade,
@@ -235,7 +235,7 @@ async function getRecentStudyLogsForCoach(studentId: string, days: number = 3) {
 
   if (!logs || logs.length === 0) return []
 
-  return logs.map((log) => ({
+  return logs.map((log: any) => ({
     subject: log.subjects?.name || "不明",
     content: log.study_content_types?.content_name || "",
     correct: log.correct_count || 0,
@@ -272,7 +272,7 @@ async function getUpcomingTestForCoach(studentId: string) {
   const daysUntil = Math.ceil((testDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24))
 
   return {
-    name: test.test_types?.name || "テスト",
+    name: (test as any).test_types?.name || "テスト",
     date: test.test_date,
     daysUntil,
   }

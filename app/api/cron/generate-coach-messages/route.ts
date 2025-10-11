@@ -97,7 +97,7 @@ export async function GET(request: Request) {
         // コンテキスト構築
         const context: CoachMessageContext = {
           studentId: studentId,
-          studentName: student.profiles?.display_name || "さん",
+          studentName: (student as any).profiles?.display_name || "さん",
           grade: student.grade,
           course: student.course,
           latestWill: willData?.will,
@@ -206,7 +206,7 @@ async function getRecentStudyLogs(studentId: string, days: number = 3) {
 
   if (!logs || logs.length === 0) return []
 
-  return logs.map((log) => ({
+  return logs.map((log: any) => ({
     subject: log.subjects?.name || "不明",
     content: log.study_content_types?.content_name || "",
     correct: log.correct_count || 0,
@@ -245,7 +245,7 @@ async function getUpcomingTest(studentId: string) {
   const daysUntil = Math.ceil((testDate.getTime() - tomorrowDate.getTime()) / (1000 * 60 * 60 * 24))
 
   return {
-    name: test.test_types?.name || "テスト",
+    name: (test as any).test_types?.name || "テスト",
     date: test.test_date,
     daysUntil,
   }
