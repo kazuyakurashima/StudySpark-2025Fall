@@ -59,7 +59,7 @@
 - [x] 削除ロジック実装 ✅ **完了**
   - 対応要件: データ保持ポリシー
   - 実装: `supabase/migrations/20251004000008_create_audit.sql`
-    - `cleanup_old_audit_logs()` - 90日以上前の監査ログを削除
+    - `cleanup_old_audit_logs()` - 365日（1年）以上前の監査ログを削除
     - `cleanup_old_ai_cache()` - 30日以上アクセスされていないキャッシュを削除
     - `cleanup_old_weekly_analysis()` - 365日以上前の週次分析を削除
     - `cleanup_old_notifications()` - 30日以上前の既読通知を削除
