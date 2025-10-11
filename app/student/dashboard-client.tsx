@@ -551,8 +551,8 @@ const TodayMissionCard = ({ todayProgress }: { todayProgress: Array<{subject: st
   }
 
   return (
-    <Card className="bg-gradient-to-br from-primary/8 to-accent/8 border-primary/30 shadow-xl">
-      <CardHeader className="pb-4">
+    <Card className="bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 border-amber-200/60 shadow-xl">
+      <CardHeader className="pb-4 bg-gradient-to-r from-amber-500/10 to-yellow-500/10 rounded-t-lg">
         <div className="flex items-center justify-between">
           <CardTitle className="text-xl font-bold flex items-center gap-3">
             <Home className="h-7 w-7 text-primary" />
@@ -736,11 +736,13 @@ const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{
   }
 
   return (
-    <Card className="bg-gradient-to-br from-purple-50 to-blue-50 border-purple/20 shadow-lg">
-      <CardHeader className="pb-4">
+    <Card className="bg-gradient-to-br from-indigo-50 via-purple-50 to-blue-50 border-indigo-200/60 shadow-xl backdrop-blur-sm">
+      <CardHeader className="pb-4 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 rounded-t-lg">
         <CardTitle className="text-lg font-bold flex items-center gap-2">
-          <BarChart3 className="h-6 w-6 text-purple-600" />
-          今週の進捗
+          <div className="p-2 bg-indigo-100 rounded-full shadow-sm">
+            <BarChart3 className="h-5 w-5 text-indigo-600" />
+          </div>
+          <span className="text-indigo-900">今週の進捗</span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -1232,23 +1234,25 @@ export function StudentDashboardClient({ initialData }: { initialData: Dashboard
         <div className="space-y-8 lg:space-y-0">
           {/* スマホでの表示順序 */}
           <div className="lg:hidden space-y-8">
-            <Card className="card-elevated ai-coach-gradient border-0 shadow-2xl premium-glow">
-              <CardHeader className="pb-6">
+            <Card className="bg-gradient-to-br from-cyan-50 via-teal-50 to-emerald-50 border-cyan-200/60 shadow-xl backdrop-blur-sm">
+              <CardHeader className="pb-6 bg-gradient-to-r from-cyan-500/10 to-teal-500/10 rounded-t-lg">
                 <CardTitle className="text-xl font-bold flex items-center gap-4">
                   <div className="flex items-center gap-3">
-                    <Avatar className="h-16 w-16 border-3 border-white/30 shadow-2xl ring-2 ring-white/20">
+                    <Avatar className="h-16 w-16 border-3 border-white shadow-xl ring-2 ring-cyan-100">
                       <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
-                      <AvatarFallback className="bg-white/20 text-white font-bold text-lg">AI</AvatarFallback>
+                      <AvatarFallback className="bg-cyan-100 text-cyan-700 font-bold text-lg">AI</AvatarFallback>
                     </Avatar>
-                    <span className="text-slate-800 font-bold text-xl bg-white/95 px-6 py-3 rounded-2xl shadow-xl backdrop-blur-sm">
+                    <span className="text-cyan-900 font-bold text-xl">
                       AIコーチからのメッセージ
                     </span>
                   </div>
-                  <MessageCircle className="h-8 w-8 text-white sophisticated-scale" />
+                  <div className="p-2 bg-cyan-100 rounded-full shadow-sm">
+                    <MessageCircle className="h-6 w-6 text-cyan-600" />
+                  </div>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border border-white/40 shadow-2xl">
+                <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border border-cyan-100 shadow-lg">
                   <p className="text-lg leading-relaxed text-slate-700 font-medium">
                     {aiCoachMessage || "今日も一緒に頑張ろう！"}
                   </p>
@@ -1266,19 +1270,21 @@ export function StudentDashboardClient({ initialData }: { initialData: Dashboard
           <div className="hidden lg:grid lg:grid-cols-3 lg:gap-8">
             {/* 左列（メイン - 2/3の幅） */}
             <div className="lg:col-span-2 space-y-8">
-              <Card className="card-elevated ai-coach-gradient border-0 shadow-2xl premium-glow">
-                <CardHeader className="pb-6">
+              <Card className="bg-gradient-to-br from-cyan-50 via-teal-50 to-emerald-50 border-cyan-200/60 shadow-xl backdrop-blur-sm">
+                <CardHeader className="pb-6 bg-gradient-to-r from-cyan-500/10 to-teal-500/10 rounded-t-lg">
                   <CardTitle className="text-xl font-bold flex items-center gap-4">
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-16 w-16 border-3 border-white/30 shadow-2xl ring-2 ring-white/20">
+                      <Avatar className="h-16 w-16 border-3 border-white shadow-xl ring-2 ring-cyan-100">
                         <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
-                        <AvatarFallback className="bg-white/20 text-white font-bold text-lg">AI</AvatarFallback>
+                        <AvatarFallback className="bg-cyan-100 text-cyan-700 font-bold text-lg">AI</AvatarFallback>
                       </Avatar>
-                      <span className="text-slate-800 font-bold text-xl bg-white/95 px-6 py-3 rounded-2xl shadow-xl backdrop-blur-sm">
+                      <span className="text-cyan-900 font-bold text-xl">
                         AIコーチからのメッセージ
                       </span>
                     </div>
-                    <MessageCircle className="h-8 w-8 text-white sophisticated-scale" />
+                    <div className="p-2 bg-cyan-100 rounded-full shadow-sm">
+                      <MessageCircle className="h-6 w-6 text-cyan-600" />
+                    </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
