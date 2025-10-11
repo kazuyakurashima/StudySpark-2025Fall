@@ -164,7 +164,6 @@ export async function generateCoachMessage(
         { role: "user", content: getUserPrompt(context) },
       ],
       max_completion_tokens: 300,
-      temperature: 0.7,
     })
 
     const message = completion.choices[0]?.message?.content?.trim()
