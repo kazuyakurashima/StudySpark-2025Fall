@@ -34,6 +34,7 @@ export async function getAvailableTests() {
   const tokyoNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Tokyo" }))
 
   // 目標設定期間内のテスト日程を取得
+  // 条件: goal_setting_start_date <= 今 <= goal_setting_end_date
   const { data: tests, error: testsError } = await supabase
     .from("test_schedules")
     .select(`
