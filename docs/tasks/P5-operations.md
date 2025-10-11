@@ -61,8 +61,8 @@
   - 実装: `supabase/migrations/20251004000008_create_audit.sql`
     - `cleanup_old_audit_logs()` - 365日（1年）以上前の監査ログを削除
     - `cleanup_old_ai_cache()` - 30日以上アクセスされていないキャッシュを削除
-    - `cleanup_old_weekly_analysis()` - 365日以上前の週次分析を削除
-    - `cleanup_old_notifications()` - 30日以上前の既読通知を削除
+    - `cleanup_old_weekly_analysis()` - 6週間以上前の週次分析を削除
+    - `cleanup_old_notifications()` - 60日以上前の既読通知を削除
     - `run_data_retention_cleanup()` - 上記すべてを一括実行するマスター関数
 
 - [ ] 学習ログの保持ポリシー実装 ⏳ **未着手**
