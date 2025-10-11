@@ -324,7 +324,7 @@
 
 - [ ] `lib/ai/openai-client.ts` 作成
   - 対応要件: AI要件
-  - 検証: API Key設定、gpt-5-mini接続確認
+  - 検証: API Key設定、gpt-4o-mini接続確認
 
 - [ ] エラーハンドリング実装 (レート制限・タイムアウト)
   - 対応要件: API利用制限

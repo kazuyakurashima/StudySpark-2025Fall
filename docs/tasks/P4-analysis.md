@@ -51,7 +51,7 @@
 - [x] AI分析プロンプト設計
   - 対応要件: `05-Requirements-Coach.md`
   - 検証: 強み・課題・具体的アドバイス生成、指導者向けトーン
-  - 実装: 5カテゴリー分析（目標、実績、学習履歴、応援、コーチング）、GPT-5-mini + reasoning_effort:"low"
+  - 実装: 5カテゴリー分析（目標、実績、学習履歴、応援、コーチング）、GPT-4o-mini + reasoning_effort:"low"
 
 - [x] 分析結果表示UI実装
   - 対応要件: `05-Requirements-Coach.md`

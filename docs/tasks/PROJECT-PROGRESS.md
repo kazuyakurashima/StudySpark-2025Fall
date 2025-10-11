@@ -178,7 +178,7 @@
 | Supabase | ✅ 実装済み | 最新 |
 | Supabase Auth | ✅ 実装済み | - |
 | Tailwind CSS | ✅ 実装済み | 4.1.9 |
-| ChatGPT API | ✅ 実装済み | GPT-5-mini |
+| ChatGPT API | ✅ 実装済み | GPT-4o-mini |
 | Radix UI | ✅ 実装済み | 各種コンポーネント |
 | react-hook-form | ✅ 実装済み | 7.60.0 |
 | zod | ✅ 実装済み | 3.25.67 |

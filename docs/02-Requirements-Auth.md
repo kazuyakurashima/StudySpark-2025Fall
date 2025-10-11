@@ -25,7 +25,7 @@
 | バックエンド  | Supabase             | 最新         |
 | 認証      | Supabase Auth        | -          |
 | UI/UX   | Tailwind CSS         | 最新         |
-| AI      | ChatGPT API          | GPT-5-mini |
+| AI      | ChatGPT API          | GPT-4o-mini |
 
 ## デザイン要件
 

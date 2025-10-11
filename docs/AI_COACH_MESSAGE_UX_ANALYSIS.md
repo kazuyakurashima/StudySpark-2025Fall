@@ -13,14 +13,14 @@ StudySparkで既に実装されているAI機能のパフォーマンス：
 
 | 機能 | モデル | トークン数 | 想定レスポンスタイム |
 |-----|-------|----------|-----------------|
-| リフレクト対話 | gpt-5-mini | 800 tokens | 2-4秒 |
-| リフレクトサマリー | gpt-5-mini | 500 tokens | 1.5-3秒 |
-| ゴールナビ対話 | gpt-5-mini | 800 tokens | 2-4秒 |
-| 応援メッセージ提案 | gpt-5-mini | 800 tokens | 2-4秒 |
-| 保護者「今日の様子」 | gpt-5-mini | 500 tokens | 1.5-3秒 |
+| リフレクト対話 | gpt-4o-mini | 800 tokens | 2-4秒 |
+| リフレクトサマリー | gpt-4o-mini | 500 tokens | 1.5-3秒 |
+| ゴールナビ対話 | gpt-4o-mini | 800 tokens | 2-4秒 |
+| 応援メッセージ提案 | gpt-4o-mini | 800 tokens | 2-4秒 |
+| 保護者「今日の様子」 | gpt-4o-mini | 500 tokens | 1.5-3秒 |
 
 **AIコーチメッセージの想定設定:**
-- モデル: `gpt-5-mini`
+- モデル: `gpt-4o-mini`
 - トークン数: `300 tokens`（要件: 60-100文字）
 - 想定レスポンスタイム: **1-2.5秒**
 
@@ -364,7 +364,7 @@ export async function GET(request: Request) {
 
 ## 💰 コスト試算
 
-### OpenAI API コスト（gpt-5-mini）
+### OpenAI API コスト（gpt-4o-mini）
 
 - 入力: $0.150 / 1M tokens
 - 出力: $0.600 / 1M tokens

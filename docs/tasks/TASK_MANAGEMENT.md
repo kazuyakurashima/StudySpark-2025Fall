@@ -240,7 +240,7 @@
   - test_resultsテーブル活用、RLS対応完了
 
 - [x] **保護者ダッシュボード「今日の様子」AI生成実装**
-  - OpenAI GPT-5-miniによる個別最適化メッセージ生成
+  - OpenAI GPT-4o-miniによる個別最適化メッセージ生成
   - lib/openai/daily-status.ts 新規作成
   - Server Action追加（getTodayStatusMessageAI）
   - キャッシュシステムでコスト削減
