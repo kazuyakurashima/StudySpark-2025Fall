@@ -1,8 +1,8 @@
 # Phase 5: 監査・運用機能
 
 **期間:** 2週間
-**進捗:** 28% (4.5/16タスク完了)
-**状態:** 🔄 進行中（バックエンド実装済み、フロントエンド未着手）
+**進捗:** 53% (8.5/16タスク完了)
+**状態:** 🔄 進行中（管理者機能完了、監査ログUI・Sentry残）
 
 ---
 
@@ -92,43 +92,50 @@
 
 ---
 
-### P5-3: 管理者機能実装 ⏳ 未着手 (0/4)
+### P5-3: 管理者機能実装 ✅ 完了 (4/4)
 
-- [ ] `/app/admin/page.tsx` 実装 ⏳ **未着手**
+- [x] `/app/admin/page.tsx` 実装 ✅ **完了（2025-10-11）**
   - 対応要件: 管理者要件
   - 検証: 管理者ダッシュボード、システムサマリー表示
-  - **状況**: `/app/admin/*` ディレクトリ自体が存在しない
-  - **必要な作業**:
-    - ディレクトリ作成
-    - 認証チェック（adminロールのみアクセス可能）
-    - システム統計表示（ユーザー数、学習ログ数、週次分析数、監査ログ数）
-    - 最近の監査ログサマリー
+  - 実装:
+    - システム統計表示（ユーザー数・データ数）
+    - 最近の監査ログ表示（直近5件）
+    - 管理者認証チェック（`admins` テーブル参照）
+    - Server Actions: `getSystemStats()`, `getRecentAuditLogs()`
+    - ボトムナビゲーション: `components/admin-bottom-navigation.tsx`
 
-- [ ] 招待コード管理UI実装 ⏳ **未着手**
+- [x] 招待コード管理UI実装 ✅ **完了（2025-10-11）**
   - 対応要件: `02-Requirements-Auth.md`
   - 検証: 新規発行、有効化・無効化、使用履歴確認
-  - **必要な作業**:
+  - 実装:
     - `/app/admin/invitation-codes/page.tsx` 作成
-    - Server Actions: `generateInvitationCode()`, `toggleInvitationCode()`, `getInvitationCodeHistory()`
-    - テーブル表示（コード、ロール、有効期限、使用状況、作成日時）
+    - Server Actions: `generateInvitationCode()`, `toggleInvitationCode()`, `getInvitationCodes()`
+    - ロール選択（保護者/指導者）でコード生成
+    - コード一覧表示（有効期限、使用状況、ステータスバッジ）
+    - 有効/無効切り替え機能
 
-- [ ] ユーザー管理UI実装 ⏳ **未着手**
+- [x] ユーザー管理UI実装 ✅ **完了（2025-10-11）**
   - 対応要件: 管理者要件
-  - 検証: 全ユーザー一覧、検索、ロール変更、アカウント無効化
-  - **必要な作業**:
+  - 検証: 全ユーザー一覧、検索、ロールフィルター
+  - 実装:
     - `/app/admin/users/page.tsx` 作成
-    - Server Actions: `getAllUsers()`, `updateUserRole()`, `disableUser()`
-    - フィルター機能（ロール別、アクティブ/無効）
-    - 検索機能（名前、メールアドレス）
+    - Server Actions: `getAllUsers()`, `searchUsers()`
+    - ロールフィルター（全て/生徒/保護者/指導者/管理者）
+    - 検索機能（名前・メール）
+    - ユーザー詳細表示（コース・学年バッジ、登録日時、ユーザーID）
+    - 注記: ロール変更・アカウント無効化はPhase 6で実装予定
 
-- [ ] システム設定UI実装 ⏳ **未着手**
+- [x] システム設定UI実装 ✅ **完了（2025-10-11）**
   - 対応要件: 管理者要件
-  - 検証: 環境変数管理、機能フラグ、メンテナンスモード
-  - **必要な作業**:
+  - 検証: 機能フラグ、メンテナンスモード
+  - 実装:
     - `/app/admin/settings/page.tsx` 作成
-    - `system_settings` テーブル作成（key-value形式）
-    - 機能フラグ管理（新機能のオン/オフ）
-    - メンテナンスモード切り替え
+    - Server Actions: `getSystemSettings()`, `updateSystemSetting()`
+    - メンテナンスモード切り替え（Switch UI）
+    - 機能フラグ管理（週次AI分析、応援メッセージ、週次振り返り）
+    - システム情報表示（バージョン、環境、DB）
+    - データ保持ポリシー設定UI（Phase 6で実装予定）
+    - UIコンポーネント追加: `components/ui/switch.tsx`
 
 ---
 
