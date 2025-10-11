@@ -361,8 +361,7 @@ export default function GoalPage() {
                             <span className="font-semibold text-white">AIコーチからのアドバイス</span>
                           </div>
                           <p className="text-white/90 leading-relaxed">
-                            {studentName}さん、今日も目標に向かって頑張ろう！まずは自分の現在の気持ちを正直に選んで、無理のない目標設定をしていこう。
-                            小さな積み重ねが大きな成果につながるよ。一緒に合格を目指そう！✨
+                            {studentName && `${studentName}さん、`}今日も目標に向かって頑張ろう！まずは自分の現在の気持ちを正直に選んで、無理のない目標設定をしていこう。小さな積み重ねが大きな成果につながるよ。一緒に合格を目指そう！✨
                           </p>
                         </div>
                       </div>
