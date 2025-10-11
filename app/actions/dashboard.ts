@@ -119,10 +119,10 @@ export async function getAICoachMessage() {
 
     // データ収集
     const [willData, logsData, streakData, testData] = await Promise.all([
-      getLatestWillAndGoal(student.id),
-      getRecentStudyLogs(student.id, 3),
+      getLatestWillAndGoalForCoach(student.id),
+      getRecentStudyLogsForCoach(student.id, 3),
       getStudyStreak(),
-      getUpcomingTest(student.id),
+      getUpcomingTestForCoach(student.id),
     ])
 
     // AI生成（動的インポート）
@@ -188,9 +188,9 @@ function getTemplateMessage(displayName: string): string {
 }
 
 /**
- * 最新のWillとGoalを取得
+ * 最新のWillとGoalを取得（AIコーチメッセージ用）
  */
-async function getLatestWillAndGoal(studentId: string): Promise<{ will?: string; goal?: string } | null> {
+async function getLatestWillAndGoalForCoach(studentId: string): Promise<{ will?: string; goal?: string } | null> {
   const supabase = await createClient()
 
   const { data } = await supabase
@@ -211,9 +211,9 @@ async function getLatestWillAndGoal(studentId: string): Promise<{ will?: string;
 }
 
 /**
- * 直近N日の学習ログ取得
+ * 直近N日の学習ログ取得（AIコーチメッセージ用）
  */
-async function getRecentStudyLogs(studentId: string, days: number = 3) {
+async function getRecentStudyLogsForCoach(studentId: string, days: number = 3) {
   const supabase = await createClient()
 
   const cutoffDate = new Date()
@@ -246,9 +246,9 @@ async function getRecentStudyLogs(studentId: string, days: number = 3) {
 }
 
 /**
- * 近日のテスト情報取得
+ * 近日のテスト情報取得（AIコーチメッセージ用）
  */
-async function getUpcomingTest(studentId: string) {
+async function getUpcomingTestForCoach(studentId: string) {
   const supabase = await createClient()
 
   const today = new Date().toISOString().split("T")[0]
