@@ -52,7 +52,7 @@ export async function getStudentDashboardData() {
 }
 
 /**
- * AIコーチメッセージ取得（テンプレート版）
+ * AIコーチメッセージ取得（AI生成版 + キャッシュ）
  */
 export async function getAICoachMessage() {
   try {
@@ -66,30 +66,215 @@ export async function getAICoachMessage() {
       return { error: "認証エラー" }
     }
 
-    // Get display name
-    const { data: profile } = await supabase.from("profiles").select("display_name").eq("id", user.id).single()
+    // 生徒情報取得
+    const { data: student } = await supabase
+      .from("students")
+      .select("id, user_id, grade, course")
+      .eq("user_id", user.id)
+      .single()
+
+    if (!student) {
+      return { error: "生徒情報が見つかりません" }
+    }
+
+    // プロフィール取得
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", user.id)
+      .single()
 
     const displayName = profile?.display_name || "さん"
 
-    // 時間帯別テンプレートメッセージ
-    const hour = new Date().getHours()
-    let message = ""
+    // キャッシュキー生成（日付ベース）
+    const today = new Date()
+    const dateStr = today.toISOString().split("T")[0] // YYYY-MM-DD
+    const cacheKey = `daily_coach_${student.id}_${dateStr}`
 
-    if (hour >= 0 && hour < 12) {
-      // 朝（0:00-11:59）
-      message = `おはよう、${displayName}！今日も一緒に頑張ろう✨`
-    } else if (hour >= 12 && hour < 18) {
-      // 昼（12:00-17:59）
-      message = `おかえり、${displayName}！今日も学習を続けよう！`
-    } else {
-      // 夕（18:00-23:59）
-      message = `今日もお疲れさま、${displayName}！明日も一緒に頑張ろう！`
+    // キャッシュチェック
+    const { data: cached } = await supabase
+      .from("ai_cache")
+      .select("cached_content, hit_count")
+      .eq("cache_key", cacheKey)
+      .eq("cache_type", "coach_message")
+      .single()
+
+    if (cached) {
+      // キャッシュヒット - ヒットカウント更新
+      await supabase
+        .from("ai_cache")
+        .update({
+          hit_count: cached.hit_count + 1,
+          last_accessed_at: new Date().toISOString(),
+        })
+        .eq("cache_key", cacheKey)
+
+      const message = JSON.parse(cached.cached_content) as string
+      console.log(`[Coach Message] Cache HIT: ${cacheKey}`)
+      return { message }
     }
 
-    return { message }
+    // キャッシュミス - AI生成
+    console.log(`[Coach Message] Cache MISS: ${cacheKey}, generating...`)
+
+    // データ収集
+    const [willData, logsData, streakData, testData] = await Promise.all([
+      getLatestWillAndGoal(student.id),
+      getRecentStudyLogs(student.id, 3),
+      getStudyStreak(),
+      getUpcomingTest(student.id),
+    ])
+
+    // AI生成（動的インポート）
+    const { generateCoachMessage } = await import("@/lib/openai/coach-message")
+    const { CoachMessageContext } = await import("@/lib/openai/coach-message")
+
+    const context = {
+      studentId: student.id,
+      studentName: displayName,
+      grade: student.grade,
+      course: student.course,
+      latestWill: willData?.will,
+      latestGoal: willData?.goal,
+      recentLogs: logsData || [],
+      upcomingTest: testData || undefined,
+      studyStreak: typeof streakData?.streak === "number" ? streakData.streak : 0,
+    }
+
+    const result = await generateCoachMessage(context)
+
+    if (!result.success) {
+      // AI生成失敗 → フォールバック（テンプレート）
+      console.warn(`[Coach Message] AI generation failed: ${result.error}`)
+      return { message: getTemplateMessage(displayName) }
+    }
+
+    // キャッシュ保存
+    await supabase.from("ai_cache").insert({
+      cache_key: cacheKey,
+      cache_type: "coach_message",
+      cached_content: JSON.stringify(result.message),
+    })
+
+    console.log(`[Coach Message] AI generated and cached: ${cacheKey}`)
+    return { message: result.message }
   } catch (error) {
     console.error("Get AI coach message error:", error)
-    return { error: "予期しないエラーが発生しました" }
+
+    // エラー時フォールバック
+    const { data: profile } = await (await createClient())
+      .from("profiles")
+      .select("display_name")
+      .eq("id", (await (await createClient()).auth.getUser()).data.user?.id || "")
+      .single()
+
+    return { message: getTemplateMessage(profile?.display_name || "さん") }
+  }
+}
+
+/**
+ * テンプレートメッセージ（フォールバック用）
+ */
+function getTemplateMessage(displayName: string): string {
+  const hour = new Date().getHours()
+
+  if (hour >= 0 && hour < 12) {
+    return `おはよう、${displayName}！今日も一緒に頑張ろう✨`
+  } else if (hour >= 12 && hour < 18) {
+    return `おかえり、${displayName}！今日も学習を続けよう！`
+  } else {
+    return `今日もお疲れさま、${displayName}！明日も一緒に頑張ろう！`
+  }
+}
+
+/**
+ * 最新のWillとGoalを取得
+ */
+async function getLatestWillAndGoal(studentId: string): Promise<{ will?: string; goal?: string } | null> {
+  const supabase = await createClient()
+
+  const { data } = await supabase
+    .from("weekly_analysis")
+    .select("growth_areas, challenges")
+    .eq("student_id", studentId)
+    .order("week_start_date", { ascending: false })
+    .limit(1)
+    .single()
+
+  if (!data) return null
+
+  // growth_areasとchallengesからWill/Goal抽出（簡易版）
+  return {
+    will: data.growth_areas || undefined,
+    goal: data.challenges || undefined,
+  }
+}
+
+/**
+ * 直近N日の学習ログ取得
+ */
+async function getRecentStudyLogs(studentId: string, days: number = 3) {
+  const supabase = await createClient()
+
+  const cutoffDate = new Date()
+  cutoffDate.setDate(cutoffDate.getDate() - days)
+
+  const { data: logs } = await supabase
+    .from("study_logs")
+    .select(`
+      correct_count,
+      total_problems,
+      study_date,
+      subjects (name),
+      study_content_types (content_name)
+    `)
+    .eq("student_id", studentId)
+    .gte("study_date", cutoffDate.toISOString().split("T")[0])
+    .order("study_date", { ascending: false })
+    .limit(20)
+
+  if (!logs || logs.length === 0) return []
+
+  return logs.map((log) => ({
+    subject: log.subjects?.name || "不明",
+    content: log.study_content_types?.content_name || "",
+    correct: log.correct_count || 0,
+    total: log.total_problems || 0,
+    accuracy: log.total_problems > 0 ? Math.round((log.correct_count / log.total_problems) * 100) : 0,
+    date: log.study_date || "",
+  }))
+}
+
+/**
+ * 近日のテスト情報取得
+ */
+async function getUpcomingTest(studentId: string) {
+  const supabase = await createClient()
+
+  const today = new Date().toISOString().split("T")[0]
+
+  const { data: test } = await supabase
+    .from("test_goals")
+    .select(`
+      test_date,
+      test_types (name)
+    `)
+    .eq("student_id", studentId)
+    .gte("test_date", today)
+    .order("test_date", { ascending: true })
+    .limit(1)
+    .single()
+
+  if (!test) return null
+
+  const testDate = new Date(test.test_date)
+  const todayDate = new Date(today)
+  const daysUntil = Math.ceil((testDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24))
+
+  return {
+    name: test.test_types?.name || "テスト",
+    date: test.test_date,
+    daysUntil,
   }
 }
 

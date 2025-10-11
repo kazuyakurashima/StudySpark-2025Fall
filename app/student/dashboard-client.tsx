@@ -40,15 +40,41 @@ interface DashboardData {
 }
 
 function getGreetingMessage(userName: string, lastLoginInfo: { lastLoginDays: number | null, lastLoginHours: number, isFirstTime: boolean } | null) {
+  // 初回ログインパターン（3種類）
+  const firstTimeGreetings = [
+    `はじめまして、${userName}さん`,
+    `ようこそ、${userName}さん`,
+    `これからよろしくね、${userName}さん`
+  ]
+
+  // 24時間以内の再ログインパターン（4種類）
+  const recentGreetings = [
+    `おかえりなさい、${userName}さん`,
+    `また会えたね、${userName}さん`,
+    `こんにちは、${userName}さん`,
+    `お待ちしてたよ、${userName}さん`
+  ]
+
+  // 24時間以上ぶりのログインパターン（3種類）
+  const longTimeGreetings = [
+    `お久しぶり、${userName}さん`,
+    `待ってたよ、${userName}さん`,
+    `また一緒に頑張ろう、${userName}さん`
+  ]
+
+  // 日付ベースでランダムパターンを選択（同じ日は同じメッセージ）
+  const today = new Date().toISOString().split('T')[0]
+  const seed = today.split('-').reduce((acc, val) => acc + parseInt(val), 0)
+
   if (!lastLoginInfo || lastLoginInfo.isFirstTime || lastLoginInfo.lastLoginDays === 0) {
-    return `はじめまして、${userName}さん`
+    return firstTimeGreetings[seed % firstTimeGreetings.length]
   }
 
   if (lastLoginInfo.lastLoginHours < 24) {
-    return `おかえりなさい、${userName}さん`
+    return recentGreetings[seed % recentGreetings.length]
   }
 
-  return `お久しぶり、${userName}さん`
+  return longTimeGreetings[seed % longTimeGreetings.length]
 }
 
 const getAvatarSrc = (avatarId?: string) => {
@@ -1215,7 +1241,6 @@ export function StudentDashboardClient({ initialData }: { initialData: Dashboard
             </Avatar>
             <div>
               <h1 className="text-3xl font-bold text-foreground tracking-tight">{greetingMessage}</h1>
-              <p className="text-lg text-muted-foreground mt-1 font-medium">今日も一緒にがんばろう！</p>
             </div>
           </div>
           <div className="text-right">
