@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Key, Users, Settings } from "lucide-react"
+import { LayoutDashboard, Key, Users, Settings, ScrollText } from "lucide-react"
 
 export default function AdminBottomNavigation() {
   const pathname = usePathname()
@@ -15,13 +15,19 @@ export default function AdminBottomNavigation() {
       active: pathname === "/admin",
     },
     {
+      name: "監査ログ",
+      href: "/admin/audit-logs",
+      icon: ScrollText,
+      active: pathname === "/admin/audit-logs",
+    },
+    {
       name: "招待コード",
       href: "/admin/invitation-codes",
       icon: Key,
       active: pathname === "/admin/invitation-codes",
     },
     {
-      name: "ユーザー管理",
+      name: "ユーザー",
       href: "/admin/users",
       icon: Users,
       active: pathname === "/admin/users",
@@ -37,7 +43,7 @@ export default function AdminBottomNavigation() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="grid grid-cols-4 gap-1">
+        <div className="grid grid-cols-5 gap-1">
           {navItems.map((item) => {
             const Icon = item.icon
             return (

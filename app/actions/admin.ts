@@ -131,6 +131,51 @@ export async function getRecentAuditLogs(limit = 10) {
 }
 
 /**
+ * 監査ログを検索・フィルター取得
+ */
+export async function getAuditLogs(params?: {
+  tableName?: string
+  operation?: string
+  userId?: string
+  limit?: number
+  offset?: number
+}) {
+  const authResult = await getAuthenticatedAdmin()
+  if (authResult.error) {
+    return { error: authResult.error }
+  }
+
+  const { supabase } = authResult
+  const { tableName, operation, userId, limit = 50, offset = 0 } = params || {}
+
+  let query = supabase
+    .from("audit_logs")
+    .select("*", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  // フィルター適用
+  if (tableName) {
+    query = query.eq("table_name", tableName)
+  }
+  if (operation) {
+    query = query.eq("operation", operation)
+  }
+  if (userId) {
+    query = query.eq("user_id", userId)
+  }
+
+  const { data: logs, error, count } = await query
+
+  if (error) {
+    console.error("Failed to get audit logs:", error)
+    return { error: "監査ログの取得に失敗しました" }
+  }
+
+  return { logs, count }
+}
+
+/**
  * 招待コード一覧を取得
  */
 export async function getInvitationCodes() {
