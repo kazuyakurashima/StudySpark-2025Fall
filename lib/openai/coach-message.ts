@@ -163,7 +163,7 @@ export async function generateCoachMessage(
         { role: "system", content: getSystemPrompt() },
         { role: "user", content: getUserPrompt(context) },
       ],
-      max_completion_tokens: 200, // gpt-4o-mini用に最適化（60-100文字メッセージ）
+      max_completion_tokens: 500, // 60-100文字メッセージ + 複雑なケースの余裕
     })
 
     const message = completion.choices[0]?.message?.content?.trim()
