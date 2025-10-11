@@ -225,3 +225,148 @@ export async function toggleInvitationCode(codeId: string) {
 
   return { success: true }
 }
+
+/**
+ * 全ユーザー一覧を取得（ロール別）
+ */
+export async function getAllUsers() {
+  const authResult = await getAuthenticatedAdmin()
+  if (authResult.error) {
+    return { error: authResult.error }
+  }
+
+  const { supabase } = authResult
+
+  try {
+    // 各ロールのユーザー情報を取得
+    const [students, parents, coaches, admins] = await Promise.all([
+      supabase
+        .from("students")
+        .select("id, user_id, login_id, display_name, grade, course, created_at")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("parents")
+        .select("id, user_id, display_name, email, created_at")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("coaches")
+        .select("id, user_id, full_name, email, created_at")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("admins")
+        .select("id, user_id, full_name, email, created_at")
+        .order("created_at", { ascending: false }),
+    ])
+
+    // 各ユーザーにrole情報を追加
+    const allUsers = [
+      ...(students.data || []).map((u) => ({ ...u, role: "student" as const })),
+      ...(parents.data || []).map((u) => ({ ...u, role: "parent" as const })),
+      ...(coaches.data || []).map((u) => ({ ...u, role: "coach" as const })),
+      ...(admins.data || []).map((u) => ({ ...u, role: "admin" as const })),
+    ]
+
+    // created_atでソート
+    allUsers.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
+    return { users: allUsers }
+  } catch (error) {
+    console.error("Failed to get all users:", error)
+    return { error: "ユーザー一覧の取得に失敗しました" }
+  }
+}
+
+/**
+ * ユーザー検索
+ */
+export async function searchUsers(query: string) {
+  const authResult = await getAuthenticatedAdmin()
+  if (authResult.error) {
+    return { error: authResult.error }
+  }
+
+  const { supabase } = authResult
+
+  try {
+    // 各テーブルで検索
+    const [students, parents, coaches, admins] = await Promise.all([
+      supabase
+        .from("students")
+        .select("id, user_id, login_id, display_name, grade, course, created_at")
+        .or(`login_id.ilike.%${query}%,display_name.ilike.%${query}%`),
+      supabase
+        .from("parents")
+        .select("id, user_id, display_name, email, created_at")
+        .or(`display_name.ilike.%${query}%,email.ilike.%${query}%`),
+      supabase
+        .from("coaches")
+        .select("id, user_id, full_name, email, created_at")
+        .or(`full_name.ilike.%${query}%,email.ilike.%${query}%`),
+      supabase
+        .from("admins")
+        .select("id, user_id, full_name, email, created_at")
+        .or(`full_name.ilike.%${query}%,email.ilike.%${query}%`),
+    ])
+
+    const allUsers = [
+      ...(students.data || []).map((u) => ({ ...u, role: "student" as const })),
+      ...(parents.data || []).map((u) => ({ ...u, role: "parent" as const })),
+      ...(coaches.data || []).map((u) => ({ ...u, role: "coach" as const })),
+      ...(admins.data || []).map((u) => ({ ...u, role: "admin" as const })),
+    ]
+
+    allUsers.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
+    return { users: allUsers }
+  } catch (error) {
+    console.error("Failed to search users:", error)
+    return { error: "ユーザー検索に失敗しました" }
+  }
+}
+
+/**
+ * システム設定を取得
+ */
+export async function getSystemSettings() {
+  const authResult = await getAuthenticatedAdmin()
+  if (authResult.error) {
+    return { error: authResult.error }
+  }
+
+  const { supabase } = authResult
+
+  const { data: settings, error } = await supabase
+    .from("system_settings")
+    .select("*")
+    .order("key", { ascending: true })
+
+  if (error) {
+    console.error("Failed to get system settings:", error)
+    return { error: "システム設定の取得に失敗しました" }
+  }
+
+  return { settings: settings || [] }
+}
+
+/**
+ * システム設定を更新
+ */
+export async function updateSystemSetting(key: string, value: string) {
+  const authResult = await getAuthenticatedAdmin()
+  if (authResult.error) {
+    return { error: authResult.error }
+  }
+
+  const { supabase } = authResult
+
+  const { error } = await supabase
+    .from("system_settings")
+    .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: "key" })
+
+  if (error) {
+    console.error("Failed to update system setting:", error)
+    return { error: "システム設定の更新に失敗しました" }
+  }
+
+  return { success: true }
+}
