@@ -1086,7 +1086,7 @@ export function SparkClient({ initialData, preselectedSubject }: SparkClientProp
                     setAiReflections([])
                   }}
                   variant="outline"
-                  className="h-auto p-6 text-left border-2 border-slate-200 hover:border-purple-400 hover:bg-purple-50/70 transition-all duration-300 rounded-xl shadow-lg hover:shadow-xl"
+                  className="h-auto w-full whitespace-normal p-6 text-left border-2 border-slate-200 hover:border-purple-400 hover:bg-purple-50/70 transition-all duration-300 rounded-xl shadow-lg hover:shadow-xl"
                 >
                   <div>
                     <div className="font-bold text-lg text-slate-800">今日の振り返りをする</div>
@@ -1102,18 +1102,18 @@ export function SparkClient({ initialData, preselectedSubject }: SparkClientProp
                     generateAIReflections()
                   }}
                   variant="outline"
-                  className="h-auto p-6 text-left border-2 border-slate-200 hover:border-blue-400 hover:bg-blue-50/70 transition-all duration-300 rounded-xl shadow-lg hover:shadow-xl"
+                  className="h-auto w-full whitespace-normal p-6 text-left border-2 border-slate-200 hover:border-blue-400 hover:bg-blue-50/70 transition-all duration-300 rounded-xl shadow-lg hover:shadow-xl"
                 >
                   <div className="flex items-start gap-4">
-                    <Avatar className="h-12 w-12 border-2 border-blue-200 shadow-lg">
+                    <Avatar className="h-12 w-12 border-2 border-blue-200 shadow-lg flex-shrink-0">
                       <AvatarImage src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png" />
                       <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-bold">
                         <Bot className="h-6 w-6" />
                       </AvatarFallback>
                     </Avatar>
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <div className="font-bold text-lg text-slate-800">今日の振り返りを生成</div>
-                      <div className="text-base text-slate-600 mt-2">AIコーチが学習記録に基づいた3つの選択肢を作成</div>
+                      <div className="text-base text-slate-600 mt-2 break-words">AIコーチが学習記録に基づいた3つの選択肢を作成</div>
                     </div>
                   </div>
                 </Button>

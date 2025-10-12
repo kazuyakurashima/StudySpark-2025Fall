@@ -12,11 +12,12 @@ interface AchievementMapProps {
 }
 
 export function AchievementMap({ studentGrade, studentCourse }: AchievementMapProps) {
-  const [selectedSubject, setSelectedSubject] = useState("math")
+  const [selectedSubject, setSelectedSubject] = useState("all")
   const [mapData, setMapData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   const subjects = [
+    { id: "all", name: "全科目", color: "bg-slate-500" },
     { id: "math", name: "算数", color: "bg-blue-500" },
     { id: "japanese", name: "国語", color: "bg-pink-500" },
     { id: "science", name: "理科", color: "bg-orange-500" },
@@ -31,24 +32,41 @@ export function AchievementMap({ studentGrade, studentCourse }: AchievementMapPr
     setLoading(true)
     const result = await getAchievementMapData()
     if (!result.error && result.logs) {
-      // 選択された科目でフィルター
-      const subjectMap: Record<string, string> = {
-        math: "算数",
-        japanese: "国語",
-        science: "理科",
-        social: "社会",
+      // 全科目が選択された場合は全てのデータを使用
+      if (selectedSubject === "all") {
+        setMapData(result.logs)
+      } else {
+        // 選択された科目でフィルター
+        const subjectMap: Record<string, string> = {
+          math: "算数",
+          japanese: "国語",
+          science: "理科",
+          social: "社会",
+        }
+        const subjectName = subjectMap[selectedSubject]
+        const filteredLogs = result.logs.filter(
+          (log: any) => log.subjects?.name === subjectName
+        )
+        setMapData(filteredLogs)
       }
-      const subjectName = subjectMap[selectedSubject]
-      const filteredLogs = result.logs.filter(
-        (log: any) => log.subjects?.name === subjectName
-      )
-      setMapData(filteredLogs)
     }
     setLoading(false)
   }
 
-  const getAccuracyColor = (accuracy: number, baseColor: string) => {
+  const getAccuracyColor = (accuracy: number, baseColor: string, subjectName?: string) => {
     if (accuracy === 0) return "bg-gray-100"
+
+    // 全科目表示の場合、科目名から色を決定
+    let actualColor = baseColor
+    if (selectedSubject === "all" && subjectName) {
+      const subjectColorMap: Record<string, string> = {
+        "算数": "bg-blue-500",
+        "国語": "bg-pink-500",
+        "理科": "bg-orange-500",
+        "社会": "bg-emerald-500",
+      }
+      actualColor = subjectColorMap[subjectName] || "bg-slate-500"
+    }
 
     // 科目別カラーの濃淡
     const colorMap: Record<string, { light: string; medium: string; dark: string }> = {
@@ -72,9 +90,14 @@ export function AchievementMap({ studentGrade, studentCourse }: AchievementMapPr
         medium: "bg-emerald-400",
         dark: "bg-emerald-600",
       },
+      "bg-slate-500": {
+        light: "bg-slate-200",
+        medium: "bg-slate-400",
+        dark: "bg-slate-600",
+      },
     }
 
-    const colors = colorMap[baseColor]
+    const colors = colorMap[actualColor]
     if (accuracy < 50) return colors.light
     if (accuracy < 80) return colors.medium
     return colors.dark
@@ -83,6 +106,7 @@ export function AchievementMap({ studentGrade, studentCourse }: AchievementMapPr
   // 学習回ごとにデータをグループ化
   const groupedData = mapData.reduce((acc: any, log: any) => {
     const sessionNum = log.study_sessions?.session_number || log.session_id
+    const subjectName = log.subjects?.name || ""
     const contentName = log.study_content_types?.content_name || ""
     const accuracy =
       log.total_problems > 0
@@ -92,7 +116,10 @@ export function AchievementMap({ studentGrade, studentCourse }: AchievementMapPr
     if (!acc[sessionNum]) {
       acc[sessionNum] = {}
     }
-    acc[sessionNum][contentName] = accuracy
+
+    // 全科目表示の場合は「科目名 - 学習内容」をキーにする
+    const key = selectedSubject === "all" ? `${subjectName} - ${contentName}` : contentName
+    acc[sessionNum][key] = { accuracy, subjectName }
 
     return acc
   }, {})
@@ -128,9 +155,9 @@ export function AchievementMap({ studentGrade, studentCourse }: AchievementMapPr
       </CardHeader>
       <CardContent>
         <Tabs value={selectedSubject} onValueChange={setSelectedSubject}>
-          <TabsList className="grid grid-cols-4 mb-6">
+          <TabsList className="grid grid-cols-3 sm:grid-cols-5 mb-6 w-full">
             {subjects.map((subject) => (
-              <TabsTrigger key={subject.id} value={subject.id}>
+              <TabsTrigger key={subject.id} value={subject.id} className="text-xs sm:text-sm">
                 {subject.name}
               </TabsTrigger>
             ))}
@@ -149,36 +176,58 @@ export function AchievementMap({ studentGrade, studentCourse }: AchievementMapPr
               ) : (
                 <div className="space-y-4">
                   {/* ヒートマップの凡例 */}
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="text-muted-foreground">正答率:</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 bg-gray-100 border rounded"></div>
-                      <span>0%</span>
+                  {subject.id === "all" ? (
+                    <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm">
+                      <span className="text-muted-foreground font-semibold">科目:</span>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-3 h-3 sm:w-4 sm:h-4 bg-blue-500 rounded"></div>
+                        <span>算数</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-3 h-3 sm:w-4 sm:h-4 bg-pink-500 rounded"></div>
+                        <span>国語</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-3 h-3 sm:w-4 sm:h-4 bg-orange-500 rounded"></div>
+                        <span>理科</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-3 h-3 sm:w-4 sm:h-4 bg-emerald-500 rounded"></div>
+                        <span>社会</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className={`w-4 h-4 ${getAccuracyColor(25, subject.color)} rounded`}></div>
-                      <span>0-50%</span>
+                  ) : (
+                    <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm">
+                      <span className="text-muted-foreground font-semibold">正答率:</span>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-3 h-3 sm:w-4 sm:h-4 bg-gray-100 border rounded"></div>
+                        <span>0%</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className={`w-3 h-3 sm:w-4 sm:h-4 ${getAccuracyColor(25, subject.color)} rounded`}></div>
+                        <span>0-50%</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className={`w-3 h-3 sm:w-4 sm:h-4 ${getAccuracyColor(65, subject.color)} rounded`}></div>
+                        <span>50-80%</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className={`w-3 h-3 sm:w-4 sm:h-4 ${getAccuracyColor(90, subject.color)} rounded`}></div>
+                        <span>80-100%</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className={`w-4 h-4 ${getAccuracyColor(65, subject.color)} rounded`}></div>
-                      <span>50-80%</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className={`w-4 h-4 ${getAccuracyColor(90, subject.color)} rounded`}></div>
-                      <span>80-100%</span>
-                    </div>
-                  </div>
+                  )}
 
                   {/* ヒートマップグリッド */}
                   <div className="overflow-x-auto">
                     <table className="w-full border-collapse">
                       <thead>
                         <tr>
-                          <th className="text-left text-sm font-semibold p-2 border-b">学習回</th>
+                          <th className="sticky left-0 bg-white z-10 text-left text-xs sm:text-sm font-semibold p-1 sm:p-2 border-b">学習回</th>
                           {/* 学習内容の列ヘッダー（動的に生成） */}
                           {Array.from(allContentNames).map((contentName) => (
-                            <th key={contentName} className="text-center text-xs font-semibold p-2 border-b">
-                              {contentName}
+                            <th key={contentName} className="text-center text-[10px] sm:text-xs font-semibold p-1 sm:p-2 border-b min-w-[60px] sm:min-w-[80px]">
+                              <div className="break-words">{contentName}</div>
                             </th>
                           ))}
                         </tr>
@@ -188,25 +237,28 @@ export function AchievementMap({ studentGrade, studentCourse }: AchievementMapPr
                           .sort((a, b) => Number(a) - Number(b))
                           .map((sessionNum) => (
                             <tr key={sessionNum}>
-                              <td className="text-sm font-medium p-2 border-b">第{sessionNum}回</td>
+                              <td className="sticky left-0 bg-white z-10 text-xs sm:text-sm font-medium p-1 sm:p-2 border-b whitespace-nowrap">第{sessionNum}回</td>
                               {Array.from(allContentNames).map((contentName) => {
-                                const accuracy = allSessions[sessionNum][contentName]
+                                const cellData = allSessions[sessionNum][contentName]
+                                const accuracy = cellData?.accuracy ?? null
+                                const subjectName = cellData?.subjectName
                                 return (
-                                  <td key={contentName} className="p-2 border-b">
+                                  <td key={contentName} className="p-1 sm:p-2 border-b">
                                     <div className="flex justify-center">
                                       {accuracy === null ? (
-                                        <div className="w-12 h-12 bg-gray-50 border-2 border-dashed border-gray-200 rounded flex items-center justify-center">
-                                          <span className="text-gray-300 text-xs">-</span>
+                                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-50 border-2 border-dashed border-gray-200 rounded flex items-center justify-center">
+                                          <span className="text-gray-300 text-[10px] sm:text-xs">-</span>
                                         </div>
                                       ) : (
                                         <div
-                                          className={`w-12 h-12 ${getAccuracyColor(
+                                          className={`w-10 h-10 sm:w-12 sm:h-12 ${getAccuracyColor(
                                             accuracy,
-                                            subject.color
-                                          )} rounded flex items-center justify-center text-xs font-semibold ${
+                                            subject.color,
+                                            subjectName
+                                          )} rounded flex items-center justify-center text-[10px] sm:text-xs font-semibold ${
                                             accuracy >= 50 ? "text-white" : "text-gray-700"
                                           }`}
-                                          title={`${accuracy}%`}
+                                          title={`${subjectName ? subjectName + ': ' : ''}${accuracy}%`}
                                         >
                                           {accuracy}%
                                         </div>
