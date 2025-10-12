@@ -29,6 +29,9 @@ import {
   History,
   Bot,
 } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+
+const AVATAR_AI_COACH = "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png"
 
 export default function ReflectPage() {
   const [studentName, setStudentName] = useState("")
@@ -115,10 +118,34 @@ export default function ReflectPage() {
     if (!weekType || !weekData) return null
 
     const icons = {
-      growth: { icon: TrendingUp, color: "text-emerald-600", bg: "bg-emerald-50", label: "成長週" },
-      stable: { icon: Minus, color: "text-blue-600", bg: "bg-blue-50", label: "安定週" },
-      challenge: { icon: TrendingDown, color: "text-orange-600", bg: "bg-orange-50", label: "挑戦週" },
-      special: { icon: Sparkles, color: "text-purple-600", bg: "bg-purple-50", label: "特別週" },
+      growth: {
+        icon: TrendingUp,
+        color: "text-emerald-600",
+        bg: "bg-emerald-50",
+        label: "成長週",
+        description: "先週より正答率10%以上アップ！成功要因を深掘りしよう"
+      },
+      stable: {
+        icon: Minus,
+        color: "text-blue-600",
+        bg: "bg-blue-50",
+        label: "安定週",
+        description: "正答率が安定しているね。新しい挑戦を考えてみよう"
+      },
+      challenge: {
+        icon: TrendingDown,
+        color: "text-orange-600",
+        bg: "bg-orange-50",
+        label: "挑戦週",
+        description: "正答率が下がった週。難しい問題に挑戦したからこその結果だよ"
+      },
+      special: {
+        icon: Sparkles,
+        color: "text-purple-600",
+        bg: "bg-purple-50",
+        label: "特別週",
+        description: "来週は大きなテスト！対策を一緒に考えよう"
+      },
     }
 
     const info = icons[weekType]
@@ -190,6 +217,9 @@ export default function ReflectPage() {
                         正答率 {weekData.thisWeekAccuracy}%
                       </Badge>
                     </div>
+                    <p className="text-sm text-slate-600 mb-2 font-medium">
+                      {weekTypeInfo.description}
+                    </p>
                     <p className="text-sm text-muted-foreground">
                       {weekType === "growth" && `先週より${weekData.accuracyDiff}%アップ！素晴らしい成長だよ✨`}
                       {weekType === "stable" && "先週と同じペースで安定した学習ができているね。"}
@@ -203,7 +233,10 @@ export default function ReflectPage() {
 
             <Card className="card-elevated ai-coach-gradient border-0 shadow-2xl premium-glow">
               <CardContent className="p-6 text-center">
-                <Bot className="h-16 w-16 text-white mx-auto mb-4" />
+                <Avatar className="h-20 w-20 mx-auto mb-4 border-4 border-white shadow-2xl">
+                  <AvatarImage src={AVATAR_AI_COACH} alt="AIコーチ" />
+                  <AvatarFallback className="bg-white text-primary font-bold text-2xl">AI</AvatarFallback>
+                </Avatar>
                 <h2 className="text-xl font-bold text-white mb-2">AIコーチと振り返りを始めよう</h2>
                 <p className="text-white/90 mb-6">
                   {studentName}さん、今週の頑張りを一緒に振り返ろう！<br />

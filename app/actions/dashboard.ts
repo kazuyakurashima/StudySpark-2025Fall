@@ -518,24 +518,31 @@ export async function getWeeklySubjectProgress() {
       return { error: "認証エラー" }
     }
 
-    const { data: student } = await supabase.from("students").select("id").eq("user_id", user.id).single()
+    const { data: student } = await supabase.from("students").select("id, grade").eq("user_id", user.id).single()
 
     if (!student) {
       return { error: "生徒情報が見つかりません" }
     }
 
-    // Get this week (Monday to Sunday)
+    // Get current date in Tokyo timezone
     const now = new Date()
-    const dayOfWeek = now.getDay()
-    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
-    const monday = new Date(now)
-    monday.setDate(now.getDate() + mondayOffset)
-    monday.setHours(0, 0, 0, 0)
+    const tokyoNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Tokyo" }))
 
-    const sunday = new Date(monday)
-    sunday.setDate(monday.getDate() + 6)
-    sunday.setHours(23, 59, 59, 999)
+    // Find this week's study session
+    const { data: currentSession, error: sessionError } = await supabase
+      .from("study_sessions")
+      .select("id, session_number, start_date, end_date")
+      .eq("grade", student.grade)
+      .lte("start_date", tokyoNow.toISOString().split("T")[0])
+      .gte("end_date", tokyoNow.toISOString().split("T")[0])
+      .single()
 
+    if (sessionError || !currentSession) {
+      console.error("No current session found:", sessionError)
+      return { progress: [] }
+    }
+
+    // Get all logs for this student in this session
     const { data: logs, error: logsError } = await supabase
       .from("study_logs")
       .select(
@@ -545,20 +552,67 @@ export async function getWeeklySubjectProgress() {
         total_problems,
         subject_id,
         study_content_type_id,
+        logged_at,
         subjects (name, color_code),
-        study_content_types (content_name)
+        study_content_types (id, content_name)
       `
       )
       .eq("student_id", student.id)
-      .gte("logged_at", monday.toISOString())
-      .lte("logged_at", sunday.toISOString())
+      .eq("session_id", currentSession.id)
+      .order("logged_at", { ascending: false })
 
     if (logsError) {
       console.error("Get weekly subject progress error:", logsError)
       return { error: "週次進捗の取得に失敗しました" }
     }
 
-    // Aggregate by subject with content details
+    // Get problem counts for this session (with content name for mapping)
+    const { data: problemCounts, error: problemCountsError } = await supabase
+      .from("problem_counts")
+      .select(`
+        study_content_type_id,
+        total_problems,
+        study_content_types!inner (
+          content_name,
+          subjects!inner (
+            id
+          )
+        )
+      `)
+      .eq("session_id", currentSession.id)
+
+    if (problemCountsError) {
+      console.error("Get problem counts error:", problemCountsError)
+      return { error: "問題数の取得に失敗しました" }
+    }
+
+    // Create a map of subject_id + content_name -> total_problems
+    const problemCountMap = new Map<string, number>()
+    problemCounts?.forEach((pc) => {
+      const contentType = Array.isArray(pc.study_content_types) ? pc.study_content_types[0] : pc.study_content_types
+      const subject = Array.isArray(contentType?.subjects) ? contentType.subjects[0] : contentType?.subjects
+      const key = `${subject?.id}_${contentType?.content_name}`
+      // Only set if not already set (all courses have same problem count)
+      if (!problemCountMap.has(key)) {
+        problemCountMap.set(key, pc.total_problems)
+      }
+    })
+
+    // Group logs by subject and content name (ignoring course), keeping only the latest log for each combination
+    const latestLogsMap = new Map<string, typeof logs[0]>()
+
+    logs?.forEach((log) => {
+      const contentType = Array.isArray(log.study_content_types) ? log.study_content_types[0] : log.study_content_types
+      const contentName = contentType?.content_name || "その他"
+      const key = `${log.subject_id}_${contentName}`
+
+      // Since logs are already ordered by logged_at DESC, first occurrence is the latest
+      if (!latestLogsMap.has(key)) {
+        latestLogsMap.set(key, log)
+      }
+    })
+
+    // Aggregate by subject
     const subjectMap: {
       [key: string]: {
         name: string
@@ -569,9 +623,10 @@ export async function getWeeklySubjectProgress() {
       }
     } = {}
 
-    logs?.forEach((log) => {
+    latestLogsMap.forEach((log) => {
       const subject = Array.isArray(log.subjects) ? log.subjects[0] : log.subjects
       const subjectName = subject?.name || "不明"
+      const subjectId = subject?.id
       const contentType = Array.isArray(log.study_content_types) ? log.study_content_types[0] : log.study_content_types
       const contentName = contentType?.content_name || "その他"
 
@@ -585,15 +640,19 @@ export async function getWeeklySubjectProgress() {
         }
       }
 
+      // Use problem count from problem_counts table (by subject_id + content_name)
+      const problemCountKey = `${subjectId}_${contentName}`
+      const totalProblems = problemCountMap.get(problemCountKey) || log.total_problems || 0
+
       subjectMap[subjectName].totalCorrect += log.correct_count || 0
-      subjectMap[subjectName].totalProblems += log.total_problems || 0
+      subjectMap[subjectName].totalProblems += totalProblems
 
       // Track by content type
       if (!subjectMap[subjectName].contentDetails[contentName]) {
         subjectMap[subjectName].contentDetails[contentName] = { correct: 0, total: 0 }
       }
       subjectMap[subjectName].contentDetails[contentName].correct += log.correct_count || 0
-      subjectMap[subjectName].contentDetails[contentName].total += log.total_problems || 0
+      subjectMap[subjectName].contentDetails[contentName].total += totalProblems
     })
 
     const progress = Object.values(subjectMap).map((subject) => ({
@@ -610,7 +669,7 @@ export async function getWeeklySubjectProgress() {
       }))
     }))
 
-    return { progress }
+    return { progress, sessionNumber: currentSession.session_number }
   } catch (error) {
     console.error("Get weekly subject progress error:", error)
     return { error: "予期しないエラーが発生しました" }
@@ -763,6 +822,55 @@ export async function getTodayMissionData() {
     return { todayProgress }
   } catch (error) {
     console.error("Get today mission data error:", error)
+    return { error: "予期しないエラーが発生しました" }
+  }
+}
+
+/**
+ * 今週のリフレクト完了状態を取得
+ */
+export async function getWeeklyReflectionStatus() {
+  try {
+    const supabase = await createClient()
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return { error: "認証エラー" }
+    }
+
+    const { data: student } = await supabase.from("students").select("id").eq("user_id", user.id).single()
+
+    if (!student) {
+      return { error: "生徒情報が見つかりません" }
+    }
+
+    // 今週の開始日（月曜日）を計算
+    const now = new Date()
+    const dayOfWeek = now.getDay()
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek // 日曜なら-6、それ以外は1-dayOfWeek
+    const weekStart = new Date(now)
+    weekStart.setDate(now.getDate() + diff)
+    weekStart.setHours(0, 0, 0, 0)
+
+    // 今週のリフレクトセッションを確認
+    const { data: reflection } = await supabase
+      .from("coaching_sessions")
+      .select("id, completed_at")
+      .eq("student_id", student.id)
+      .eq("session_type", "reflection")
+      .gte("week_start_date", weekStart.toISOString().split("T")[0])
+      .not("completed_at", "is", null)
+      .maybeSingle()
+
+    return {
+      reflectionCompleted: !!reflection,
+      reflectionId: reflection?.id || null,
+    }
+  } catch (error) {
+    console.error("Get weekly reflection status error:", error)
     return { error: "予期しないエラーが発生しました" }
   }
 }

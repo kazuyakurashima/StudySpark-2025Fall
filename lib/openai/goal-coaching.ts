@@ -54,7 +54,7 @@ export async function generateGoalNavigationMessage(
 }
 
 /**
- * 「今回の思い」を生成（Step 6）
+ * 「今回の思い」を生成（Step 4）
  */
 export async function generateGoalThoughts(
   context: GoalNavigationContext
@@ -65,7 +65,7 @@ export async function generateGoalThoughts(
     const systemPrompt = getGoalNavigationSystemPrompt()
     const stepPrompt = getGoalNavigationStepPrompt({
       ...context,
-      currentStep: 6,
+      currentStep: 4,
     })
 
     // 対話履歴全体を含める

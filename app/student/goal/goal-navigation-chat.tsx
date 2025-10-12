@@ -34,7 +34,7 @@ export function GoalNavigationChat({
   onCancel,
 }: GoalNavigationChatProps) {
   const [messages, setMessages] = useState<Message[]>([])
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1)
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1)
   const [userInput, setUserInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isStarted, setIsStarted] = useState(false)
@@ -90,8 +90,8 @@ export function GoalNavigationChat({
     setIsLoading(true)
 
     try {
-      // Step 6（まとめ生成）の場合
-      if (currentStep === 6) {
+      // Step 4（まとめ生成）の場合
+      if (currentStep === 4) {
         const response = await fetch("/api/goal/thoughts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -102,7 +102,7 @@ export function GoalNavigationChat({
             targetCourse,
             targetClass,
             conversationHistory: updatedMessages.map(m => ({ role: m.role, content: m.content })),
-            currentStep: 6,
+            currentStep: 4,
           }),
         })
 
@@ -124,8 +124,8 @@ export function GoalNavigationChat({
           alert("エラーが発生しました: " + data.error)
         }
       } else {
-        // Step 1-5（通常の対話）
-        const nextStep = (currentStep + 1) as 2 | 3 | 4 | 5 | 6
+        // Step 1-3（通常の対話）
+        const nextStep = (currentStep + 1) as 2 | 3 | 4
 
         const response = await fetch("/api/goal/navigation", {
           method: "POST",
@@ -181,7 +181,7 @@ export function GoalNavigationChat({
                 {studentName}さん、{testName}で{targetCourse}コース{targetClass}組を目指すんだね！
               </p>
               <p className="text-white/90 text-sm leading-relaxed mt-2">
-                AIコーチと対話しながら、この目標にかける思いを整理してみよう。6つの質問に答えていくよ！
+                AIコーチと対話しながら、この目標にかける思いを整理してみよう。3つの質問に答えていくよ！
               </p>
             </div>
             <Button
@@ -210,7 +210,7 @@ export function GoalNavigationChat({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-primary" />
-          AIコーチと対話中（ステップ {currentStep}/6）
+          AIコーチと対話中（ステップ {currentStep}/4）
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -258,19 +258,13 @@ export function GoalNavigationChat({
           )}
         </div>
 
-        {currentStep <= 6 && !isLoading && (
+        {currentStep <= 4 && !isLoading && (
           <div className="flex gap-2">
             <Textarea
               value={userInput}
               onChange={(e) => setUserInput(e.target.value)}
-              placeholder="あなたの気持ちを教えてね..."
+              placeholder="あなたの気持ちを教えてね...（Enterで改行、送信ボタンで送信）"
               className="flex-1 min-h-[60px] resize-none"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault()
-                  sendMessage()
-                }
-              }}
               disabled={isLoading}
             />
             <Button

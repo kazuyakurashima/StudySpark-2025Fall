@@ -17,8 +17,10 @@ import {
   getAvailableTests,
   saveTestGoal,
   getAllTestGoals,
+  getAvailableTestsForResult,
   saveTestResult,
   getAllTestResults,
+  saveSimpleTestResult,
 } from "@/app/actions/goal"
 import { createClient } from "@/lib/supabase/client"
 
@@ -26,10 +28,14 @@ interface TestSchedule {
   id: string
   test_type_id: string
   test_date: string
+  detailed_name?: string | null
+  result_entry_start_date?: string | null
+  result_entry_end_date?: string | null
   test_types: {
     id: string
     name: string
     type_category: string
+    grade?: number
   }
 }
 
@@ -43,9 +49,14 @@ interface TestGoal {
   test_schedules: {
     id: string
     test_date: string
+    detailed_name?: string | null
+    result_entry_start_date?: string | null
+    result_entry_end_date?: string | null
     test_types: {
       id: string
       name: string
+      grade?: number
+      type_category?: string
     }
   }
 }
@@ -63,6 +74,8 @@ interface TestResult {
   science_deviation?: number
   social_deviation?: number
   total_deviation?: number
+  result_course?: string
+  result_class?: number
   result_entered_at: string
   test_schedules: {
     id: string
@@ -85,7 +98,7 @@ const courses = [
 export default function GoalPage() {
   const [studentName, setStudentName] = useState("")
   const [studentGrade, setStudentGrade] = useState<number | null>(null)
-  const [activeTab, setActiveTab] = useState<"input" | "result" | "test">("input")
+  const [activeTab, setActiveTab] = useState<"input" | "result" | "test">("test")
 
   // 目標入力タブ用
   const [availableTests, setAvailableTests] = useState<TestSchedule[]>([])
@@ -95,22 +108,20 @@ export default function GoalPage() {
   const [currentThoughts, setCurrentThoughts] = useState("")
   const [isGoalSet, setIsGoalSet] = useState(false)
   const [showAIChat, setShowAIChat] = useState(false)
+  const [showInputChoice, setShowInputChoice] = useState(false)
+  const [showDirectInput, setShowDirectInput] = useState(false)
   const [showCelebration, setShowCelebration] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [existingGoal, setExistingGoal] = useState<TestGoal | null>(null)
 
   // 結果入力タブ用
   const [testGoals, setTestGoals] = useState<TestGoal[]>([])
+  const [availableTestsForResult, setAvailableTestsForResult] = useState<TestGoal[]>([])
   const [selectedGoalForResult, setSelectedGoalForResult] = useState<TestGoal | null>(null)
-  const [mathScore, setMathScore] = useState("")
-  const [japaneseScore, setJapaneseScore] = useState("")
-  const [scienceScore, setScienceScore] = useState("")
-  const [socialScore, setSocialScore] = useState("")
-  const [mathDeviation, setMathDeviation] = useState("")
-  const [japaneseDeviation, setJapaneseDeviation] = useState("")
-  const [scienceDeviation, setScienceDeviation] = useState("")
-  const [socialDeviation, setSocialDeviation] = useState("")
-  const [totalDeviation, setTotalDeviation] = useState("")
+  const [resultCourse, setResultCourse] = useState("")
+  const [resultClass, setResultClass] = useState([20])
   const [isSavingResult, setIsSavingResult] = useState(false)
+  const [existingResult, setExistingResult] = useState<TestResult | null>(null)
 
   // テスト結果タブ用
   const [testResults, setTestResults] = useState<TestResult[]>([])
@@ -119,6 +130,7 @@ export default function GoalPage() {
     loadStudentInfo()
     loadAvailableTests()
     loadTestGoals()
+    loadAvailableTestsForResult()
     loadTestResults()
   }, [])
 
@@ -156,12 +168,49 @@ export default function GoalPage() {
     }
   }
 
+  const loadAvailableTestsForResult = async () => {
+    const result = await getAvailableTestsForResult()
+    if (result.goals) {
+      setAvailableTestsForResult(result.goals as any)
+    }
+  }
+
   const loadTestResults = async () => {
     const result = await getAllTestResults()
     if (result.results) {
       setTestResults(result.results as any)
     }
   }
+
+  useEffect(() => {
+    if (availableTestsForResult.length === 0) {
+      setSelectedGoalForResult(null)
+      return
+    }
+
+    if (
+      !selectedGoalForResult ||
+      !availableTestsForResult.some((goal) => goal.id === selectedGoalForResult.id)
+    ) {
+      setSelectedGoalForResult(availableTestsForResult[0])
+    }
+  }, [availableTestsForResult, selectedGoalForResult])
+
+  // 選択されたテストの既存結果をチェック
+  useEffect(() => {
+    if (selectedGoalForResult) {
+      const result = testResults.find((r) => r.test_schedule_id === selectedGoalForResult.test_schedule_id)
+      if (result) {
+        setExistingResult(result)
+        setResultCourse(result.result_course || "")
+        setResultClass([result.result_class || 20])
+      } else {
+        setExistingResult(null)
+        setResultCourse("")
+        setResultClass([20])
+      }
+    }
+  }, [selectedGoalForResult, testResults])
 
   const handleGoalDecision = () => {
     setIsGoalSet(true)
@@ -205,6 +254,7 @@ export default function GoalPage() {
         setIsGoalSet(false)
         // リロード
         loadTestGoals()
+        loadAvailableTestsForResult()
       } else {
         alert(error || "保存に失敗しました")
       }
@@ -222,41 +272,29 @@ export default function GoalPage() {
       return
     }
 
-    if (!mathScore || !japaneseScore || !scienceScore || !socialScore) {
-      alert("すべての科目の点数を入力してください")
+    if (!resultCourse) {
+      alert("結果のコースを選択してください")
       return
     }
 
     setIsSavingResult(true)
 
     try {
-      const { success, error } = await saveTestResult(
+      const { success, error } = await saveSimpleTestResult(
         selectedGoalForResult.test_schedule_id,
-        parseInt(mathScore),
-        parseInt(japaneseScore),
-        parseInt(scienceScore),
-        parseInt(socialScore),
-        mathDeviation ? parseFloat(mathDeviation) : undefined,
-        japaneseDeviation ? parseFloat(japaneseDeviation) : undefined,
-        scienceDeviation ? parseFloat(scienceDeviation) : undefined,
-        socialDeviation ? parseFloat(socialDeviation) : undefined,
-        totalDeviation ? parseFloat(totalDeviation) : undefined
+        resultCourse,
+        resultClass[0]
       )
 
       if (success) {
         alert("テスト結果を保存しました！")
         // リセット
         setSelectedGoalForResult(null)
-        setMathScore("")
-        setJapaneseScore("")
-        setScienceScore("")
-        setSocialScore("")
-        setMathDeviation("")
-        setJapaneseDeviation("")
-        setScienceDeviation("")
-        setSocialDeviation("")
-        setTotalDeviation("")
+        setResultCourse("")
+        setResultClass([20])
+        setExistingResult(null)
         // リロード
+        loadAvailableTestsForResult()
         loadTestResults()
         setActiveTab("test")
       } else {
@@ -282,10 +320,6 @@ export default function GoalPage() {
   const getCourseName = (courseId: string) => {
     return courses.find((c) => c.id === courseId)?.name || courseId
   }
-
-  const totalScore = mathScore && japaneseScore && scienceScore && socialScore
-    ? parseInt(mathScore) + parseInt(japaneseScore) + parseInt(scienceScore) + parseInt(socialScore)
-    : 0
 
   return (
     <div className="min-h-screen bg-background pb-20 elegant-fade-in">
@@ -337,7 +371,7 @@ export default function GoalPage() {
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="input">目標入力</TabsTrigger>
             <TabsTrigger value="result">結果入力</TabsTrigger>
-            <TabsTrigger value="test">テスト結果</TabsTrigger>
+            <TabsTrigger value="test">目標と結果の履歴</TabsTrigger>
           </TabsList>
 
           {/* 目標入力タブ */}
@@ -565,6 +599,13 @@ export default function GoalPage() {
                   先に「目標入力」タブで目標を設定してください。
                 </CardContent>
               </Card>
+            ) : availableTestsForResult.length === 0 ? (
+              <Card>
+                <CardContent className="py-10 text-center text-muted-foreground">
+                  現在入力可能なテストはありません。<br />
+                  結果入力期間になるとテストが表示されます。
+                </CardContent>
+              </Card>
             ) : (
               <>
                 <Card className="card-elevated">
@@ -579,7 +620,7 @@ export default function GoalPage() {
                     <Select
                       value={selectedGoalForResult?.id || ""}
                       onValueChange={(value) => {
-                        const goal = testGoals.find((g) => g.id === value)
+                        const goal = availableTestsForResult.find((g) => g.id === value)
                         setSelectedGoalForResult(goal || null)
                       }}
                     >
@@ -587,10 +628,12 @@ export default function GoalPage() {
                         <SelectValue placeholder="テストを選択してください" />
                       </SelectTrigger>
                       <SelectContent>
-                        {testGoals.map((goal) => (
+                        {availableTestsForResult.map((goal) => (
                           <SelectItem key={goal.id} value={goal.id}>
                             <div className="flex flex-col">
-                              <span className="font-medium">{goal.test_schedules.test_types.name}</span>
+                              <span className="font-medium">
+                                {goal.test_schedules.detailed_name || goal.test_schedules.test_types.name}
+                              </span>
                               <span className="text-xs text-muted-foreground">
                                 {formatDate(goal.test_schedules.test_date)}
                               </span>
@@ -623,139 +666,97 @@ export default function GoalPage() {
                   </CardContent>
                 </Card>
 
-                {selectedGoalForResult && (
+                {existingResult && selectedGoalForResult && (
+                  <>
+                    <Card className="card-elevated border-primary/20 shadow-xl">
+                      <CardHeader className="bg-gradient-to-r from-primary/5 to-accent/5">
+                        <CardTitle className="flex items-center gap-2">
+                          <CheckCircle2 className="h-5 w-5 text-primary" />
+                          入力済みの結果
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-6 space-y-4">
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg">
+                            <span className="text-sm font-medium text-muted-foreground">結果コース</span>
+                            <span className="text-lg font-bold text-primary">{getCourseName(resultCourse)}</span>
+                          </div>
+                          <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg">
+                            <span className="text-sm font-medium text-muted-foreground">結果の組</span>
+                            <span className="text-lg font-bold text-primary">{resultClass[0]}組</span>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          ※ 結果は一度入力すると編集できません
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </>
+                )}
+
+                {selectedGoalForResult && !existingResult && (
                   <>
                     <Card className="card-elevated">
                       <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <TrendingUp className="h-5 w-5 text-primary" />
-                          点数入力
-                        </CardTitle>
+                        <CardTitle>結果の入力</CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label>算数</Label>
-                            <Input
-                              type="number"
-                              placeholder="点数"
-                              value={mathScore}
-                              onChange={(e) => setMathScore(e.target.value)}
-                              min="0"
-                              max="200"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>算数偏差値（オプション）</Label>
-                            <Input
-                              type="number"
-                              step="0.1"
-                              placeholder="偏差値"
-                              value={mathDeviation}
-                              onChange={(e) => setMathDeviation(e.target.value)}
-                              min="0"
-                              max="100"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>国語</Label>
-                            <Input
-                              type="number"
-                              placeholder="点数"
-                              value={japaneseScore}
-                              onChange={(e) => setJapaneseScore(e.target.value)}
-                              min="0"
-                              max="200"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>国語偏差値（オプション）</Label>
-                            <Input
-                              type="number"
-                              step="0.1"
-                              placeholder="偏差値"
-                              value={japaneseDeviation}
-                              onChange={(e) => setJapaneseDeviation(e.target.value)}
-                              min="0"
-                              max="100"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>理科</Label>
-                            <Input
-                              type="number"
-                              placeholder="点数"
-                              value={scienceScore}
-                              onChange={(e) => setScienceScore(e.target.value)}
-                              min="0"
-                              max="200"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>理科偏差値（オプション）</Label>
-                            <Input
-                              type="number"
-                              step="0.1"
-                              placeholder="偏差値"
-                              value={scienceDeviation}
-                              onChange={(e) => setScienceDeviation(e.target.value)}
-                              min="0"
-                              max="100"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>社会</Label>
-                            <Input
-                              type="number"
-                              placeholder="点数"
-                              value={socialScore}
-                              onChange={(e) => setSocialScore(e.target.value)}
-                              min="0"
-                              max="200"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>社会偏差値（オプション）</Label>
-                            <Input
-                              type="number"
-                              step="0.1"
-                              placeholder="偏差値"
-                              value={socialDeviation}
-                              onChange={(e) => setSocialDeviation(e.target.value)}
-                              min="0"
-                              max="100"
-                            />
+                      <CardContent className="space-y-4 sm:space-y-6">
+                        <div className="space-y-2">
+                          <Label className="text-sm sm:text-base">結果のコースを入力しよう</Label>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                            {courses.map((course) => (
+                              <button
+                                key={course.id}
+                                onClick={() => setResultCourse(course.id)}
+                                className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all duration-300 min-h-[60px] sm:min-h-[70px] ${
+                                  resultCourse === course.id
+                                    ? "border-primary bg-primary/10 shadow-lg"
+                                    : "border-border bg-background hover:border-primary/50 hover:shadow-md"
+                                }`}
+                              >
+                                <div className="font-bold text-base sm:text-lg">{course.name}</div>
+                                <div className="text-xs sm:text-sm text-muted-foreground">
+                                  {course.description}
+                                </div>
+                              </button>
+                            ))}
                           </div>
                         </div>
 
-                        {totalScore > 0 && (
-                          <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
-                            <div className="flex items-center justify-between">
-                              <span className="font-semibold text-primary">4科目合計</span>
-                              <span className="text-2xl font-bold text-primary">{totalScore}点</span>
+                        <div className="space-y-3 sm:space-y-4">
+                          <Label className="text-sm sm:text-base font-medium">結果の組を入力しよう</Label>
+                          <div className="px-4 sm:px-6 py-4 sm:py-5 surface-gradient-primary rounded-2xl border-2 border-primary/20 shadow-lg">
+                            <div className="flex items-center justify-between mb-4">
+                              <span className="text-sm sm:text-base font-semibold text-primary">
+                                結果の組
+                              </span>
+                              <div className="px-4 sm:px-5 py-2 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground rounded-full text-sm sm:text-base font-bold shadow-lg">
+                                {resultClass[0]}組
+                              </div>
+                            </div>
+                            <div className="px-2 py-1">
+                              <Slider
+                                value={resultClass}
+                                onValueChange={setResultClass}
+                                max={40}
+                                min={1}
+                                step={1}
+                                className="w-full"
+                              />
+                            </div>
+                            <div className="flex justify-between text-xs sm:text-sm text-primary/70 mt-3 font-semibold">
+                              <span>1組</span>
+                              <span>40組</span>
                             </div>
                           </div>
-                        )}
-
-                        <div className="space-y-2">
-                          <Label>4科目合計偏差値（オプション）</Label>
-                          <Input
-                            type="number"
-                            step="0.1"
-                            placeholder="偏差値"
-                            value={totalDeviation}
-                            onChange={(e) => setTotalDeviation(e.target.value)}
-                            min="0"
-                            max="100"
-                          />
                         </div>
                       </CardContent>
                     </Card>
 
                     <Button
                       onClick={handleSaveResult}
-                      disabled={isSavingResult}
-                      className="w-full h-11 sm:h-12 text-sm sm:text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+                      disabled={isSavingResult || !resultCourse}
+                      className="w-full h-11 sm:h-12 text-sm sm:text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 bg-blue-500 hover:bg-blue-600 text-white"
                     >
                       <Save className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                       {isSavingResult ? "保存中..." : "結果を保存する"}
@@ -766,102 +767,100 @@ export default function GoalPage() {
             )}
           </TabsContent>
 
-          {/* テスト結果タブ */}
+          {/* 目標と結果の履歴タブ */}
           <TabsContent value="test" className="space-y-4 mt-6">
-            {testResults.length === 0 ? (
+            {testGoals.length === 0 ? (
               <Card>
                 <CardContent className="py-10 text-center text-muted-foreground">
-                  まだテスト結果がありません
+                  まだ目標が設定されていません。<br />
+                  先に「目標入力」タブで目標を設定してください。
                 </CardContent>
               </Card>
             ) : (
               <div className="space-y-4">
-                {testResults.map((result) => (
-                  <Card key={result.id} className="card-elevated">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Calendar className="h-5 w-5 text-primary" />
-                        {result.test_schedules.test_types.name}
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        {formatDate(result.test_schedules.test_date)}
-                      </p>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {result.goal && (
-                        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                          <div className="flex items-center gap-2 mb-2">
+                {testGoals.map((goal) => {
+                  // この目標に対応する結果を探す
+                  const result = testResults.find((r) => r.test_schedule_id === goal.test_schedule_id)
+
+                  return (
+                    <Card key={goal.id} className="card-elevated">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Calendar className="h-5 w-5 text-primary" />
+                          {goal.test_schedules.detailed_name || goal.test_schedules.test_types.name}
+                        </CardTitle>
+                        <p className="text-sm text-muted-foreground">
+                          {formatDate(goal.test_schedules.test_date)}
+                        </p>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {/* 目標表示 */}
+                        <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                          <div className="flex items-center gap-2 mb-3">
                             <Flag className="h-4 w-4 text-blue-600" />
-                            <span className="font-medium text-sm">目標</span>
+                            <span className="font-semibold text-sm">目標</span>
                           </div>
-                          <div className="text-sm space-y-1">
-                            <p>
-                              <span className="text-gray-600">コース:</span>{" "}
-                              <span className="font-medium">{getCourseName(result.goal.target_course)}</span>
-                            </p>
-                            <p>
-                              <span className="text-gray-600">組:</span>{" "}
-                              <span className="font-medium">{result.goal.target_class}組</span>
-                            </p>
+                          <div className="grid grid-cols-2 gap-3 mb-3">
+                            <div className="text-center p-3 bg-white rounded-lg">
+                              <div className="text-xs text-gray-600 mb-1">目標コース</div>
+                              <div className="font-bold text-lg text-blue-600">
+                                {getCourseName(goal.target_course)}
+                              </div>
+                            </div>
+                            <div className="text-center p-3 bg-white rounded-lg">
+                              <div className="text-xs text-gray-600 mb-1">目標の組</div>
+                              <div className="font-bold text-lg text-blue-600">{goal.target_class}組</div>
+                            </div>
                           </div>
+                          {goal.goal_thoughts && (
+                            <div className="mt-3 pt-3 border-t border-blue-200">
+                              <div className="text-xs text-gray-600 mb-2">今回の思い</div>
+                              <p className="text-sm leading-relaxed whitespace-pre-wrap">{goal.goal_thoughts}</p>
+                            </div>
+                          )}
                         </div>
-                      )}
 
-                      <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="font-semibold text-primary">結果</span>
-                          <Badge variant="secondary" className="flex items-center gap-1">
-                            <CheckCircle2 className="h-3 w-3" />
-                            入力済み
-                          </Badge>
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                          <div className="text-center p-2 bg-white rounded">
-                            <div className="text-xs text-gray-600 mb-1">算数</div>
-                            <div className="font-bold text-lg">{result.math_score}点</div>
-                            {result.math_deviation && (
-                              <div className="text-xs text-gray-500">偏差値 {result.math_deviation}</div>
-                            )}
+                        {/* 結果表示 */}
+                        {result ? (
+                          <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <TrendingUp className="h-4 w-4 text-primary" />
+                                <span className="font-semibold text-primary">結果</span>
+                              </div>
+                              <Badge variant="secondary" className="flex items-center gap-1">
+                                <CheckCircle2 className="h-3 w-3" />
+                                入力済み
+                              </Badge>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="text-center p-3 bg-white rounded-lg">
+                                <div className="text-xs text-gray-600 mb-1">結果コース</div>
+                                <div className="font-bold text-lg text-primary">
+                                  {getCourseName(result.result_course)}
+                                </div>
+                              </div>
+                              <div className="text-center p-3 bg-white rounded-lg">
+                                <div className="text-xs text-gray-600 mb-1">結果の組</div>
+                                <div className="font-bold text-lg text-primary">{result.result_class}組</div>
+                              </div>
+                            </div>
+                            <div className="mt-3 text-xs text-gray-500">
+                              入力日時: {new Date(result.result_entered_at).toLocaleString("ja-JP")}
+                            </div>
                           </div>
-                          <div className="text-center p-2 bg-white rounded">
-                            <div className="text-xs text-gray-600 mb-1">国語</div>
-                            <div className="font-bold text-lg">{result.japanese_score}点</div>
-                            {result.japanese_deviation && (
-                              <div className="text-xs text-gray-500">偏差値 {result.japanese_deviation}</div>
-                            )}
+                        ) : (
+                          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <div className="flex items-center gap-2 text-gray-600">
+                              <Award className="h-4 w-4" />
+                              <span className="text-sm">結果はまだ入力されていません</span>
+                            </div>
                           </div>
-                          <div className="text-center p-2 bg-white rounded">
-                            <div className="text-xs text-gray-600 mb-1">理科</div>
-                            <div className="font-bold text-lg">{result.science_score}点</div>
-                            {result.science_deviation && (
-                              <div className="text-xs text-gray-500">偏差値 {result.science_deviation}</div>
-                            )}
-                          </div>
-                          <div className="text-center p-2 bg-white rounded">
-                            <div className="text-xs text-gray-600 mb-1">社会</div>
-                            <div className="font-bold text-lg">{result.social_score}点</div>
-                            {result.social_deviation && (
-                              <div className="text-xs text-gray-500">偏差値 {result.social_deviation}</div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="mt-3 pt-3 border-t flex items-center justify-between">
-                          <span className="font-semibold">合計</span>
-                          <div className="text-right">
-                            <div className="text-2xl font-bold text-primary">{result.total_score}点</div>
-                            {result.total_deviation && (
-                              <div className="text-sm text-gray-600">偏差値 {result.total_deviation}</div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="text-xs text-gray-500">
-                        入力日時: {new Date(result.result_entered_at).toLocaleString("ja-JP")}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                        )}
+                      </CardContent>
+                    </Card>
+                  )
+                })}
               </div>
             )}
           </TabsContent>

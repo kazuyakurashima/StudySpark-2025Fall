@@ -227,7 +227,6 @@ export async function generateWeeklyAnalysis(studentId: string, weekStartDate: D
         },
       ],
       max_completion_tokens: 800,
-      reasoning_effort: "low",
     })
 
     const content = response.choices[0]?.message?.content
@@ -507,7 +506,6 @@ export async function generateWeeklyAnalysisForBatch(studentId: string, weekStar
         },
       ],
       max_completion_tokens: 800,
-      reasoning_effort: "low",
     })
 
     const content = response.choices[0]?.message?.content

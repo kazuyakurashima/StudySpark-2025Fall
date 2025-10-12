@@ -7,7 +7,8 @@ import {
   getLastLoginInfo,
   getTodayMissionData,
   getLearningCalendarData,
-  getWeeklySubjectProgress
+  getWeeklySubjectProgress,
+  getWeeklyReflectionStatus
 } from "@/app/actions/dashboard"
 import { getRecentEncouragementMessages } from "@/app/actions/encouragement"
 
@@ -22,7 +23,8 @@ export default async function StudentDashboard() {
     loginInfo,
     todayMission,
     calendar,
-    weeklySubject
+    weeklySubject,
+    reflectionStatus
   ] = await Promise.all([
     getStudentDashboardData(),
     getAICoachMessage(),
@@ -32,7 +34,8 @@ export default async function StudentDashboard() {
     getLastLoginInfo(),
     getTodayMissionData(),
     getLearningCalendarData(),
-    getWeeklySubjectProgress()
+    getWeeklySubjectProgress(),
+    getWeeklyReflectionStatus()
   ])
 
   // Handle error states
@@ -59,6 +62,8 @@ export default async function StudentDashboard() {
     todayProgress: Array.isArray(todayMission?.todayProgress) ? todayMission.todayProgress : [],
     calendarData: calendar?.calendarData || {},
     weeklyProgress: Array.isArray(weeklySubject?.progress) ? weeklySubject.progress : [],
+    sessionNumber: typeof weeklySubject?.sessionNumber === "number" ? weeklySubject.sessionNumber : null,
+    reflectionCompleted: reflectionStatus?.reflectionCompleted || false,
   }
 
   return <StudentDashboardClient initialData={initialData} />

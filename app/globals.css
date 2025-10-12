@@ -296,6 +296,14 @@
   background-color: var(--subject-social);
 }
 
+/* AI Coach gradient background */
+.ai-coach-gradient {
+  background: linear-gradient(135deg,
+    var(--ai-coach-gradient-start) 0%,
+    var(--ai-coach-gradient-middle) 50%,
+    var(--ai-coach-gradient-end) 100%);
+}
+
 /* Premium card styles for consistent elevation */
 .card-elevated {
   @apply shadow-lg border-0 bg-white/95 backdrop-blur-sm;

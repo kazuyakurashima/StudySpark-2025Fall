@@ -37,6 +37,8 @@ interface DashboardData {
     totalProblems: number
     details: Array<{ content: string; remaining: number }>
   }>
+  sessionNumber: number | null
+  reflectionCompleted: boolean
 }
 
 function getGreetingMessage(userName: string, lastLoginInfo: { lastLoginDays: number | null, lastLoginHours: number, isFirstTime: boolean } | null) {
@@ -327,7 +329,7 @@ const LearningHistoryCalendar = ({ calendarData }: { calendarData: { [dateStr: s
   )
 }
 
-const TodayMissionCard = ({ todayProgress }: { todayProgress: Array<{subject: string, accuracy: number, correctCount: number, totalProblems: number, logCount: number}> }) => {
+const TodayMissionCard = ({ todayProgress, reflectionCompleted }: { todayProgress: Array<{subject: string, accuracy: number, correctCount: number, totalProblems: number, logCount: number}>, reflectionCompleted: boolean }) => {
   const router = useRouter()
 
   const getTodayWeekday = () => {
@@ -375,7 +377,8 @@ const TodayMissionCard = ({ todayProgress }: { todayProgress: Array<{subject: st
 
     // 日曜日：リフレクト促進
     if (mode === "sunday") {
-      const isReflectCompleted = false // 実際の実装では外部データから取得
+      // reflectionCompletedステータスを確認（propsから渡される想定）
+      const isReflectCompleted = reflectionCompleted
       return {
         mode: "sunday",
         subjects: [],
@@ -399,7 +402,7 @@ const TodayMissionCard = ({ todayProgress }: { todayProgress: Array<{subject: st
 
     // 土曜12時以降：特別モード
     if (mode === "special") {
-      const isReflectCompleted = false // 実際の実装では外部データから取得
+      const isReflectCompleted = reflectionCompleted
       const lowAccuracySubjects = todayProgress
         .filter((item) => item.accuracy < 80 && item.totalProblems > 0)
         .slice(0, 2)
@@ -698,7 +701,7 @@ const TodayMissionCard = ({ todayProgress }: { todayProgress: Array<{subject: st
   )
 }
 
-const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{subject: string, colorCode: string, accuracy: number, correctCount: number, totalProblems: number, details?: Array<{content: string, correct: number, total: number, remaining: number}>}> }) => {
+const WeeklySubjectProgressCard = ({ weeklyProgress, sessionNumber }: { weeklyProgress: Array<{subject: string, colorCode: string, accuracy: number, correctCount: number, totalProblems: number, details?: Array<{content: string, correct: number, total: number, remaining: number}>}>, sessionNumber?: number | null }) => {
   const [expandedSubject, setExpandedSubject] = useState<string | null>(null)
 
   const getStatus = (accuracy: number) => {
@@ -769,6 +772,9 @@ const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{
             <BarChart3 className="h-5 w-5 text-indigo-600" />
           </div>
           <span className="text-indigo-900">今週の進捗</span>
+          {sessionNumber && (
+            <span className="text-sm font-medium text-indigo-700 ml-2">（第{sessionNumber}回）</span>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -1224,6 +1230,8 @@ export function StudentDashboardClient({ initialData }: { initialData: Dashboard
     todayProgress,
     calendarData,
     weeklyProgress,
+    sessionNumber,
+    reflectionCompleted,
   } = initialData
 
   const greetingMessage = getGreetingMessage(userName, lastLoginInfo)
@@ -1285,9 +1293,9 @@ export function StudentDashboardClient({ initialData }: { initialData: Dashboard
               </CardContent>
             </Card>
 
-            <TodayMissionCard todayProgress={todayProgress} />
+            <TodayMissionCard todayProgress={todayProgress} reflectionCompleted={reflectionCompleted} />
             <LearningHistoryCalendar calendarData={calendarData} />
-            <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} />
+            <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} sessionNumber={sessionNumber} />
             <RecentEncouragementCard messages={recentMessages} />
             <RecentLearningHistoryCard logs={recentLogs} />
           </div>
@@ -1321,7 +1329,7 @@ export function StudentDashboardClient({ initialData }: { initialData: Dashboard
                 </CardContent>
               </Card>
 
-              <TodayMissionCard todayProgress={todayProgress} />
+              <TodayMissionCard todayProgress={todayProgress} reflectionCompleted={reflectionCompleted} />
               <RecentEncouragementCard messages={recentMessages} />
               <RecentLearningHistoryCard logs={recentLogs} />
             </div>
@@ -1329,7 +1337,7 @@ export function StudentDashboardClient({ initialData }: { initialData: Dashboard
             {/* 右列（サブ - 1/3の幅） */}
             <div className="lg:col-span-1 space-y-8">
               <LearningHistoryCalendar calendarData={calendarData} />
-              <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} />
+              <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} sessionNumber={sessionNumber} />
             </div>
           </div>
         </div>

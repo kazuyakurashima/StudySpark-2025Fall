@@ -215,6 +215,7 @@ export async function getAllTestGoals() {
       *,
       test_schedules (
         test_date,
+        detailed_name,
         test_types (
           name
         )
@@ -231,9 +232,160 @@ export async function getAllTestGoals() {
 }
 
 /**
+ * 結果入力可能なテスト（目標設定済み＋結果入力期間内）を取得
+ */
+export async function getAvailableTestsForResult() {
+  const supabase = await createClient()
+
+  // 現在のユーザー取得
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: "ログインが必要です" }
+  }
+
+  // 生徒情報取得
+  const { data: student, error: studentError } = await supabase
+    .from("students")
+    .select("id, grade")
+    .eq("user_id", user.id)
+    .single()
+
+  if (studentError || !student) {
+    return { error: "生徒情報が見つかりません" }
+  }
+
+  const now = new Date()
+  const tokyoNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Tokyo" }))
+
+  const parseAsTokyoDate = (value: string | null) => {
+    if (!value) return null
+    const parsed = new Date(value)
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed
+    }
+    return new Date(`${value}T00:00:00+09:00`)
+  }
+
+  // 目標設定済みのテストを取得（結果入力期間は後段で判定）
+  const { data: goals, error: goalsError } = await supabase
+    .from("test_goals")
+    .select(`
+      *,
+      test_schedules!inner (
+        id,
+        test_date,
+        detailed_name,
+        result_entry_start_date,
+        result_entry_end_date,
+        test_types!inner (
+          id,
+          name,
+          grade
+        )
+      )
+    `)
+    .eq("student_id", student.id)
+    .eq("test_schedules.test_types.grade", student.grade)
+    .order("test_schedules.test_date", { ascending: true })
+
+  if (goalsError) {
+    return { error: goalsError.message }
+  }
+
+  const filteredGoals =
+    goals?.filter((goal) => {
+      const startRaw = goal.test_schedules?.result_entry_start_date as string | null
+      const endRaw = goal.test_schedules?.result_entry_end_date as string | null
+
+      if (!startRaw || !endRaw) {
+        return false
+      }
+
+      const startDate = parseAsTokyoDate(startRaw)
+      const endDate = parseAsTokyoDate(endRaw)
+      if (!startDate || !endDate) {
+        return false
+      }
+
+      const endOfDay = new Date(endDate.getTime())
+      endOfDay.setHours(23, 59, 59, 999)
+
+      return startDate <= tokyoNow && tokyoNow <= endOfDay
+    }) || []
+
+  if (filteredGoals.length === 0 && goals) {
+    return { goals }
+  }
+
+  return { goals: filteredGoals }
+}
+
+/**
  * テスト結果を保存
  * 目標と結果を結びつける
  */
+export async function saveSimpleTestResult(
+  testScheduleId: string,
+  resultCourse: string,
+  resultClass: number
+) {
+  const supabase = await createClient()
+
+  // 現在のユーザー取得
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "ログインが必要です" }
+  }
+
+  // 生徒ID取得
+  const { data: student, error: studentError } = await supabase
+    .from("students")
+    .select("id")
+    .eq("user_id", user.id)
+    .single()
+
+  if (studentError || !student) {
+    return { success: false, error: "生徒情報が見つかりません" }
+  }
+
+  // 既存の結果をチェック
+  const { data: existingResult } = await supabase
+    .from("test_results")
+    .select("id")
+    .eq("student_id", student.id)
+    .eq("test_schedule_id", testScheduleId)
+    .maybeSingle()
+
+  if (existingResult) {
+    return { success: false, error: "この結果は既に入力されています" }
+  }
+
+  // 新規結果を作成
+  const { data: newResult, error: insertError } = await supabase
+    .from("test_results")
+    .insert({
+      student_id: student.id,
+      test_schedule_id: testScheduleId,
+      result_course: resultCourse,
+      result_class: resultClass,
+      result_entered_at: new Date().toISOString(),
+    })
+    .select()
+    .single()
+
+  if (insertError) {
+    return { success: false, error: insertError.message }
+  }
+
+  return { success: true, resultId: newResult.id }
+}
+
 export async function saveTestResult(
   testScheduleId: string,
   mathScore: number,

@@ -118,14 +118,28 @@ export async function determineWeekType() {
   const accuracyDiff = thisWeekAccuracy - lastWeekAccuracy
 
   // テスト日程をチェック（特別週判定）
-  const nextWeek = new Date(thisMonday)
-  nextWeek.setDate(nextWeek.getDate() + 7)
+  // 来週の日曜日にテストがある場合のみ特別週
+  // 今週の日曜日を基準に計算
+  const thisSunday = new Date(thisMonday)
+  thisSunday.setDate(thisMonday.getDate() + 6) // 今週月曜 + 6日 = 今週日曜
+
+  const nextWeekSunday = new Date(thisSunday)
+  nextWeekSunday.setDate(thisSunday.getDate() + 7) // 来週の日曜日
+  nextWeekSunday.setHours(0, 0, 0, 0)
+
+  const nextWeekSundayEnd = new Date(nextWeekSunday)
+  nextWeekSundayEnd.setHours(23, 59, 59, 999)
+
+  console.log("=== 特別週判定 ===")
+  console.log("今週月曜日:", thisMonday.toISOString().split('T')[0])
+  console.log("来週日曜日:", nextWeekSunday.toISOString().split('T')[0])
 
   const { data: upcomingTests } = await supabase
     .from("test_schedules")
-    .select("test_date, test_types(name)")
-    .gte("test_date", thisMonday.toISOString().split('T')[0])
-    .lte("test_date", nextWeek.toISOString().split('T')[0])
+    .select("test_date, test_types(name, grade)")
+    .eq("test_date", nextWeekSunday.toISOString().split('T')[0])
+
+  console.log("来週日曜日のテスト:", upcomingTests)
 
   const hasUpcomingTest = upcomingTests && upcomingTests.length > 0
 
