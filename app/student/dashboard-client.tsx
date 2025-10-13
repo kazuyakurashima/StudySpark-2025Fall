@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { BottomNavigation } from "@/components/bottom-navigation"
+import { WeeklySubjectProgressCard } from "@/components/weekly-subject-progress-card"
 import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, ChevronLeft, ChevronRight } from "lucide-react"
 
 interface DashboardData {
@@ -213,72 +214,63 @@ const LearningHistoryCalendar = ({ calendarData }: { calendarData: { [dateStr: s
             <Calendar className="h-6 w-6 text-primary" />
             学習カレンダー
           </CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="flex gap-1">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCriteriaMode(criteriaMode === "input" ? "accuracy" : "input")}
-              className="text-xs"
+              onClick={goToPreviousMonth}
+              disabled={!canGoPrevious()}
+              className="h-7 w-7 p-0"
             >
-              {criteriaMode === "input" ? "入力数" : "80%以上"}
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToToday}
+              className="h-7 px-2 text-xs"
+            >
+              今月
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToNextMonth}
+              disabled={!canGoNext()}
+              className="h-7 w-7 p-0"
+            >
+              <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
+        </div>
+        <div className="flex justify-center mt-3">
+          <Button
+            variant={criteriaMode === "input" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setCriteriaMode("input")}
+            className="rounded-r-none text-xs h-7"
+          >
+            入力数
+          </Button>
+          <Button
+            variant={criteriaMode === "accuracy" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setCriteriaMode("accuracy")}
+            className="rounded-l-none text-xs h-7"
+          >
+            80%以上
+          </Button>
         </div>
       </CardHeader>
       <CardContent className="px-3 sm:px-6">
         <div className="space-y-3 sm:space-y-4">
-          {/* 月ナビゲーション */}
-          <div className="flex items-center justify-between border-b border-slate-300 pb-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={goToPreviousMonth}
-              disabled={!canGoPrevious()}
-              className="hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              前月
-            </Button>
-            <div className="flex items-center gap-2">
-              <span className="text-base font-bold text-slate-800">{monthName}</span>
-              {!isCurrentMonth && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={goToToday}
-                  className="text-xs"
-                >
-                  今月
-                </Button>
-              )}
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={goToNextMonth}
-              disabled={!canGoNext()}
-              className="hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              翌月
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+          <div className="text-base font-bold text-slate-800 text-center">
+            {monthName}
           </div>
-
-          {/* データ範囲外の警告メッセージ */}
-          {isOutOfRange() && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
-              <p className="text-sm text-amber-800 font-medium">
-                📊 6週間より前の記録は表示されません
-              </p>
-              <p className="text-xs text-amber-600 mt-1">
-                直近6週間のデータのみ取得しています
-              </p>
-            </div>
-          )}
 
           {/* 曜日ヘッダー */}
           <div className="grid grid-cols-7 gap-1 sm:gap-2">
-            {["月", "火", "水", "木", "金", "土", "日"].map((day) => (
+            {["日", "月", "火", "水", "木", "金", "土"].map((day) => (
               <div
                 key={day}
                 className="text-sm font-semibold text-center text-slate-700 py-1 w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center"
@@ -319,9 +311,6 @@ const LearningHistoryCalendar = ({ calendarData }: { calendarData: { [dateStr: s
               <div className="w-4 h-4 rounded-md bg-primary border-2 border-primary shadow-sm"></div>
             </div>
             <span className="font-medium">多い</span>
-          </div>
-          <div className="text-center text-xs text-slate-500">
-            {criteriaMode === "input" ? "入力数ベースで表示中" : "正答率80%以上の件数ベースで表示中"}
           </div>
         </div>
       </CardContent>
@@ -701,146 +690,6 @@ const TodayMissionCard = ({ todayProgress, reflectionCompleted }: { todayProgres
   )
 }
 
-const WeeklySubjectProgressCard = ({ weeklyProgress, sessionNumber }: { weeklyProgress: Array<{subject: string, colorCode: string, accuracy: number, correctCount: number, totalProblems: number, details?: Array<{content: string, correct: number, total: number, remaining: number}>}>, sessionNumber?: number | null }) => {
-  const [expandedSubject, setExpandedSubject] = useState<string | null>(null)
-
-  const getStatus = (accuracy: number) => {
-    if (accuracy === 0) return "未着手"
-    if (accuracy < 50) return "進行中"
-    if (accuracy < 80) return "あと少し"
-    return "達成"
-  }
-
-  // 科目名からTailwindカラー名にマッピング
-  const getSubjectColor = (subjectName: string) => {
-    const colorMap: Record<string, string> = {
-      算数: "blue",
-      国語: "pink",
-      理科: "orange",
-      社会: "emerald",
-    }
-    return colorMap[subjectName] || "gray"
-  }
-
-  const subjectProgress = weeklyProgress.map((item) => ({
-    subject: item.subject,
-    status: getStatus(item.accuracy),
-    correctAnswers: item.correctCount,
-    totalQuestions: item.totalProblems,
-    progressRate: item.accuracy,
-    color: getSubjectColor(item.subject),
-    details: item.details || []
-  }))
-
-  const getStatusColor = (status: string) => {
-    const colors = {
-      進行中: "bg-blue-100 text-blue-800 border-blue-200",
-      あと少し: "bg-yellow-100 text-yellow-800 border-yellow-200",
-      未着手: "bg-gray-100 text-gray-800 border-gray-200",
-      達成: "bg-green-100 text-green-800 border-green-200",
-    }
-    return colors[status as keyof typeof colors] || "bg-gray-100 text-gray-800"
-  }
-
-  const getProgressColor = (color: string) => {
-    const colors = {
-      blue: "bg-blue-500",
-      pink: "bg-pink-500",
-      orange: "bg-orange-500",
-      emerald: "bg-emerald-500",
-      gray: "bg-gray-400",
-    }
-    return colors[color as keyof typeof colors] || "bg-gray-400"
-  }
-
-  const getProgressBgColor = (color: string) => {
-    const colors = {
-      blue: "bg-blue-100",
-      pink: "bg-pink-100",
-      orange: "bg-orange-100",
-      emerald: "bg-emerald-100",
-      gray: "bg-gray-100",
-    }
-    return colors[color as keyof typeof colors] || "bg-gray-100"
-  }
-
-  return (
-    <Card className="bg-gradient-to-br from-indigo-50 via-purple-50 to-blue-50 border-indigo-200/60 shadow-xl backdrop-blur-sm">
-      <CardHeader className="pb-4 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 rounded-t-lg">
-        <CardTitle className="text-lg font-bold flex items-center gap-2">
-          <div className="p-2 bg-indigo-100 rounded-full shadow-sm">
-            <BarChart3 className="h-5 w-5 text-indigo-600" />
-          </div>
-          <span className="text-indigo-900">今週の進捗</span>
-          {sessionNumber && (
-            <span className="text-sm font-medium text-indigo-700 ml-2">（第{sessionNumber}回）</span>
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {subjectProgress.length === 0 ? (
-          <div className="text-center py-8 text-slate-600">
-            <p>今週の学習記録がまだありません</p>
-            <p className="text-sm mt-2">スパーク機能で学習を記録しましょう！</p>
-          </div>
-        ) : (
-          subjectProgress.map((subject, index) => (
-          <div key={index} className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="font-bold text-lg text-slate-800">{subject.subject}</span>
-                <Badge className={`text-xs px-2 py-1 border ${getStatusColor(subject.status)}`}>{subject.status}</Badge>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-slate-600">
-                  {subject.correctAnswers}/{subject.totalQuestions}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setExpandedSubject(expandedSubject === subject.subject ? null : subject.subject)}
-                  className="text-blue-600 hover:text-blue-800 p-1"
-                >
-                  詳細
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className={`w-full h-3 rounded-full ${getProgressBgColor(subject.color)}`}>
-                <div
-                  className={`h-3 rounded-full transition-all duration-500 ${getProgressColor(subject.color)}`}
-                  style={{ width: `${subject.progressRate}%` }}
-                />
-              </div>
-            </div>
-
-            {expandedSubject === subject.subject && subject.details.length > 0 && (
-              <div className="bg-white/80 rounded-lg p-4 border border-slate-200 space-y-2">
-                <h4 className="font-medium text-slate-700 mb-2">学習内容別の詳細</h4>
-                {subject.details.map((detail, detailIndex) => (
-                  <div key={detailIndex} className="space-y-1">
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-slate-700 font-medium">{detail.content}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-xs text-slate-600">
-                      <span>正解: {detail.correct}問 / 全体: {detail.total}問</span>
-                      <span className={detail.remaining > 0 ? "text-orange-600 font-medium" : "text-green-600 font-medium"}>
-                        {detail.remaining > 0 ? `残り${detail.remaining}問` : "完璧！"}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ))
-        )}
-      </CardContent>
-    </Card>
-  )
-}
-
 const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
   const [showAll, setShowAll] = useState(false)
 
@@ -1077,19 +926,28 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
   const encouragementMessages = safeMessages.map((msg) => {
     const senderProfile = msg.sender_profile
     const baseMessage = msg.message || ""
+    const studyLog = msg.study_logs
 
-    // アバターの処理：送信者プロフィールから取得、なければデフォルト
-    let avatarUrl = senderProfile?.avatar_url
+    // アバターの処理：送信者プロフィールから取得
+    // avatar_urlが設定されている場合はそれを使用、なければgetAvatarSrcで適切なアバターを取得
+    const avatarUrl = senderProfile?.avatar_url
+      ? getAvatarSrc(senderProfile.avatar_url)
+      : getAvatarSrc(undefined)
 
-    // 無効なアバターURLの場合のみデフォルトを設定
-    if (!avatarUrl || avatarUrl === "undefined") {
-      // ロールに応じてデフォルトアバターを設定
-      if (msg.sender_role === "parent") {
-        avatarUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=parent"
-      } else if (msg.sender_role === "coach") {
-        avatarUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=coach"
-      } else {
-        avatarUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=ai_coach"
+    // 学習記録情報の整形
+    let studyInfo = null
+    if (studyLog) {
+      const accuracy = studyLog.total_problems > 0
+        ? Math.round((studyLog.correct_count / studyLog.total_problems) * 100)
+        : 0
+
+      studyInfo = {
+        session: studyLog.study_sessions?.session_number || "不明",
+        subject: studyLog.subjects?.name || "不明",
+        content: studyLog.study_content_types?.content_name || "不明",
+        accuracy,
+        correctCount: studyLog.correct_count || 0,
+        totalProblems: studyLog.total_problems || 0,
       }
     }
 
@@ -1099,6 +957,7 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
       avatar: avatarUrl,
       message: baseMessage,
       senderRole: msg.sender_role || "unknown",
+      studyInfo,
     }
   })
 
@@ -1177,18 +1036,41 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
                         <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-4 rounded-xl border border-pink-100">
                           <p className="text-base leading-relaxed text-slate-700 font-medium">{message.message}</p>
                         </div>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div className="bg-white p-2 rounded-lg border border-pink-100">
-                            <span className="text-slate-600">送信者: </span>
-                            <span className="font-medium text-slate-800">{message.from}</span>
+                        {message.studyInfo && (
+                          <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-200">
+                            <p className="text-sm font-semibold text-blue-900 mb-3">📚 応援された学習記録</p>
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <div className="bg-white p-2 rounded-lg border border-blue-100">
+                                <span className="text-slate-600">学習回: </span>
+                                <span className="font-medium text-slate-800">第{message.studyInfo.session}回</span>
+                              </div>
+                              <div className="bg-white p-2 rounded-lg border border-blue-100">
+                                <span className="text-slate-600">科目: </span>
+                                <span className="font-medium text-slate-800">{message.studyInfo.subject}</span>
+                              </div>
+                              <div className="bg-white p-2 rounded-lg border border-blue-100 col-span-2">
+                                <span className="text-slate-600">内容: </span>
+                                <span className="font-medium text-slate-800">{message.studyInfo.content}</span>
+                              </div>
+                              <div className="bg-white p-2 rounded-lg border border-blue-100">
+                                <span className="text-slate-600">正答数: </span>
+                                <span className="font-medium text-slate-800">
+                                  {message.studyInfo.correctCount}/{message.studyInfo.totalProblems}問
+                                </span>
+                              </div>
+                              <div className="bg-white p-2 rounded-lg border border-blue-100">
+                                <span className="text-slate-600">正答率: </span>
+                                <span className={`font-bold ${
+                                  message.studyInfo.accuracy >= 80 ? "text-green-600" :
+                                  message.studyInfo.accuracy >= 60 ? "text-yellow-600" :
+                                  "text-red-600"
+                                }`}>
+                                  {message.studyInfo.accuracy}%
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="bg-white p-2 rounded-lg border border-pink-100">
-                            <span className="text-slate-600">役割: </span>
-                            <span className="font-medium text-slate-800">
-                              {message.senderRole === "parent" ? "保護者" : "指導者"}
-                            </span>
-                          </div>
-                        </div>
+                        )}
                       </div>
                     ) : (
                       <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-4 rounded-xl border border-pink-100">
