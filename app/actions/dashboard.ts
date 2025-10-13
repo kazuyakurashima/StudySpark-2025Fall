@@ -216,33 +216,86 @@ async function getLatestWillAndGoalForCoach(studentId: string): Promise<{ will?:
 async function getRecentStudyLogsForCoach(studentId: string, days: number = 3) {
   const supabase = await createClient()
 
-  const cutoffDate = new Date()
-  cutoffDate.setDate(cutoffDate.getDate() - days)
+  // 今日、昨日、一昨日の日付を計算（Asia/Tokyo タイムゾーン）
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+  const dayBeforeYesterday = new Date(today)
+  dayBeforeYesterday.setDate(dayBeforeYesterday.getDate() - 2)
 
-  const { data: logs } = await supabase
+  const todayEnd = new Date(today)
+  todayEnd.setHours(23, 59, 59, 999)
+
+  console.log("🔍 [Coach Logs] Fetching logs for:", {
+    studentId,
+    today: today.toISOString().split("T")[0],
+    yesterday: yesterday.toISOString().split("T")[0],
+    dayBeforeYesterday: dayBeforeYesterday.toISOString().split("T")[0],
+  })
+
+  const { data: logs, error } = await supabase
     .from("study_logs")
     .select(`
       correct_count,
       total_problems,
-      study_date,
+      logged_at,
       subjects (name),
       study_content_types (content_name)
     `)
     .eq("student_id", studentId)
-    .gte("study_date", cutoffDate.toISOString().split("T")[0])
-    .order("study_date", { ascending: false })
-    .limit(20)
+    .gte("logged_at", dayBeforeYesterday.toISOString())
+    .lte("logged_at", todayEnd.toISOString())
+    .order("logged_at", { ascending: false })
 
-  if (!logs || logs.length === 0) return []
+  console.log("🔍 [Coach Logs] Query result:", {
+    count: logs?.length,
+    error: error?.message,
+  })
 
-  return logs.map((log: any) => ({
-    subject: log.subjects?.name || "不明",
-    content: log.study_content_types?.content_name || "",
-    correct: log.correct_count || 0,
-    total: log.total_problems || 0,
-    accuracy: log.total_problems > 0 ? Math.round((log.correct_count / log.total_problems) * 100) : 0,
-    date: log.study_date || "",
-  }))
+  if (!logs || logs.length === 0) {
+    console.log("🔍 [Coach Logs] No logs found")
+    return { today: [], yesterday: [], dayBeforeYesterday: [] }
+  }
+
+  // 日別に分類
+  const todayLogs: any[] = []
+  const yesterdayLogs: any[] = []
+  const dayBeforeYesterdayLogs: any[] = []
+
+  logs.forEach((log: any) => {
+    const logDate = new Date(log.logged_at)
+    const logDateOnly = new Date(logDate.getFullYear(), logDate.getMonth(), logDate.getDate())
+
+    const mappedLog = {
+      subject: log.subjects?.name || "不明",
+      content: log.study_content_types?.content_name || "",
+      correct: log.correct_count || 0,
+      total: log.total_problems || 0,
+      accuracy: log.total_problems > 0 ? Math.round((log.correct_count / log.total_problems) * 100) : 0,
+      date: logDateOnly.toISOString().split("T")[0],
+    }
+
+    if (logDateOnly.getTime() === today.getTime()) {
+      todayLogs.push(mappedLog)
+    } else if (logDateOnly.getTime() === yesterday.getTime()) {
+      yesterdayLogs.push(mappedLog)
+    } else if (logDateOnly.getTime() === dayBeforeYesterday.getTime()) {
+      dayBeforeYesterdayLogs.push(mappedLog)
+    }
+  })
+
+  console.log("🔍 [Coach Logs] Logs by day:", {
+    today: todayLogs.length,
+    yesterday: yesterdayLogs.length,
+    dayBeforeYesterday: dayBeforeYesterdayLogs.length,
+  })
+
+  return {
+    today: todayLogs,
+    yesterday: yesterdayLogs,
+    dayBeforeYesterday: dayBeforeYesterdayLogs,
+  }
 }
 
 /**
@@ -472,8 +525,16 @@ export async function getRecentEncouragementMessages(limit: number = 3) {
     }
 
     const senderIds = messages.map((msg: any) => msg.sender_id)
+    console.log("🔍 [Dashboard] Fetching sender profiles for IDs:", senderIds)
+
     const { data: senderProfiles, error: senderError } = await supabase.rpc("get_sender_profiles", {
       sender_ids: senderIds,
+    })
+
+    console.log("🔍 [Dashboard] Sender profiles result:", {
+      profiles: senderProfiles,
+      error: senderError,
+      count: senderProfiles?.length
     })
 
     if (senderError) {
@@ -482,7 +543,7 @@ export async function getRecentEncouragementMessages(limit: number = 3) {
       return {
         messages: messages.map((msg: any) => ({
           ...msg,
-          profiles: { display_name: "不明", avatar_url: null },
+          sender_profile: { display_name: "不明", avatar_url: null },
         })),
       }
     }
@@ -490,11 +551,22 @@ export async function getRecentEncouragementMessages(limit: number = 3) {
     // 送信者情報をマージ
     const messagesWithSender = messages.map((msg: any) => {
       const senderProfile = senderProfiles?.find((profile: any) => profile.id === msg.sender_id)
+      console.log("🔍 [Dashboard] Merging message:", {
+        messageId: msg.id,
+        senderId: msg.sender_id,
+        foundProfile: senderProfile,
+        avatarUrl: senderProfile?.avatar_url
+      })
       return {
         ...msg,
-        profiles: senderProfile || { display_name: "不明", avatar_url: null },
+        sender_profile: senderProfile || { display_name: "不明", avatar_url: null },
       }
     })
+
+    console.log("🔍 [Dashboard] Final messages with sender:", messagesWithSender.map(m => ({
+      id: m.id,
+      sender_profile: m.sender_profile
+    })))
 
     return { messages: messagesWithSender }
   } catch (error) {
@@ -524,18 +596,31 @@ export async function getWeeklySubjectProgress() {
       return { error: "生徒情報が見つかりません" }
     }
 
-    // Get current date in Tokyo timezone
+    // Get current date in Tokyo timezone (YYYY-MM-DD format)
     const now = new Date()
-    const tokyoNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Tokyo" }))
+    // Use Intl.DateTimeFormat to get date parts in Tokyo timezone
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Tokyo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    })
+    const todayStr = formatter.format(now) // Returns YYYY-MM-DD
+
+    console.log("🔍 [SERVER] Weekly progress - Today (JST):", todayStr)
+    console.log("🔍 [SERVER] Weekly progress - Student grade:", student.grade)
 
     // Find this week's study session
     const { data: currentSession, error: sessionError } = await supabase
       .from("study_sessions")
       .select("id, session_number, start_date, end_date")
       .eq("grade", student.grade)
-      .lte("start_date", tokyoNow.toISOString().split("T")[0])
-      .gte("end_date", tokyoNow.toISOString().split("T")[0])
+      .lte("start_date", todayStr)
+      .gte("end_date", todayStr)
       .single()
+
+    console.log("🔍 [SERVER] Weekly progress - Current session:", JSON.stringify(currentSession, null, 2))
+    console.log("🔍 [SERVER] Weekly progress - Session error:", sessionError)
 
     if (sessionError || !currentSession) {
       console.error("No current session found:", sessionError)
@@ -772,11 +857,16 @@ export async function getTodayMissionData() {
       return { error: "生徒情報が見つかりません" }
     }
 
-    // Get today's logs
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const todayEnd = new Date(today)
-    todayEnd.setHours(23, 59, 59, 999)
+    // Get today's logs (using study_date with JST timezone)
+    const now = new Date()
+    const jstOffset = 9 * 60 // UTC+9
+    const nowJST = new Date(now.getTime() + jstOffset * 60 * 1000)
+    const todayDateStr = nowJST.toISOString().split('T')[0]
+
+    // Also get yesterday's data for late-night viewing scenario
+    const yesterdayJST = new Date(nowJST)
+    yesterdayJST.setDate(yesterdayJST.getDate() - 1)
+    const yesterdayDateStr = yesterdayJST.toISOString().split('T')[0]
 
     const { data: todayLogs, error: logsError } = await supabase
       .from("study_logs")
@@ -789,8 +879,7 @@ export async function getTodayMissionData() {
       `
       )
       .eq("student_id", student.id)
-      .gte("logged_at", today.toISOString())
-      .lte("logged_at", todayEnd.toISOString())
+      .in("study_date", [todayDateStr, yesterdayDateStr])
 
     if (logsError) {
       console.error("Get today mission data error:", logsError)
