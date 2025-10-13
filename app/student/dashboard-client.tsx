@@ -466,6 +466,9 @@ const TodayMissionCard = ({ todayProgress, reflectionCompleted }: { todayProgres
         } else if (data.inputCount === 1 && data.accuracy < 80) {
           // 1回のみ & 80%未満は要アクション
           needsAction = true
+        } else if (data.inputCount === 0) {
+          // 未入力も要アクション
+          needsAction = true
         }
       }
 
@@ -646,13 +649,19 @@ const TodayMissionCard = ({ todayProgress, reflectionCompleted }: { todayProgres
               {missionData.panels.map((panel: any, index: number) => (
                 <div
                   key={index}
-                  className={`p-4 rounded-xl border-2 shadow-sm transition-all duration-300 hover:shadow-md ${getSubjectColor(panel.subject)} ${
-                    panel.needsAction ? "ring-2 ring-primary/50 animate-pulse" : ""
+                  className={`p-4 rounded-xl border-2 transition-all duration-300 ${
+                    panel.isCompleted
+                      ? "bg-slate-100/50 border-slate-300 shadow-sm opacity-70"
+                      : `shadow-lg hover:shadow-xl ${getSubjectColor(panel.subject)} ${
+                          panel.needsAction ? "ring-4 ring-primary/50 animate-pulse" : ""
+                        }`
                   }`}
                 >
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-lg text-slate-800">{panel.subject}</span>
+                      <span className={`font-bold text-lg ${panel.isCompleted ? "text-slate-600" : "text-slate-800"}`}>
+                        {panel.subject}
+                      </span>
                       <Badge
                         className={`text-xs px-2 py-1 border ${getStatusBadgeColor(panel.status, panel.needsAction)}`}
                       >
@@ -663,11 +672,13 @@ const TodayMissionCard = ({ todayProgress, reflectionCompleted }: { todayProgres
                       onClick={() => handleSparkNavigation(panel.subject)}
                       className={`w-full py-3 px-4 rounded-lg text-sm font-bold transition-all duration-300 ${
                         panel.needsAction
-                          ? "bg-blue-500 text-white hover:bg-blue-600 shadow-lg hover:scale-105"
+                          ? "bg-primary text-white hover:bg-primary/90 shadow-lg hover:scale-105 ring-2 ring-primary/30"
+                          : panel.isCompleted
+                          ? "bg-slate-200 text-slate-500 hover:bg-slate-300"
                           : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                       }`}
                     >
-                      今すぐ記録する
+                      {panel.isCompleted ? "記録済み" : "今すぐ記録する"}
                     </Button>
                   </div>
                 </div>
