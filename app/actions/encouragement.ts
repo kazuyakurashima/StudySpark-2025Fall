@@ -1,6 +1,6 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
+import { createClient, createAdminClient } from "@/lib/supabase/server"
 import { generateEncouragementMessages, type EncouragementContext } from "@/lib/openai/encouragement"
 import { QUICK_ENCOURAGEMENT_TEMPLATES, type QuickEncouragementType } from "@/lib/openai/prompts"
 
@@ -156,19 +156,32 @@ export async function generateAIEncouragement(studentId: string, studyLogId: str
   // 保護者情報を取得
   const { data: parentData } = await supabase
     .from("parents")
-    .select("id, profiles!parents_user_id_fkey(display_name)")
+    .select("id")
     .eq("user_id", user.id)
     .single()
 
-  // 生徒情報を取得
-  const { data: studentData } = await supabase
+  if (!parentData) {
+    return { success: false as const, error: "保護者情報が見つかりません" }
+  }
+
+  // Admin clientでprofile情報を取得（RLSバイパス）
+  const adminClient = createAdminClient()
+
+  const { data: parentProfile } = await adminClient
+    .from("profiles")
+    .select("display_name")
+    .eq("id", user.id)
+    .single()
+
+  // 生徒情報を取得（Admin client使用）
+  const { data: studentData } = await adminClient
     .from("students")
     .select("id, full_name")
     .eq("id", studentId)
     .single()
 
-  // 学習記録を取得
-  const { data: studyLog } = await supabase
+  // 学習記録を取得（Admin client使用）
+  const { data: studyLog } = await adminClient
     .from("study_logs")
     .select(`
       study_date,
@@ -190,7 +203,7 @@ export async function generateAIEncouragement(studentId: string, studyLogId: str
   const context: EncouragementContext = {
     studentName: studentData.full_name || "お子さん",
     senderRole: "parent",
-    senderName: (parentData?.profiles as any)?.display_name || "保護者",
+    senderName: parentProfile?.display_name || "保護者",
     recentPerformance: {
       subject: Array.isArray(studyLog.subjects) ? studyLog.subjects[0]?.name : studyLog.subjects?.name || "不明",
       accuracy,

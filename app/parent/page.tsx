@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import ParentBottomNavigation from "@/components/parent-bottom-navigation"
 import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, Sparkles, ChevronLeft, ChevronRight } from "lucide-react"
+import { WeeklySubjectProgressCard } from "@/components/weekly-subject-progress-card"
 
 const getGreetingMessage = (userName: string, lastLoginInfo: { lastLoginDays: number | null, lastLoginHours: number, isFirstTime: boolean } | null) => {
   if (!lastLoginInfo || lastLoginInfo.isFirstTime || lastLoginInfo.lastLoginDays === 0) {
@@ -232,9 +233,27 @@ const LearningHistoryCalendar = ({ calendarData }: { calendarData: { [dateStr: s
   )
 }
 
-const ParentTodayMissionCard = ({ todayProgress, studentName }: { todayProgress: Array<{subject: string, accuracy: number, correctCount: number, totalProblems: number, logs: any[]}>, studentName: string }) => {
-  const [expandedLog, setExpandedLog] = useState<number | null>(null)
+const ParentTodayMissionCard = ({ todayProgress, studentName, selectedChildId }: { todayProgress: Array<{subject: string, accuracy: number, correctCount: number, totalProblems: number, logs: any[]}>, studentName: string, selectedChildId: number | null }) => {
+  const [expandedLogs, setExpandedLogs] = useState<Set<number>>(new Set())
   const [encouragementSent, setEncouragementSent] = useState<{ [key: string]: boolean }>({})
+  const [showAIDialog, setShowAIDialog] = useState(false)
+  const [aiMessages, setAiMessages] = useState<string[]>([])
+  const [selectedMessage, setSelectedMessage] = useState<string>("")
+  const [currentLogId, setCurrentLogId] = useState<string | null>(null)
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false)
+  const [isSendingMessage, setIsSendingMessage] = useState(false)
+
+  const toggleExpandLog = (index: number) => {
+    setExpandedLogs(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(index)) {
+        newSet.delete(index)
+      } else {
+        newSet.add(index)
+      }
+      return newSet
+    })
+  }
 
   const getTodayWeekday = () => {
     const today = new Date()
@@ -459,16 +478,15 @@ const ParentTodayMissionCard = ({ todayProgress, studentName }: { todayProgress:
     return "今日のミッション！"
   }
 
-  const handleSendEncouragement = async (subject: string, logIndex: number, studyLogId?: string) => {
+  const handleQuickEncouragement = async (subject: string, logIndex: number, studyLogId: string | undefined, type: "heart" | "star" | "thumbsup") => {
     if (!selectedChildId || !studyLogId) {
       alert("学習記録が見つかりません")
       return
     }
 
     try {
-      // Quick encouragement with "がんばったね" template
       const { sendQuickEncouragement } = await import("@/app/actions/encouragement")
-      const result = await sendQuickEncouragement(selectedChildId.toString(), studyLogId, "heart")
+      const result = await sendQuickEncouragement(selectedChildId.toString(), studyLogId, type)
 
       if (result.success) {
         const key = `${subject}-${logIndex}`
@@ -483,34 +501,63 @@ const ParentTodayMissionCard = ({ todayProgress, studentName }: { todayProgress:
     }
   }
 
-  const handleAIEncouragement = async (subject: string, studyLogId?: string) => {
+  const handleOpenAIDialog = async (subject: string, studyLogId?: string) => {
     if (!selectedChildId || !studyLogId) {
       alert("学習記録が見つかりません")
       return
     }
+
+    setCurrentLogId(studyLogId)
+    setShowAIDialog(true)
+    setIsGeneratingAI(true)
+    setAiMessages([])
+    setSelectedMessage("")
 
     try {
       const { generateAIEncouragement } = await import("@/app/actions/encouragement")
       const result = await generateAIEncouragement(selectedChildId.toString(), studyLogId)
 
       if (result.success && result.messages && result.messages.length > 0) {
-        // result.messages is string[] - show first message
-        const message = result.messages[0]
-        if (confirm(`AI応援メッセージ:\n"${message}"\n\nこのメッセージを送信しますか？`)) {
-          const { sendCustomEncouragement } = await import("@/app/actions/encouragement")
-          const sendResult = await sendCustomEncouragement(selectedChildId.toString(), studyLogId, message, "ai")
-          if (sendResult.success) {
-            alert("AI応援メッセージを送信しました！")
-          } else {
-            alert(`送信エラー: ${sendResult.error}`)
-          }
-        }
+        setAiMessages(result.messages)
+        setSelectedMessage(result.messages[0])
       } else {
         alert(`エラー: ${result.error || "AI応援メッセージ生成に失敗しました"}`)
+        setShowAIDialog(false)
       }
     } catch (error) {
       console.error("AI応援エラー:", error)
       alert("AI応援機能でエラーが発生しました")
+      setShowAIDialog(false)
+    } finally {
+      setIsGeneratingAI(false)
+    }
+  }
+
+  const handleSendAIMessage = async () => {
+    if (!selectedChildId || !currentLogId || !selectedMessage.trim()) {
+      alert("メッセージを選択または入力してください")
+      return
+    }
+
+    setIsSendingMessage(true)
+    try {
+      const { sendCustomEncouragement } = await import("@/app/actions/encouragement")
+      const result = await sendCustomEncouragement(selectedChildId.toString(), currentLogId, selectedMessage, "ai")
+
+      if (result.success) {
+        alert("AI応援メッセージを送信しました！")
+        setShowAIDialog(false)
+        // Mark as sent in UI
+        const key = `ai-${currentLogId}`
+        setEncouragementSent({ ...encouragementSent, [key]: true })
+      } else {
+        alert(`送信エラー: ${result.error}`)
+      }
+    } catch (error) {
+      console.error("メッセージ送信エラー:", error)
+      alert("メッセージの送信に失敗しました")
+    } finally {
+      setIsSendingMessage(false)
     }
   }
 
@@ -581,6 +628,13 @@ const ParentTodayMissionCard = ({ todayProgress, studentName }: { todayProgress:
         {/* 通常モード（入力促進・復習促進） */}
         {(missionData.mode === "input" || missionData.mode === "review") && (
           <div className="space-y-6">
+            {missionData.panels.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-slate-600">今日はまだ学習記録がありません</p>
+                <p className="text-sm text-slate-500 mt-2">{studentName}さんの学習を見守りましょう！</p>
+              </div>
+            ) : (
+              <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {missionData.panels.map((panel: any, index: number) => (
                 <div
@@ -607,37 +661,58 @@ const ParentTodayMissionCard = ({ todayProgress, studentName }: { todayProgress:
                       </Button>
                     ) : (
                       <div className="space-y-2">
-                        <div className="flex gap-2">
+                        {/* クイック応援ボタン（3種類） */}
+                        <div className="grid grid-cols-3 gap-2">
                           <Button
-                            onClick={() => handleSendEncouragement(panel.subject, 0, panel.logs?.[0]?.id)}
-                            className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all duration-300 ${
-                              encouragementSent[`${panel.subject}-0`]
-                                ? "bg-green-100 text-green-700 border border-green-300"
-                                : "bg-pink-500 text-white hover:bg-pink-600"
-                            }`}
-                            disabled={encouragementSent[`${panel.subject}-0`] || !panel.logs?.[0]?.id}
+                            onClick={() => handleQuickEncouragement(panel.subject, 0, panel.logs?.[0]?.id, "heart")}
+                            className="py-2 px-2 rounded-lg text-xs font-bold bg-pink-500 text-white hover:bg-pink-600 transition-all duration-300 flex items-center justify-center gap-1"
+                            disabled={encouragementSent[`${panel.subject}-0`] || panel.logs?.[0]?.hasParentEncouragement || !panel.logs?.[0]?.id}
                           >
-                            {encouragementSent[`${panel.subject}-0`] ? "応援完了！" : "応援"}
+                            <Heart className="h-3 w-3" />
+                            <span className="hidden sm:inline">がんばったね</span>
                           </Button>
                           <Button
-                            onClick={() => handleAIEncouragement(panel.subject, panel.logs?.[0]?.id)}
-                            className="flex-1 py-2 px-3 rounded-lg text-xs font-bold bg-purple-500 text-white hover:bg-purple-600 transition-all duration-300"
-                            disabled={!panel.logs?.[0]?.id}
+                            onClick={() => handleQuickEncouragement(panel.subject, 0, panel.logs?.[0]?.id, "star")}
+                            className="py-2 px-2 rounded-lg text-xs font-bold bg-yellow-500 text-white hover:bg-yellow-600 transition-all duration-300 flex items-center justify-center gap-1"
+                            disabled={encouragementSent[`${panel.subject}-0`] || panel.logs?.[0]?.hasParentEncouragement || !panel.logs?.[0]?.id}
                           >
-                            <Sparkles className="h-3 w-3 mr-1" />
-                            AI応援
+                            ⭐
+                            <span className="hidden sm:inline">すごい！</span>
+                          </Button>
+                          <Button
+                            onClick={() => handleQuickEncouragement(panel.subject, 0, panel.logs?.[0]?.id, "thumbsup")}
+                            className="py-2 px-2 rounded-lg text-xs font-bold bg-blue-500 text-white hover:bg-blue-600 transition-all duration-300 flex items-center justify-center gap-1"
+                            disabled={encouragementSent[`${panel.subject}-0`] || panel.logs?.[0]?.hasParentEncouragement || !panel.logs?.[0]?.id}
+                          >
+                            👍
+                            <span className="hidden sm:inline">よくできました</span>
                           </Button>
                         </div>
+                        {/* AI応援ボタン */}
                         <Button
-                          onClick={() => setExpandedLog(expandedLog === index ? null : index)}
+                          onClick={() => handleOpenAIDialog(panel.subject, panel.logs?.[0]?.id)}
+                          className="w-full py-2 px-3 rounded-lg text-xs font-bold bg-purple-500 text-white hover:bg-purple-600 transition-all duration-300 flex items-center justify-center gap-2"
+                          disabled={!panel.logs?.[0]?.id}
+                        >
+                          <Sparkles className="h-3 w-3" />
+                          AI応援メッセージ
+                        </Button>
+                        {/* 応援済み表示 */}
+                        {(encouragementSent[`${panel.subject}-0`] || panel.logs?.[0]?.hasParentEncouragement) && (
+                          <div className="text-center text-xs text-green-600 font-medium">
+                            ✓ 応援済み
+                          </div>
+                        )}
+                        <Button
+                          onClick={() => toggleExpandLog(index)}
                           variant="outline"
                           className="w-full py-2 px-3 rounded-lg text-xs font-medium"
                         >
-                          {expandedLog === index ? "閉じる" : "詳細を見る"}
+                          {expandedLogs.has(index) ? "閉じる" : "詳細を見る"}
                         </Button>
 
                         {/* Expanded log details */}
-                        {expandedLog === index && panel.logs && panel.logs.length > 0 && (
+                        {expandedLogs.has(index) && panel.logs && panel.logs.length > 0 && (
                           <div className="mt-3 p-3 bg-white rounded-lg border border-slate-200 space-y-2">
                             {panel.logs.map((log: any, logIndex: number) => (
                               <div key={logIndex} className="text-xs space-y-1 pb-2 border-b border-slate-100 last:border-b-0">
@@ -679,127 +754,134 @@ const ParentTodayMissionCard = ({ todayProgress, studentName }: { todayProgress:
                 <p className="text-base text-slate-700 leading-relaxed">{missionData.statusMessage}</p>
               </div>
             </div>
+              </>
+            )}
           </div>
         )}
       </CardContent>
-    </Card>
-  )
-}
 
-const WeeklySubjectProgressCard = ({ weeklyProgress }: { weeklyProgress: Array<{subject: string, colorCode: string, accuracy: number, correctCount: number, totalProblems: number, details?: Array<{content: string, remaining: number}>}> }) => {
-  const [expandedSubject, setExpandedSubject] = useState<string | null>(null)
-
-  const getStatus = (accuracy: number) => {
-    if (accuracy === 0) return "未着手"
-    if (accuracy < 50) return "進行中"
-    if (accuracy < 80) return "あと少し"
-    return "達成"
-  }
-
-  const getColor = (accuracy: number) => {
-    if (accuracy === 0) return "gray"
-    if (accuracy < 50) return "blue"
-    if (accuracy < 80) return "yellow"
-    return "green"
-  }
-
-  const subjectProgress = weeklyProgress.map((item) => ({
-    subject: item.subject,
-    status: getStatus(item.accuracy),
-    correctAnswers: item.correctCount,
-    totalQuestions: item.totalProblems,
-    progressRate: item.accuracy,
-    color: getColor(item.accuracy),
-    details: item.details || [],
-  }))
-
-  const getStatusColor = (status: string) => {
-    const colors = {
-      進行中: "bg-blue-100 text-blue-800 border-blue-200",
-      あと少し: "bg-yellow-100 text-yellow-800 border-yellow-200",
-      未着手: "bg-gray-100 text-gray-800 border-gray-200",
-      達成: "bg-green-100 text-green-800 border-green-200",
-    }
-    return colors[status as keyof typeof colors] || "bg-gray-100 text-gray-800"
-  }
-
-  const getProgressColor = (color: string) => {
-    const colors = {
-      blue: "bg-blue-500",
-      yellow: "bg-yellow-500",
-      gray: "bg-gray-400",
-      green: "bg-green-500",
-    }
-    return colors[color as keyof typeof colors] || "bg-gray-400"
-  }
-
-  const getProgressBgColor = (color: string) => {
-    const colors = {
-      blue: "bg-blue-100",
-      yellow: "bg-yellow-100",
-      gray: "bg-gray-100",
-      green: "bg-green-100",
-    }
-    return colors[color as keyof typeof colors] || "bg-gray-100"
-  }
-
-  return (
-    <Card className="bg-gradient-to-br from-purple-50 to-blue-50 border-purple/20 shadow-lg">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-lg font-bold flex items-center gap-2">
-          <BarChart3 className="h-6 w-6 text-purple-600" />
-          今週の進捗
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {subjectProgress.map((subject, index) => (
-          <div key={index} className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="font-bold text-lg text-slate-800">{subject.subject}</span>
-                <Badge className={`text-xs px-2 py-1 border ${getStatusColor(subject.status)}`}>{subject.status}</Badge>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-slate-600">
-                  {subject.correctAnswers}/{subject.totalQuestions}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setExpandedSubject(expandedSubject === subject.subject ? null : subject.subject)}
-                  className="text-blue-600 hover:text-blue-800 p-1"
-                >
-                  詳細
-                </Button>
-              </div>
+      {/* AI応援メッセージダイアログ */}
+      {showAIDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-2 sm:p-4 z-50" onClick={() => !isGeneratingAI && !isSendingMessage && setShowAIDialog(false)}>
+          <div className="bg-white rounded-2xl p-4 sm:p-6 max-w-2xl w-full max-h-[90vh] sm:max-h-[80vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <h3 className="text-lg sm:text-xl font-bold text-slate-800 flex items-center gap-2">
+                <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" />
+                <span className="hidden xs:inline">AI応援メッセージ</span>
+                <span className="xs:hidden">AI応援</span>
+              </h3>
+              <button
+                onClick={() => setShowAIDialog(false)}
+                disabled={isGeneratingAI || isSendingMessage}
+                className="text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
+              >
+                ✕
+              </button>
             </div>
 
-            <div className="space-y-2">
-              <div className={`w-full h-3 rounded-full ${getProgressBgColor(subject.color)}`}>
-                <div
-                  className={`h-3 rounded-full transition-all duration-500 ${getProgressColor(subject.color)}`}
-                  style={{ width: `${subject.progressRate}%` }}
-                />
+            {isGeneratingAI ? (
+              <div className="py-12 text-center">
+                <div className="animate-spin inline-block w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full mb-4"></div>
+                <p className="text-slate-600">AI応援メッセージを生成中...</p>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-3 sm:space-y-4">
+                <p className="text-xs sm:text-sm text-slate-600 mb-2 sm:mb-4">
+                  3つの応援メッセージから選んでください。メッセージは編集することもできます。
+                </p>
 
-            {expandedSubject === subject.subject && subject.details.length > 0 && (
-              <div className="bg-white/80 rounded-lg p-4 border border-slate-200 space-y-2">
-                <h4 className="font-medium text-slate-700 mb-2">内容別残数</h4>
-                {subject.details.map((detail, detailIndex) => (
-                  <div key={detailIndex} className="flex justify-between items-center text-sm">
-                    <span className="text-slate-600">{detail.content}</span>
-                    <span className="font-medium text-slate-800">{detail.remaining}問</span>
+                {/* 3つのメッセージ選択肢 */}
+                <div className="space-y-2 sm:space-y-3">
+                  {aiMessages.map((message, index) => (
+                    <div key={index} className="relative">
+                      <input
+                        type="radio"
+                        id={`message-${index}`}
+                        name="ai-message"
+                        checked={selectedMessage === message}
+                        onChange={() => setSelectedMessage(message)}
+                        className="sr-only"
+                      />
+                      <label
+                        htmlFor={`message-${index}`}
+                        className={`block p-3 sm:p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+                          selectedMessage === message
+                            ? "border-purple-500 bg-purple-50"
+                            : "border-slate-200 bg-white hover:border-purple-300"
+                        }`}
+                      >
+                        <div className="flex items-start gap-2 sm:gap-3">
+                          <div className={`flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                            selectedMessage === message
+                              ? "border-purple-500 bg-purple-500"
+                              : "border-slate-300"
+                          }`}>
+                            {selectedMessage === message && (
+                              <svg className="w-3 h-3 sm:w-4 sm:h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-[10px] sm:text-xs font-semibold text-purple-600">
+                                {index === 0 ? "励まし型" : index === 1 ? "共感型" : "次への期待型"}
+                              </span>
+                            </div>
+                            <p className="text-xs sm:text-sm text-slate-700 leading-relaxed break-words">{message}</p>
+                          </div>
+                        </div>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+
+                {/* メッセージ編集エリア */}
+                <div className="mt-4 sm:mt-6">
+                  <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-2">
+                    メッセージを編集（200文字まで）
+                  </label>
+                  <textarea
+                    value={selectedMessage}
+                    onChange={(e) => setSelectedMessage(e.target.value.slice(0, 200))}
+                    className="w-full p-2 sm:p-3 text-sm border-2 border-slate-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all resize-none"
+                    rows={4}
+                    placeholder="選択したメッセージを編集できます"
+                  />
+                  <div className="flex justify-between items-center mt-1">
+                    <p className="text-[10px] sm:text-xs text-slate-500">
+                      {selectedMessage.length}/200文字
+                    </p>
                   </div>
-                ))}
+                </div>
+
+                {/* 送信ボタン */}
+                <div className="flex gap-2 sm:gap-3 mt-4 sm:mt-6">
+                  <Button
+                    onClick={() => setShowAIDialog(false)}
+                    variant="outline"
+                    className="flex-1 py-2 sm:py-3 text-xs sm:text-sm font-semibold"
+                    disabled={isSendingMessage}
+                  >
+                    キャンセル
+                  </Button>
+                  <Button
+                    onClick={handleSendAIMessage}
+                    disabled={!selectedMessage.trim() || isSendingMessage}
+                    className="flex-1 py-2 sm:py-3 bg-purple-600 hover:bg-purple-700 text-white text-xs sm:text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    {isSendingMessage ? "送信中..." : "送信する"}
+                  </Button>
+                </div>
               </div>
             )}
           </div>
-        ))}
-      </CardContent>
+        </div>
+      )}
     </Card>
   )
 }
+
 
 const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
   const formatDate = (dateStr?: string) => {
@@ -1058,19 +1140,62 @@ export default function ParentDashboard() {
   const [todayProgress, setTodayProgress] = useState<any[]>([])
   const [calendarData, setCalendarData] = useState<any>({})
   const [weeklyProgress, setWeeklyProgress] = useState<any[]>([])
+  const [sessionNumber, setSessionNumber] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+
+  // Cache for AI-generated status message (persisted in localStorage)
+  const [aiMessageCache, setAiMessageCache] = useState<{
+    studentId: number
+    date: string
+    logCount: number
+    message: string
+  } | null>(() => {
+    // Load cache from localStorage on mount
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("parentAiMessageCache")
+        if (cached) {
+          const parsed = JSON.parse(cached)
+          // Validate that it's for today
+          const todayStr = new Date().toLocaleDateString("ja-JP")
+          if (parsed.date === todayStr) {
+            console.log("✅ [CLIENT] Using cached AI message from localStorage")
+            return parsed
+          } else {
+            // Clear stale cache
+            console.log("🗑️ [CLIENT] Clearing stale AI message cache")
+            localStorage.removeItem("parentAiMessageCache")
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load AI message cache:", error)
+        // Clear corrupted cache
+        localStorage.removeItem("parentAiMessageCache")
+      }
+    }
+    return null
+  })
 
   // Fetch parent data and children list
   useEffect(() => {
     const fetchParentData = async () => {
       try {
+        console.log("🔍 [CLIENT] Fetching parent data...")
         const { getParentDashboardData, getTodayStatusMessage } = await import("@/app/actions/parent-dashboard")
         const { getLastLoginInfo } = await import("@/app/actions/dashboard")
 
+        console.log("🔍 [CLIENT] Imports successful, calling getParentDashboardData()")
         const [parentData, loginInfo] = await Promise.all([
           getParentDashboardData(),
           getLastLoginInfo()
         ])
+
+        console.log("🔍 [CLIENT] Parent data received:", {
+          hasError: !!parentData?.error,
+          error: parentData?.error,
+          childrenCount: parentData?.children?.length,
+          fullData: JSON.stringify(parentData, null, 2)
+        })
 
         if (!parentData?.error && parentData?.profile) {
           setUserName(parentData.profile.display_name || "保護者")
@@ -1082,10 +1207,22 @@ export default function ParentDashboard() {
           // Set first child as default
           if (parentData.children.length > 0) {
             const firstChild = parentData.children[0]
-            const students = firstChild.students
-            const profiles = students?.profiles
+
+            // students can be an object or array
+            let studentData = firstChild.students
+            if (Array.isArray(studentData)) {
+              studentData = studentData[0]
+            }
+
+            // profiles is directly on studentData (added by server)
+            const profile = studentData?.profiles
+
             setSelectedChildId(firstChild.student_id)
-            setSelectedChildName(profiles?.display_name || "お子さん")
+            setSelectedChildName(profile?.display_name || "お子さん")
+            // Keep loading state true - will be set to false after child data is fetched
+          } else {
+            // No children associated
+            setIsLoading(false)
           }
         } else {
           // 子どもが紐付いていない場合もローディングを解除
@@ -1096,7 +1233,12 @@ export default function ParentDashboard() {
           setLastLoginInfo(loginInfo)
         }
       } catch (error) {
-        console.error("Failed to fetch parent dashboard data:", error)
+        console.error("❌ [CLIENT] Failed to fetch parent dashboard data:", error)
+        console.error("❌ [CLIENT] Error details:", {
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined
+        })
+        setIsLoading(false)
       }
     }
 
@@ -1105,15 +1247,21 @@ export default function ParentDashboard() {
 
   // Fetch child-specific data when selected child changes
   useEffect(() => {
+    console.log("🔍 [CLIENT] useEffect triggered - selectedChildId:", selectedChildId)
+
     if (!selectedChildId) {
+      console.log("🔍 [CLIENT] No child selected, setting loading to false")
       setIsLoading(false)
       return
     }
+
+    console.log("🔍 [CLIENT] Fetching data for child:", selectedChildId)
 
     const fetchChildData = async () => {
       try {
         const {
           getTodayStatusMessageAI,
+          getTodayLogCount,
           getStudentStreak,
           getStudentTodayMissionData,
           getStudentWeeklyProgress,
@@ -1121,6 +1269,50 @@ export default function ParentDashboard() {
           getStudentRecentLogs,
           getStudentRecentMessages,
         } = await import("@/app/actions/parent-dashboard")
+
+        // Get current date string for cache comparison
+        const todayStr = new Date().toLocaleDateString("ja-JP")
+
+        // Check if we can use cached AI message
+        const logCountResult = await getTodayLogCount(selectedChildId)
+        const currentLogCount = logCountResult.count || 0
+
+        let shouldRegenerateAI = true
+        let cachedMessage = ""
+
+        if (aiMessageCache) {
+          const isSameStudent = aiMessageCache.studentId === selectedChildId
+          const isSameDay = aiMessageCache.date === todayStr
+          const isSameLogCount = aiMessageCache.logCount === currentLogCount
+
+          if (isSameStudent && isSameDay && isSameLogCount) {
+            // Use cached message
+            shouldRegenerateAI = false
+            cachedMessage = aiMessageCache.message
+            console.log("✅ Using cached AI message (no data changes)")
+          } else {
+            console.log("🔄 Cache invalid:", {
+              sameStudent: isSameStudent,
+              sameDay: isSameDay,
+              sameLogCount: isSameLogCount,
+              oldCount: aiMessageCache.logCount,
+              newCount: currentLogCount,
+            })
+          }
+        } else {
+          console.log("🆕 No cache available, generating new AI message")
+        }
+
+        // Fetch data in parallel (skip AI generation if using cache)
+        const fetchPromises = [
+          shouldRegenerateAI ? getTodayStatusMessageAI(selectedChildId) : Promise.resolve({ message: cachedMessage }),
+          getStudentStreak(selectedChildId),
+          getStudentTodayMissionData(selectedChildId),
+          getStudentWeeklyProgress(selectedChildId),
+          getStudentCalendarData(selectedChildId),
+          getStudentRecentLogs(selectedChildId, 5),
+          getStudentRecentMessages(selectedChildId, 3),
+        ]
 
         const [
           statusMsg,
@@ -1130,50 +1322,94 @@ export default function ParentDashboard() {
           calendar,
           logsResult,
           messagesResult,
-        ] = await Promise.all([
-          getTodayStatusMessageAI(selectedChildId),
-          getStudentStreak(selectedChildId),
-          getStudentTodayMissionData(selectedChildId),
-          getStudentWeeklyProgress(selectedChildId),
-          getStudentCalendarData(selectedChildId),
-          getStudentRecentLogs(selectedChildId, 5),
-          getStudentRecentMessages(selectedChildId, 3),
-        ])
+        ] = await Promise.all(fetchPromises)
 
         if (!statusMsg?.error && statusMsg?.message) {
           setTodayStatusMessage(statusMsg.message)
+
+          // Update cache if we regenerated the message
+          if (shouldRegenerateAI) {
+            const newCache = {
+              studentId: selectedChildId,
+              date: todayStr,
+              logCount: currentLogCount,
+              message: statusMsg.message,
+            }
+            setAiMessageCache(newCache)
+            // Save to localStorage for persistence across page reloads
+            try {
+              localStorage.setItem("parentAiMessageCache", JSON.stringify(newCache))
+            } catch (error) {
+              console.error("Failed to save AI message cache:", error)
+            }
+            console.log("💾 AI message cached:", { studentId: selectedChildId, date: todayStr, logCount: currentLogCount })
+          }
+        } else if (statusMsg?.error) {
+          console.error("❌ [CLIENT] Status message error:", statusMsg.error)
         }
+
         if (!streakResult?.error && typeof streakResult?.streak === "number") {
           setStudyStreak(streakResult.streak)
+        } else if (streakResult?.error) {
+          console.error("❌ [CLIENT] Streak error:", streakResult.error)
         }
+
         if (Array.isArray(todayMission?.todayProgress)) {
+          console.log("🔍 [CLIENT] Today progress received:", todayMission.todayProgress)
           setTodayProgress(todayMission.todayProgress)
         } else {
+          console.log("⚠️ [CLIENT] Today progress is not an array:", todayMission)
+          if (todayMission?.error) {
+            console.error("❌ [CLIENT] Today mission error:", todayMission.error)
+          }
           setTodayProgress([])
         }
+
         if (Array.isArray(weeklySubject?.progress)) {
+          console.log("🔍 [CLIENT] Weekly progress received:", weeklySubject.progress)
           setWeeklyProgress(weeklySubject.progress)
+          setSessionNumber(weeklySubject.sessionNumber || null)
         } else {
+          console.log("⚠️ [CLIENT] Weekly progress is not an array:", weeklySubject)
+          if (weeklySubject?.error) {
+            console.error("❌ [CLIENT] Weekly progress error:", weeklySubject.error)
+          }
           setWeeklyProgress([])
+          setSessionNumber(null)
         }
+
         if (calendar?.calendarData) {
           setCalendarData(calendar.calendarData)
         } else {
+          if (calendar?.error) {
+            console.error("❌ [CLIENT] Calendar error:", calendar.error)
+          }
           setCalendarData({})
         }
+
         if (Array.isArray(logsResult?.logs)) {
           setRecentLogs(logsResult.logs)
         } else {
+          if (logsResult?.error) {
+            console.error("❌ [CLIENT] Recent logs error:", logsResult.error)
+          }
           setRecentLogs([])
         }
+
         if (Array.isArray(messagesResult?.messages)) {
           setRecentMessages(messagesResult.messages)
         } else {
+          if (messagesResult?.error) {
+            console.error("❌ [CLIENT] Recent messages error:", messagesResult.error)
+          }
           setRecentMessages([])
         }
+
+        console.log("🔍 [CLIENT] All child data fetched successfully")
       } catch (error) {
         console.error("Failed to fetch child data:", error)
       } finally {
+        console.log("🔍 [CLIENT] Setting loading to false")
         setIsLoading(false)
       }
     }
@@ -1230,13 +1466,18 @@ export default function ParentDashboard() {
 
       <div className="max-w-6xl mx-auto p-6 space-y-8">
         {/* Child Selector Tabs */}
-        {children.length > 1 && (
+        {children.length > 0 && (
           <div className="flex gap-2 overflow-x-auto pb-2">
-            {children.map((child) => {
-              const students = Array.isArray(child.students) ? child.students[0] : child.students
-              const profiles = Array.isArray(students?.profiles) ? students?.profiles[0] : students?.profiles
-              const childName = profiles?.display_name || "お子さん"
-              const childAvatar = profiles?.avatar_url || "student1"
+            {children.map((child, index) => {
+              // Extract student and profile data
+              let studentData = child.students
+              if (Array.isArray(studentData)) {
+                studentData = studentData[0]
+              }
+              const profile = studentData?.profiles
+
+              const childName = profile?.display_name || "お子さん"
+              const childAvatar = profile?.avatar_url || "student1"
               const isActive = selectedChildId === child.student_id
 
               return (
@@ -1293,9 +1534,9 @@ export default function ParentDashboard() {
               </CardContent>
             </Card>
 
-            <ParentTodayMissionCard todayProgress={todayProgress} studentName={selectedChildName} />
+            <ParentTodayMissionCard todayProgress={todayProgress} studentName={selectedChildName} selectedChildId={selectedChildId} />
             <LearningHistoryCalendar calendarData={calendarData} />
-            <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} />
+            <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} sessionNumber={sessionNumber} />
             <RecentEncouragementCard messages={recentMessages} />
             <RecentLearningHistoryCard logs={recentLogs} />
           </div>
@@ -1333,7 +1574,7 @@ export default function ParentDashboard() {
                 </CardContent>
               </Card>
 
-              <ParentTodayMissionCard todayProgress={todayProgress} studentName={selectedChildName} />
+              <ParentTodayMissionCard todayProgress={todayProgress} studentName={selectedChildName} selectedChildId={selectedChildId} />
               <RecentEncouragementCard messages={recentMessages} />
               <RecentLearningHistoryCard logs={recentLogs} />
             </div>
@@ -1341,7 +1582,7 @@ export default function ParentDashboard() {
             {/* 右列（サブ - 1/3の幅） */}
             <div className="lg:col-span-1 space-y-8">
               <LearningHistoryCalendar calendarData={calendarData} />
-              <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} />
+              <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} sessionNumber={sessionNumber} />
             </div>
           </div>
         </div>
