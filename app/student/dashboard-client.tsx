@@ -360,9 +360,14 @@ const TodayMissionCard = ({ todayProgress, reflectionCompleted }: { todayProgres
     todayProgress.forEach((item) => {
       progressMap[item.subject] = {
         accuracy: item.accuracy,
-        inputCount: item.logCount || 1, // 入力回数（ログ件数）を使用
+        inputCount: item.logCount ?? 0, // 入力回数（ログ件数）を使用、undefinedなら0
       }
     })
+
+    console.log("📊 [Mission Debug] Today progress data:", todayProgress)
+    console.log("📊 [Mission Debug] Progress map:", progressMap)
+    console.log("📊 [Mission Debug] Today subjects:", subjects)
+    console.log("📊 [Mission Debug] Mode:", mode)
 
     // 日曜日：リフレクト促進
     if (mode === "sunday") {
@@ -444,6 +449,12 @@ const TodayMissionCard = ({ todayProgress, reflectionCompleted }: { todayProgres
       let needsAction = false
       let isCompleted = false
 
+      console.log(`📊 [Mission Debug] Processing subject: ${subject}`, {
+        data,
+        mode,
+        hasData: !!progressMap[subject],
+      })
+
       if (mode === "input") {
         // 入力促進モード：記録されたら完了
         if (data.inputCount > 0) {
@@ -471,6 +482,14 @@ const TodayMissionCard = ({ todayProgress, reflectionCompleted }: { todayProgres
           needsAction = true
         }
       }
+
+      console.log(`📊 [Mission Debug] Result for ${subject}:`, {
+        status,
+        needsAction,
+        isCompleted,
+        inputCount: data.inputCount,
+        accuracy: data.accuracy,
+      })
 
       return {
         subject,
