@@ -364,10 +364,6 @@ const TodayMissionCard = ({ todayProgress, reflectionCompleted }: { todayProgres
       }
     })
 
-    console.log("📊 [Mission Debug] Today progress data:", todayProgress)
-    console.log("📊 [Mission Debug] Progress map:", progressMap)
-    console.log("📊 [Mission Debug] Today subjects:", subjects)
-    console.log("📊 [Mission Debug] Mode:", mode)
 
     // 日曜日：リフレクト促進
     if (mode === "sunday") {
@@ -449,12 +445,6 @@ const TodayMissionCard = ({ todayProgress, reflectionCompleted }: { todayProgres
       let needsAction = false
       let isCompleted = false
 
-      console.log(`📊 [Mission Debug] Processing subject: ${subject}`, {
-        data,
-        mode,
-        hasData: !!progressMap[subject],
-      })
-
       if (mode === "input") {
         // 入力促進モード：記録されたら完了
         if (data.inputCount > 0) {
@@ -475,21 +465,14 @@ const TodayMissionCard = ({ todayProgress, reflectionCompleted }: { todayProgres
           // 80%未満でも2回以上記録済みなら完了
           isCompleted = true
         } else if (data.inputCount === 1 && data.accuracy < 80) {
-          // 1回のみ & 80%未満は要アクション
-          needsAction = true
+          // 1回のみ & 80%未満は「復習推奨」だが強調しすぎない
+          needsAction = false // 青い強調表示はしない
+          isCompleted = false // 完了カウントには含めない
         } else if (data.inputCount === 0) {
-          // 未入力も要アクション
+          // 未入力は要アクション（青く強調）
           needsAction = true
         }
       }
-
-      console.log(`📊 [Mission Debug] Result for ${subject}:`, {
-        status,
-        needsAction,
-        isCompleted,
-        inputCount: data.inputCount,
-        accuracy: data.accuracy,
-      })
 
       return {
         subject,
@@ -501,11 +484,12 @@ const TodayMissionCard = ({ todayProgress, reflectionCompleted }: { todayProgres
       }
     })
 
-    const completedCount = panels.filter((p) => p.isCompleted).length
+    // 入力済み（完了 + 1回以上入力）をカウント
+    const inputCompletedCount = panels.filter((p) => p.isCompleted || p.inputCount > 0).length
     const actionNeededCount = panels.filter((p) => p.needsAction).length
 
-    // 全て完了した場合の判定
-    const allCompleted = completedCount === panels.length
+    // 全て入力済みの場合の判定
+    const allCompleted = inputCompletedCount === panels.length
 
     let statusMessage = ""
     if (allCompleted) {
@@ -528,7 +512,7 @@ const TodayMissionCard = ({ todayProgress, reflectionCompleted }: { todayProgres
       subjects,
       panels,
       statusMessage,
-      completionStatus: `${completedCount}/${panels.length}完了`,
+      completionStatus: `${inputCompletedCount}/${panels.length}完了`,
       allCompleted,
     }
   }
@@ -665,22 +649,25 @@ const TodayMissionCard = ({ todayProgress, reflectionCompleted }: { todayProgres
         {(missionData.mode === "input" || missionData.mode === "review") && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {missionData.panels.map((panel: any, index: number) => (
-                <div
-                  key={index}
-                  className={`p-4 rounded-xl border-2 transition-all duration-300 ${
-                    panel.isCompleted
-                      ? "bg-slate-100/50 border-slate-300 shadow-sm opacity-70"
-                      : `shadow-lg hover:shadow-xl ${getSubjectColor(panel.subject)} ${
-                          panel.needsAction ? "ring-4 ring-primary/50 animate-pulse" : ""
-                        }`
-                  }`}
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className={`font-bold text-lg ${panel.isCompleted ? "text-slate-600" : "text-slate-800"}`}>
-                        {panel.subject}
-                      </span>
+              {missionData.panels.map((panel: any, index: number) => {
+                // 入力済み（完了 or 1回以上入力）は目立たなくする
+                const hasInput = panel.isCompleted || panel.inputCount > 0
+                return (
+                  <div
+                    key={index}
+                    className={`p-4 rounded-xl border-2 transition-all duration-300 ${
+                      hasInput
+                        ? "bg-slate-100/50 border-slate-300 shadow-sm opacity-70"
+                        : `shadow-lg hover:shadow-xl ${getSubjectColor(panel.subject)} ${
+                            panel.needsAction ? "ring-4 ring-primary/50 animate-pulse" : ""
+                          }`
+                    }`}
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className={`font-bold text-lg ${hasInput ? "text-slate-600" : "text-slate-800"}`}>
+                          {panel.subject}
+                        </span>
                       <Badge
                         className={`text-xs px-2 py-1 border ${getStatusBadgeColor(panel.status, panel.needsAction)}`}
                       >
@@ -692,16 +679,17 @@ const TodayMissionCard = ({ todayProgress, reflectionCompleted }: { todayProgres
                       className={`w-full py-3 px-4 rounded-lg text-sm font-bold transition-all duration-300 ${
                         panel.needsAction
                           ? "bg-primary text-white hover:bg-primary/90 shadow-lg hover:scale-105 ring-2 ring-primary/30"
-                          : panel.isCompleted
+                          : hasInput
                           ? "bg-slate-200 text-slate-500 hover:bg-slate-300"
                           : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                       }`}
                     >
-                      {panel.isCompleted ? "記録済み" : "今すぐ記録する"}
+                      {hasInput ? "記録済み" : "今すぐ記録する"}
                     </Button>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
 
             {/* ミッション状況表示（完了時は非表示） */}
