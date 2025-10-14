@@ -39,15 +39,13 @@ export async function getStudyLogsForEncouragement(
     `)
     .eq("student_id", studentId)
 
-  // 期間フィルター
+  // 期間フィルター（JST基準）
   if (filters?.period === "1week") {
-    const oneWeekAgo = new Date()
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
-    query = query.gte("study_date", oneWeekAgo.toISOString().split("T")[0])
+    const { getDaysAgoJST } = await import("@/lib/utils/date-jst")
+    query = query.gte("study_date", getDaysAgoJST(7))
   } else if (filters?.period === "1month") {
-    const oneMonthAgo = new Date()
-    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1)
-    query = query.gte("study_date", oneMonthAgo.toISOString().split("T")[0])
+    const { getDaysAgoJST } = await import("@/lib/utils/date-jst")
+    query = query.gte("study_date", getDaysAgoJST(30))
   }
 
   // 科目フィルター
@@ -658,19 +656,13 @@ export async function getRecentEncouragementMessages() {
   }
 
   // Asia/Tokyoタイムゾーンで昨日0:00と今日23:59を計算
-  const now = new Date()
-  const jstOffset = 9 * 60 // UTC+9
-  const nowUTC = new Date(now.getTime() + jstOffset * 60 * 1000)
-
-  const yesterday = new Date(nowUTC)
-  yesterday.setDate(yesterday.getDate() - 1)
-  yesterday.setHours(0, 0, 0, 0)
-
-  const todayEnd = new Date(nowUTC)
-  todayEnd.setHours(23, 59, 59, 999)
-
-  const yesterdayUTC = new Date(yesterday.getTime() - jstOffset * 60 * 1000).toISOString()
-  const todayEndUTC = new Date(todayEnd.getTime() - jstOffset * 60 * 1000).toISOString()
+  const { getYesterdayJST, getTodayJST, getJSTDayStartISO, getJSTDayEndISO } = await import(
+    "@/lib/utils/date-jst"
+  )
+  const yesterdayStr = getYesterdayJST()
+  const todayStr = getTodayJST()
+  const yesterdayStart = getJSTDayStartISO(yesterdayStr)
+  const todayEnd = getJSTDayEndISO(todayStr)
 
   // 応援メッセージを取得（送信者情報なし）
   const { data: messages, error } = await supabase
@@ -690,8 +682,8 @@ export async function getRecentEncouragementMessages() {
     `
     )
     .eq("student_id", studentData.id)
-    .gte("sent_at", yesterdayUTC)
-    .lte("sent_at", todayEndUTC)
+    .gte("sent_at", yesterdayStart)
+    .lte("sent_at", todayEnd)
     .order("sent_at", { ascending: false })
 
   if (error) {
@@ -791,16 +783,18 @@ export async function getAllEncouragementMessages(filters?: {
 
     // 期間フィルター
     if (filters.period && filters.period !== "all") {
-      const now = new Date()
-      const startDate = new Date()
+      const { getDaysAgoJST, getJSTDayStartISO } = await import("@/lib/utils/date-jst")
 
+      let startDateStr: string
       if (filters.period === "1week") {
-        startDate.setDate(now.getDate() - 7)
+        startDateStr = getDaysAgoJST(7)
       } else if (filters.period === "1month") {
-        startDate.setDate(now.getDate() - 30)
+        startDateStr = getDaysAgoJST(30)
+      } else {
+        startDateStr = getDaysAgoJST(7)
       }
 
-      query = query.gte("sent_at", startDate.toISOString())
+      query = query.gte("sent_at", getJSTDayStartISO(startDateStr))
     }
 
     // ソート順
@@ -878,9 +872,11 @@ export async function markEncouragementAsRead(messageId: string) {
     return { success: false as const, error: "認証エラー: ログインしてください" }
   }
 
+  const { getNowJSTISO } = await import("@/lib/utils/date-jst")
+
   const { error } = await supabase
     .from("encouragement_messages")
-    .update({ is_read: true, read_at: new Date().toISOString() })
+    .update({ is_read: true, read_at: getNowJSTISO() })
     .eq("id", messageId)
 
   if (error) {

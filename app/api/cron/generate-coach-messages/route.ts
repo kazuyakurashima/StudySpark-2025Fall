@@ -1,7 +1,13 @@
 import { createClient } from "@/lib/supabase/server"
 import { generateCoachMessage } from "@/lib/openai/coach-message"
 import type { CoachMessageContext } from "@/lib/openai/coach-message"
-import { getTodayJST, getDateJST, getDaysAgoJST } from "@/lib/utils/date-jst"
+import {
+  getTodayJST,
+  getDateJST,
+  getDaysAgoJST,
+  getYesterdayJST,
+  getNowJSTISO,
+} from "@/lib/utils/date-jst"
 
 /**
  * AIコーチメッセージバックグラウンド生成
@@ -137,7 +143,7 @@ export async function GET(request: Request) {
       successCount,
       failureCount,
       errors: errors.length > 0 ? errors : undefined,
-      generatedAt: new Date().toISOString(),
+      generatedAt: getNowJSTISO(),
       targetDate: tomorrowStr,
     }
 

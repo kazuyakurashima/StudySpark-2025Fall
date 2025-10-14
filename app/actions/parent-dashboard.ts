@@ -469,7 +469,8 @@ export async function getTodayStatusMessageAI(studentId: number) {
       .maybeSingle()
 
     // Get upcoming test
-    const today = new Date()
+    const { getTodayJST } = await import("@/lib/utils/date-jst")
+    const todayStr = getTodayJST()
     const { data: upcomingTest } = await adminClient
       .from("test_schedules")
       .select(
@@ -479,7 +480,7 @@ export async function getTodayStatusMessageAI(studentId: number) {
       `
       )
       .eq("test_types.grade", student.grade)
-      .gt("test_date", today.toISOString())
+      .gt("test_date", todayStr)
       .order("test_date", { ascending: true })
       .limit(1)
       .maybeSingle()
@@ -517,7 +518,8 @@ export async function getTodayStatusMessageAI(studentId: number) {
             )?.name || "テスト",
             date: new Date(upcomingTest.test_date).toLocaleDateString("ja-JP"),
             daysUntil: Math.ceil(
-              (new Date(upcomingTest.test_date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+              (new Date(upcomingTest.test_date).getTime() - new Date(todayStr).getTime()) /
+                (1000 * 60 * 60 * 24)
             ),
           }
         : undefined,
@@ -576,12 +578,12 @@ export async function getStudentStreak(studentId: number) {
       return { error: "アクセス権限がありません" }
     }
 
-    // Get all study logs ordered by logged_at descending
+    // Get all study logs ordered by study_date descending
     const { data: logs, error: logsError } = await adminClient
       .from("study_logs")
-      .select("logged_at")
+      .select("study_date")
       .eq("student_id", studentId)
-      .order("logged_at", { ascending: false })
+      .order("study_date", { ascending: false })
 
     if (logsError) {
       return { error: "学習ログの取得に失敗しました" }
@@ -591,41 +593,28 @@ export async function getStudentStreak(studentId: number) {
       return { streak: 0 }
     }
 
-    // Calculate streak
+    // Calculate streak (using study_date which is JST-based)
+    const { getTodayJST, getYesterdayJST, getDateJST } = await import("@/lib/utils/date-jst")
     let streak = 0
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
 
-    const uniqueDates = new Set<string>()
-    logs.forEach((log) => {
-      const date = new Date(log.logged_at)
-      date.setHours(0, 0, 0, 0)
-      uniqueDates.add(date.toISOString().split("T")[0])
-    })
-
-    const sortedDates = Array.from(uniqueDates).sort().reverse()
+    const uniqueDates = Array.from(new Set(logs.map((log) => log.study_date))).sort().reverse()
 
     // Check if there's a log today or yesterday
-    const todayStr = today.toISOString().split("T")[0]
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-    const yesterdayStr = yesterday.toISOString().split("T")[0]
+    const todayStr = getTodayJST()
+    const yesterdayStr = getYesterdayJST()
 
-    if (!sortedDates.includes(todayStr) && !sortedDates.includes(yesterdayStr)) {
+    if (!uniqueDates.includes(todayStr) && !uniqueDates.includes(yesterdayStr)) {
       return { streak: 0 }
     }
 
     // Count consecutive days
-    let currentDate = new Date(today)
-    if (!sortedDates.includes(todayStr)) {
-      currentDate = yesterday
-    }
+    let dayOffset = uniqueDates.includes(todayStr) ? 0 : -1
 
-    for (const dateStr of sortedDates) {
-      const checkDate = currentDate.toISOString().split("T")[0]
-      if (dateStr === checkDate) {
+    for (const dateStr of uniqueDates) {
+      const expectedDate = getDateJST(dayOffset)
+      if (dateStr === expectedDate) {
         streak++
-        currentDate.setDate(currentDate.getDate() - 1)
+        dayOffset--
       } else {
         break
       }
@@ -674,15 +663,9 @@ export async function getStudentTodayMissionData(studentId: number) {
     }
 
     // Get today's and yesterday's logs (to handle late-night viewing)
-    const now = new Date()
-    const jstOffset = 9 * 60 // UTC+9
-    const nowJST = new Date(now.getTime() + jstOffset * 60 * 1000)
-    const todayDateStr = nowJST.toISOString().split('T')[0] // YYYY-MM-DD format
-
-    // Calculate yesterday's date
-    const yesterdayJST = new Date(nowJST)
-    yesterdayJST.setDate(yesterdayJST.getDate() - 1)
-    const yesterdayDateStr = yesterdayJST.toISOString().split('T')[0]
+    const { getTodayJST, getYesterdayJST } = await import("@/lib/utils/date-jst")
+    const todayDateStr = getTodayJST()
+    const yesterdayDateStr = getYesterdayJST()
 
     const { data: todayLogs, error: logsError } = await adminClient
       .from("study_logs")
@@ -1022,39 +1005,35 @@ export async function getStudentCalendarData(studentId: number) {
     }
 
     // Get last 6 weeks of data
-    const today = new Date()
-    today.setHours(23, 59, 59, 999)
-    const sixWeeksAgo = new Date(today)
-    sixWeeksAgo.setDate(today.getDate() - 42)
-    sixWeeksAgo.setHours(0, 0, 0, 0)
+    const { getTodayJST, getDaysAgoJST } = await import("@/lib/utils/date-jst")
+    const todayStr = getTodayJST()
+    const sixWeeksAgoStr = getDaysAgoJST(42)
 
     const { data: logs, error: logsError } = await adminClient
       .from("study_logs")
       .select(
         `
         id,
-        logged_at,
+        study_date,
         correct_count,
         total_problems,
         subject_id
       `
       )
       .eq("student_id", studentId)
-      .gte("logged_at", sixWeeksAgo.toISOString())
-      .lte("logged_at", today.toISOString())
+      .gte("study_date", sixWeeksAgoStr)
+      .lte("study_date", todayStr)
 
     if (logsError) {
       console.error("Get student calendar data error:", logsError)
       return { error: "カレンダーデータの取得に失敗しました" }
     }
 
-    // Aggregate by date
+    // Aggregate by date (using study_date which is already in JST)
     const dateMap: { [key: string]: { subjectCount: number; accuracy80Count: number } } = {}
 
     logs?.forEach((log) => {
-      const date = new Date(log.logged_at)
-      date.setHours(0, 0, 0, 0)
-      const dateStr = date.toISOString().split("T")[0]
+      const dateStr = log.study_date
 
       if (!dateMap[dateStr]) {
         dateMap[dateStr] = { subjectCount: 0, accuracy80Count: 0 }
@@ -1182,22 +1161,13 @@ export async function getStudentRecentMessages(studentId: number, limit: number 
     }
 
     // Get yesterday 0:00 to today 23:59 in JST
-    const now = new Date()
-    const jstOffset = 9 * 60 // UTC+9
-    const nowJST = new Date(now.getTime() + jstOffset * 60 * 1000)
-
-    // Today 23:59:59 JST
-    const todayJST = new Date(nowJST)
-    todayJST.setHours(23, 59, 59, 999)
-
-    // Yesterday 0:00:00 JST
-    const yesterdayJST = new Date(todayJST)
-    yesterdayJST.setDate(yesterdayJST.getDate() - 1)
-    yesterdayJST.setHours(0, 0, 0, 0)
-
-    // Convert back to UTC for database query
-    const today = new Date(todayJST.getTime() - jstOffset * 60 * 1000)
-    const yesterday = new Date(yesterdayJST.getTime() - jstOffset * 60 * 1000)
+    const { getYesterdayJST, getTodayJST, getJSTDayStartISO, getJSTDayEndISO } = await import(
+      "@/lib/utils/date-jst"
+    )
+    const yesterdayStr = getYesterdayJST()
+    const todayStr = getTodayJST()
+    const yesterdayStart = getJSTDayStartISO(yesterdayStr)
+    const todayEnd = getJSTDayEndISO(todayStr)
 
     const { data: messages, error: messagesError } = await adminClient
       .from("encouragement_messages")
@@ -1219,8 +1189,8 @@ export async function getStudentRecentMessages(studentId: number, limit: number 
       `
       )
       .eq("student_id", studentId)
-      .gte("sent_at", yesterday.toISOString())
-      .lte("sent_at", today.toISOString())
+      .gte("sent_at", yesterdayStart)
+      .lte("sent_at", todayEnd)
       .order("sent_at", { ascending: false })
       .limit(limit)
 
