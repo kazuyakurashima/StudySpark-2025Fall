@@ -485,19 +485,21 @@ const TodayMissionCard = ({ todayProgress, reflectionCompleted, weeklyProgress }
     let statusMessage = ""
 
     if (allCompleted) {
-      // 全て入力完了 → 習得状況を伝える
-      const masteredCount = panels.filter((p) => p.correctRate >= 80).length
-      const totalSubjects = panels.length
+      // 全て入力完了 → 習得状況を伝える（習得率80%を促す）
+      const notMasteredSubjects = panels.filter((p) => p.correctRate < 80)
+      const masteredCount = panels.length - notMasteredSubjects.length
 
-      if (masteredCount === totalSubjects) {
-        // パーフェクトマスター
+      if (notMasteredSubjects.length === 0) {
+        // パーフェクトマスター（全科目80%以上）
         statusMessage = "🎉 パーフェクトマスターおめでとう！全科目で習得率80%以上達成！"
-      } else if (masteredCount > 0) {
-        // 一部習得
-        statusMessage = `${masteredCount}/${totalSubjects}科目で習得率80%以上達成！残りの科目も頑張ろう！`
+      } else if (notMasteredSubjects.length === 1) {
+        // 1科目だけ80%未満 → その科目を具体的に促す
+        const subject = notMasteredSubjects[0].subject
+        statusMessage = `${subject}の見直しをして、パーフェクトマスターを目指そう！`
       } else {
-        // 入力完了したが習得率80%未満
-        statusMessage = "全て入力完了！復習して習得率80%を目指そう！"
+        // 複数科目が80%未満 → 科目名を列挙
+        const subjectList = notMasteredSubjects.map(p => p.subject).join("、")
+        statusMessage = `${subjectList}の見直しをして、パーフェクトマスターを目指そう！`
       }
     } else {
       // 入力未完了 → 入力状況を伝える
