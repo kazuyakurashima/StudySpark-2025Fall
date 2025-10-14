@@ -280,8 +280,7 @@ const ParentTodayMissionCard = ({ todayProgress, studentName, selectedChildId }:
   const getMissionMode = (weekday: number, hour: number) => {
     if (weekday === 0) return "sunday" // 日曜日
     if (weekday === 6 && hour >= 12) return "special" // 土曜12時以降
-    if ([1, 3, 5].includes(weekday)) return "input" // 月・水・金：入力促進モード
-    if ([2, 4, 6].includes(weekday)) return "review" // 火・木・土：復習促進モード
+    // 月〜金（土曜12時前も）は全て入力促進モード
     return "input"
   }
 
@@ -318,7 +317,7 @@ const ParentTodayMissionCard = ({ todayProgress, studentName, selectedChildId }:
         statusMessage: isReflectCompleted
           ? "今週の振り返りが完了しました！素晴らしいです！"
           : `${studentName}さんの今週の学習を振り返りましょう！`,
-        completionStatus: isReflectCompleted ? "1/1完了" : "0/1完了",
+        completionStatus: isReflectCompleted ? "1/1入力完了" : "0/1入力完了",
         allCompleted: isReflectCompleted,
       }
     }
@@ -368,36 +367,33 @@ const ParentTodayMissionCard = ({ todayProgress, studentName, selectedChildId }:
         statusMessage: allCompleted
           ? "特別ミッション完了！今週もお疲れさまでした！"
           : `週間振り返りと復習で今週を締めくくりましょう！`,
-        completionStatus: `${completedCount}/${panels.length}完了`,
+        completionStatus: `${completedCount}/${panels.length}入力完了`,
         allCompleted,
       }
     }
 
-    // 通常モード（入力促進・復習促進）
+    // 通常モード（入力促進モード）
     const panels = subjects.map((subject) => {
       const data = progressMap[subject] || { accuracy: 0, inputCount: 0, logs: [] }
       let status = "未入力"
       let needsAction = false
       let isCompleted = false
 
-      if (mode === "input") {
-        // 入力促進モード：記録されたら完了
-        if (data.inputCount > 0) {
-          status = `進捗率${data.accuracy}%`
-          isCompleted = true
-        } else {
-          needsAction = true
-        }
-      } else if (mode === "review") {
-        // 復習促進モード：再入力して正答率向上で完了
-        if (data.inputCount > 0) {
-          status = `進捗率${data.accuracy}%`
-        }
-        if (data.inputCount === 1 && data.accuracy < 80) {
-          needsAction = true
-        } else if (data.inputCount > 1) {
-          isCompleted = true
-        }
+      // 新要件: 正答率80%以上は未入力でも完了扱い
+      if (data.accuracy >= 80) {
+        status = `進捗率${data.accuracy}%`
+        isCompleted = true
+        needsAction = false
+      } else if (data.inputCount > 0) {
+        // 入力済みだが80%未満
+        status = `進捗率${data.accuracy}%`
+        isCompleted = true
+        needsAction = false
+      } else {
+        // 未入力かつ80%未満
+        status = "未入力"
+        needsAction = true
+        isCompleted = false
       }
 
       return {
@@ -438,7 +434,7 @@ const ParentTodayMissionCard = ({ todayProgress, studentName, selectedChildId }:
       subjects,
       panels,
       statusMessage,
-      completionStatus: `${completedCount}/${panels.length}完了`,
+      completionStatus: `${completedCount}/${panels.length}入力完了`,
       allCompleted,
     }
   }
@@ -459,15 +455,15 @@ const ParentTodayMissionCard = ({ todayProgress, studentName, selectedChildId }:
 
   const getStatusBadgeColor = (status: string, needsAction: boolean) => {
     if (status === "未入力") {
-      return needsAction
-        ? "bg-slate-100 text-slate-500 border-slate-300"
-        : "bg-slate-100 text-slate-700 border-slate-300"
+      // 未入力は赤
+      return "bg-red-100 text-red-800 border-red-300"
     }
     if (status.includes("進捗率")) {
       const rate = Number.parseInt(status.match(/\d+/)?.[0] || "0")
-      if (rate >= 80) return "bg-green-100 text-green-800 border-green-200 font-bold"
-      if (rate >= 60) return "bg-yellow-100 text-yellow-800 border-yellow-200"
-      return "bg-red-100 text-red-800 border-red-200"
+      // 80%以上は青、50-80%未満は黄色、50%未満はオレンジ
+      if (rate >= 80) return "bg-blue-100 text-blue-800 border-blue-300 font-bold"
+      if (rate >= 50) return "bg-yellow-100 text-yellow-800 border-yellow-300"
+      return "bg-orange-100 text-orange-800 border-orange-300"
     }
     if (status === "完了") return "bg-green-100 text-green-800 border-green-200 font-bold"
     if (status === "未完了") return "bg-slate-100 text-slate-700 border-slate-300"
