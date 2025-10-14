@@ -188,28 +188,71 @@ export async function getTodayStatusMessage(studentId: number) {
     const profiles = Array.isArray(student?.profiles) ? student?.profiles[0] : student?.profiles
     const displayName = profiles?.display_name || "お子さん"
 
-    // Get recent logs (last 3 days)
-    const threeDaysAgo = new Date()
+    // Get recent logs (last 3 days) using study_date for trend analysis
+    const now = new Date()
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Tokyo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    })
+    const todayDateStr = formatter.format(now)
+
+    // Calculate 3 days ago in JST
+    const threeDaysAgo = new Date(now)
     threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
-    threeDaysAgo.setHours(0, 0, 0, 0)
+    const threeDaysAgoStr = formatter.format(threeDaysAgo)
 
-    const { data: recentLogs } = await supabase
+    const adminClient = createAdminClient()
+    const { data: recentLogs } = await adminClient
       .from("study_logs")
-      .select("id, correct_count, total_problems, subjects (name)")
+      .select("id, correct_count, total_problems, study_date, subjects (name)")
       .eq("student_id", studentId)
-      .gte("logged_at", threeDaysAgo.toISOString())
+      .gte("study_date", threeDaysAgoStr)
+      .lte("study_date", todayDateStr)
 
-    // Generate simple template message
-    let message = `今日も${displayName}さんは頑張っています！`
+    // Separate today's logs from recent logs
+    const todayLogs = recentLogs?.filter(log => log.study_date === todayDateStr) || []
+    const yesterdayStr = formatter.format(new Date(now.getTime() - 24 * 60 * 60 * 1000))
+    const yesterdayLogs = recentLogs?.filter(log => log.study_date === yesterdayStr) || []
 
-    if (recentLogs && recentLogs.length > 0) {
-      const totalProblems = recentLogs.reduce((sum, log) => sum + (log.total_problems || 0), 0)
-      const totalCorrect = recentLogs.reduce((sum, log) => sum + (log.correct_count || 0), 0)
+    // Generate simple template message focused on today
+    let message = `今日も${displayName}が頑張っています！`
 
-      if (totalProblems > 0) {
-        const accuracy = Math.round((totalCorrect / totalProblems) * 100)
-        message = `${displayName}さん、この3日間で${totalProblems}問に取り組み、正答率${accuracy}%です。素晴らしい努力ですね！`
+    if (todayLogs.length > 0) {
+      // Today's data available - focus on today
+      const todayTotal = todayLogs.reduce((sum, log) => sum + (log.total_problems || 0), 0)
+      const todayCorrect = todayLogs.reduce((sum, log) => sum + (log.correct_count || 0), 0)
+      const todayAccuracy = todayTotal > 0 ? Math.round((todayCorrect / todayTotal) * 100) : 0
+
+      // Check if we have yesterday's data for comparison
+      if (yesterdayLogs.length > 0) {
+        const yesterdayTotal = yesterdayLogs.reduce((sum, log) => sum + (log.total_problems || 0), 0)
+        const yesterdayCorrect = yesterdayLogs.reduce((sum, log) => sum + (log.correct_count || 0), 0)
+        const yesterdayAccuracy = yesterdayTotal > 0 ? Math.round((yesterdayCorrect / yesterdayTotal) * 100) : 0
+        const diff = todayAccuracy - yesterdayAccuracy
+
+        if (diff >= 5) {
+          message = `${displayName}、今日は${todayTotal}問に取り組み、正答率${todayAccuracy}%！昨日より${diff}%アップです。素晴らしい成長ですね！`
+        } else if (diff <= -5) {
+          message = `${displayName}、今日は${todayTotal}問に取り組み、正答率${todayAccuracy}%。少し苦戦していますが、継続して頑張っていますね。`
+        } else {
+          message = `${displayName}、今日は${todayTotal}問に取り組み、正答率${todayAccuracy}%。安定したペースで学習を続けていますね！`
+        }
+      } else {
+        // No yesterday data, just today
+        message = `${displayName}、今日は${todayTotal}問に取り組み、正答率${todayAccuracy}%です。素晴らしい努力ですね！`
       }
+    } else if (recentLogs && recentLogs.length > 0) {
+      // No today data, but has recent data
+      const recentTotal = recentLogs.reduce((sum, log) => sum + (log.total_problems || 0), 0)
+      const recentCorrect = recentLogs.reduce((sum, log) => sum + (log.correct_count || 0), 0)
+      const recentAccuracy = recentTotal > 0 ? Math.round((recentCorrect / recentTotal) * 100) : 0
+
+      message = `今日はまだ学習記録はありませんが、${displayName}は最近も頑張っていますね。直近の正答率は${recentAccuracy}%です。`
+    } else {
+      // No data at all
+      message = `${displayName}のペースで、今日も学習を進めていきましょう。`
     }
 
     return { message }
@@ -255,17 +298,14 @@ export async function getTodayLogCount(studentId: number) {
     }
 
     // Get today's logs count
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const todayEnd = new Date(today)
-    todayEnd.setHours(23, 59, 59, 999)
+    const { getTodayJST } = await import("@/lib/utils/date-jst")
+    const todayStr = getTodayJST()
 
     const { count, error } = await adminClient
       .from("study_logs")
       .select("id", { count: "exact", head: true })
       .eq("student_id", studentId)
-      .gte("logged_at", today.toISOString())
-      .lte("logged_at", todayEnd.toISOString())
+      .eq("study_date", todayStr)
 
     if (error) {
       return { error: "ログ数の取得に失敗しました" }
@@ -335,13 +375,23 @@ export async function getTodayStatusMessageAI(studentId: number) {
 
     const displayName = profile?.display_name || "お子さん"
 
-    // Get today's logs using study_date (JST-based date)
+    // Get today's and recent logs (last 3 days) using study_date (JST-based date)
     const now = new Date()
-    const jstOffset = 9 * 60 // UTC+9
-    const nowJST = new Date(now.getTime() + jstOffset * 60 * 1000)
-    const todayDateStr = nowJST.toISOString().split('T')[0] // YYYY-MM-DD in JST
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Tokyo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    })
+    const todayDateStr = formatter.format(now) // YYYY-MM-DD in JST
 
-    const { data: todayLogs } = await adminClient
+    // Calculate 3 days ago for trend analysis
+    const threeDaysAgo = new Date(now)
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
+    const threeDaysAgoStr = formatter.format(threeDaysAgo)
+
+    // Get recent logs (last 3 days) for context and trend analysis
+    const { data: recentLogs } = await adminClient
       .from("study_logs")
       .select(
         `
@@ -354,22 +404,27 @@ export async function getTodayStatusMessageAI(studentId: number) {
       `
       )
       .eq("student_id", studentId)
-      .eq("study_date", todayDateStr)
+      .gte("study_date", threeDaysAgoStr)
+      .lte("study_date", todayDateStr)
+      .order("study_date", { ascending: false })
       .order("logged_at", { ascending: true })
+
+    // Separate today's logs from recent logs
+    const todayLogs = recentLogs?.filter(log => log.study_date === todayDateStr) || []
 
     // Get study streak
     const { streak } = await getStudentStreak(studentId)
 
     // Get weekly trend (study_dateを使用)
     // 過去7日間（今日を含まない）
-    const oneWeekAgoJST = new Date(nowJST)
-    oneWeekAgoJST.setDate(oneWeekAgoJST.getDate() - 7)
-    const oneWeekAgoDateStr = oneWeekAgoJST.toISOString().split("T")[0]
+    const oneWeekAgo = new Date(now)
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+    const oneWeekAgoDateStr = formatter.format(oneWeekAgo)
 
     // 過去8〜14日間
-    const twoWeeksAgoJST = new Date(nowJST)
-    twoWeeksAgoJST.setDate(twoWeeksAgoJST.getDate() - 14)
-    const twoWeeksAgoDateStr = twoWeeksAgoJST.toISOString().split("T")[0]
+    const twoWeeksAgo = new Date(now)
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
+    const twoWeeksAgoDateStr = formatter.format(twoWeeksAgo)
 
     const { data: thisWeekLogs } = await adminClient
       .from("study_logs")
@@ -414,6 +469,7 @@ export async function getTodayStatusMessageAI(studentId: number) {
       .maybeSingle()
 
     // Get upcoming test
+    const today = new Date()
     const { data: upcomingTest } = await adminClient
       .from("test_schedules")
       .select(
@@ -428,13 +484,13 @@ export async function getTodayStatusMessageAI(studentId: number) {
       .limit(1)
       .maybeSingle()
 
-    // Format context for AI
+    // Format context for AI (pass all recent logs, not just today)
     const context: import("@/lib/openai/daily-status").DailyStatusContext = {
       studentName: displayName,
       grade: student.grade,
       course: student.course,
       todayLogs:
-        todayLogs?.map((log) => {
+        recentLogs?.map((log) => {
           const subject = Array.isArray(log.subjects) ? log.subjects[0] : log.subjects
           const content = Array.isArray(log.study_content_types)
             ? log.study_content_types[0]
@@ -447,6 +503,7 @@ export async function getTodayStatusMessageAI(studentId: number) {
             total: log.total_problems,
             accuracy: log.total_problems > 0 ? Math.round((log.correct_count / log.total_problems) * 100) : 0,
             time: `${logDate.getHours()}:${String(logDate.getMinutes()).padStart(2, "0")}`,
+            date: log.study_date,  // YYYY-MM-DD format
           }
         }) || [],
       studyStreak: streak || 0,

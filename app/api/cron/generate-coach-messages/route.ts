@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { generateCoachMessage } from "@/lib/openai/coach-message"
 import type { CoachMessageContext } from "@/lib/openai/coach-message"
+import { getTodayJST, getDateJST, getDaysAgoJST } from "@/lib/utils/date-jst"
 
 /**
  * AIコーチメッセージバックグラウンド生成
@@ -22,8 +23,7 @@ export async function GET(request: Request) {
     const supabase = await createClient()
 
     // アクティブ生徒取得（7日以内にログインした生徒）
-    const cutoffDate = new Date()
-    cutoffDate.setDate(cutoffDate.getDate() - 7)
+    const cutoffDateStr = getDaysAgoJST(7)
 
     const { data: students, error: studentsError } = await supabase
       .from("students")
@@ -37,7 +37,7 @@ export async function GET(request: Request) {
           last_login_at
         )
       `)
-      .gte("profiles.last_login_at", cutoffDate.toISOString())
+      .gte("profiles.last_login_at", `${cutoffDateStr}T00:00:00+09:00`)
 
     if (studentsError) {
       throw new Error(`Failed to fetch students: ${studentsError.message}`)
@@ -57,9 +57,7 @@ export async function GET(request: Request) {
     console.log(`[Coach Message Cron] Found ${students.length} active students`)
 
     // 翌日の日付（キャッシュキー用）
-    const tomorrow = new Date()
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    const tomorrowStr = tomorrow.toISOString().split("T")[0]
+    const tomorrowStr = getDateJST(1)
 
     let successCount = 0
     let failureCount = 0
@@ -187,8 +185,7 @@ async function getLatestWillAndGoal(studentId: string): Promise<{ will?: string;
 async function getRecentStudyLogs(studentId: string, days: number = 3) {
   const supabase = await createClient()
 
-  const cutoffDate = new Date()
-  cutoffDate.setDate(cutoffDate.getDate() - days)
+  const cutoffDateStr = getDaysAgoJST(days)
 
   const { data: logs } = await supabase
     .from("study_logs")
@@ -200,7 +197,7 @@ async function getRecentStudyLogs(studentId: string, days: number = 3) {
       study_content_types (content_name)
     `)
     .eq("student_id", studentId)
-    .gte("study_date", cutoffDate.toISOString().split("T")[0])
+    .gte("study_date", cutoffDateStr)
     .order("study_date", { ascending: false })
     .limit(20)
 
@@ -222,9 +219,7 @@ async function getRecentStudyLogs(studentId: string, days: number = 3) {
 async function getUpcomingTest(studentId: string) {
   const supabase = await createClient()
 
-  const tomorrow = new Date()
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  const tomorrowStr = tomorrow.toISOString().split("T")[0]
+  const tomorrowStr = getDateJST(1)
 
   const { data: test } = await supabase
     .from("test_goals")
@@ -240,9 +235,8 @@ async function getUpcomingTest(studentId: string) {
 
   if (!test) return null
 
-  const testDate = new Date(test.test_date)
-  const tomorrowDate = new Date(tomorrowStr)
-  const daysUntil = Math.ceil((testDate.getTime() - tomorrowDate.getTime()) / (1000 * 60 * 60 * 24))
+  const { getDaysDifference } = await import("@/lib/utils/date-jst")
+  const daysUntil = getDaysDifference(tomorrowStr, test.test_date)
 
   return {
     name: (test as any).test_types?.name || "テスト",
@@ -259,49 +253,32 @@ async function getStudyStreakForStudent(studentId: string): Promise<number> {
 
   const { data: logs } = await supabase
     .from("study_logs")
-    .select("logged_at")
+    .select("study_date")
     .eq("student_id", studentId)
-    .order("logged_at", { ascending: false })
+    .order("study_date", { ascending: false })
 
   if (!logs || logs.length === 0) return 0
 
-  // Calculate streak
-  let streak = 0
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  // Get unique dates and sort
+  const uniqueDates = Array.from(new Set(logs.map((log) => log.study_date))).sort().reverse()
 
-  const uniqueDates = new Set<string>()
-  logs.forEach((log) => {
-    const date = new Date(log.logged_at)
-    date.setHours(0, 0, 0, 0)
-    uniqueDates.add(date.toISOString().split("T")[0])
-  })
-
-  const sortedDates = Array.from(uniqueDates).sort().reverse()
+  const todayStr = getTodayJST()
+  const yesterdayStr = getDateJST(-1)
 
   // Check if there's a log today or yesterday
-  const todayStr = today.toISOString().split("T")[0]
-  const yesterday = new Date(today)
-  yesterday.setDate(yesterday.getDate() - 1)
-  const yesterdayStr = yesterday.toISOString().split("T")[0]
-
-  if (!sortedDates.includes(todayStr) && !sortedDates.includes(yesterdayStr)) {
+  if (!uniqueDates.includes(todayStr) && !uniqueDates.includes(yesterdayStr)) {
     return 0
   }
 
   // Count consecutive days
-  let currentDate = new Date(today)
-  if (!sortedDates.includes(todayStr)) {
-    currentDate.setDate(currentDate.getDate() - 1)
-  }
+  let streak = 0
+  let dayOffset = uniqueDates.includes(todayStr) ? 0 : -1
 
-  for (const dateStr of sortedDates) {
-    const logDate = new Date(dateStr)
-    logDate.setHours(0, 0, 0, 0)
-
-    if (logDate.toISOString().split("T")[0] === currentDate.toISOString().split("T")[0]) {
+  for (const dateStr of uniqueDates) {
+    const expectedDate = getDateJST(dayOffset)
+    if (dateStr === expectedDate) {
       streak++
-      currentDate.setDate(currentDate.getDate() - 1)
+      dayOffset--
     } else {
       break
     }
