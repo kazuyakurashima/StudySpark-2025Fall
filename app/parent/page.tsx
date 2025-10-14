@@ -240,6 +240,7 @@ const ParentTodayMissionCard = ({ todayProgress, studentName, selectedChildId }:
   const [aiMessages, setAiMessages] = useState<string[]>([])
   const [selectedMessage, setSelectedMessage] = useState<string>("")
   const [currentLogId, setCurrentLogId] = useState<string | null>(null)
+  const [currentSubject, setCurrentSubject] = useState<string>("")
   const [isGeneratingAI, setIsGeneratingAI] = useState(false)
   const [isSendingMessage, setIsSendingMessage] = useState(false)
 
@@ -504,6 +505,7 @@ const ParentTodayMissionCard = ({ todayProgress, studentName, selectedChildId }:
     }
 
     setCurrentLogId(studyLogId)
+    setCurrentSubject(subject)
     setShowAIDialog(true)
     setIsGeneratingAI(true)
     setAiMessages([])
@@ -543,8 +545,8 @@ const ParentTodayMissionCard = ({ todayProgress, studentName, selectedChildId }:
       if (result.success) {
         alert("AI応援メッセージを送信しました！")
         setShowAIDialog(false)
-        // Mark as sent in UI
-        const key = `ai-${currentLogId}`
+        // Mark as sent in UI (use same key format as quick encouragement)
+        const key = `${currentSubject}-0`
         setEncouragementSent({ ...encouragementSent, [key]: true })
       } else {
         alert(`送信エラー: ${result.error}`)
@@ -658,45 +660,89 @@ const ParentTodayMissionCard = ({ todayProgress, studentName, selectedChildId }:
                     ) : (
                       <div className="space-y-2">
                         {/* クイック応援ボタン（3種類） */}
-                        <div className="space-y-2">
+                        <div className="space-y-2.5">
                           <Button
                             onClick={() => handleQuickEncouragement(panel.subject, 0, panel.logs?.[0]?.id, "heart")}
-                            className="w-full py-2 px-3 rounded-lg text-sm font-bold bg-pink-500 text-white hover:bg-pink-600 transition-all duration-300 flex items-center justify-center gap-2"
+                            className="group relative w-full py-3 px-4 rounded-xl text-sm font-bold overflow-hidden
+                              bg-gradient-to-br from-rose-400 via-pink-400 to-rose-500
+                              hover:from-rose-500 hover:via-pink-500 hover:to-rose-600
+                              text-white shadow-lg hover:shadow-xl
+                              transform hover:scale-[1.02] active:scale-[0.98]
+                              transition-all duration-300 ease-out
+                              disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
+                              flex items-center justify-center gap-2"
                             disabled={encouragementSent[`${panel.subject}-0`] || panel.logs?.[0]?.hasParentEncouragement || !panel.logs?.[0]?.id}
                           >
-                            <Heart className="h-4 w-4" />
-                            がんばったね
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                            <Heart className="h-4 w-4 relative z-10 group-hover:scale-110 transition-transform duration-300" />
+                            <span className="relative z-10">がんばったね</span>
                           </Button>
                           <Button
                             onClick={() => handleQuickEncouragement(panel.subject, 0, panel.logs?.[0]?.id, "star")}
-                            className="w-full py-2 px-3 rounded-lg text-sm font-bold bg-yellow-500 text-white hover:bg-yellow-600 transition-all duration-300 flex items-center justify-center gap-2"
+                            className="group relative w-full py-3 px-4 rounded-xl text-sm font-bold overflow-hidden
+                              bg-gradient-to-br from-amber-300 via-yellow-400 to-orange-400
+                              hover:from-amber-400 hover:via-yellow-500 hover:to-orange-500
+                              text-white shadow-lg hover:shadow-xl
+                              transform hover:scale-[1.02] active:scale-[0.98]
+                              transition-all duration-300 ease-out
+                              disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
+                              flex items-center justify-center gap-2"
                             disabled={encouragementSent[`${panel.subject}-0`] || panel.logs?.[0]?.hasParentEncouragement || !panel.logs?.[0]?.id}
                           >
-                            ⭐
-                            すごい！
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                            <span className="text-lg relative z-10 group-hover:scale-110 transition-transform duration-300">⭐</span>
+                            <span className="relative z-10">すごい！</span>
                           </Button>
                           <Button
                             onClick={() => handleQuickEncouragement(panel.subject, 0, panel.logs?.[0]?.id, "thumbsup")}
-                            className="w-full py-2 px-3 rounded-lg text-sm font-bold bg-blue-500 text-white hover:bg-blue-600 transition-all duration-300 flex items-center justify-center gap-2"
+                            className="group relative w-full py-3 px-4 rounded-xl text-sm font-bold overflow-hidden
+                              bg-gradient-to-br from-sky-400 via-blue-400 to-indigo-500
+                              hover:from-sky-500 hover:via-blue-500 hover:to-indigo-600
+                              text-white shadow-lg hover:shadow-xl
+                              transform hover:scale-[1.02] active:scale-[0.98]
+                              transition-all duration-300 ease-out
+                              disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
+                              flex items-center justify-center gap-2"
                             disabled={encouragementSent[`${panel.subject}-0`] || panel.logs?.[0]?.hasParentEncouragement || !panel.logs?.[0]?.id}
                           >
-                            👍
-                            よくできました
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                            <span className="text-lg relative z-10 group-hover:scale-110 transition-transform duration-300">👍</span>
+                            <span className="relative z-10">よくできました</span>
                           </Button>
                         </div>
-                        {/* AI応援ボタン */}
+                        {/* AI応援ボタン - 特別なデザイン */}
                         <Button
                           onClick={() => handleOpenAIDialog(panel.subject, panel.logs?.[0]?.id)}
-                          className="w-full py-2 px-3 rounded-lg text-xs font-bold bg-purple-500 text-white hover:bg-purple-600 transition-all duration-300 flex items-center justify-center gap-2"
+                          className="group relative w-full py-3.5 px-4 rounded-xl text-sm font-bold overflow-hidden
+                            bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-600
+                            hover:from-violet-600 hover:via-purple-600 hover:to-fuchsia-700
+                            text-white shadow-xl hover:shadow-2xl
+                            transform hover:scale-[1.02] active:scale-[0.98]
+                            transition-all duration-300 ease-out
+                            disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
+                            flex items-center justify-center gap-2
+                            border-2 border-white/20"
                           disabled={!panel.logs?.[0]?.id || encouragementSent[`${panel.subject}-0`] || panel.logs?.[0]?.hasParentEncouragement}
                         >
-                          <Sparkles className="h-3 w-3" />
-                          AI応援メッセージ
+                          {/* シマー効果 */}
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent
+                            translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000 ease-in-out" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                          <Sparkles className="h-4 w-4 relative z-10 group-hover:rotate-12 group-hover:scale-110 transition-all duration-300" />
+                          <span className="relative z-10 tracking-wide">AI応援メッセージ</span>
                         </Button>
-                        {/* 応援済み表示 */}
+                        {/* 応援済み表示 - エレガントなデザイン */}
                         {(encouragementSent[`${panel.subject}-0`] || panel.logs?.[0]?.hasParentEncouragement) && (
-                          <div className="text-center text-xs text-green-600 font-medium">
-                            ✓ 応援済み
+                          <div className="flex items-center justify-center gap-2 py-2 px-4 rounded-xl
+                            bg-gradient-to-r from-emerald-50 via-green-50 to-teal-50
+                            border border-emerald-200/50 shadow-sm">
+                            <div className="flex items-center justify-center w-5 h-5 rounded-full
+                              bg-gradient-to-br from-emerald-400 to-teal-500 shadow-md">
+                              <span className="text-white text-xs font-bold">✓</span>
+                            </div>
+                            <span className="text-sm font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                              応援済み
+                            </span>
                           </div>
                         )}
                         <Button
@@ -751,40 +797,56 @@ const ParentTodayMissionCard = ({ todayProgress, studentName, selectedChildId }:
         )}
       </CardContent>
 
-      {/* AI応援メッセージダイアログ */}
+      {/* AI応援メッセージダイアログ - プレミアムデザイン */}
       {showAIDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-2 sm:p-4 z-50" onClick={() => !isGeneratingAI && !isSendingMessage && setShowAIDialog(false)}>
-          <div className="bg-white rounded-2xl p-4 sm:p-6 max-w-2xl w-full max-h-[90vh] sm:max-h-[80vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-3 sm:mb-4">
-              <h3 className="text-lg sm:text-xl font-bold text-slate-800 flex items-center gap-2">
-                <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" />
-                <span className="hidden xs:inline">AI応援メッセージ</span>
-                <span className="xs:hidden">AI応援</span>
-              </h3>
+        <div className="fixed inset-0 bg-gradient-to-br from-black/60 via-purple-900/30 to-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50 animate-in fade-in duration-200" onClick={() => !isGeneratingAI && !isSendingMessage && setShowAIDialog(false)}>
+          <div className="bg-gradient-to-br from-white via-purple-50/30 to-white rounded-3xl p-6 sm:p-8 max-w-2xl w-full max-h-[90vh] sm:max-h-[80vh] overflow-y-auto shadow-2xl border-2 border-purple-100/50 animate-in slide-in-from-bottom-4 duration-300" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-fuchsia-600 rounded-xl blur-md opacity-50 animate-pulse"></div>
+                  <div className="relative bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-600 p-2.5 rounded-xl shadow-lg">
+                    <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                  </div>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 bg-clip-text text-transparent">
+                  <span className="hidden xs:inline">AI応援メッセージ</span>
+                  <span className="xs:hidden">AI応援</span>
+                </h3>
+              </div>
               <button
                 onClick={() => setShowAIDialog(false)}
                 disabled={isGeneratingAI || isSendingMessage}
-                className="text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
+                className="group relative w-10 h-10 rounded-full hover:bg-slate-100 transition-all duration-200 disabled:opacity-50 flex items-center justify-center"
               >
-                ✕
+                <span className="text-slate-400 group-hover:text-slate-600 text-2xl font-light transition-colors">✕</span>
               </button>
             </div>
 
             {isGeneratingAI ? (
-              <div className="py-12 text-center">
-                <div className="animate-spin inline-block w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full mb-4"></div>
-                <p className="text-slate-600">AI応援メッセージを生成中...</p>
+              <div className="py-16 text-center">
+                <div className="relative inline-block mb-6">
+                  <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-fuchsia-600 rounded-full blur-xl opacity-30 animate-pulse"></div>
+                  <div className="relative animate-spin inline-block w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full"></div>
+                </div>
+                <p className="text-lg font-semibold bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
+                  AI応援メッセージを生成中...
+                </p>
+                <p className="text-sm text-slate-500 mt-2">心を込めて考えています</p>
               </div>
             ) : (
-              <div className="space-y-3 sm:space-y-4">
-                <p className="text-xs sm:text-sm text-slate-600 mb-2 sm:mb-4">
-                  3つの応援メッセージから選んでください。メッセージは編集することもできます。
-                </p>
+              <div className="space-y-4 sm:space-y-5">
+                <div className="bg-gradient-to-r from-purple-50 via-violet-50 to-purple-50 rounded-2xl p-4 border border-purple-100">
+                  <p className="text-sm text-slate-700 leading-relaxed">
+                    <span className="font-semibold text-purple-700">✨ 3つの応援メッセージ</span>から選んでください。<br />
+                    <span className="text-xs text-slate-600">メッセージは自由に編集できます。</span>
+                  </p>
+                </div>
 
-                {/* 3つのメッセージ選択肢 */}
-                <div className="space-y-2 sm:space-y-3">
+                {/* 3つのメッセージ選択肢 - プレミアムデザイン */}
+                <div className="space-y-3 sm:space-y-4">
                   {aiMessages.map((message, index) => (
-                    <div key={index} className="relative">
+                    <div key={index} className="relative group">
                       <input
                         type="radio"
                         id={`message-${index}`}
@@ -795,31 +857,35 @@ const ParentTodayMissionCard = ({ todayProgress, studentName, selectedChildId }:
                       />
                       <label
                         htmlFor={`message-${index}`}
-                        className={`block p-3 sm:p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+                        className={`block p-4 sm:p-5 rounded-2xl border-2 cursor-pointer transition-all duration-300 ${
                           selectedMessage === message
-                            ? "border-purple-500 bg-purple-50"
-                            : "border-slate-200 bg-white hover:border-purple-300"
+                            ? "border-purple-400 bg-gradient-to-br from-purple-50 via-violet-50 to-fuchsia-50 shadow-lg scale-[1.02]"
+                            : "border-slate-200 bg-white hover:border-purple-200 hover:shadow-md"
                         }`}
                       >
-                        <div className="flex items-start gap-2 sm:gap-3">
-                          <div className={`flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                        <div className="flex items-start gap-3 sm:gap-4">
+                          <div className={`flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
                             selectedMessage === message
-                              ? "border-purple-500 bg-purple-500"
-                              : "border-slate-300"
+                              ? "border-purple-500 bg-gradient-to-br from-violet-500 to-fuchsia-600 shadow-lg scale-110"
+                              : "border-slate-300 group-hover:border-purple-300"
                           }`}>
                             {selectedMessage === message && (
-                              <svg className="w-3 h-3 sm:w-4 sm:h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                               </svg>
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-[10px] sm:text-xs font-semibold text-purple-600">
-                                {index === 0 ? "励まし型" : index === 1 ? "共感型" : "次への期待型"}
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className={`text-xs font-bold px-2.5 py-1 rounded-full transition-all duration-300 ${
+                                selectedMessage === message
+                                  ? "bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white shadow-md"
+                                  : "bg-purple-100 text-purple-700"
+                              }`}>
+                                {index === 0 ? "💪 励まし型" : index === 1 ? "🤝 共感型" : "🌟 次への期待型"}
                               </span>
                             </div>
-                            <p className="text-xs sm:text-sm text-slate-700 leading-relaxed break-words">{message}</p>
+                            <p className="text-sm sm:text-base text-slate-700 leading-relaxed break-words">{message}</p>
                           </div>
                         </div>
                       </label>
@@ -827,31 +893,43 @@ const ParentTodayMissionCard = ({ todayProgress, studentName, selectedChildId }:
                   ))}
                 </div>
 
-                {/* メッセージ編集エリア */}
-                <div className="mt-4 sm:mt-6">
-                  <label className="block text-xs sm:text-sm font-semibold text-slate-700 mb-2">
+                {/* メッセージ編集エリア - エレガントデザイン */}
+                <div className="mt-6 sm:mt-8 bg-gradient-to-br from-slate-50 to-purple-50/30 rounded-2xl p-4 sm:p-5 border border-purple-100/50">
+                  <label className="block text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                    <span className="text-purple-600">✏️</span>
                     メッセージを編集（200文字まで）
                   </label>
                   <textarea
                     value={selectedMessage}
                     onChange={(e) => setSelectedMessage(e.target.value.slice(0, 200))}
-                    className="w-full p-2 sm:p-3 text-sm border-2 border-slate-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all resize-none"
-                    rows={4}
-                    placeholder="選択したメッセージを編集できます"
+                    className="w-full p-4 text-sm bg-white border-2 border-purple-200/50 rounded-xl
+                      focus:border-purple-400 focus:ring-4 focus:ring-purple-100
+                      transition-all duration-200 resize-none shadow-inner
+                      placeholder:text-slate-400"
+                    rows={5}
+                    placeholder="選択したメッセージを自由に編集できます..."
                   />
-                  <div className="flex justify-between items-center mt-1">
-                    <p className="text-[10px] sm:text-xs text-slate-500">
-                      {selectedMessage.length}/200文字
+                  <div className="flex justify-between items-center mt-2">
+                    <p className="text-xs text-slate-500 flex items-center gap-1">
+                      <span className={selectedMessage.length >= 180 ? "text-amber-600 font-semibold" : ""}>
+                        {selectedMessage.length}
+                      </span>
+                      <span>/200文字</span>
                     </p>
+                    {selectedMessage.length >= 180 && (
+                      <p className="text-xs text-amber-600 font-medium">あと{200 - selectedMessage.length}文字</p>
+                    )}
                   </div>
                 </div>
 
-                {/* 送信ボタン */}
-                <div className="flex gap-2 sm:gap-3 mt-4 sm:mt-6">
+                {/* 送信ボタン - プレミアムデザイン */}
+                <div className="flex gap-3 sm:gap-4 mt-6 sm:mt-8">
                   <Button
                     onClick={() => setShowAIDialog(false)}
                     variant="outline"
-                    className="flex-1 py-2 sm:py-3 text-xs sm:text-sm font-semibold"
+                    className="flex-1 py-3.5 text-sm font-bold rounded-xl
+                      border-2 border-slate-300 hover:border-slate-400 hover:bg-slate-50
+                      transition-all duration-200 shadow-sm hover:shadow-md"
                     disabled={isSendingMessage}
                   >
                     キャンセル
@@ -859,9 +937,31 @@ const ParentTodayMissionCard = ({ todayProgress, studentName, selectedChildId }:
                   <Button
                     onClick={handleSendAIMessage}
                     disabled={!selectedMessage.trim() || isSendingMessage}
-                    className="flex-1 py-2 sm:py-3 bg-purple-600 hover:bg-purple-700 text-white text-xs sm:text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    className="group relative flex-1 py-3.5 text-sm font-bold rounded-xl overflow-hidden
+                      bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-600
+                      hover:from-violet-600 hover:via-purple-600 hover:to-fuchsia-700
+                      text-white shadow-xl hover:shadow-2xl
+                      transform hover:scale-[1.02] active:scale-[0.98]
+                      transition-all duration-300 ease-out
+                      disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
+                      border-2 border-white/20"
                   >
-                    {isSendingMessage ? "送信中..." : "送信する"}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent
+                      translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000 ease-in-out" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <span className="relative z-10 flex items-center justify-center gap-2">
+                      {isSendingMessage ? (
+                        <>
+                          <div className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                          送信中...
+                        </>
+                      ) : (
+                        <>
+                          <Heart className="h-4 w-4" />
+                          送信する
+                        </>
+                      )}
+                    </span>
                   </Button>
                 </div>
               </div>
@@ -875,6 +975,8 @@ const ParentTodayMissionCard = ({ todayProgress, studentName, selectedChildId }:
 
 
 const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
+  const [showAll, setShowAll] = useState(false)
+
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return "記録日時不明"
 
@@ -899,11 +1001,30 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
   const safeLogs = Array.isArray(logs) ? logs : []
 
   const recentHistory = safeLogs.map((log) => {
-    const loggedAt = log.logged_at || log.created_at || log.study_date
+    // Use logged_at for displaying the exact time the log was recorded
+    const loggedAt = log.logged_at
+
+    // 学習回の表示を「第N回(M/D〜M/D)」形式にフォーマット（生徒画面と同じロジック）
+    let sessionDisplay = ""
+    if (log.study_sessions) {
+      const sessionNum = log.study_sessions.session_number || log.session_id || 0
+      if (log.study_sessions.start_date && log.study_sessions.end_date) {
+        const startDate = new Date(log.study_sessions.start_date)
+        const endDate = new Date(log.study_sessions.end_date)
+        const startStr = `${startDate.getMonth() + 1}/${startDate.getDate()}`
+        const endStr = `${endDate.getMonth() + 1}/${endDate.getDate()}`
+        sessionDisplay = `第${sessionNum}回(${startStr}〜${endStr})`
+      } else {
+        sessionDisplay = `第${sessionNum}回`
+      }
+    } else {
+      sessionDisplay = `第${log.session_id || 0}回`
+    }
 
     return {
+      id: log.id,
       studentRecordTime: formatDate(loggedAt),
-      session: log.study_sessions?.session_number ?? log.session_id ?? 0,
+      session: sessionDisplay,
       subject: log.subjects?.name || "",
       content: log.study_content_types?.content_name || "",
       correctAnswers: log.correct_count || 0,
@@ -913,6 +1034,8 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
       reflection: log.reflection_text || "",
     }
   })
+
+  const displayedLogs = showAll ? recentHistory : recentHistory.slice(0, 5)
 
   const getSubjectColor = (subject: string) => {
     const colors = {
@@ -950,7 +1073,7 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
           </div>
           <div>
             <span className="text-slate-800">直近の学習履歴</span>
-            <p className="text-sm font-normal text-slate-600 mt-1">昨日0:00〜今日23:59のスパーク機能記録</p>
+            <p className="text-sm font-normal text-slate-600 mt-1">最新のスパーク機能記録</p>
           </div>
         </CardTitle>
       </CardHeader>
@@ -961,9 +1084,10 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
             <p className="text-sm text-slate-500 mt-2">お子さんの学習を見守りましょう！</p>
           </div>
         ) : (
-          recentHistory.map((item, index) => (
+          <>
+            {displayedLogs.map((item) => (
             <div
-              key={index}
+              key={item.id}
               className="bg-white/90 backdrop-blur-sm rounded-xl p-5 border border-green-100 shadow-lg hover:shadow-xl transition-all duration-300"
             >
               <div className="space-y-4">
@@ -976,7 +1100,7 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
                       {item.studentRecordTime}
                     </span>
                     <Badge variant="outline" className="text-sm px-3 py-1 border-slate-300 bg-white">
-                      {item.session}回目
+                      {item.session}
                     </Badge>
                   </div>
                   <Badge className={`text-sm px-3 py-2 border font-bold ${getAccuracyColor(item.accuracy)}`}>
@@ -1018,7 +1142,19 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
                 </div>
               </div>
             </div>
-          ))
+            ))}
+            {recentHistory.length > 5 && (
+              <div className="flex justify-center pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAll(!showAll)}
+                  className="w-full max-w-xs bg-white hover:bg-green-50 text-green-700 border-green-300 font-medium"
+                >
+                  {showAll ? "閉じる" : `もっと見る (残り${recentHistory.length - 5}件)`}
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </CardContent>
     </Card>
@@ -1026,6 +1162,20 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
 }
 
 const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
+  const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set())
+
+  const toggleCard = (index: number) => {
+    setExpandedCards((prev) => {
+      const newSet = new Set(prev)
+      if (newSet.has(index)) {
+        newSet.delete(index)
+      } else {
+        newSet.add(index)
+      }
+      return newSet
+    })
+  }
+
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return "記録日時不明"
 
@@ -1052,12 +1202,32 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
   const encouragementMessages = safeMessages.map((msg) => {
     const senderProfile = msg.sender_profile
     const baseMessage = msg.message || ""
+    const studyLog = msg.study_logs
+
+    // 学習記録情報の整形（生徒画面と同じロジック）
+    let studyInfo = null
+    if (studyLog) {
+      const accuracy = studyLog.total_problems > 0
+        ? Math.round((studyLog.correct_count / studyLog.total_problems) * 100)
+        : 0
+
+      studyInfo = {
+        session: studyLog.study_sessions?.session_number || "不明",
+        subject: studyLog.subjects?.name || "不明",
+        content: studyLog.study_content_types?.content_name || "不明",
+        accuracy,
+        correctCount: studyLog.correct_count || 0,
+        totalProblems: studyLog.total_problems || 0,
+      }
+    }
 
     return {
       recordTime: formatDate(msg.sent_at),
       from: senderProfile?.display_name || "応援者",
       avatar: senderProfile?.avatar_url || (msg.sender_role === "parent" ? "parent1" : "coach"),
       message: baseMessage,
+      senderRole: msg.sender_role || "unknown",
+      studyInfo,
     }
   })
 
@@ -1081,36 +1251,92 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
             <p className="text-sm text-slate-500 mt-2">お子さんへ応援メッセージを送りましょう！</p>
           </div>
         ) : (
-          encouragementMessages.map((message, index) => (
-            <div
-              key={index}
-              className="bg-white/90 backdrop-blur-sm rounded-xl p-5 border border-pink-100 shadow-lg hover:shadow-xl transition-all duration-300"
-            >
-              <div className="flex items-start gap-4">
-                <Avatar className="h-12 w-12 border-3 border-pink-200 flex-shrink-0 shadow-md">
-                  <AvatarImage src={getAvatarSrc(message.avatar) || "/placeholder.svg"} alt={message.from} />
-                  <AvatarFallback className="bg-pink-100 text-pink-700 font-bold text-lg">
-                    {message.from.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 space-y-3">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span className="font-bold text-slate-800 text-lg">{message.from}</span>
-                    <span className="text-sm text-slate-600 bg-slate-100 px-2 py-1 rounded-full">
-                      {message.recordTime}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <Heart className="h-4 w-4 text-pink-500" />
-                      <span className="text-xs text-pink-600 font-medium">応援</span>
+          encouragementMessages.map((message, index) => {
+            const isExpanded = expandedCards.has(index)
+            return (
+              <div
+                key={index}
+                className="bg-white/90 backdrop-blur-sm rounded-xl p-5 border border-pink-100 shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                <div className="flex items-start gap-4">
+                  <Avatar className="h-12 w-12 border-3 border-pink-200 flex-shrink-0 shadow-md">
+                    <AvatarImage src={getAvatarSrc(message.avatar) || "/placeholder.svg"} alt={message.from} />
+                    <AvatarFallback className="bg-pink-100 text-pink-700 font-bold text-lg">
+                      {message.from.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 space-y-3">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="font-bold text-slate-800 text-lg">{message.from}</span>
+                      <span className="text-sm text-slate-600 bg-slate-100 px-2 py-1 rounded-full">
+                        {message.recordTime}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <Heart className="h-4 w-4 text-pink-500" />
+                        <span className="text-xs text-pink-600 font-medium">応援</span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-4 rounded-xl border border-pink-100">
-                    <p className="text-base leading-relaxed text-slate-700 font-medium">{message.message}</p>
+                    {isExpanded ? (
+                      <div className="space-y-3">
+                        <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-4 rounded-xl border border-pink-100">
+                          <p className="text-base leading-relaxed text-slate-700 font-medium">{message.message}</p>
+                        </div>
+                        {message.studyInfo && (
+                          <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-200">
+                            <p className="text-sm font-semibold text-blue-900 mb-3">📚 応援された学習記録</p>
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <div className="bg-white p-2 rounded-lg border border-blue-100">
+                                <span className="text-slate-600">学習回: </span>
+                                <span className="font-medium text-slate-800">第{message.studyInfo.session}回</span>
+                              </div>
+                              <div className="bg-white p-2 rounded-lg border border-blue-100">
+                                <span className="text-slate-600">科目: </span>
+                                <span className="font-medium text-slate-800">{message.studyInfo.subject}</span>
+                              </div>
+                              <div className="bg-white p-2 rounded-lg border border-blue-100 col-span-2">
+                                <span className="text-slate-600">内容: </span>
+                                <span className="font-medium text-slate-800">{message.studyInfo.content}</span>
+                              </div>
+                              <div className="bg-white p-2 rounded-lg border border-blue-100">
+                                <span className="text-slate-600">正答数: </span>
+                                <span className="font-medium text-slate-800">
+                                  {message.studyInfo.correctCount}/{message.studyInfo.totalProblems}問
+                                </span>
+                              </div>
+                              <div className="bg-white p-2 rounded-lg border border-blue-100">
+                                <span className="text-slate-600">正答率: </span>
+                                <span className={`font-bold ${
+                                  message.studyInfo.accuracy >= 80 ? "text-green-600" :
+                                  message.studyInfo.accuracy >= 60 ? "text-yellow-600" :
+                                  "text-red-600"
+                                }`}>
+                                  {message.studyInfo.accuracy}%
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-4 rounded-xl border border-pink-100">
+                        <p className="text-base leading-relaxed text-slate-700 font-medium line-clamp-2">
+                          {message.message}
+                        </p>
+                      </div>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleCard(index)}
+                      className="text-pink-600 hover:text-pink-700 hover:bg-pink-50 w-full"
+                    >
+                      {isExpanded ? "閉じる" : "詳細を見る"}
+                    </Button>
                   </div>
                 </div>
               </div>
-            </div>
-          ))
+            )
+          })
         )}
       </CardContent>
     </Card>
@@ -1301,7 +1527,7 @@ export default function ParentDashboard() {
           getStudentTodayMissionData(selectedChildId),
           getStudentWeeklyProgress(selectedChildId),
           getStudentCalendarData(selectedChildId),
-          getStudentRecentLogs(selectedChildId, 5),
+          getStudentRecentLogs(selectedChildId, 50),
           getStudentRecentMessages(selectedChildId, 3),
         ]
 

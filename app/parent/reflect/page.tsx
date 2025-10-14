@@ -29,7 +29,7 @@ import {
 interface Child {
   id: string
   full_name: string
-  nickname: string
+  display_name: string
   avatar_url: string | null
   grade: number
 }
@@ -176,7 +176,7 @@ export default function ParentReflectPage() {
                   onClick={() => setSelectedChildId(child.id)}
                   className="flex-shrink-0"
                 >
-                  {child.nickname || child.full_name}
+                  {child.display_name}
                 </Button>
               ))}
             </div>

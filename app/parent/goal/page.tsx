@@ -22,7 +22,7 @@ import {
 interface Child {
   id: string
   full_name: string
-  nickname: string
+  display_name: string
   avatar_url: string | null
   grade: number
 }
@@ -204,7 +204,7 @@ export default function ParentGoalNaviPage() {
         {children.length > 0 && (
           <div className="flex gap-2 overflow-x-auto pb-2 mb-6">
             {children.map((child) => {
-              const childName = child.nickname || child.full_name
+              const childName = child.display_name
               const childAvatar = child.avatar_url || "student1"
               const isActive = selectedChildId === child.id
 

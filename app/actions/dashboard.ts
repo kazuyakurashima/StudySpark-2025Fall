@@ -492,12 +492,23 @@ export async function getRecentEncouragementMessages(limit: number = 3) {
       return { error: "生徒情報が見つかりません" }
     }
 
-    // Get yesterday 0:00 to today 23:59
-    const today = new Date()
-    today.setHours(23, 59, 59, 999)
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-    yesterday.setHours(0, 0, 0, 0)
+    // Get yesterday 0:00 to today 23:59 in JST
+    const now = new Date()
+    const jstOffset = 9 * 60 // UTC+9
+    const nowJST = new Date(now.getTime() + jstOffset * 60 * 1000)
+
+    // Today 23:59:59 JST
+    const todayJST = new Date(nowJST)
+    todayJST.setHours(23, 59, 59, 999)
+
+    // Yesterday 0:00:00 JST
+    const yesterdayJST = new Date(todayJST)
+    yesterdayJST.setDate(yesterdayJST.getDate() - 1)
+    yesterdayJST.setHours(0, 0, 0, 0)
+
+    // Convert back to UTC for database query
+    const today = new Date(todayJST.getTime() - jstOffset * 60 * 1000)
+    const yesterday = new Date(yesterdayJST.getTime() - jstOffset * 60 * 1000)
 
     const { data: messages, error: messagesError } = await supabase
       .from("encouragement_messages")

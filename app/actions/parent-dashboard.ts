@@ -335,11 +335,11 @@ export async function getTodayStatusMessageAI(studentId: number) {
 
     const displayName = profile?.display_name || "お子さん"
 
-    // Get today's logs
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const todayEnd = new Date(today)
-    todayEnd.setHours(23, 59, 59, 999)
+    // Get today's logs using study_date (JST-based date)
+    const now = new Date()
+    const jstOffset = 9 * 60 // UTC+9
+    const nowJST = new Date(now.getTime() + jstOffset * 60 * 1000)
+    const todayDateStr = nowJST.toISOString().split('T')[0] // YYYY-MM-DD in JST
 
     const { data: todayLogs } = await adminClient
       .from("study_logs")
@@ -348,37 +348,42 @@ export async function getTodayStatusMessageAI(studentId: number) {
         correct_count,
         total_problems,
         logged_at,
+        study_date,
         subjects (name),
         study_content_types (content_name)
       `
       )
       .eq("student_id", studentId)
-      .gte("logged_at", today.toISOString())
-      .lte("logged_at", todayEnd.toISOString())
+      .eq("study_date", todayDateStr)
       .order("logged_at", { ascending: true })
 
     // Get study streak
     const { streak } = await getStudentStreak(studentId)
 
-    // Get weekly trend
-    const oneWeekAgo = new Date(today)
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
-    const twoWeeksAgo = new Date(today)
-    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
+    // Get weekly trend (study_dateを使用)
+    // 過去7日間（今日を含まない）
+    const oneWeekAgoJST = new Date(nowJST)
+    oneWeekAgoJST.setDate(oneWeekAgoJST.getDate() - 7)
+    const oneWeekAgoDateStr = oneWeekAgoJST.toISOString().split("T")[0]
+
+    // 過去8〜14日間
+    const twoWeeksAgoJST = new Date(nowJST)
+    twoWeeksAgoJST.setDate(twoWeeksAgoJST.getDate() - 14)
+    const twoWeeksAgoDateStr = twoWeeksAgoJST.toISOString().split("T")[0]
 
     const { data: thisWeekLogs } = await adminClient
       .from("study_logs")
       .select("correct_count, total_problems")
       .eq("student_id", studentId)
-      .gte("logged_at", oneWeekAgo.toISOString())
-      .lt("logged_at", today.toISOString())
+      .gte("study_date", oneWeekAgoDateStr)
+      .lt("study_date", todayDateStr)
 
     const { data: lastWeekLogs } = await adminClient
       .from("study_logs")
       .select("correct_count, total_problems")
       .eq("student_id", studentId)
-      .gte("logged_at", twoWeeksAgo.toISOString())
-      .lt("logged_at", oneWeekAgo.toISOString())
+      .gte("study_date", twoWeeksAgoDateStr)
+      .lt("study_date", oneWeekAgoDateStr)
 
     let weeklyTrend: "improving" | "stable" | "declining" | "none" = "none"
     if (thisWeekLogs && thisWeekLogs.length > 0 && lastWeekLogs && lastWeekLogs.length > 0) {
@@ -1015,8 +1020,9 @@ export async function getStudentCalendarData(studentId: number) {
 
 /**
  * 子どもの直近学習履歴取得
+ * 生徒画面と同じロジックで取得（日付フィルタなし、最新50件）
  */
-export async function getStudentRecentLogs(studentId: number, limit: number = 5) {
+export async function getStudentRecentLogs(studentId: number, limit: number = 50) {
   try {
     const supabase = await createClient()
 
@@ -1048,31 +1054,26 @@ export async function getStudentRecentLogs(studentId: number, limit: number = 5)
       return { error: "アクセス権限がありません" }
     }
 
-    // Get yesterday 0:00 to today 23:59
-    const today = new Date()
-    today.setHours(23, 59, 59, 999)
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-    yesterday.setHours(0, 0, 0, 0)
-
+    // Get recent study logs with related data (no date filtering, just order by study_date)
+    // This matches the student dashboard logic for consistency
     const { data: logs, error: logsError } = await adminClient
       .from("study_logs")
       .select(
         `
         id,
         logged_at,
+        study_date,
         correct_count,
         total_problems,
         reflection_text,
         session_id,
         subjects (name, color_code),
         study_content_types (content_name),
-        study_sessions (session_number)
+        study_sessions (session_number, start_date, end_date)
       `
       )
       .eq("student_id", studentId)
-      .gte("logged_at", yesterday.toISOString())
-      .lte("logged_at", today.toISOString())
+      .order("study_date", { ascending: false })
       .order("logged_at", { ascending: false })
       .limit(limit)
 
@@ -1123,12 +1124,23 @@ export async function getStudentRecentMessages(studentId: number, limit: number 
       return { error: "アクセス権限がありません" }
     }
 
-    // Get yesterday 0:00 to today 23:59
-    const today = new Date()
-    today.setHours(23, 59, 59, 999)
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-    yesterday.setHours(0, 0, 0, 0)
+    // Get yesterday 0:00 to today 23:59 in JST
+    const now = new Date()
+    const jstOffset = 9 * 60 // UTC+9
+    const nowJST = new Date(now.getTime() + jstOffset * 60 * 1000)
+
+    // Today 23:59:59 JST
+    const todayJST = new Date(nowJST)
+    todayJST.setHours(23, 59, 59, 999)
+
+    // Yesterday 0:00:00 JST
+    const yesterdayJST = new Date(todayJST)
+    yesterdayJST.setDate(yesterdayJST.getDate() - 1)
+    yesterdayJST.setHours(0, 0, 0, 0)
+
+    // Convert back to UTC for database query
+    const today = new Date(todayJST.getTime() - jstOffset * 60 * 1000)
+    const yesterday = new Date(yesterdayJST.getTime() - jstOffset * 60 * 1000)
 
     const { data: messages, error: messagesError } = await adminClient
       .from("encouragement_messages")
@@ -1138,7 +1150,15 @@ export async function getStudentRecentMessages(studentId: number, limit: number 
         message,
         sent_at,
         sender_role,
-        sender_id
+        sender_id,
+        related_study_log_id,
+        study_logs:related_study_log_id (
+          correct_count,
+          total_problems,
+          subjects (name),
+          study_content_types (content_name),
+          study_sessions (session_number)
+        )
       `
       )
       .eq("student_id", studentId)

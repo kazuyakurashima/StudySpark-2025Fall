@@ -961,10 +961,10 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
     const studyLog = msg.study_logs
 
     // アバターの処理：送信者プロフィールから取得
-    // avatar_urlが設定されている場合はそれを使用、なければgetAvatarSrcで適切なアバターを取得
+    // avatar_urlが設定されている場合はそれを使用、なければsender_roleに基づいたデフォルトアバターを取得
     const avatarUrl = senderProfile?.avatar_url
       ? getAvatarSrc(senderProfile.avatar_url)
-      : getAvatarSrc(undefined)
+      : getAvatarSrc(msg.sender_role === "parent" ? "parent1" : msg.sender_role === "coach" ? "coach" : undefined)
 
     // 学習記録情報の整形
     let studyInfo = null

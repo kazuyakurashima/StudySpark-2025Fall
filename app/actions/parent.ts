@@ -55,7 +55,7 @@ async function verifyParentChildRelation(studentId: string) {
   const adminClient = createAdminClient()
   const { data: profile, error: profileError } = await adminClient
     .from("profiles")
-    .select("display_name")
+    .select("display_name, avatar_url")
     .eq("id", student.user_id)
     .single()
 
@@ -65,7 +65,8 @@ async function verifyParentChildRelation(studentId: string) {
     full_name: student.full_name,
     grade: student.grade,
     user_id: student.user_id,
-    display_name: profile?.display_name || student.full_name
+    display_name: profile?.display_name || student.full_name,
+    avatar_url: profile?.avatar_url || null
   }
 
   return { error: null, supabase, parent, student: studentWithProfile }
@@ -103,7 +104,10 @@ export async function getParentChildren() {
     return { error: "保護者情報が見つかりません" }
   }
 
-  // Admin clientを使ってRLSをバイパス（getParentDashboardDataと同じパターン）
+  // Admin clientを使ってRLSをバイパス
+  // 理由: profiles テーブルは "Users can view own profile" ポリシーにより、
+  //       保護者が子どもの profiles を直接読み取れないため、
+  //       親子関係を確認後、adminClient で profiles データを取得する
   const adminClient = createAdminClient()
 
   // parent_child_relations経由でstudent_id一覧を取得
@@ -154,7 +158,7 @@ export async function getParentChildren() {
     return {
       id: student.id,
       full_name: student.full_name,
-      nickname: profile?.display_name || student.full_name,
+      display_name: profile?.display_name || student.full_name,
       grade: student.grade,
       user_id: student.user_id,
       avatar_url: profile?.avatar_url || null
