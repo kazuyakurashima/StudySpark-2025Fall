@@ -741,11 +741,6 @@ const ParentTodayMissionCard = ({ todayProgress, studentName, selectedChildId }:
             {/* ミッション状況表示 */}
             <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 border-2 border-primary/20 shadow-lg">
               <div className="text-center">
-                <div className="mb-4">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full mb-3">
-                    <Flag className="h-8 w-8 text-primary" />
-                  </div>
-                </div>
                 <h3 className="font-bold text-lg text-slate-800 mb-2">ミッション状況</h3>
                 <p className="text-base text-slate-700 leading-relaxed">{missionData.statusMessage}</p>
               </div>
