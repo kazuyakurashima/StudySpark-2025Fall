@@ -1,335 +1,364 @@
 "use client"
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Target, TestTube, TrendingUp, TrendingDown, Minus } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Slider } from "@/components/ui/slider"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import ParentBottomNavigation from "@/components/parent-bottom-navigation"
+import { Calendar, Flag, Target, PartyPopper, Eye, Users } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  getParentChildren,
+  getChildAvailableTests,
+  getChildTestGoals,
+  getChildTestGoal,
+} from "@/app/actions/parent"
 
-export default function ParentGoalPage() {
-  const [selectedChild, setSelectedChild] = useState("child1")
-  const [showMoreTests, setShowMoreTests] = useState(false)
+interface Child {
+  id: string
+  full_name: string
+  nickname: string
+  avatar_url: string | null
+  grade: number
+}
 
-  const children = [
-    { id: "child1", name: "みかん", nickname: "みかんちゃん" },
-    { id: "child2", name: "太郎", nickname: "たろう" },
-  ]
+interface TestSchedule {
+  id: string
+  test_type_id: string
+  test_date: string
+  test_types: {
+    id: string
+    name: string
+  }
+}
 
-  const testHistory = [
-    // みかんのテストデータ
-    {
-      id: "test1",
-      childName: "みかん",
-      name: "第3回合不合判定テスト",
-      date: "2025-09-08",
-      type: "合不合",
-      goal: { course: "S", class: 15 },
-      result: { course: "S", class: 12 },
-      memo: "今回は算数の図形問題を重点的に勉強したので、前回より良い結果を出したいです。特に立体図形の問題を頑張りました。",
-    },
-    {
-      id: "test2",
-      childName: "みかん",
-      name: "第2回週テスト",
-      date: "2025-09-13",
-      type: "週テスト",
-      goal: { subjects: { 算数: 52, 国語: 48, 理科: 45, 社会: 55 } },
-      result: { subjects: { 算数: 55, 国語: 46, 理科: 48, 社会: 52 } },
-      memo: "算数と理科は目標を上回りました！国語と社会はもう少し頑張りたいです。",
-      achievedCount: 2,
-      totalSubjects: 4,
-    },
-    {
-      id: "test3",
-      childName: "みかん",
-      name: "第4回合不合判定テスト",
-      date: "2025-10-05",
-      type: "合不合",
-      goal: { course: "S", class: 10 },
-      result: { course: "C", class: 25 },
-      memo: "思うような結果が出ませんでしたが、次回に向けて頑張ります。",
-    },
-    // 太郎のテストデータ
-    {
-      id: "test4",
-      childName: "太郎",
-      name: "第3回合不合判定テスト",
-      date: "2025-09-08",
-      type: "合不合",
-      goal: { course: "C", class: 20 },
-      result: { course: "C", class: 18 },
-      memo: "目標を達成できました！次回はSコースを目指したいです。",
-    },
-    {
-      id: "test5",
-      childName: "太郎",
-      name: "第2回週テスト",
-      date: "2025-09-13",
-      type: "週テスト",
-      goal: { subjects: { 算数: 45, 国語: 50, 理科: 42, 社会: 48 } },
-      result: { subjects: { 算数: 48, 国語: 52, 理科: 40, 社会: 50 } },
-      memo: "算数、国語、社会は目標達成！理科をもう少し頑張りたいです。",
-      achievedCount: 3,
-      totalSubjects: 4,
-    },
-    {
-      id: "test6",
-      childName: "太郎",
-      name: "第4回合不合判定テスト",
-      date: "2025-10-05",
-      type: "合不合",
-      goal: { course: "C", class: 15 },
-      result: { course: "S", class: 22 },
-      memo: "目標を大きく上回る結果が出ました！とても嬉しいです。",
-    },
-  ]
-
-  const selectedChildName = children.find((child) => child.id === selectedChild)?.name
-  const filteredTestHistory = testHistory.filter((test) => test.childName === selectedChildName)
-  const displayedTests = showMoreTests ? filteredTestHistory : filteredTestHistory.slice(0, 5)
-
-  const isTestAchieved = (test: any) => {
-    if (test.type === "合不合") {
-      const courseOrder = { S: 4, C: 3, B: 2, A: 1 }
-      const goalCourseValue = courseOrder[test.goal.course as keyof typeof courseOrder]
-      const resultCourseValue = courseOrder[test.result.course as keyof typeof courseOrder]
-      return resultCourseValue >= goalCourseValue && test.result.class <= test.goal.class
-    } else {
-      return Object.entries(test.goal.subjects).every(
-        ([subject, goalValue]) => test.result.subjects[subject] >= goalValue,
-      )
+interface TestGoal {
+  id: string
+  test_schedule_id: string
+  target_course: string
+  target_class: number
+  goal_thoughts: string
+  created_at: string
+  test_schedules: {
+    id: string
+    test_date: string
+    test_types: {
+      id: string
+      name: string
     }
   }
+}
 
-  const getSubjectDelta = (goal: number, result: number) => {
-    const diff = result - goal
-    if (diff > 0) {
-      return { value: `+${diff}`, color: "text-emerald-600", icon: TrendingUp }
-    } else if (diff < 0) {
-      return { value: `${diff}`, color: "text-red-600", icon: TrendingDown }
-    } else {
-      return { value: "±0", color: "text-slate-500", icon: Minus }
+const courses = [
+  { id: "S", name: "Sコース", description: "最難関校" },
+  { id: "C", name: "Cコース", description: "難関校" },
+  { id: "B", name: "Bコース", description: "有名校" },
+  { id: "A", name: "Aコース", description: "標準校" },
+]
+
+const getAvatarSrc = (avatarId?: string | null) => {
+  if (avatarId && avatarId.startsWith("http")) {
+    return avatarId
+  }
+
+  const avatarMap: { [key: string]: string } = {
+    student1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student1-xZFJU5uXJO4DEfUbq1jbTMQUXReyM0.png",
+    student2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student2-mZ9Q9oVm43IQoRyxSYytVFYgp3JS1V.png",
+    student3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student3-teUpOKnopXNhE2vGFtvz9RWtC7O6kv.png",
+    student4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student4-pKazGXekCT1H5kzHBqmfOrM1968hML.png",
+    student5: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student5-kehwNSIKsgkTL6EkAPO2evB3qJWnRM.png",
+    student6: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student6-dJrMk7uUxYSRMp5tMJ3t4KYDOEIuNl.png",
+  }
+  return avatarMap[avatarId || ""] || avatarMap["student1"]
+}
+
+export default function ParentGoalNaviPage() {
+  const [children, setChildren] = useState<Child[]>([])
+  const [selectedChildId, setSelectedChildId] = useState<string>("")
+  const [selectedChild, setSelectedChild] = useState<Child | null>(null)
+  const [availableTests, setAvailableTests] = useState<TestSchedule[]>([])
+  const [testGoals, setTestGoals] = useState<TestGoal[]>([])
+  const [selectedGoal, setSelectedGoal] = useState<TestGoal | null>(null)
+  const [activeTab, setActiveTab] = useState<"input" | "result" | "test">("input")
+  const [loading, setLoading] = useState(true)
+
+  // 子ども一覧を読み込み
+  useEffect(() => {
+    const loadChildren = async () => {
+      const { children, error } = await getParentChildren()
+      if (children && !error) {
+        setChildren(children)
+        if (children.length > 0) {
+          setSelectedChildId(children[0].id)
+          setSelectedChild(children[0])
+        }
+      }
+      setLoading(false)
     }
+
+    loadChildren()
+  }, [])
+
+  // 選択された子どものデータを読み込み
+  useEffect(() => {
+    const loadChildData = async () => {
+      if (!selectedChildId) return
+
+      const child = children.find((c) => c.id === selectedChildId)
+      if (child) {
+        setSelectedChild(child)
+      }
+
+      // テスト日程取得
+      const { tests } = await getChildAvailableTests(selectedChildId)
+      if (tests) {
+        setAvailableTests(tests)
+      }
+
+      // 目標一覧取得
+      const { goals } = await getChildTestGoals(selectedChildId)
+      if (goals) {
+        setTestGoals(goals)
+      }
+    }
+
+    loadChildData()
+  }, [selectedChildId, children])
+
+  const getCourseName = (courseId: string) => {
+    return courses.find((c) => c.id === courseId)?.name || courseId
   }
 
-  const courseColors = {
-    goal: {
-      bg: "bg-blue-50",
-      border: "border-blue-200",
-      text: "text-blue-700",
-      gradient: "from-blue-50 to-blue-100",
-    },
-    result: {
-      bg: "bg-emerald-50",
-      border: "border-emerald-200",
-      text: "text-emerald-700",
-      gradient: "from-emerald-50 to-emerald-100",
-    },
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return new Intl.DateTimeFormat("ja-JP", {
+      month: "long",
+      day: "numeric",
+      weekday: "short",
+    }).format(date)
   }
 
-  const subjectColors = {
-    算数: {
-      bg: "bg-blue-50",
-      border: "border-blue-200",
-      text: "text-blue-700",
-      gradient: "from-blue-50 to-blue-100",
-    },
-    国語: {
-      bg: "bg-emerald-50",
-      border: "border-emerald-200",
-      text: "text-emerald-700",
-      gradient: "from-emerald-50 to-emerald-100",
-    },
-    理科: {
-      bg: "bg-violet-50",
-      border: "border-violet-200",
-      text: "text-violet-700",
-      gradient: "from-violet-50 to-violet-100",
-    },
-    社会: {
-      bg: "bg-amber-50",
-      border: "border-amber-200",
-      text: "text-amber-700",
-      gradient: "from-amber-50 to-amber-100",
-    },
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white pb-20">
+        <div className="container max-w-4xl mx-auto px-4 py-6">
+          <div className="text-center py-20">読み込み中...</div>
+        </div>
+        <ParentBottomNavigation />
+      </div>
+    )
+  }
+
+  if (children.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white pb-20">
+        <div className="container max-w-4xl mx-auto px-4 py-6">
+          <div className="text-center py-20">
+            <Users className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+            <p className="text-gray-600">お子様の情報がありません</p>
+          </div>
+        </div>
+        <ParentBottomNavigation />
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-3 mb-4">
-            <Target className="h-6 w-6 text-primary" />
-            <div>
-              <h1 className="text-xl font-bold text-slate-800">ゴールナビ</h1>
-              <p className="text-sm text-slate-600">目標を設定して、合格に向けて頑張ろう！</p>
-            </div>
+    <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white pb-20">
+      <div className="container max-w-4xl mx-auto px-4 py-6 space-y-6">
+        {/* ヘッダー */}
+        <div className="text-center space-y-2">
+          <div className="flex items-center justify-center gap-2">
+            <Target className="h-8 w-8 text-orange-500" />
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-600 to-pink-600 bg-clip-text text-transparent">
+              ゴールナビ
+            </h1>
           </div>
-
-          <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
-            {children.map((child) => (
-              <Button
-                key={child.id}
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedChild(child.id)}
-                className={`flex-1 rounded-md transition-all ${
-                  selectedChild === child.id
-                    ? "bg-white text-primary shadow-sm font-medium"
-                    : "text-slate-600 hover:text-slate-800 hover:bg-white/50"
-                }`}
-              >
-                {child.name}
-              </Button>
-            ))}
-          </div>
+          <p className="text-sm text-gray-600 flex items-center justify-center gap-2">
+            <Eye className="h-4 w-4" />
+            お子様の目標を確認できます（読み取り専用）
+          </p>
         </div>
-      </div>
 
-      <div className="max-w-4xl mx-auto p-4 space-y-6">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <TestTube className="h-5 w-5 text-primary" />
-                テスト結果
-              </CardTitle>
-              <Badge variant="outline" className="text-xs">
-                全{filteredTestHistory.length}件
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {displayedTests.map((test) => (
-                <Card key={test.id} className="border border-border/50 shadow-sm hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-slate-800">{test.name}</h3>
-                          <Badge
-                            variant={test.type === "合不合" ? "default" : "secondary"}
-                            className="text-xs bg-primary/10 text-primary border-primary/20"
-                          >
-                            {test.type}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-slate-600">
-                          {new Date(test.date).toLocaleDateString("ja-JP", {
-                            year: "numeric",
-                            month: "numeric",
-                            day: "numeric",
-                            weekday: "short",
-                          })}
-                        </p>
-                      </div>
-                      <Badge
-                        variant={isTestAchieved(test) ? "default" : "destructive"}
-                        className={`text-xs font-medium ${
-                          isTestAchieved(test)
-                            ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                            : "bg-red-100 text-red-700 border-red-200"
-                        }`}
+        {/* 子ども切り替えタブ */}
+        {children.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {children.map((child) => {
+              const childName = child.nickname || child.full_name
+              const childAvatar = child.avatar_url || "student1"
+              const isActive = selectedChildId === child.id
+
+              return (
+                <button
+                  key={child.id}
+                  onClick={() => setSelectedChildId(child.id)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 whitespace-nowrap ${
+                    isActive
+                      ? "bg-primary text-primary-foreground shadow-lg scale-105"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  <Avatar className="h-8 w-8 border-2 border-white">
+                    <AvatarImage src={getAvatarSrc(childAvatar)} alt={childName} />
+                    <AvatarFallback>{childName.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <span>{childName}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {/* タブコンテンツ */}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "input" | "result" | "test")}>
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="input">目標入力</TabsTrigger>
+            <TabsTrigger value="result">結果入力</TabsTrigger>
+            <TabsTrigger value="test">テスト結果</TabsTrigger>
+          </TabsList>
+
+          {/* 目標入力タブ */}
+          <TabsContent value="input" className="space-y-4">
+            {availableTests.length === 0 ? (
+              <Card>
+                <CardContent className="py-10 text-center text-gray-500">
+                  現在設定可能なテストはありません
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">目標設定可能なテスト</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {availableTests.map((test) => {
+                    const goal = testGoals.find((g) => g.test_schedule_id === test.id)
+                    return (
+                      <div
+                        key={test.id}
+                        className="p-4 border rounded-lg hover:bg-gray-50 transition-colors"
                       >
-                        {isTestAchieved(test) ? "✓ 達成" : "× 未達"}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    {test.type === "合不合" ? (
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div
-                            className={`text-center p-4 ${courseColors.goal.bg} ${courseColors.goal.border} border rounded-xl bg-gradient-to-br ${courseColors.goal.gradient} shadow-sm`}
-                          >
-                            <div className="text-xs text-slate-500 mb-2 font-medium">目標</div>
-                            <div className={`font-bold text-xl ${courseColors.goal.text} mb-1`}>
-                              {test.goal.course}コース
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Calendar className="h-4 w-4 text-orange-500" />
+                              <span className="font-medium">{test.test_types.name}</span>
+                              {goal && (
+                                <Badge variant="secondary" className="ml-2">
+                                  設定済み
+                                </Badge>
+                              )}
                             </div>
-                            <div className={`text-sm ${courseColors.goal.text} opacity-80`}>{test.goal.class}組</div>
-                          </div>
-                          <div
-                            className={`text-center p-4 ${courseColors.result.bg} ${courseColors.result.border} border rounded-xl bg-gradient-to-br ${courseColors.result.gradient} shadow-sm`}
-                          >
-                            <div className="text-xs text-slate-500 mb-2 font-medium">実績</div>
-                            <div className={`font-bold text-xl ${courseColors.result.text} mb-1`}>
-                              {test.result.course}コース
-                            </div>
-                            <div className={`text-sm ${courseColors.result.text} opacity-80`}>
-                              {test.result.class}組
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="text-sm font-semibold text-slate-700">科目別結果</span>
-                          <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                            {test.achievedCount}/{test.totalSubjects}科目 達成
-                          </Badge>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          {Object.entries(test.goal.subjects).map(([subject, goalValue]) => {
-                            const resultValue = test.result.subjects[subject as keyof typeof test.result.subjects]
-                            const delta = getSubjectDelta(goalValue, resultValue)
-                            const DeltaIcon = delta.icon
-                            const colors = subjectColors[subject as keyof typeof subjectColors]
-                            const isAchieved = resultValue >= goalValue
-
-                            return (
-                              <div
-                                key={subject}
-                                className={`p-3 ${colors.bg} ${colors.border} border rounded-xl bg-gradient-to-br ${colors.gradient} shadow-sm hover:shadow-md transition-all duration-200`}
-                              >
-                                <div className="flex items-center justify-between mb-2">
-                                  <span className={`text-sm font-semibold ${colors.text}`}>{subject}</span>
-                                  <div className={`flex items-center gap-1 text-xs font-medium ${delta.color}`}>
-                                    <DeltaIcon className="h-3 w-3" />
-                                    {delta.value}
-                                  </div>
+                            <p className="text-sm text-gray-600">{formatDate(test.test_date)}</p>
+                            {goal && (
+                              <div className="mt-3 space-y-2 p-3 bg-blue-50 rounded-md">
+                                <div className="flex items-center gap-2">
+                                  <Flag className="h-4 w-4 text-blue-600" />
+                                  <span className="font-medium text-sm">目標</span>
                                 </div>
-                                <div className="space-y-1">
-                                  <div className="flex justify-between text-xs">
-                                    <span className="text-slate-600">目標</span>
-                                    <span className={`font-medium ${colors.text}`}>{goalValue}</span>
-                                  </div>
-                                  <div className="flex justify-between text-xs">
-                                    <span className="text-slate-600">実績</span>
-                                    <span className={`font-bold ${isAchieved ? "text-emerald-600" : "text-red-600"}`}>
-                                      {resultValue}
-                                    </span>
-                                  </div>
+                                <div className="text-sm space-y-1">
+                                  <p>
+                                    <span className="text-gray-600">コース:</span>{" "}
+                                    <span className="font-medium">{getCourseName(goal.target_course)}</span>
+                                  </p>
+                                  <p>
+                                    <span className="text-gray-600">組:</span>{" "}
+                                    <span className="font-medium">{goal.target_class}組</span>
+                                  </p>
+                                  {goal.goal_thoughts && (
+                                    <div className="mt-2 pt-2 border-t border-blue-200">
+                                      <p className="text-gray-600 text-xs mb-1">今回の思い:</p>
+                                      <p className="text-gray-800 whitespace-pre-wrap">
+                                        {goal.goal_thoughts}
+                                      </p>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
-                            )
-                          })}
+                            )}
+                          </div>
                         </div>
                       </div>
-                    )}
+                    )
+                  })}
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
 
-                    {test.memo && (
-                      <div className="mt-4 p-4 bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl border border-slate-200 shadow-sm">
-                        <div className="text-xs text-slate-500 mb-2 font-medium">今回の思い</div>
-                        <p className="text-sm text-slate-700 leading-relaxed">{test.memo}</p>
+          {/* 結果入力タブ */}
+          <TabsContent value="result" className="space-y-4">
+            <Card>
+              <CardContent className="py-10 text-center text-gray-500">
+                <p>結果入力は生徒本人のみ可能です</p>
+                <p className="text-sm mt-2">
+                  お子様にログインしてもらい、結果を入力してください
+                </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* テスト結果タブ */}
+          <TabsContent value="test" className="space-y-4">
+            {testGoals.length === 0 ? (
+              <Card>
+                <CardContent className="py-10 text-center text-gray-500">
+                  まだテスト結果がありません
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {testGoals.map((goal) => (
+                  <Card key={goal.id}>
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Calendar className="h-5 w-5 text-orange-500" />
+                        {goal.test_schedules.test_types.name}
+                      </CardTitle>
+                      <p className="text-sm text-gray-600">
+                        {formatDate(goal.test_schedules.test_date)}
+                      </p>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Flag className="h-4 w-4 text-blue-600" />
+                        <span className="font-medium">目標</span>
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-
-              {filteredTestHistory.length > 5 && !showMoreTests && (
-                <div className="text-center">
-                  <Button variant="outline" onClick={() => setShowMoreTests(true)} className="text-sm">
-                    もっと見る（残り{filteredTestHistory.length - 5}件）
-                  </Button>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                      <div className="text-sm space-y-1">
+                        <p>
+                          <span className="text-gray-600">コース:</span>{" "}
+                          <span className="font-medium">{getCourseName(goal.target_course)}</span>
+                        </p>
+                        <p>
+                          <span className="text-gray-600">組:</span>{" "}
+                          <span className="font-medium">{goal.target_class}組</span>
+                        </p>
+                      </div>
+                      {goal.goal_thoughts && (
+                        <div className="mt-3 p-3 bg-blue-50 rounded-md">
+                          <p className="text-xs text-gray-600 mb-2">今回の思い:</p>
+                          <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                            {goal.goal_thoughts}
+                          </p>
+                        </div>
+                      )}
+                      <div className="pt-3 border-t">
+                        <p className="text-xs text-gray-500">
+                          設定日: {new Date(goal.created_at).toLocaleDateString("ja-JP")}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
 
       <ParentBottomNavigation />
