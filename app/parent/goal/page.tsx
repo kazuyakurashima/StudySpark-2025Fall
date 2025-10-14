@@ -90,15 +90,30 @@ export default function ParentGoalNaviPage() {
   // 子ども一覧を読み込み
   useEffect(() => {
     const loadChildren = async () => {
-      const { children, error } = await getParentChildren()
-      if (children && !error) {
-        setChildren(children)
-        if (children.length > 0) {
-          setSelectedChildId(children[0].id)
-          setSelectedChild(children[0])
+      console.log("🔍 [CLIENT] Loading children...")
+      try {
+        const result = await getParentChildren()
+        console.log("🔍 [CLIENT] Children response:", result)
+
+        if (result.error) {
+          console.error("🔍 [CLIENT] Error from API:", result.error)
+          setLoading(false)
+          return
         }
+
+        if (result.children) {
+          console.log("🔍 [CLIENT] Setting children:", result.children)
+          setChildren(result.children)
+          if (result.children.length > 0) {
+            setSelectedChildId(result.children[0].id)
+            setSelectedChild(result.children[0])
+          }
+        }
+      } catch (error) {
+        console.error("🔍 [CLIENT] Exception loading children:", error)
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
 
     loadChildren()
