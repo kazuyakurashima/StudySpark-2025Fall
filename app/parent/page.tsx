@@ -688,7 +688,7 @@ const ParentTodayMissionCard = ({ todayProgress, studentName, selectedChildId }:
                         <Button
                           onClick={() => handleOpenAIDialog(panel.subject, panel.logs?.[0]?.id)}
                           className="w-full py-2 px-3 rounded-lg text-xs font-bold bg-purple-500 text-white hover:bg-purple-600 transition-all duration-300 flex items-center justify-center gap-2"
-                          disabled={!panel.logs?.[0]?.id}
+                          disabled={!panel.logs?.[0]?.id || encouragementSent[`${panel.subject}-0`] || panel.logs?.[0]?.hasParentEncouragement}
                         >
                           <Sparkles className="h-3 w-3" />
                           AI応援メッセージ
