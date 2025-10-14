@@ -658,30 +658,30 @@ const ParentTodayMissionCard = ({ todayProgress, studentName, selectedChildId }:
                     ) : (
                       <div className="space-y-2">
                         {/* クイック応援ボタン（3種類） */}
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="space-y-2">
                           <Button
                             onClick={() => handleQuickEncouragement(panel.subject, 0, panel.logs?.[0]?.id, "heart")}
-                            className="py-2 px-2 rounded-lg text-xs font-bold bg-pink-500 text-white hover:bg-pink-600 transition-all duration-300 flex items-center justify-center gap-1"
+                            className="w-full py-2 px-3 rounded-lg text-sm font-bold bg-pink-500 text-white hover:bg-pink-600 transition-all duration-300 flex items-center justify-center gap-2"
                             disabled={encouragementSent[`${panel.subject}-0`] || panel.logs?.[0]?.hasParentEncouragement || !panel.logs?.[0]?.id}
                           >
-                            <Heart className="h-3 w-3" />
-                            <span className="hidden sm:inline">がんばったね</span>
+                            <Heart className="h-4 w-4" />
+                            がんばったね
                           </Button>
                           <Button
                             onClick={() => handleQuickEncouragement(panel.subject, 0, panel.logs?.[0]?.id, "star")}
-                            className="py-2 px-2 rounded-lg text-xs font-bold bg-yellow-500 text-white hover:bg-yellow-600 transition-all duration-300 flex items-center justify-center gap-1"
+                            className="w-full py-2 px-3 rounded-lg text-sm font-bold bg-yellow-500 text-white hover:bg-yellow-600 transition-all duration-300 flex items-center justify-center gap-2"
                             disabled={encouragementSent[`${panel.subject}-0`] || panel.logs?.[0]?.hasParentEncouragement || !panel.logs?.[0]?.id}
                           >
                             ⭐
-                            <span className="hidden sm:inline">すごい！</span>
+                            すごい！
                           </Button>
                           <Button
                             onClick={() => handleQuickEncouragement(panel.subject, 0, panel.logs?.[0]?.id, "thumbsup")}
-                            className="py-2 px-2 rounded-lg text-xs font-bold bg-blue-500 text-white hover:bg-blue-600 transition-all duration-300 flex items-center justify-center gap-1"
+                            className="w-full py-2 px-3 rounded-lg text-sm font-bold bg-blue-500 text-white hover:bg-blue-600 transition-all duration-300 flex items-center justify-center gap-2"
                             disabled={encouragementSent[`${panel.subject}-0`] || panel.logs?.[0]?.hasParentEncouragement || !panel.logs?.[0]?.id}
                           >
                             👍
-                            <span className="hidden sm:inline">よくできました</span>
+                            よくできました
                           </Button>
                         </div>
                         {/* AI応援ボタン */}
