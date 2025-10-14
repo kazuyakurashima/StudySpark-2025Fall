@@ -4,7 +4,8 @@ import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Bot, Send, Sparkles } from "lucide-react"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { Bot, Send, Sparkles, User } from "lucide-react"
 
 interface Message {
   id: number
@@ -14,6 +15,7 @@ interface Message {
 
 interface GoalNavigationChatProps {
   studentName: string
+  studentAvatar?: string
   testName: string
   testDate: string
   targetCourse: string
@@ -26,6 +28,7 @@ const AVATAR_AI_COACH = "https://hebbkx1anhila5yf.public.blob.vercel-storage.com
 
 export function GoalNavigationChat({
   studentName,
+  studentAvatar,
   testName,
   testDate,
   targetCourse,
@@ -34,7 +37,7 @@ export function GoalNavigationChat({
   onCancel,
 }: GoalNavigationChatProps) {
   const [messages, setMessages] = useState<Message[]>([])
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1)
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1)
   const [userInput, setUserInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isStarted, setIsStarted] = useState(false)
@@ -90,8 +93,8 @@ export function GoalNavigationChat({
     setIsLoading(true)
 
     try {
-      // Step 4（まとめ生成）の場合
-      if (currentStep === 4) {
+      // Step 3（まとめ生成）の場合
+      if (currentStep === 3) {
         const response = await fetch("/api/goal/thoughts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -102,30 +105,21 @@ export function GoalNavigationChat({
             targetCourse,
             targetClass,
             conversationHistory: updatedMessages.map(m => ({ role: m.role, content: m.content })),
-            currentStep: 4,
+            currentStep: 3,
           }),
         })
 
         const data = await response.json()
 
         if (data.goalThoughts) {
-          const finalMessage: Message = {
-            id: updatedMessages.length + 1,
-            role: "assistant",
-            content: `素晴らしいね！${studentName}さんの今回の思いは、こんな感じだね：\n\n「${data.goalThoughts}」\n\nこの気持ちを大切に、一緒に頑張ろう！✨`,
-          }
-          setMessages([...updatedMessages, finalMessage])
-
-          // 2秒後に完了
-          setTimeout(() => {
-            onComplete(data.goalThoughts)
-          }, 2000)
+          // 最終メッセージを表示せず、すぐに完了
+          onComplete(data.goalThoughts)
         } else if (data.error) {
           alert("エラーが発生しました: " + data.error)
         }
       } else {
-        // Step 1-3（通常の対話）
-        const nextStep = (currentStep + 1) as 2 | 3 | 4
+        // Step 1-2（通常の対話）
+        const nextStep = (currentStep + 1) as 2 | 3
 
         const response = await fetch("/api/goal/navigation", {
           method: "POST",
@@ -210,7 +204,7 @@ export function GoalNavigationChat({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-primary" />
-          AIコーチと対話中（ステップ {currentStep}/4）
+          AIコーチと対話中（ステップ {currentStep}/3）
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -223,12 +217,19 @@ export function GoalNavigationChat({
               <div
                 className={`flex items-start gap-2 max-w-[80%] ${message.role === "user" ? "flex-row-reverse" : ""}`}
               >
-                {message.role === "assistant" && (
+                {message.role === "assistant" ? (
                   <img
                     src={AVATAR_AI_COACH}
                     alt="AIコーチ"
                     className="w-8 h-8 rounded-full flex-shrink-0"
                   />
+                ) : (
+                  <Avatar className="w-8 h-8 flex-shrink-0">
+                    <AvatarImage src={studentAvatar} alt={studentName} />
+                    <AvatarFallback>
+                      <User className="h-4 w-4" />
+                    </AvatarFallback>
+                  </Avatar>
                 )}
                 <div
                   className={`px-3 py-2 rounded-lg ${
@@ -258,7 +259,7 @@ export function GoalNavigationChat({
           )}
         </div>
 
-        {currentStep <= 4 && !isLoading && (
+        {currentStep <= 3 && !isLoading && (
           <div className="flex gap-2">
             <Textarea
               value={userInput}

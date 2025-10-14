@@ -77,10 +77,14 @@ async function verifyParentChildRelation(studentId: string) {
 export async function getParentChildren() {
   const supabase = await createClient()
 
+  console.log("🔍 [SERVER] getParentChildren called")
+
   // 現在のユーザー取得
   const {
     data: { user },
   } = await supabase.auth.getUser()
+
+  console.log("🔍 [SERVER] User:", user?.id, user?.email)
 
   if (!user) {
     return { error: "ログインが必要です" }
@@ -93,47 +97,59 @@ export async function getParentChildren() {
     .eq("user_id", user.id)
     .single()
 
+  console.log("🔍 [SERVER] Parent:", parent?.id, "Error:", parentError?.message)
+
   if (parentError || !parent) {
     return { error: "保護者情報が見つかりません" }
   }
 
-  // parent_child_relations経由で子ども一覧取得
-  const { data: relations, error: relationsError } = await supabase
+  // Admin clientを使ってRLSをバイパス（getParentDashboardDataと同じパターン）
+  const adminClient = createAdminClient()
+
+  // parent_child_relations経由でstudent_id一覧を取得
+  const { data: relations, error: relationsError } = await adminClient
     .from("parent_child_relations")
-    .select(`
-      student_id,
-      students (
-        id,
-        full_name,
-        grade,
-        user_id
-      )
-    `)
+    .select("student_id")
     .eq("parent_id", parent.id)
+
+  console.log("🔍 [SERVER] Relations count:", relations?.length, "Error:", relationsError?.message)
 
   if (relationsError) {
     return { error: "子ども情報の取得に失敗しました" }
   }
 
-  // Admin clientを使ってprofilesデータを取得（RLSバイパス）
-  const adminClient = createAdminClient()
-  const studentIds = relations?.map((r: any) => r.students?.user_id).filter(Boolean) || []
+  if (!relations || relations.length === 0) {
+    console.log("🔍 [SERVER] No relations found")
+    return { children: [] }
+  }
 
+  // student_id一覧からstudentsデータを取得
+  const studentIds = relations.map((r) => r.student_id)
+  console.log("🔍 [SERVER] Student IDs:", studentIds)
+
+  const { data: students, error: studentsError } = await adminClient
+    .from("students")
+    .select("id, full_name, grade, user_id")
+    .in("id", studentIds)
+
+  console.log("🔍 [SERVER] Students count:", students?.length, "Error:", studentsError?.message)
+
+  if (studentsError || !students) {
+    return { error: "生徒情報の取得に失敗しました" }
+  }
+
+  // 各生徒のprofileデータを取得
+  const userIds = students.map((s) => s.user_id)
   const { data: profiles, error: profilesError } = await adminClient
     .from("profiles")
     .select("id, display_name, avatar_url")
-    .in("id", studentIds)
+    .in("id", userIds)
 
-  if (profilesError) {
-    return { error: "プロフィール情報の取得に失敗しました" }
-  }
+  console.log("🔍 [SERVER] Profiles count:", profiles?.length, "Error:", profilesError?.message)
 
   // studentsデータとprofilesデータをマージ
   const profileMap = new Map(profiles?.map(p => [p.id, p]) || [])
-  const children = relations?.map((r: any) => {
-    const student = r.students
-    if (!student) return null
-
+  const children = students.map((student) => {
     const profile = profileMap.get(student.user_id)
     return {
       id: student.id,
@@ -143,7 +159,9 @@ export async function getParentChildren() {
       user_id: student.user_id,
       avatar_url: profile?.avatar_url || null
     }
-  }).filter(Boolean) || []
+  })
+
+  console.log("🔍 [SERVER] Final children:", JSON.stringify(children, null, 2))
 
   return { children }
 }

@@ -147,7 +147,7 @@ export interface GoalNavigationContext {
     role: "assistant" | "user"
     content: string
   }[]
-  currentStep: 1 | 2 | 3 | 4
+  currentStep: 1 | 2 | 3
 }
 
 /**
@@ -202,7 +202,7 @@ export function getGoalNavigationStepPrompt(
   const { studentName, targetCourse, targetClass, testName, testDate, currentStep } = context
 
   const stepPrompts = {
-    1: `【Step 1: 目標確認】
+    1: `【Step 1: 目標確認 & 感情探索】
 生徒: ${studentName}さん
 目標: ${testName}で${targetCourse}コース${targetClass}組を目指す
 テスト日: ${testDate}
@@ -210,17 +210,13 @@ export function getGoalNavigationStepPrompt(
 まず、この目標を確認し、${studentName}さんに温かく声をかけてください。
 「${studentName}さん、今回は${targetCourse}コース${targetClass}組を目指すんだね！」という形で目標を確認し、モチベーションを高める一言を添えてください。
 
-この応答は即座に表示され、3秒後に自動的に次のステップへ進みます。`,
-
-    2: `【Step 2: 感情探索】
-目標達成したときの感情をイメージしてもらいます。
-
+次に、目標達成したときの感情をイメージしてもらいます。
 「それが達成できたら、どんな気持ちになると思う？」という形で質問してください。
 生徒が自由に感情を表現できるよう、優しく問いかけてください。
 
 ※生徒は最大80字で自由記述します。`,
 
-    3: `【Step 3: 未来メッセージ（予祝）】
+    2: `【Step 2: 未来メッセージ（予祝）】
 目標を達成した未来の自分から、今の自分へメッセージを送るイメージです。
 
 「その自分から"今の自分"にひとこと送るとしたら？」という形で質問してください。
@@ -228,7 +224,7 @@ export function getGoalNavigationStepPrompt(
 
 ※生徒は最大120字で自由記述します。`,
 
-    4: `【Step 4: まとめ生成】
+    3: `【Step 3: まとめ生成】
 これまでの対話内容を統合して、「今回の思い」を生成してください。
 
 【生成条件】

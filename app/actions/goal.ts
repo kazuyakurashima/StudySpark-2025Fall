@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server"
  * 目標設定期間内のテストのみ取得
  */
 export async function getAvailableTests() {
-  const supabase = await createClient()
+  const supabase = createClient()
 
   // 現在のユーザー取得
   const {
@@ -72,7 +72,7 @@ export async function saveTestGoal(
   targetClass: number,
   goalThoughts: string
 ) {
-  const supabase = await createClient()
+  const supabase = createClient()
 
   // 現在のユーザー取得
   const {
@@ -145,7 +145,7 @@ export async function saveTestGoal(
  * 特定のテストに対する目標を取得
  */
 export async function getTestGoal(testScheduleId: string) {
-  const supabase = await createClient()
+  const supabase = createClient()
 
   // 現在のユーザー取得
   const {
@@ -186,7 +186,7 @@ export async function getTestGoal(testScheduleId: string) {
  * 生徒の全目標一覧を取得
  */
 export async function getAllTestGoals() {
-  const supabase = await createClient()
+  const supabase = createClient()
 
   // 現在のユーザー取得
   const {
@@ -215,7 +215,6 @@ export async function getAllTestGoals() {
       *,
       test_schedules (
         test_date,
-        detailed_name,
         test_types (
           name
         )
@@ -223,6 +222,10 @@ export async function getAllTestGoals() {
     `)
     .eq("student_id", student.id)
     .order("created_at", { ascending: false })
+
+  console.log("🔍 [getAllTestGoals] student.id:", student.id)
+  console.log("🔍 [getAllTestGoals] goals:", goals)
+  console.log("🔍 [getAllTestGoals] error:", goalsError)
 
   if (goalsError) {
     return { error: goalsError.message }
@@ -235,7 +238,7 @@ export async function getAllTestGoals() {
  * 結果入力可能なテスト（目標設定済み＋結果入力期間内）を取得
  */
 export async function getAvailableTestsForResult() {
-  const supabase = await createClient()
+  const supabase = createClient()
 
   // 現在のユーザー取得
   const {
@@ -269,58 +272,71 @@ export async function getAvailableTestsForResult() {
     return new Date(`${value}T00:00:00+09:00`)
   }
 
-  // 目標設定済みのテストを取得（結果入力期間は後段で判定）
-  const { data: goals, error: goalsError } = await supabase
-    .from("test_goals")
+  // 結果入力期間内のテストスケジュールを取得
+  const { data: testSchedules, error: schedulesError } = await supabase
+    .from("test_schedules")
     .select(`
-      *,
-      test_schedules!inner (
+      id,
+      test_date,
+      result_entry_start_date,
+      result_entry_end_date,
+      test_types!inner (
         id,
-        test_date,
-        detailed_name,
-        result_entry_start_date,
-        result_entry_end_date,
-        test_types!inner (
-          id,
-          name,
-          grade
-        )
+        name,
+        grade
       )
     `)
+    .eq("test_types.grade", student.grade)
+    .order("test_date", { ascending: true })
+
+  if (schedulesError) {
+    return { error: schedulesError.message }
+  }
+
+  // 結果入力期間内のテストをフィルタリング
+  const availableTests = testSchedules?.filter((test) => {
+    const startRaw = test.result_entry_start_date as string | null
+    const endRaw = test.result_entry_end_date as string | null
+
+    if (!startRaw || !endRaw) {
+      return false
+    }
+
+    const startDate = parseAsTokyoDate(startRaw)
+    const endDate = parseAsTokyoDate(endRaw)
+    if (!startDate || !endDate) {
+      return false
+    }
+
+    const endOfDay = new Date(endDate.getTime())
+    endOfDay.setHours(23, 59, 59, 999)
+
+    return startDate <= tokyoNow && tokyoNow <= endOfDay
+  }) || []
+
+  // 各テストに対応する目標を取得
+  const { data: goals } = await supabase
+    .from("test_goals")
+    .select("*")
     .eq("student_id", student.id)
-    .eq("test_schedules.test_types.grade", student.grade)
-    .order("test_schedules.test_date", { ascending: true })
+    .in("test_schedule_id", availableTests.map(t => t.id))
 
-  if (goalsError) {
-    return { error: goalsError.message }
-  }
+  // テストスケジュールと目標を結合
+  const testsWithGoals = availableTests.map((test) => {
+    const goal = goals?.find((g) => g.test_schedule_id === test.id)
+    return {
+      test_schedule_id: test.id,
+      test_schedules: test,
+      // 目標がある場合はその情報、ない場合はnull
+      id: goal?.id || null,
+      target_course: goal?.target_course || null,
+      target_class: goal?.target_class || null,
+      goal_thoughts: goal?.goal_thoughts || null,
+      student_id: student.id,
+    }
+  })
 
-  const filteredGoals =
-    goals?.filter((goal) => {
-      const startRaw = goal.test_schedules?.result_entry_start_date as string | null
-      const endRaw = goal.test_schedules?.result_entry_end_date as string | null
-
-      if (!startRaw || !endRaw) {
-        return false
-      }
-
-      const startDate = parseAsTokyoDate(startRaw)
-      const endDate = parseAsTokyoDate(endRaw)
-      if (!startDate || !endDate) {
-        return false
-      }
-
-      const endOfDay = new Date(endDate.getTime())
-      endOfDay.setHours(23, 59, 59, 999)
-
-      return startDate <= tokyoNow && tokyoNow <= endOfDay
-    }) || []
-
-  if (filteredGoals.length === 0 && goals) {
-    return { goals }
-  }
-
-  return { goals: filteredGoals }
+  return { goals: testsWithGoals }
 }
 
 /**
@@ -332,7 +348,7 @@ export async function saveSimpleTestResult(
   resultCourse: string,
   resultClass: number
 ) {
-  const supabase = await createClient()
+  const supabase = createClient()
 
   // 現在のユーザー取得
   const {
@@ -398,7 +414,7 @@ export async function saveTestResult(
   socialDeviation?: number,
   totalDeviation?: number
 ) {
-  const supabase = await createClient()
+  const supabase = createClient()
 
   // 現在のユーザー取得
   const {
@@ -488,7 +504,7 @@ export async function saveTestResult(
  * テスト結果取得
  */
 export async function getTestResult(testScheduleId: string) {
-  const supabase = await createClient()
+  const supabase = createClient()
 
   // 現在のユーザー取得
   const {
@@ -529,7 +545,7 @@ export async function getTestResult(testScheduleId: string) {
  * 生徒の全テスト結果を目標と一緒に取得
  */
 export async function getAllTestResults() {
-  const supabase = await createClient()
+  const supabase = createClient()
 
   // 現在のユーザー取得
   const {
@@ -568,7 +584,11 @@ export async function getAllTestResults() {
     `)
     .eq("student_id", student.id)
     .eq("test_schedules.test_types.grade", student.grade)
-    .order("test_schedules.test_date", { ascending: false })
+    .order("result_entered_at", { ascending: false })
+
+  console.log("🔍 [getAllTestResults] student.id:", student.id)
+  console.log("🔍 [getAllTestResults] results:", results)
+  console.log("🔍 [getAllTestResults] error:", resultsError)
 
   if (resultsError) {
     return { error: resultsError.message }

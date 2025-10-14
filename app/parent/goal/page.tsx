@@ -184,25 +184,25 @@ export default function ParentGoalNaviPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white pb-20">
-      <div className="container max-w-4xl mx-auto px-4 py-6 space-y-6">
-        {/* ヘッダー */}
-        <div className="text-center space-y-2">
-          <div className="flex items-center justify-center gap-2">
-            <Target className="h-8 w-8 text-orange-500" />
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-600 to-pink-600 bg-clip-text text-transparent">
-              ゴールナビ
-            </h1>
-          </div>
-          <p className="text-sm text-gray-600 flex items-center justify-center gap-2">
-            <Eye className="h-4 w-4" />
-            お子様の目標を確認できます（読み取り専用）
-          </p>
+    <div className="min-h-screen bg-background pb-20 elegant-fade-in">
+      <div className="surface-gradient-primary backdrop-blur-lg border-b border-border/30 p-3 sm:p-4 shadow-lg">
+        <div className="max-w-4xl mx-auto">
+          <h1 className="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2">
+            <Flag className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+            ゴールナビ
+            <span className="text-sm text-muted-foreground ml-2 flex items-center gap-1">
+              <Eye className="h-3 w-3" />
+              （読み取り専用）
+            </span>
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">お子様の目標を確認できます</p>
         </div>
+      </div>
 
+      <div className="max-w-4xl mx-auto p-3 sm:p-4">
         {/* 子ども切り替えタブ */}
         {children.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto pb-2">
+          <div className="flex gap-2 overflow-x-auto pb-2 mb-6">
             {children.map((child) => {
               const childName = child.nickname || child.full_name
               const childAvatar = child.avatar_url || "student1"
@@ -234,82 +234,74 @@ export default function ParentGoalNaviPage() {
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="input">目標入力</TabsTrigger>
             <TabsTrigger value="result">結果入力</TabsTrigger>
-            <TabsTrigger value="test">テスト結果</TabsTrigger>
+            <TabsTrigger value="test">目標と結果の履歴</TabsTrigger>
           </TabsList>
 
           {/* 目標入力タブ */}
-          <TabsContent value="input" className="space-y-4">
+          <TabsContent value="input" className="space-y-4 mt-6">
             {availableTests.length === 0 ? (
-              <Card>
-                <CardContent className="py-10 text-center text-gray-500">
+              <Card className="card-elevated">
+                <CardContent className="py-10 text-center text-muted-foreground">
                   現在設定可能なテストはありません
                 </CardContent>
               </Card>
             ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">目標設定可能なテスト</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {availableTests.map((test) => {
-                    const goal = testGoals.find((g) => g.test_schedule_id === test.id)
-                    return (
-                      <div
-                        key={test.id}
-                        className="p-4 border rounded-lg hover:bg-gray-50 transition-colors"
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Calendar className="h-4 w-4 text-orange-500" />
-                              <span className="font-medium">{test.test_types.name}</span>
-                              {goal && (
-                                <Badge variant="secondary" className="ml-2">
-                                  設定済み
-                                </Badge>
-                              )}
+              <div className="space-y-3">
+                {availableTests.map((test) => {
+                  const goal = testGoals.find((g) => g.test_schedule_id === test.id)
+                  return (
+                    <Card key={test.id} className="card-elevated">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Calendar className="h-5 w-5 text-primary" />
+                          {test.test_types.name}
+                          {goal && (
+                            <Badge variant="secondary" className="ml-2">
+                              設定済み
+                            </Badge>
+                          )}
+                        </CardTitle>
+                        <p className="text-sm text-muted-foreground">{formatDate(test.test_date)}</p>
+                      </CardHeader>
+                      {goal && (
+                        <CardContent className="space-y-3">
+                          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Flag className="h-4 w-4 text-blue-600" />
+                              <span className="font-semibold text-sm">目標</span>
                             </div>
-                            <p className="text-sm text-gray-600">{formatDate(test.test_date)}</p>
-                            {goal && (
-                              <div className="mt-3 space-y-2 p-3 bg-blue-50 rounded-md">
-                                <div className="flex items-center gap-2">
-                                  <Flag className="h-4 w-4 text-blue-600" />
-                                  <span className="font-medium text-sm">目標</span>
+                            <div className="grid grid-cols-2 gap-3 mb-3">
+                              <div className="text-center p-3 bg-white rounded-lg">
+                                <div className="text-xs text-gray-600 mb-1">目標コース</div>
+                                <div className="font-bold text-lg text-blue-600">
+                                  {getCourseName(goal.target_course)}
                                 </div>
-                                <div className="text-sm space-y-1">
-                                  <p>
-                                    <span className="text-gray-600">コース:</span>{" "}
-                                    <span className="font-medium">{getCourseName(goal.target_course)}</span>
-                                  </p>
-                                  <p>
-                                    <span className="text-gray-600">組:</span>{" "}
-                                    <span className="font-medium">{goal.target_class}組</span>
-                                  </p>
-                                  {goal.goal_thoughts && (
-                                    <div className="mt-2 pt-2 border-t border-blue-200">
-                                      <p className="text-gray-600 text-xs mb-1">今回の思い:</p>
-                                      <p className="text-gray-800 whitespace-pre-wrap">
-                                        {goal.goal_thoughts}
-                                      </p>
-                                    </div>
-                                  )}
-                                </div>
+                              </div>
+                              <div className="text-center p-3 bg-white rounded-lg">
+                                <div className="text-xs text-gray-600 mb-1">目標の組</div>
+                                <div className="font-bold text-lg text-blue-600">{goal.target_class}組</div>
+                              </div>
+                            </div>
+                            {goal.goal_thoughts && (
+                              <div className="mt-3 pt-3 border-t border-blue-200">
+                                <div className="text-xs text-gray-600 mb-2">今回の思い</div>
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap">{goal.goal_thoughts}</p>
                               </div>
                             )}
                           </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </CardContent>
-              </Card>
+                        </CardContent>
+                      )}
+                    </Card>
+                  )
+                })}
+              </div>
             )}
           </TabsContent>
 
           {/* 結果入力タブ */}
-          <TabsContent value="result" className="space-y-4">
-            <Card>
-              <CardContent className="py-10 text-center text-gray-500">
+          <TabsContent value="result" className="space-y-4 mt-6">
+            <Card className="card-elevated">
+              <CardContent className="py-10 text-center text-muted-foreground">
                 <p>結果入力は生徒本人のみ可能です</p>
                 <p className="text-sm mt-2">
                   お子様にログインしてもらい、結果を入力してください
@@ -318,54 +310,53 @@ export default function ParentGoalNaviPage() {
             </Card>
           </TabsContent>
 
-          {/* テスト結果タブ */}
-          <TabsContent value="test" className="space-y-4">
+          {/* 目標と結果の履歴タブ */}
+          <TabsContent value="test" className="space-y-4 mt-6">
             {testGoals.length === 0 ? (
-              <Card>
-                <CardContent className="py-10 text-center text-gray-500">
-                  まだテスト結果がありません
+              <Card className="card-elevated">
+                <CardContent className="py-10 text-center text-muted-foreground">
+                  まだ目標が設定されていません。<br />
+                  先に「目標入力」タブで目標を設定してください。
                 </CardContent>
               </Card>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {testGoals.map((goal) => (
-                  <Card key={goal.id}>
+                  <Card key={goal.id} className="card-elevated">
                     <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Calendar className="h-5 w-5 text-orange-500" />
+                      <CardTitle className="flex items-center gap-2">
+                        <Calendar className="h-5 w-5 text-primary" />
                         {goal.test_schedules.test_types.name}
                       </CardTitle>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-muted-foreground">
                         {formatDate(goal.test_schedules.test_date)}
                       </p>
                     </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Flag className="h-4 w-4 text-blue-600" />
-                        <span className="font-medium">目標</span>
-                      </div>
-                      <div className="text-sm space-y-1">
-                        <p>
-                          <span className="text-gray-600">コース:</span>{" "}
-                          <span className="font-medium">{getCourseName(goal.target_course)}</span>
-                        </p>
-                        <p>
-                          <span className="text-gray-600">組:</span>{" "}
-                          <span className="font-medium">{goal.target_class}組</span>
-                        </p>
-                      </div>
-                      {goal.goal_thoughts && (
-                        <div className="mt-3 p-3 bg-blue-50 rounded-md">
-                          <p className="text-xs text-gray-600 mb-2">今回の思い:</p>
-                          <p className="text-sm text-gray-800 whitespace-pre-wrap">
-                            {goal.goal_thoughts}
-                          </p>
+                    <CardContent className="space-y-4">
+                      {/* 目標表示 */}
+                      <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Flag className="h-4 w-4 text-blue-600" />
+                          <span className="font-semibold text-sm">目標</span>
                         </div>
-                      )}
-                      <div className="pt-3 border-t">
-                        <p className="text-xs text-gray-500">
-                          設定日: {new Date(goal.created_at).toLocaleDateString("ja-JP")}
-                        </p>
+                        <div className="grid grid-cols-2 gap-3 mb-3">
+                          <div className="text-center p-3 bg-white rounded-lg">
+                            <div className="text-xs text-gray-600 mb-1">目標コース</div>
+                            <div className="font-bold text-lg text-blue-600">
+                              {getCourseName(goal.target_course)}
+                            </div>
+                          </div>
+                          <div className="text-center p-3 bg-white rounded-lg">
+                            <div className="text-xs text-gray-600 mb-1">目標の組</div>
+                            <div className="font-bold text-lg text-blue-600">{goal.target_class}組</div>
+                          </div>
+                        </div>
+                        {goal.goal_thoughts && (
+                          <div className="mt-3 pt-3 border-t border-blue-200">
+                            <div className="text-xs text-gray-600 mb-2">今回の思い</div>
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{goal.goal_thoughts}</p>
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
