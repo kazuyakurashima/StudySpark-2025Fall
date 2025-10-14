@@ -186,7 +186,7 @@ export default function ParentGoalNaviPage() {
         </div>
 
         {/* 子ども切り替えタブ */}
-        {children.length > 1 && (
+        {children.length > 0 && (
           <div className="flex gap-2 overflow-x-auto pb-2">
             {children.map((child) => {
               const childName = child.nickname || child.full_name
