@@ -789,11 +789,15 @@ export async function getStudentWeeklyProgress(studentId: number) {
         correct_count,
         total_problems,
         subject_id,
-        subjects (name, color_code)
+        study_content_type_id,
+        logged_at,
+        subjects (name, color_code),
+        study_content_types (id, content_name)
       `
       )
       .eq("student_id", studentId)
       .eq("session_id", currentSession.id)
+      .order("logged_at", { ascending: false })
 
     console.log("🔍 [SERVER] Weekly progress - Logs count:", logs?.length)
     console.log("🔍 [SERVER] Weekly progress - Logs error:", logsError)
@@ -808,24 +812,93 @@ export async function getStudentWeeklyProgress(studentId: number) {
       return { progress: [] }
     }
 
-    // Aggregate by subject
-    const subjectMap: {
-      [key: string]: { name: string; color_code: string; totalCorrect: number; totalProblems: number }
-    } = {}
+    // Get problem counts for this session (with content name for mapping)
+    const { data: problemCounts, error: problemCountsError } = await adminClient
+      .from("problem_counts")
+      .select(`
+        study_content_type_id,
+        total_problems,
+        study_content_types!inner (
+          content_name,
+          subjects!inner (
+            id
+          )
+        )
+      `)
+      .eq("session_id", currentSession.id)
+
+    if (problemCountsError) {
+      console.error("Get problem counts error:", problemCountsError)
+      return { error: "問題数の取得に失敗しました" }
+    }
+
+    // Create a map of subject_id + content_name -> total_problems
+    const problemCountMap = new Map<string, number>()
+    problemCounts?.forEach((pc) => {
+      const contentType = Array.isArray(pc.study_content_types) ? pc.study_content_types[0] : pc.study_content_types
+      const subject = Array.isArray(contentType?.subjects) ? contentType.subjects[0] : contentType?.subjects
+      const key = `${subject?.id}_${contentType?.content_name}`
+      // Only set if not already set (all courses have same problem count)
+      if (!problemCountMap.has(key)) {
+        problemCountMap.set(key, pc.total_problems)
+      }
+    })
+
+    // Group logs by subject and content name (ignoring course), keeping only the latest log for each combination
+    const latestLogsMap = new Map<string, typeof logs[0]>()
 
     logs?.forEach((log) => {
+      const contentType = Array.isArray(log.study_content_types) ? log.study_content_types[0] : log.study_content_types
+      const contentName = contentType?.content_name || "その他"
+      const key = `${log.subject_id}_${contentName}`
+
+      // Since logs are already ordered by logged_at DESC, first occurrence is the latest
+      if (!latestLogsMap.has(key)) {
+        latestLogsMap.set(key, log)
+      }
+    })
+
+    // Aggregate by subject
+    const subjectMap: {
+      [key: string]: {
+        name: string
+        color_code: string
+        totalCorrect: number
+        totalProblems: number
+        contentDetails: { [contentName: string]: { correct: number; total: number } }
+      }
+    } = {}
+
+    latestLogsMap.forEach((log) => {
       const subject = Array.isArray(log.subjects) ? log.subjects[0] : log.subjects
       const subjectName = subject?.name || "不明"
+      const subjectId = subject?.id
+      const contentType = Array.isArray(log.study_content_types) ? log.study_content_types[0] : log.study_content_types
+      const contentName = contentType?.content_name || "その他"
+
       if (!subjectMap[subjectName]) {
         subjectMap[subjectName] = {
           name: subjectName,
           color_code: subject?.color_code || "#3b82f6",
           totalCorrect: 0,
           totalProblems: 0,
+          contentDetails: {}
         }
       }
+
+      // Use problem count from problem_counts table (by subject_id + content_name)
+      const problemCountKey = `${subjectId}_${contentName}`
+      const totalProblems = problemCountMap.get(problemCountKey) || log.total_problems || 0
+
       subjectMap[subjectName].totalCorrect += log.correct_count || 0
-      subjectMap[subjectName].totalProblems += log.total_problems || 0
+      subjectMap[subjectName].totalProblems += totalProblems
+
+      // Track by content type
+      if (!subjectMap[subjectName].contentDetails[contentName]) {
+        subjectMap[subjectName].contentDetails[contentName] = { correct: 0, total: 0 }
+      }
+      subjectMap[subjectName].contentDetails[contentName].correct += log.correct_count || 0
+      subjectMap[subjectName].contentDetails[contentName].total += totalProblems
     })
 
     const progress = Object.values(subjectMap).map((subject) => ({
@@ -834,6 +907,12 @@ export async function getStudentWeeklyProgress(studentId: number) {
       accuracy: subject.totalProblems > 0 ? Math.round((subject.totalCorrect / subject.totalProblems) * 100) : 0,
       correctCount: subject.totalCorrect,
       totalProblems: subject.totalProblems,
+      details: Object.entries(subject.contentDetails).map(([content, data]) => ({
+        content,
+        correct: data.correct,
+        total: data.total,
+        remaining: data.total - data.correct
+      }))
     }))
 
     console.log("🔍 [SERVER] Weekly progress - Final result:", JSON.stringify(progress, null, 2))
