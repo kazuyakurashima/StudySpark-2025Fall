@@ -177,15 +177,23 @@ export async function getExistingStudyLog(sessionId: number, subjectId: number, 
       return { error: "生徒情報が見つかりません" }
     }
 
-    const queryStudyDate = studyDate || new Date().toISOString().split("T")[0]
-
-    const { data: logs, error: logsError } = await supabase
+    // studyDateが指定されている場合はその日付のログを取得
+    // 指定されていない場合は日付に関係なく最新のログを取得
+    let query = supabase
       .from("study_logs")
-      .select("study_content_type_id, correct_count, total_problems, reflection_text")
+      .select("study_content_type_id, correct_count, total_problems, reflection_text, study_date")
       .eq("student_id", student.id)
       .eq("session_id", sessionId)
       .eq("subject_id", subjectId)
-      .eq("study_date", queryStudyDate)
+
+    if (studyDate) {
+      query = query.eq("study_date", studyDate)
+    } else {
+      // 日付指定がない場合は最新のログを取得
+      query = query.order("study_date", { ascending: false }).order("logged_at", { ascending: false })
+    }
+
+    const { data: logs, error: logsError } = await query
 
     if (logsError) {
       return { error: "データの取得に失敗しました" }

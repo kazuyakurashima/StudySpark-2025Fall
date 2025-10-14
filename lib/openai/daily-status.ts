@@ -142,19 +142,33 @@ function getUserPrompt(context: DailyStatusContext): string {
 メッセージ例: 「まだ今日の学習記録はありませんが、${context.studentName}さんのペースで大丈夫ですよ。」
 `
   } else {
+    // 科目別に集計（今日のミッションと同じロジック）
+    const subjectMap: { [subject: string]: { correct: number; total: number; logs: any[] } } = {}
+    context.todayLogs.forEach(log => {
+      if (!subjectMap[log.subject]) {
+        subjectMap[log.subject] = { correct: 0, total: 0, logs: [] }
+      }
+      subjectMap[log.subject].correct += log.correct
+      subjectMap[log.subject].total += log.total
+      subjectMap[log.subject].logs.push(log)
+    })
+
+    prompt += `【今日の学習記録】（科目別集計 - これをメインに説明してください）\n`
+    Object.entries(subjectMap).forEach(([subject, data]) => {
+      const accuracy = data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0
+      prompt += `- ${subject}: ${data.correct}/${data.total}問正解 (正答率${accuracy}%)\n`
+    })
+
+    prompt += `\n【参考: 今日の学習記録の詳細】\n`
     context.todayLogs.forEach((log, index) => {
-      prompt += `${index + 1}. ${log.subject} - ${log.content}: ${log.correct}/${log.total}問正解 (正答率${log.accuracy}%) - ${log.time}\n`
+      prompt += `${index + 1}. ${log.subject} - ${log.content}: ${log.correct}/${log.total}問 (${log.accuracy}%) - ${log.time}\n`
     })
 
     const totalProblems = context.todayLogs.reduce((sum, log) => sum + log.total, 0)
     const totalCorrect = context.todayLogs.reduce((sum, log) => sum + log.correct, 0)
-    const avgAccuracy = Math.round((totalCorrect / totalProblems) * 100)
+    const overallAccuracy = Math.round((totalCorrect / totalProblems) * 100)
 
-    prompt += `
-【今日の合計】
-問題数: ${totalProblems}問
-正解数: ${totalCorrect}問
-平均正答率: ${avgAccuracy}%
+    prompt += `\n全体: ${totalCorrect}/${totalProblems}問正解 (全体正答率${overallAccuracy}%)
 `
   }
 
@@ -185,7 +199,14 @@ function getUserPrompt(context: DailyStatusContext): string {
     prompt += `\n\n【近日のテスト】\n${context.upcomingTest.name}（${context.upcomingTest.date}、あと${context.upcomingTest.daysUntil}日）`
   }
 
-  prompt += `\n\n上記の情報をもとに、保護者が安心し、お子さんを応援したくなるような「今日の様子」メッセージを2〜3文（60〜100文字程度）で生成してください。`
+  prompt += `\n\n【指示】
+上記の情報をもとに、保護者が安心し、お子さんを応援したくなるような「今日の様子」メッセージを2〜3文（60〜100文字程度）で生成してください。
+
+【重要な制約】
+- 必ず「科目別集計」の数字を使用してください（個別の学習内容の詳細は使わない）
+- 例: OK「社会16/21問（76%）」、NG「演習問題集12/12問」
+- 1つの科目の結果を中心に説明し、複数科目を合計しない
+- 正答率と問題数を言及する場合は、両方が矛盾しないようにする`
 
   return prompt
 }
@@ -197,7 +218,7 @@ export async function generateDailyStatusMessage(
   context: DailyStatusContext
 ): Promise<{ success: true; message: string } | { success: false; error: string }> {
   try {
-    const promptVersion = "v1.0"
+    const promptVersion = "v1.2" // Updated: 科目別集計を使用
     const cacheKey = generateCacheKey(context, promptVersion)
 
     // キャッシュチェック

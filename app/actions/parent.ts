@@ -1,6 +1,6 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
+import { createClient, createAdminClient } from "@/lib/supabase/server"
 
 /**
  * 保護者認証と親子関係の検証を行うヘルパー関数
@@ -43,7 +43,7 @@ async function verifyParentChildRelation(studentId: string) {
   // 生徒の基本情報を取得
   const { data: student, error: studentError } = await supabase
     .from("students")
-    .select("id, full_name, nickname, grade")
+    .select("id, full_name, grade, user_id")
     .eq("id", studentId)
     .single()
 
@@ -51,7 +51,24 @@ async function verifyParentChildRelation(studentId: string) {
     return { error: "生徒情報の取得に失敗しました", supabase: null, parent: null, student: null }
   }
 
-  return { error: null, supabase, parent, student }
+  // Admin clientを使ってprofilesデータを取得（RLSバイパス）
+  const adminClient = createAdminClient()
+  const { data: profile, error: profileError } = await adminClient
+    .from("profiles")
+    .select("display_name")
+    .eq("id", student.user_id)
+    .single()
+
+  // profilesデータをマージ
+  const studentWithProfile = {
+    id: student.id,
+    full_name: student.full_name,
+    grade: student.grade,
+    user_id: student.user_id,
+    display_name: profile?.display_name || student.full_name
+  }
+
+  return { error: null, supabase, parent, student: studentWithProfile }
 }
 
 /**
@@ -88,9 +105,8 @@ export async function getParentChildren() {
       students (
         id,
         full_name,
-        nickname,
-        avatar_url,
-        grade
+        grade,
+        user_id
       )
     `)
     .eq("parent_id", parent.id)
@@ -99,8 +115,35 @@ export async function getParentChildren() {
     return { error: "子ども情報の取得に失敗しました" }
   }
 
-  // studentsデータを展開
-  const children = relations?.map((r: any) => r.students).filter(Boolean) || []
+  // Admin clientを使ってprofilesデータを取得（RLSバイパス）
+  const adminClient = createAdminClient()
+  const studentIds = relations?.map((r: any) => r.students?.user_id).filter(Boolean) || []
+
+  const { data: profiles, error: profilesError } = await adminClient
+    .from("profiles")
+    .select("id, display_name, avatar_url")
+    .in("id", studentIds)
+
+  if (profilesError) {
+    return { error: "プロフィール情報の取得に失敗しました" }
+  }
+
+  // studentsデータとprofilesデータをマージ
+  const profileMap = new Map(profiles?.map(p => [p.id, p]) || [])
+  const children = relations?.map((r: any) => {
+    const student = r.students
+    if (!student) return null
+
+    const profile = profileMap.get(student.user_id)
+    return {
+      id: student.id,
+      full_name: student.full_name,
+      grade: student.grade,
+      user_id: student.user_id,
+      display_name: profile?.display_name || student.full_name,
+      avatar_url: profile?.avatar_url || null
+    }
+  }).filter(Boolean) || []
 
   return { children }
 }

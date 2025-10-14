@@ -118,11 +118,12 @@ export async function getAICoachMessage() {
     console.log(`[Coach Message] Cache MISS: ${cacheKey}, generating...`)
 
     // データ収集
-    const [willData, logsData, streakData, testData] = await Promise.all([
+    const [willData, logsData, streakData, testData, missionData] = await Promise.all([
       getLatestWillAndGoalForCoach(student.id),
       getRecentStudyLogsForCoach(student.id, 3),
       getStudyStreak(),
       getUpcomingTestForCoach(student.id),
+      getTodayMissionForCoach(student.id),
     ])
 
     // AI生成（動的インポート）
@@ -139,6 +140,7 @@ export async function getAICoachMessage() {
       recentLogs: logsData || [],
       upcomingTest: testData || undefined,
       studyStreak: typeof streakData?.streak === "number" ? streakData.streak : 0,
+      todayMission: missionData || undefined,
     }
 
     const result = await generateCoachMessage(context)
@@ -1000,5 +1002,92 @@ export async function getLastLoginInfo() {
   } catch (error) {
     console.error("Get last login info error:", error)
     return { error: "予期しないエラーが発生しました" }
+  }
+}
+
+/**
+ * 今日のミッション情報取得（AIコーチ用）
+ */
+async function getTodayMissionForCoach(studentId: string) {
+  const supabase = await createClient()
+
+  // 今日の曜日を取得
+  const now = new Date()
+  const jstOffset = 9 * 60 // UTC+9
+  const nowJST = new Date(now.getTime() + jstOffset * 60 * 1000)
+  const weekday = nowJST.getDay() // 0=日曜, 1=月曜, ..., 6=土曜
+  const hour = nowJST.getHours()
+
+  // 日曜日または土曜12時以降はミッションなし
+  if (weekday === 0 || (weekday === 6 && hour >= 12)) {
+    return null
+  }
+
+  // 曜日ごとの科目ブロック
+  const blocks = {
+    1: ["算数", "国語", "社会"], // 月曜
+    2: ["算数", "国語", "社会"], // 火曜
+    3: ["算数", "国語", "理科"], // 水曜
+    4: ["算数", "国語", "理科"], // 木曜
+    5: ["算数", "理科", "社会"], // 金曜
+    6: ["算数", "理科", "社会"], // 土曜
+  }
+
+  const subjects = blocks[weekday as keyof typeof blocks] || []
+
+  if (subjects.length === 0) {
+    return null
+  }
+
+  // 今日の日付（study_date用）
+  const todayDateStr = nowJST.toISOString().split('T')[0]
+  const yesterdayJST = new Date(nowJST)
+  yesterdayJST.setDate(yesterdayJST.getDate() - 1)
+  const yesterdayDateStr = yesterdayJST.toISOString().split('T')[0]
+
+  // 今日の学習ログを取得
+  const { data: todayLogs } = await supabase
+    .from("study_logs")
+    .select(`
+      subject_id,
+      correct_count,
+      total_problems,
+      subjects (name)
+    `)
+    .eq("student_id", studentId)
+    .in("study_date", [todayDateStr, yesterdayDateStr])
+
+  // 科目別に集計
+  const subjectMap: { [subject: string]: { correct: number; total: number } } = {}
+  todayLogs?.forEach((log) => {
+    const subject = Array.isArray(log.subjects) ? log.subjects[0] : log.subjects
+    const subjectName = subject?.name || "不明"
+    if (!subjectMap[subjectName]) {
+      subjectMap[subjectName] = { correct: 0, total: 0 }
+    }
+    subjectMap[subjectName].correct += log.correct_count || 0
+    subjectMap[subjectName].total += log.total_problems || 0
+  })
+
+  // 各科目の入力状態を判定
+  const inputStatus = subjects.map(subject => {
+    const data = subjectMap[subject]
+    if (data && data.total > 0) {
+      const accuracy = Math.round((data.correct / data.total) * 100)
+      return {
+        subject,
+        isInputted: true,
+        accuracy,
+      }
+    }
+    return {
+      subject,
+      isInputted: false,
+    }
+  })
+
+  return {
+    subjects,
+    inputStatus,
   }
 }

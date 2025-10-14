@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 
 /**
@@ -33,6 +34,29 @@ export function createClient() {
             // Middlewareでトークンリフレッシュが行われるため問題なし
           }
         },
+      },
+    }
+  )
+}
+
+/**
+ * Service Role用Supabaseクライアント（RLSバイパス）
+ *
+ * 使用場所:
+ * - Server Actions（管理者操作、クロステーブルクエリ）
+ *
+ * 注意:
+ * - RLSをバイパスするため、使用前に必ずユーザー権限を検証すること
+ * - 機密データへのアクセスには細心の注意を払うこと
+ */
+export function createAdminClient() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
       },
     }
   )

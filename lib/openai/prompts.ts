@@ -127,9 +127,9 @@ JSONのみを出力し、他の説明文は含めないでください。`
  * クイック応援メッセージのテンプレート
  */
 export const QUICK_ENCOURAGEMENT_TEMPLATES = {
-  heart: "いつも頑張っているね！応援しています❤️",
-  star: "素晴らしい努力だね！この調子で⭐",
-  thumbsup: "よく頑張ったね！その調子👍",
+  heart: "がんばったね❤️",
+  star: "すごい！⭐",
+  thumbsup: "よくできました👍",
 } as const
 
 export type QuickEncouragementType = keyof typeof QUICK_ENCOURAGEMENT_TEMPLATES
