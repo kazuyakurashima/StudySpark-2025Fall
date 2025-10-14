@@ -138,9 +138,9 @@ export async function getParentChildren() {
     return {
       id: student.id,
       full_name: student.full_name,
+      nickname: profile?.display_name || student.full_name,
       grade: student.grade,
       user_id: student.user_id,
-      display_name: profile?.display_name || student.full_name,
       avatar_url: profile?.avatar_url || null
     }
   }).filter(Boolean) || []
