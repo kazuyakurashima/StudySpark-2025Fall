@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import ParentBottomNavigation from "@/components/parent-bottom-navigation"
 import { Calendar, Flag, Target, PartyPopper, Eye, Users } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   getParentChildren,
   getChildAvailableTests,
@@ -59,6 +60,22 @@ const courses = [
   { id: "B", name: "Bコース", description: "有名校" },
   { id: "A", name: "Aコース", description: "標準校" },
 ]
+
+const getAvatarSrc = (avatarId?: string | null) => {
+  if (avatarId && avatarId.startsWith("http")) {
+    return avatarId
+  }
+
+  const avatarMap: { [key: string]: string } = {
+    student1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student1-xZFJU5uXJO4DEfUbq1jbTMQUXReyM0.png",
+    student2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student2-mZ9Q9oVm43IQoRyxSYytVFYgp3JS1V.png",
+    student3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student3-teUpOKnopXNhE2vGFtvz9RWtC7O6kv.png",
+    student4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student4-pKazGXekCT1H5kzHBqmfOrM1968hML.png",
+    student5: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student5-kehwNSIKsgkTL6EkAPO2evB3qJWnRM.png",
+    student6: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student6-dJrMk7uUxYSRMp5tMJ3t4KYDOEIuNl.png",
+  }
+  return avatarMap[avatarId || ""] || avatarMap["student1"]
+}
 
 export default function ParentGoalNaviPage() {
   const [children, setChildren] = useState<Child[]>([])
@@ -169,28 +186,33 @@ export default function ParentGoalNaviPage() {
         </div>
 
         {/* 子ども切り替えタブ */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              お子様を選択
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              {children.map((child) => (
-                <Button
+        {children.length > 1 && (
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {children.map((child) => {
+              const childName = child.nickname || child.full_name
+              const childAvatar = child.avatar_url || "student1"
+              const isActive = selectedChildId === child.id
+
+              return (
+                <button
                   key={child.id}
-                  variant={selectedChildId === child.id ? "default" : "outline"}
                   onClick={() => setSelectedChildId(child.id)}
-                  className="flex-shrink-0"
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 whitespace-nowrap ${
+                    isActive
+                      ? "bg-primary text-primary-foreground shadow-lg scale-105"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
                 >
-                  {child.nickname || child.full_name}
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                  <Avatar className="h-8 w-8 border-2 border-white">
+                    <AvatarImage src={getAvatarSrc(childAvatar)} alt={childName} />
+                    <AvatarFallback>{childName.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <span>{childName}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
 
         {/* タブコンテンツ */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "input" | "result" | "test")}>
