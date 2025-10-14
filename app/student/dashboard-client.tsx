@@ -481,20 +481,32 @@ const TodayMissionCard = ({ todayProgress, reflectionCompleted, weeklyProgress }
     // 全て入力済みの場合の判定
     const allCompleted = inputCompletedCount === panels.length
 
+    // ミッション状況メッセージの生成
     let statusMessage = ""
+
     if (allCompleted) {
-      statusMessage = mode === "input" ? "全て入力完了！素晴らしいです！" : "全て復習完了！今日もよく頑張りました！"
-    } else if (actionNeededCount === 1) {
-      const remainingSubject = panels.find((p) => p.needsAction)?.subject
-      statusMessage =
-        mode === "input"
-          ? `あと${remainingSubject}だけ入力すれば完了だよ！`
-          : `あと${remainingSubject}だけ復習すれば完了だよ！`
+      // 全て入力完了 → 習得状況を伝える
+      const masteredCount = panels.filter((p) => p.correctRate >= 80).length
+      const totalSubjects = panels.length
+
+      if (masteredCount === totalSubjects) {
+        // パーフェクトマスター
+        statusMessage = "🎉 パーフェクトマスターおめでとう！全科目で習得率80%以上達成！"
+      } else if (masteredCount > 0) {
+        // 一部習得
+        statusMessage = `${masteredCount}/${totalSubjects}科目で習得率80%以上達成！残りの科目も頑張ろう！`
+      } else {
+        // 入力完了したが習得率80%未満
+        statusMessage = "全て入力完了！復習して習得率80%を目指そう！"
+      }
     } else {
-      statusMessage =
-        mode === "input"
-          ? `あと${actionNeededCount}科目入力して今日のミッション達成！`
-          : `あと${actionNeededCount}科目復習して今日のミッション達成！`
+      // 入力未完了 → 入力状況を伝える
+      if (actionNeededCount === 1) {
+        const remainingSubject = panels.find((p) => p.needsAction)?.subject
+        statusMessage = `${inputCompletedCount}/${panels.length}入力完了！あと${remainingSubject}を入力したら、入力完了だね！`
+      } else {
+        statusMessage = `${inputCompletedCount}/${panels.length}入力完了！あと${actionNeededCount}科目入力して今日のミッション達成！`
+      }
     }
 
     return {
@@ -684,15 +696,23 @@ const TodayMissionCard = ({ todayProgress, reflectionCompleted, weeklyProgress }
               })}
             </div>
 
-            {/* ミッション状況表示（完了時は非表示） */}
-            {!missionData.allCompleted && (
-              <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 border-2 border-primary/20 shadow-lg">
-                <div className="text-center">
-                  <h3 className="font-bold text-lg text-slate-800 mb-2">ミッション状況</h3>
-                  <p className="text-base text-slate-700 leading-relaxed">{missionData.statusMessage}</p>
-                </div>
+            {/* ミッション状況表示（常に表示） */}
+            <div className={`backdrop-blur-sm rounded-xl p-6 border-2 shadow-lg transition-all duration-300 ${
+              missionData.statusMessage.includes("パーフェクトマスター")
+                ? "bg-gradient-to-r from-yellow-100 via-yellow-50 to-orange-100 border-yellow-300 animate-pulse"
+                : "bg-white/90 border-primary/20"
+            }`}>
+              <div className="text-center">
+                <h3 className="font-bold text-lg text-slate-800 mb-2">ミッション状況</h3>
+                <p className={`text-base leading-relaxed ${
+                  missionData.statusMessage.includes("パーフェクトマスター")
+                    ? "text-orange-800 font-bold text-lg"
+                    : "text-slate-700"
+                }`}>
+                  {missionData.statusMessage}
+                </p>
               </div>
-            )}
+            </div>
           </div>
         )}
       </CardContent>
