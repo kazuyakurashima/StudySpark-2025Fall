@@ -384,7 +384,7 @@ const TodayMissionCard = ({ todayProgress, reflectionCompleted, weeklyProgress }
         statusMessage: isReflectCompleted
           ? "今週の振り返りが完了しました！素晴らしいです！"
           : "今週の学習を振り返って、来週に向けて準備しよう！",
-        completionStatus: isReflectCompleted ? "1/1完了" : "0/1完了",
+        completionStatus: isReflectCompleted ? "1/1入力完了" : "0/1入力完了",
         allCompleted: isReflectCompleted,
       }
     }
@@ -435,7 +435,7 @@ const TodayMissionCard = ({ todayProgress, reflectionCompleted, weeklyProgress }
         statusMessage: allCompleted
           ? "特別ミッション完了！今週もお疲れさまでした！"
           : "週間振り返りと復習で今週を締めくくろう！",
-        completionStatus: `${completedCount}/${panels.length}完了`,
+        completionStatus: `${completedCount}/${panels.length}入力完了`,
         allCompleted,
       }
     }
@@ -502,7 +502,7 @@ const TodayMissionCard = ({ todayProgress, reflectionCompleted, weeklyProgress }
       subjects,
       panels,
       statusMessage,
-      completionStatus: `${inputCompletedCount}/${panels.length}完了`,
+      completionStatus: `${inputCompletedCount}/${panels.length}入力完了`,
       allCompleted,
     }
   }
