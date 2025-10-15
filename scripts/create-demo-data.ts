@@ -386,9 +386,18 @@ async function createTestGoal(studentId: number, grade: number) {
 async function createReflectSession(studentId: number) {
   console.log(`🤔 Creating coaching session for student ${studentId}`)
 
-  // 先週の月曜日を取得（JST基準）
-  const lastWeekMonday = getDaysAgoJST(7 + new Date().getDay() - 1)
-  const lastWeekSunday = getDaysAgoJST(7 + new Date().getDay() - 7)
+  // 先週の月曜日〜日曜日を取得（JST基準）
+  // UTC環境でも正しくJSTの週境界を計算するため、JSTの曜日を使用
+  const todayJST = getTodayJST()
+  const todayJSTDate = new Date(`${todayJST}T00:00:00+09:00`)
+  const dayOfWeek = todayJSTDate.getUTCDay() // 0(日)〜6(土)
+
+  // JST基準で今日から今週月曜日までの日数（日曜=6, 月曜=0, 火曜=1, ...）
+  const offsetToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+
+  // 先週の月曜日と日曜日（week_start_date <= week_end_date が保証される）
+  const lastWeekMonday = getDaysAgoJST(offsetToMonday + 7) // 先週月曜
+  const lastWeekSunday = getDaysAgoJST(offsetToMonday + 1) // 先週日曜
 
   const { data: session, error: sessionError } = await supabase
     .from("coaching_sessions")
