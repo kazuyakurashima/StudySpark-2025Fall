@@ -9,7 +9,17 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ArrowLeft } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ArrowLeft, Plus, Trash2 } from "lucide-react"
+
+interface ChildInfo {
+  id: string
+  grade: string
+  fullName: string
+  fullNameKana: string
+  loginId: string
+  password: string
+}
 
 export default function ParentRegisterPage() {
   const router = useRouter()
@@ -17,20 +27,60 @@ export default function ParentRegisterPage() {
   const [error, setError] = useState<string | null>(null)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
 
-  // フォーム状態
+  // 保護者情報
+  const [parentFullName, setParentFullName] = useState("")
+  const [parentFullNameKana, setParentFullNameKana] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [passwordConfirm, setPasswordConfirm] = useState("")
-  const [parentName, setParentName] = useState("")
-  const [studentLoginId, setStudentLoginId] = useState("")
+
+  // 子ども情報（複数対応）
+  const [children, setChildren] = useState<ChildInfo[]>([
+    {
+      id: "1",
+      grade: "",
+      fullName: "",
+      fullNameKana: "",
+      loginId: "",
+      password: "",
+    },
+  ])
+
+  const addChild = () => {
+    setChildren([
+      ...children,
+      {
+        id: Date.now().toString(),
+        grade: "",
+        fullName: "",
+        fullNameKana: "",
+        loginId: "",
+        password: "",
+      },
+    ])
+  }
+
+  const removeChild = (id: string) => {
+    if (children.length > 1) {
+      setChildren(children.filter((child) => child.id !== id))
+    }
+  }
+
+  const updateChild = (id: string, field: keyof ChildInfo, value: string) => {
+    setChildren(
+      children.map((child) =>
+        child.id === id ? { ...child, [field]: value } : child
+      )
+    )
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
-    // バリデーション
-    if (!email || !password || !passwordConfirm || !parentName || !studentLoginId) {
-      setError("すべての項目を入力してください")
+    // バリデーション - 保護者情報
+    if (!parentFullName || !parentFullNameKana || !email || !password || !passwordConfirm) {
+      setError("保護者のすべての項目を入力してください")
       return
     }
 
@@ -49,6 +99,28 @@ export default function ParentRegisterPage() {
       return
     }
 
+    // バリデーション - 子ども情報
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i]
+      if (!child.grade || !child.fullName || !child.fullNameKana || !child.loginId || !child.password) {
+        setError(`お子様${i + 1}のすべての項目を入力してください`)
+        return
+      }
+
+      if (child.password.length < 8) {
+        setError(`お子様${i + 1}のパスワードは8文字以上で入力してください`)
+        return
+      }
+    }
+
+    // ログインIDの重複チェック
+    const loginIds = children.map((child) => child.loginId)
+    const uniqueLoginIds = new Set(loginIds)
+    if (loginIds.length !== uniqueLoginIds.size) {
+      setError("お子様のログインIDが重複しています")
+      return
+    }
+
     if (!agreedToTerms) {
       setError("利用規約に同意してください")
       return
@@ -57,15 +129,24 @@ export default function ParentRegisterPage() {
     setIsLoading(true)
 
     try {
-      // API呼び出し（既存生徒との紐付け）
+      // API呼び出し（保護者と子どもを同時作成）
       const response = await fetch("/api/auth/parent-register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email,
-          password,
-          parentName,
-          studentLoginId,
+          parent: {
+            fullName: parentFullName,
+            fullNameKana: parentFullNameKana,
+            email,
+            password,
+          },
+          children: children.map((child) => ({
+            grade: parseInt(child.grade),
+            fullName: child.fullName,
+            fullNameKana: child.fullNameKana,
+            loginId: child.loginId,
+            password: child.password,
+          })),
         }),
       })
 
@@ -87,7 +168,7 @@ export default function ParentRegisterPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-2xl">
         {/* Logo and Title */}
         <div className="text-center mb-8">
           <div className="w-24 h-24 flex items-center justify-center mx-auto mb-4">
@@ -107,7 +188,7 @@ export default function ParentRegisterPage() {
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl">新規登録</CardTitle>
             <CardDescription>
-              既にStudySparkで学習しているお子様の学習IDを使って、保護者アカウントを作成します
+              保護者アカウントとお子様のアカウントを同時に作成します
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -117,10 +198,36 @@ export default function ParentRegisterPage() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-6">
               {/* 保護者情報 */}
-              <div className="space-y-4 pb-4 border-b">
-                <h3 className="font-medium text-sm text-muted-foreground">保護者の情報</h3>
+              <div className="space-y-4 pb-6 border-b">
+                <h3 className="font-semibold text-base text-foreground">保護者の情報</h3>
+
+                <div className="space-y-2">
+                  <Label htmlFor="parentFullName">保護者氏名 *</Label>
+                  <Input
+                    id="parentFullName"
+                    type="text"
+                    placeholder="山田太郎"
+                    value={parentFullName}
+                    onChange={(e) => setParentFullName(e.target.value)}
+                    required
+                    className="h-11"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="parentFullNameKana">保護者氏名（ふりがな） *</Label>
+                  <Input
+                    id="parentFullNameKana"
+                    type="text"
+                    placeholder="やまだたろう"
+                    value={parentFullNameKana}
+                    onChange={(e) => setParentFullNameKana(e.target.value)}
+                    required
+                    className="h-11"
+                  />
+                </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="email">メールアドレス *</Label>
@@ -131,20 +238,7 @@ export default function ParentRegisterPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="h-12"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="parentName">保護者氏名 *</Label>
-                  <Input
-                    id="parentName"
-                    type="text"
-                    placeholder="山田太郎"
-                    value={parentName}
-                    onChange={(e) => setParentName(e.target.value)}
-                    required
-                    className="h-12"
+                    className="h-11"
                   />
                 </div>
 
@@ -158,7 +252,7 @@ export default function ParentRegisterPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     minLength={8}
-                    className="h-12"
+                    className="h-11"
                   />
                   <p className="text-xs text-muted-foreground">
                     8文字以上で入力してください
@@ -174,30 +268,125 @@ export default function ParentRegisterPage() {
                     value={passwordConfirm}
                     onChange={(e) => setPasswordConfirm(e.target.value)}
                     required
-                    className="h-12"
+                    className="h-11"
                   />
                 </div>
               </div>
 
-              {/* 生徒情報 */}
+              {/* 子ども情報（複数対応） */}
               <div className="space-y-4">
-                <h3 className="font-medium text-sm text-muted-foreground">お子様の情報</h3>
-
-                <div className="space-y-2">
-                  <Label htmlFor="studentLoginId">お子様の学習ID *</Label>
-                  <Input
-                    id="studentLoginId"
-                    type="text"
-                    placeholder="例: demo-student5"
-                    value={studentLoginId}
-                    onChange={(e) => setStudentLoginId(e.target.value)}
-                    required
-                    className="h-12"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    お子様が既に使用している学習IDを入力してください
-                  </p>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-base text-foreground">お子様の情報</h3>
+                  {children.length < 5 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addChild}
+                      className="text-xs"
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      お子様を追加
+                    </Button>
+                  )}
                 </div>
+
+                {children.map((child, index) => (
+                  <div
+                    key={child.id}
+                    className="space-y-3 p-4 border rounded-lg bg-muted/30"
+                  >
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium text-sm">お子様 {index + 1}</h4>
+                      {children.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeChild(child.id)}
+                          className="text-destructive hover:text-destructive/80 h-8 w-8 p-0"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor={`grade-${child.id}`}>学年 *</Label>
+                      <Select
+                        value={child.grade}
+                        onValueChange={(value) => updateChild(child.id, "grade", value)}
+                      >
+                        <SelectTrigger className="h-11">
+                          <SelectValue placeholder="学年を選択してください" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="5">小学5年生</SelectItem>
+                          <SelectItem value="6">小学6年生</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor={`fullName-${child.id}`}>お子様氏名 *</Label>
+                      <Input
+                        id={`fullName-${child.id}`}
+                        type="text"
+                        placeholder="山田花子"
+                        value={child.fullName}
+                        onChange={(e) => updateChild(child.id, "fullName", e.target.value)}
+                        required
+                        className="h-11"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor={`fullNameKana-${child.id}`}>お子様氏名（ふりがな） *</Label>
+                      <Input
+                        id={`fullNameKana-${child.id}`}
+                        type="text"
+                        placeholder="やまだはなこ"
+                        value={child.fullNameKana}
+                        onChange={(e) => updateChild(child.id, "fullNameKana", e.target.value)}
+                        required
+                        className="h-11"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor={`loginId-${child.id}`}>お子様のログインID *</Label>
+                      <Input
+                        id={`loginId-${child.id}`}
+                        type="text"
+                        placeholder="例: hanako123"
+                        value={child.loginId}
+                        onChange={(e) => updateChild(child.id, "loginId", e.target.value)}
+                        required
+                        className="h-11"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        お子様がログインする際に使用するIDです
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor={`childPassword-${child.id}`}>お子様のパスワード *</Label>
+                      <Input
+                        id={`childPassword-${child.id}`}
+                        type="password"
+                        placeholder="8文字以上"
+                        value={child.password}
+                        onChange={(e) => updateChild(child.id, "password", e.target.value)}
+                        required
+                        minLength={8}
+                        className="h-11"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        8文字以上で入力してください
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
 
               {/* 利用規約 */}
