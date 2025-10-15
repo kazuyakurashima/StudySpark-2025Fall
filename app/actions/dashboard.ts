@@ -916,15 +916,9 @@ export async function getWeeklyReflectionStatus() {
       return { error: "生徒情報が見つかりません" }
     }
 
-    // 今週の開始日（月曜日）を計算
-    // 今週の開始日を取得（月曜日をJST基準で計算）
-    const { getTodayJST, formatDateToJST } = await import("@/lib/utils/date-jst")
-    const now = new Date()
-    const dayOfWeek = now.getDay()
-    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek // 日曜なら-6、それ以外は1-dayOfWeek
-    const weekStartDate = new Date(now)
-    weekStartDate.setDate(now.getDate() + diff)
-    const weekStartStr = formatDateToJST(weekStartDate)
+    // 今週の開始日（月曜日）をJST基準で取得
+    const { getThisWeekMondayJST } = await import("@/lib/utils/date-jst")
+    const weekStartStr = getThisWeekMondayJST()
 
     // 今週のリフレクトセッションを確認
     const { data: reflection } = await supabase

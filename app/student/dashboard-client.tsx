@@ -66,7 +66,14 @@ function getGreetingMessage(userName: string, lastLoginInfo: { lastLoginDays: nu
   ]
 
   // 日付ベースでランダムパターンを選択（同じ日は同じメッセージ）
-  const today = new Date().toISOString().split('T')[0]
+  // JST基準の日付を取得
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
+  const today = formatter.format(new Date())
   const seed = today.split('-').reduce((acc, val) => acc + parseInt(val), 0)
 
   if (!lastLoginInfo || lastLoginInfo.isFirstTime || lastLoginInfo.lastLoginDays === 0) {

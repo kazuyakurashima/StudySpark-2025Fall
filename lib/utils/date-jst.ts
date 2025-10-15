@@ -134,3 +134,31 @@ export function getJSTDayEndISO(dateStr: string): string {
 export function getNowJSTISO(): string {
   return new Date().toISOString()
 }
+
+/**
+ * 今週の月曜日（週の開始日）をJST基準で取得（YYYY-MM-DD形式）
+ */
+export function getThisWeekMondayJST(): string {
+  // 今日のJST日付を取得
+  const todayStr = getTodayJST()
+  const today = new Date(`${todayStr}T00:00:00+09:00`)
+
+  // JSTでの曜日を取得（0=日曜, 1=月曜, ..., 6=土曜）
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Tokyo',
+    weekday: 'short'
+  })
+  const dayName = formatter.format(today)
+
+  // 曜日名から数値に変換
+  const dayMap: { [key: string]: number } = {
+    'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
+  }
+  const dayOfWeek = dayMap[dayName]
+
+  // 月曜日までの日数差を計算（日曜なら-6、月曜なら0、火曜なら-1、...）
+  const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+
+  // 月曜日の日付を計算
+  return getDateJST(diff)
+}

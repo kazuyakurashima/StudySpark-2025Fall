@@ -445,8 +445,10 @@ export async function getInactiveStudents(daysThreshold: 3 | 5 | 7 = 7) {
 
   const students = studentsResult.students
 
-  // 各生徒の最終入力日を取得
-  const now = new Date()
+  // 各生徒の最終入力日を取得（JST基準）
+  const { getTodayJST, getDaysDifference } = await import("@/lib/utils/date-jst")
+  const todayStr = getTodayJST()
+
   const studentsWithLastLog = await Promise.all(
     students.map(async (student: any) => {
       const { data: lastLog } = await supabase
@@ -462,9 +464,8 @@ export async function getInactiveStudents(daysThreshold: 3 | 5 | 7 = 7) {
 
       if (lastLog) {
         lastInputDate = lastLog.study_date
-        const lastDate = new Date(lastLog.study_date)
-        const diffTime = now.getTime() - lastDate.getTime()
-        daysInactive = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+        // JST日付間の日数差を計算
+        daysInactive = getDaysDifference(lastLog.study_date, todayStr)
       } else {
         // 一度も入力していない場合
         daysInactive = 999

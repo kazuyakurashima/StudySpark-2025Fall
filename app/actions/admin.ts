@@ -70,12 +70,13 @@ export async function getSystemStats() {
       .from("encouragements")
       .select("id", { count: "exact", head: true })
 
-    // 今日の学習記録数
-    const today = new Date().toISOString().split("T")[0]
+    // 今日の学習記録数（JST基準）
+    const { getTodayJST } = await import("@/lib/utils/date-jst")
+    const todayStr = getTodayJST()
     const { count: todayLogsCount } = await supabase
       .from("study_logs")
       .select("id", { count: "exact", head: true })
-      .gte("created_at", today)
+      .eq("study_date", todayStr)
 
     return {
       stats: {
