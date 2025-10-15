@@ -4,6 +4,7 @@
  */
 
 import { createClient } from "@supabase/supabase-js"
+import { getTodayJST, getDaysAgoJST, getDateJST, formatDateToJST } from "../lib/utils/date-jst"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -190,26 +191,13 @@ async function linkParentToChildren(parentId: number, studentIds: number[]) {
 }
 
 async function createStudyLogs(studentId: number, grade: number) {
-  console.log(`📚 Creating study logs for student ${studentId}`)
+  console.log(`📚 Creating study logs for student ${studentId} (grade ${grade})`)
 
   // 科目ID取得
   const { data: subjects } = await supabase.from("subjects").select("id, name").order("display_order")
 
   if (!subjects || subjects.length === 0) {
     console.error("❌ No subjects found")
-    return
-  }
-
-  // 学習回取得
-  const { data: sessions } = await supabase
-    .from("study_sessions")
-    .select("id, session_number")
-    .eq("grade", grade)
-    .order("session_number")
-    .limit(5)
-
-  if (!sessions || sessions.length === 0) {
-    console.error("❌ No study sessions found")
     return
   }
 
@@ -224,36 +212,61 @@ async function createStudyLogs(studentId: number, grade: number) {
     return
   }
 
-  // 過去2週間分のログを作成
+  // 過去2週間分のログを作成（JST基準）
   const logsToCreate = []
-  const today = new Date()
+  const todayStr = getTodayJST()
+  const usedCombinations = new Set<string>() // 重複防止用
 
   for (let i = 0; i < 14; i++) {
-    const logDate = new Date(today)
-    logDate.setDate(logDate.getDate() - i)
+    const studyDate = getDaysAgoJST(i)
+
+    // セッション取得（study_dateに基づく）
+    const { data: session } = await supabase
+      .from("study_sessions")
+      .select("id, session_number")
+      .eq("grade", grade)
+      .lte("start_date", studyDate)
+      .gte("end_date", studyDate)
+      .single()
+
+    if (!session) {
+      console.log(`  ⚠️ セッションが見つかりません: ${studyDate}`)
+      continue
+    }
 
     // 1日1-2科目
     const numSubjectsToday = Math.random() > 0.3 ? 2 : 1
+    const shuffledSubjects = [...subjects].sort(() => Math.random() - 0.5)
 
-    for (let j = 0; j < numSubjectsToday; j++) {
-      const subject = subjects[Math.floor(Math.random() * subjects.length)]
-      const session = sessions[Math.floor(Math.random() * sessions.length)]
-      const contentType = contentTypes.find((ct) => ct.subject_id === subject.id)
+    for (let j = 0; j < numSubjectsToday && j < shuffledSubjects.length; j++) {
+      const subject = shuffledSubjects[j]
+      const subjectContentTypes = contentTypes.filter((ct) => ct.subject_id === subject.id)
 
-      if (!contentType) continue
+      if (subjectContentTypes.length === 0) continue
+
+      // ランダムに1つ選択
+      const contentType = subjectContentTypes[Math.floor(Math.random() * subjectContentTypes.length)]
+
+      // 重複チェック
+      const key = `${studyDate}-${subject.id}-${contentType.id}`
+      if (usedCombinations.has(key)) continue
+      usedCombinations.add(key)
 
       const totalProblems = Math.floor(Math.random() * 10) + 10 // 10-20問
       const correctCount = Math.floor(totalProblems * (0.6 + Math.random() * 0.3)) // 60-90%
+
+      // JST 18:00の時刻でlogged_atを設定
+      const loggedAt = new Date(`${studyDate}T18:00:00+09:00`).toISOString()
 
       logsToCreate.push({
         student_id: studentId,
         session_id: session.id,
         subject_id: subject.id,
-        content_type_id: contentType.id,
+        study_content_type_id: contentType.id, // 正しいカラム名
         total_problems: totalProblems,
         correct_count: correctCount,
-        study_date: logDate.toISOString().split("T")[0],
-        student_record_time: logDate.toISOString(),
+        study_date: studyDate, // JST日付
+        logged_at: loggedAt, // JSTで18:00に記録したとする
         reflection_text: i < 3 ? `${subject.name}の学習を頑張りました！` : null,
       })
     }
@@ -263,6 +276,7 @@ async function createStudyLogs(studentId: number, grade: number) {
 
   if (error) {
     console.error("❌ Study logs creation failed:", error.message)
+    console.error("Error details:", error)
   } else {
     console.log(`✅ Created ${logsToCreate.length} study logs`)
   }
@@ -271,12 +285,26 @@ async function createStudyLogs(studentId: number, grade: number) {
 async function createEncouragementMessages(parentId: number, studentId: number) {
   console.log(`💬 Creating encouragement messages for student ${studentId}`)
 
-  // 最近の学習ログを取得
+  // 保護者のuser_idを取得
+  const { data: parentData } = await supabase
+    .from("parents")
+    .select("user_id")
+    .eq("id", parentId)
+    .single()
+
+  if (!parentData) {
+    console.error("❌ Parent user_id not found")
+    return
+  }
+
+  const parentUserId = parentData.user_id
+
+  // 最近の学習ログを取得（logged_atでソート）
   const { data: logs } = await supabase
     .from("study_logs")
-    .select("id")
+    .select("id, logged_at")
     .eq("student_id", studentId)
-    .order("student_record_time", { ascending: false })
+    .order("logged_at", { ascending: false })
     .limit(3)
 
   if (!logs || logs.length === 0) {
@@ -292,18 +320,20 @@ async function createEncouragementMessages(parentId: number, studentId: number) 
 
   const messagesToCreate = logs.map((log, index) => ({
     student_id: studentId,
-    sender_id: parentId,
-    sender_type: "parent" as const,
-    study_log_id: log.id,
-    message_type: "custom" as const,
-    message_content: messages[index] || "頑張ったね！",
-    is_read: index === 0, // 最新のみ既読
+    sender_id: parentUserId, // user_id（UUID）を使用
+    sender_role: "parent" as const, // sender_role
+    support_type: "custom" as const, // support_type
+    message: messages[index] || "頑張ったね！", // message
+    related_study_log_id: log.id, // related_study_log_id
+    is_ai_generated: false,
+    read_at: index === 0 ? new Date().toISOString() : null, // 最新のみ既読
   }))
 
   const { error } = await supabase.from("encouragement_messages").insert(messagesToCreate)
 
   if (error) {
     console.error("❌ Encouragement messages creation failed:", error.message)
+    console.error("Error details:", error)
   } else {
     console.log(`✅ Created ${messagesToCreate.length} encouragement messages`)
   }
@@ -354,24 +384,29 @@ async function createTestGoal(studentId: number, grade: number) {
 }
 
 async function createReflectSession(studentId: number) {
-  console.log(`🤔 Creating reflect session for student ${studentId}`)
+  console.log(`🤔 Creating coaching session for student ${studentId}`)
 
-  const summary = "今週は算数と理科を中心に学習しました。基本問題は理解できていますが、応用問題でまだ時間がかかります。来週は演習問題を多めに取り組んで、スピードアップを目指します！"
+  // 先週の月曜日を取得（JST基準）
+  const lastWeekMonday = getDaysAgoJST(7 + new Date().getDay() - 1)
+  const lastWeekSunday = getDaysAgoJST(7 + new Date().getDay() - 7)
 
   const { data: session, error: sessionError } = await supabase
-    .from("reflect_sessions")
+    .from("coaching_sessions")
     .insert({
       student_id: studentId,
-      week_start_date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+      week_start_date: lastWeekMonday,
+      week_end_date: lastWeekSunday,
       week_type: "stable",
-      summary,
-      is_completed: true,
+      status: "completed",
+      total_turns: 4,
+      completed_at: new Date().toISOString(),
     })
     .select()
     .single()
 
   if (sessionError) {
-    console.error("❌ Reflect session creation failed:", sessionError.message)
+    console.error("❌ Coaching session creation failed:", sessionError.message)
+    console.error("Error details:", sessionError)
     return
   }
 
@@ -379,36 +414,41 @@ async function createReflectSession(studentId: number) {
   const messages = [
     {
       session_id: session.id,
+      role: "assistant" as const,
+      content: "今週の学習、お疲れさまでした！どんな1週間でしたか？",
       turn_number: 1,
-      sender: "ai" as const,
-      message: "今週の学習、お疲れさまでした！どんな1週間でしたか？",
+      sent_at: new Date(Date.now() - 3600000 * 3).toISOString(), // 3時間前
     },
     {
       session_id: session.id,
+      role: "user" as const,
+      content: "算数と理科を頑張りました。基本はできるけど、応用がまだ難しいです。",
       turn_number: 2,
-      sender: "student" as const,
-      message: "算数と理科を頑張りました。基本はできるけど、応用がまだ難しいです。",
+      sent_at: new Date(Date.now() - 3600000 * 2.5).toISOString(),
     },
     {
       session_id: session.id,
+      role: "assistant" as const,
+      content: "基本がしっかりできているのは素晴らしいですね！応用問題は時間がかかるものです。来週はどんなことにチャレンジしたいですか？",
       turn_number: 3,
-      sender: "ai" as const,
-      message: "基本がしっかりできているのは素晴らしいですね！応用問題は時間がかかるものです。来週はどんなことにチャレンジしたいですか？",
+      sent_at: new Date(Date.now() - 3600000 * 2).toISOString(),
     },
     {
       session_id: session.id,
+      role: "user" as const,
+      content: "演習問題をたくさん解いて、スピードアップしたいです！",
       turn_number: 4,
-      sender: "student" as const,
-      message: "演習問題をたくさん解いて、スピードアップしたいです！",
+      sent_at: new Date(Date.now() - 3600000 * 1.5).toISOString(),
     },
   ]
 
-  const { error: messagesError } = await supabase.from("reflect_messages").insert(messages)
+  const { error: messagesError } = await supabase.from("coaching_messages").insert(messages)
 
   if (messagesError) {
-    console.error("❌ Reflect messages creation failed:", messagesError.message)
+    console.error("❌ Coaching messages creation failed:", messagesError.message)
+    console.error("Error details:", messagesError)
   } else {
-    console.log("✅ Reflect session created with messages")
+    console.log(`✅ Coaching session created with ${messages.length} messages`)
   }
 }
 
