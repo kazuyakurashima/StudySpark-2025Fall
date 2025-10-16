@@ -1,5 +1,8 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
+import { Settings } from "lucide-react"
+import { UserProfileHeader } from "@/components/common/user-profile-header"
+import { PageHeader } from "@/components/common/page-header"
 import StudentPasswordResetForm from "./student-password-reset-form"
 
 export default async function ParentSettingsPage() {
@@ -54,15 +57,22 @@ export default async function ParentSettingsPage() {
   const childrenList = children?.map((child: any) => child.students) || []
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="mx-auto max-w-4xl space-y-6 py-8">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold">設定</h1>
-          <p className="text-gray-600">お子さまのパスワード管理</p>
-        </div>
+    <>
+      <UserProfileHeader />
+      
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pb-20 ">
+        <PageHeader
+          icon={Settings}
+          title="設定"
+          subtitle="お子さまのパスワード管理"
+          variant="parent"
+        />
+
+        <div className="mx-auto max-w-screen-xl space-y-6 p-4 sm:p-6 lg:p-8">
 
         <StudentPasswordResetForm children={childrenList} />
       </div>
-    </div>
+      </div>
+      </>
   )
 }

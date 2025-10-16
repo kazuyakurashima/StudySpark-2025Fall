@@ -8,6 +8,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { BottomNavigation } from "@/components/bottom-navigation"
 import { WeeklySubjectProgressCard } from "@/components/weekly-subject-progress-card"
+import { UserProfileHeader } from "@/components/common/user-profile-header"
+import { PageHeader } from "@/components/common/page-header"
 import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, ChevronLeft, ChevronRight } from "lucide-react"
 
 interface DashboardData {
@@ -1158,33 +1160,28 @@ export function StudentDashboardClient({ initialData }: { initialData: Dashboard
   const greetingMessage = getGreetingMessage(userName, lastLoginInfo)
 
   return (
-    <div className="min-h-screen bg-background pb-20 elegant-fade-in">
-      <div className="surface-gradient-primary backdrop-blur-lg border-b border-border/30 p-6 shadow-lg">
-        <div className="flex items-center justify-between max-w-6xl mx-auto">
-          <div className="flex items-center gap-4">
-            <Avatar className="h-16 w-16 border-3 border-primary/20 shadow-xl ring-2 ring-primary/10">
-              <AvatarImage src={getAvatarSrc(selectedAvatar) || "/placeholder.svg"} alt={userName} />
-              <AvatarFallback className="bg-primary/10 text-primary font-bold text-xl">
-                {userName.charAt(0)}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <h1 className="text-3xl font-bold text-foreground tracking-tight">{greetingMessage}</h1>
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="flex items-center gap-3 text-primary">
-              <div className="p-2 bg-primary/10 rounded-full">
-                <Flame className="h-7 w-7" />
+    <>
+      <UserProfileHeader />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 pb-20 elegant-fade-in">
+        <PageHeader
+          icon={Home}
+          title="ホーム"
+          subtitle={greetingMessage}
+          variant="student"
+          actions={
+            <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm px-3 py-2 rounded-lg border border-border/30 shadow-sm">
+              <div className="flex items-center gap-2 text-primary">
+                <div className="p-1.5 bg-primary/10 rounded-full">
+                  <Flame className="h-5 w-5" />
+                </div>
+                <span className="font-bold text-2xl">{studyStreak}</span>
               </div>
-              <span className="font-bold text-3xl">{studyStreak}</span>
+              <span className="text-xs text-muted-foreground font-semibold">連続学習日数</span>
             </div>
-            <p className="text-sm text-muted-foreground font-semibold mt-1">連続学習日数</p>
-          </div>
-        </div>
-      </div>
+          }
+        />
 
-      <div className="max-w-6xl mx-auto p-6 space-y-8">
+        <div className="max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         <div className="space-y-8 lg:space-y-0">
           {/* スマホでの表示順序 */}
           <div className="lg:hidden space-y-8">
@@ -1265,6 +1262,7 @@ export function StudentDashboardClient({ initialData }: { initialData: Dashboard
       </div>
 
       <BottomNavigation activeTab="home" />
-    </div>
+      </div>
+    </>
   )
 }
