@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
+import { UserProfile, UpdateProfileInput } from "@/lib/types/profile"
 
 /**
  * プロフィール情報を更新（アバター選択）
@@ -129,4 +130,67 @@ export async function completeSetup() {
     default:
       redirect("/")
   }
+}
+
+/**
+ * プロフィール情報を取得
+ */
+export async function getProfile(): Promise<{ profile: UserProfile | null; error?: string }> {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { profile: null, error: "認証されていません" }
+  }
+
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .single()
+
+  if (error) {
+    return { profile: null, error: error.message }
+  }
+
+  return { profile: profile as UserProfile }
+}
+
+/**
+ * プロフィールカスタマイズ情報を更新
+ */
+export async function updateProfileCustomization(
+  input: UpdateProfileInput
+): Promise<{ success: boolean; profile?: UserProfile; error?: string }> {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "認証されていません" }
+  }
+
+  const updateData: Record<string, any> = {}
+
+  if (input.avatar_id !== undefined) updateData.avatar_url = input.avatar_id
+  if (input.nickname !== undefined) updateData.display_name = input.nickname
+  if (input.theme_color !== undefined) updateData.theme_color = input.theme_color
+
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .update(updateData)
+    .eq("id", user.id)
+    .select()
+    .single()
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  return { success: true, profile: profile as UserProfile }
 }

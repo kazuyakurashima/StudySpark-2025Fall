@@ -132,3 +132,58 @@ export async function generateEncouragementMessages(
     return { success: false, error: errorMessage }
   }
 }
+
+/**
+ * コーチ向け応援メッセージ提案を生成
+ */
+export async function generateEncouragementSuggestions(input: {
+  studentName: string
+  subject: string
+  understandingLevel: string
+  reflection: string
+  correctRate: number
+  streak: number
+}): Promise<{ suggestions?: string[]; error?: string }> {
+  try {
+    const openai = getOpenAIClient()
+
+    const systemPrompt = `あなたは中学受験を目指す小学生を指導するプロのコーチです。生徒の学習状況に基づいて、具体的で前向きな応援メッセージを3つ提案してください。
+
+各メッセージは：
+- 生徒の名前を使う
+- 具体的な成果や努力を認める
+- 次のステップへの励ましを含む
+- 50-80文字程度で簡潔に`
+
+    const userPrompt = `生徒：${input.studentName}
+科目：${input.subject}
+理解度：${input.understandingLevel}
+振り返り：${input.reflection}
+正答率：${input.correctRate}%
+連続学習日数：${input.streak}日
+
+この生徒への応援メッセージを3つ提案してください。JSON形式で返してください：
+{"suggestions": ["メッセージ1", "メッセージ2", "メッセージ3"]}`
+
+    const completion = await openai.chat.completions.create({
+      model: getDefaultModel(),
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      max_completion_tokens: 600,
+      response_format: { type: "json_object" },
+    })
+
+    const responseText = completion.choices[0]?.message?.content
+    if (!responseText) {
+      throw new Error("No response from OpenAI API")
+    }
+
+    const response = JSON.parse(responseText)
+    return { suggestions: response.suggestions as string[] }
+  } catch (error) {
+    const errorMessage = handleOpenAIError(error)
+    return { error: errorMessage }
+  }
+}
