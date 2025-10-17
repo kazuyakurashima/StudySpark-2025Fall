@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -18,6 +18,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BottomNavigation } from "@/components/bottom-navigation";
+import { UserProfileHeader } from "@/components/common/user-profile-header";
+import { PageHeader } from "@/components/common/page-header";
 import {
   Calendar,
   Flag,
@@ -181,6 +183,46 @@ export default function GoalPage() {
     loadTestResults();
   }, []);
 
+  // プロフィール変更のリアルタイム購読
+  useEffect(() => {
+    const supabase = createClient();
+
+    const setupSubscription = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      // profilesテーブルの変更を購読
+      const channel = supabase
+        .channel("profile-changes")
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "profiles",
+            filter: `id=eq.${user.id}`,
+          },
+          (payload) => {
+            console.log("Profile updated:", payload);
+            // アバターが更新されたら即座に反映（avatar_idを使用）
+            if (payload.new && "avatar_id" in payload.new) {
+              setStudentAvatar((payload.new as any).avatar_id || "student1");
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    };
+
+    setupSubscription();
+  }, []);
+
   const loadStudentInfo = async () => {
     const supabase = createClient();
     const {
@@ -199,15 +241,15 @@ export default function GoalPage() {
         setStudentGrade(student.grade);
       }
 
-      // プロフィールからアバター情報を取得
+      // プロフィールからアバター情報を取得（avatar_idを使用）
       const { data: profile } = await supabase
         .from("profiles")
-        .select("avatar_url")
+        .select("avatar_id")
         .eq("id", user.id)
         .single();
 
       if (profile) {
-        setStudentAvatar(profile.avatar_url || "student1");
+        setStudentAvatar(profile.avatar_id || "student1");
       }
     }
   };
@@ -233,7 +275,12 @@ export default function GoalPage() {
 
   const loadAvailableTestsForResult = async () => {
     const result = await getAvailableTestsForResult();
+    console.log("🔍 [loadAvailableTestsForResult] result:", result);
     if (result.goals) {
+      console.log("🔍 [loadAvailableTestsForResult] Available tests:");
+      result.goals.forEach((goal: any, idx: number) => {
+        console.log(`  [${idx}] Schedule ID: ${goal.test_schedule_id}, Has Goal: ${!!goal.id}, Test: ${goal.test_schedules?.test_types?.name}`);
+      });
       setAvailableTestsForResult(result.goals as any);
     }
   };
@@ -244,6 +291,7 @@ export default function GoalPage() {
     console.log("🔍 [CLIENT] loadTestResults result:", result);
     if (result.results) {
       console.log("🔍 [CLIENT] loadTestResults: Setting results, count:", result.results.length);
+      console.log("🔍 [CLIENT] loadTestResults: Results data:", JSON.stringify(result.results, null, 2));
       setTestResults(result.results as any);
     } else {
       console.log("🔍 [CLIENT] loadTestResults: No results found or error:", result.error);
@@ -394,6 +442,11 @@ export default function GoalPage() {
       return;
     }
 
+    console.log("🔍 [handleSaveResult] selectedGoalForResult:", selectedGoalForResult);
+    console.log("🔍 [handleSaveResult] test_schedule_id:", selectedGoalForResult.test_schedule_id);
+    console.log("🔍 [handleSaveResult] resultCourse:", resultCourse);
+    console.log("🔍 [handleSaveResult] resultClass:", resultClass[0]);
+
     setIsSavingResult(true);
 
     try {
@@ -410,9 +463,9 @@ export default function GoalPage() {
         setResultCourse("");
         setResultClass([20]);
         setExistingResult(null);
-        // リロード
-        loadAvailableTestsForResult();
-        loadTestResults();
+        // リロード（順序が重要：データを先に読み込んでからタブを切り替え）
+        await loadAvailableTestsForResult();
+        await loadTestResults();
         setActiveTab("test");
       } else {
         alert(error || "保存に失敗しました");
@@ -439,7 +492,9 @@ export default function GoalPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20 elegant-fade-in">
+    <>
+      <UserProfileHeader />
+      <div className="min-h-screen bg-background pb-20 elegant-fade-in">
       {showCelebration && (
         <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
           {[...Array(20)].map((_, i) => (
@@ -474,24 +529,14 @@ export default function GoalPage() {
         </div>
       )}
 
-      <div className="surface-gradient-primary backdrop-blur-lg border-b border-border/30 p-3 sm:p-4 shadow-lg">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2">
-            <Flag className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-            ゴールナビ
-            {studentGrade && (
-              <span className="text-sm text-muted-foreground ml-2">
-                (小学{studentGrade}年生)
-              </span>
-            )}
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            目標を設定して、合格に向けて頑張ろう！
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        icon={Flag}
+        title={studentGrade ? `ゴールナビ (小学${studentGrade}年生)` : "ゴールナビ"}
+        subtitle="目標を設定して、合格に向けて頑張ろう！"
+        variant="student"
+      />
 
-      <div className="max-w-4xl mx-auto p-3 sm:p-4">
+      <div className="max-w-screen-xl mx-auto p-3 sm:p-4">
         <Tabs
           value={activeTab}
           onValueChange={(v) => setActiveTab(v as "input" | "result" | "test")}
@@ -539,52 +584,62 @@ export default function GoalPage() {
                   <span className="text-slate-800">テスト選択</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3 sm:space-y-4 pt-6">
-                <div className="space-y-2">
-                  <Label className="text-sm sm:text-base">
-                    対象テストを選択してください
-                  </Label>
-                  <Select
-                    value={selectedTest?.id || ""}
-                    onValueChange={(value) => {
-                      const test = availableTests.find((t) => t.id === value);
-                      setSelectedTest(test || null);
-                    }}
-                  >
-                    <SelectTrigger className="h-10 sm:h-11">
-                      <SelectValue placeholder="テストを選択してください" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableTests.map((test) => (
-                        <SelectItem key={test.id} value={test.id}>
-                          <div className="flex flex-col">
-                            <span className="font-medium">
-                              {test.test_types.name}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {formatDate(test.test_date)}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <CardContent className="space-y-3 pt-6">
+                <Label className="text-sm sm:text-base font-medium">
+                  対象テストをクリックして選択してください
+                </Label>
+                <div className="grid grid-cols-1 gap-3">
+                  {availableTests.map((test) => {
+                    const hasGoal = testGoals.some((g) => g.test_schedule_id === test.id);
 
-                {selectedTest && (
-                  <div className="mt-4 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200 shadow-sm">
-                    <p className="text-sm text-blue-900 font-semibold">
-                      選択中: {selectedTest.test_types.name}
-                    </p>
-                    <p className="text-xs text-blue-700 mt-1.5">
-                      実施日: {formatDate(selectedTest.test_date)}
-                    </p>
-                    <p className="text-xs text-blue-700">
-                      種類:{" "}
-                      {selectedTest.test_types.type_category === "gohan"
-                        ? "合不合判定テスト"
-                        : "公開組分けテスト"}
-                    </p>
+                    return (
+                      <button
+                        key={test.id}
+                        onClick={() => !hasGoal && setSelectedTest(test)}
+                        disabled={hasGoal}
+                        className={`p-4 rounded-lg border-2 text-left transition-all duration-300 ${
+                          hasGoal
+                            ? "border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed"
+                            : selectedTest?.id === test.id
+                            ? "border-primary bg-primary/10 shadow-lg scale-[1.02]"
+                            : "border-border bg-background hover:border-primary/50 hover:shadow-md"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <div className="font-bold text-base">
+                                {test.test_types.name}
+                              </div>
+                              {hasGoal && (
+                                <Badge variant="secondary" className="text-xs">
+                                  入力済み
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              実施日: {formatDate(test.test_date)}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              種類: {test.test_types.type_category === "gohan"
+                                ? "合不合判定テスト"
+                                : "公開組分けテスト"}
+                            </div>
+                          </div>
+                          {selectedTest?.id === test.id && !hasGoal && (
+                            <CheckCircle2 className="h-6 w-6 text-primary flex-shrink-0" />
+                          )}
+                          {hasGoal && (
+                            <CheckCircle2 className="h-6 w-6 text-gray-400 flex-shrink-0" />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                {availableTests.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    現在、目標設定可能なテストはありません
                   </div>
                 )}
               </CardContent>
@@ -965,108 +1020,75 @@ export default function GoalPage() {
                       <span className="text-cyan-900">テスト選択</span>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    <Label>結果を入力するテストを選択してください</Label>
-                    <Select
-                      value={selectedGoalForResult?.test_schedule_id || ""}
-                      onValueChange={(value) => {
-                        const goal = availableTestsForResult.find(
-                          (g) => g.test_schedule_id === value,
-                        );
-                        setSelectedGoalForResult(goal || null);
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="テストを選択してください" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableTestsForResult.map((goal) => (
-                          <SelectItem key={goal.test_schedule_id} value={goal.test_schedule_id}>
-                            <div className="flex flex-col">
-                              <span className="font-medium">
-                                {goal.test_schedules.detailed_name ||
-                                  goal.test_schedules.test_types.name}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {formatDate(goal.test_schedules.test_date)}
-                              </span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <CardContent className="space-y-3 pt-6">
+                    <Label className="text-sm sm:text-base font-medium">
+                      結果を入力するテストをクリックして選択してください
+                    </Label>
+                    <div className="grid grid-cols-1 gap-3">
+                      {availableTestsForResult.map((goal) => {
+                        const hasResult = testResults.some((r) => r.test_schedule_id === goal.test_schedule_id);
 
-                    {selectedGoalForResult && (
-                      <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Flag className="h-4 w-4 text-blue-600" />
-                          <span className="font-medium text-sm">
-                            {selectedGoalForResult.target_course ? "設定した目標" : "目標"}
-                          </span>
-                        </div>
-                        {selectedGoalForResult.target_course ? (
-                          <div className="text-sm space-y-1">
-                            <p>
-                              <span className="text-gray-600">コース:</span>{" "}
-                              <span className="font-medium">
-                                {getCourseName(
-                                  selectedGoalForResult.target_course,
+                        return (
+                          <button
+                            key={goal.test_schedule_id}
+                            onClick={() => !hasResult && setSelectedGoalForResult(goal)}
+                            disabled={hasResult}
+                            className={`p-4 rounded-lg border-2 text-left transition-all duration-300 ${
+                              hasResult
+                                ? "border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed"
+                                : selectedGoalForResult?.test_schedule_id === goal.test_schedule_id
+                                ? "border-primary bg-primary/10 shadow-lg scale-[1.02]"
+                                : "border-border bg-background hover:border-primary/50 hover:shadow-md"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <div className="font-bold text-base">
+                                    {goal.test_schedules.detailed_name ||
+                                      goal.test_schedules.test_types.name}
+                                  </div>
+                                  {hasResult && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      入力済み
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  実施日: {formatDate(goal.test_schedules.test_date)}
+                                </div>
+                                {goal.target_course && (
+                                  <div className="mt-2 text-xs">
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                                      <Flag className="h-3 w-3" />
+                                      目標: {getCourseName(goal.target_course)} {goal.target_class}組
+                                    </span>
+                                  </div>
                                 )}
-                              </span>
-                            </p>
-                            <p>
-                              <span className="text-gray-600">組:</span>{" "}
-                              <span className="font-medium">
-                                {selectedGoalForResult.target_class}組
-                              </span>
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="text-sm text-gray-600">
-                            <p>目標は設定されていません</p>
-                            <p className="text-xs mt-1">結果のみを入力できます</p>
-                          </div>
-                        )}
+                                {!goal.target_course && (
+                                  <div className="mt-2 text-xs text-muted-foreground">
+                                    目標未設定（結果のみ入力可）
+                                  </div>
+                                )}
+                              </div>
+                              {selectedGoalForResult?.test_schedule_id === goal.test_schedule_id && !hasResult && (
+                                <CheckCircle2 className="h-6 w-6 text-primary flex-shrink-0" />
+                              )}
+                              {hasResult && (
+                                <CheckCircle2 className="h-6 w-6 text-gray-400 flex-shrink-0" />
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {availableTestsForResult.length === 0 && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        現在、結果入力可能なテストはありません
                       </div>
                     )}
                   </CardContent>
                 </Card>
-
-                {existingResult && selectedGoalForResult && (
-                  <>
-                    <Card className="card-elevated border-primary/20 shadow-xl">
-                      <CardHeader className="bg-gradient-to-r from-primary/5 to-accent/5">
-                        <CardTitle className="flex items-center gap-2">
-                          <CheckCircle2 className="h-5 w-5 text-primary" />
-                          入力済みの結果
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-6 space-y-4">
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg">
-                            <span className="text-sm font-medium text-muted-foreground">
-                              結果コース
-                            </span>
-                            <span className="text-lg font-bold text-primary">
-                              {getCourseName(resultCourse)}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg">
-                            <span className="text-sm font-medium text-muted-foreground">
-                              結果の組
-                            </span>
-                            <span className="text-lg font-bold text-primary">
-                              {resultClass[0]}組
-                            </span>
-                          </div>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          ※ 結果は一度入力すると編集できません
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </>
-                )}
 
                 {selectedGoalForResult && !existingResult && (
                   <>
@@ -1149,72 +1171,100 @@ export default function GoalPage() {
 
           {/* 目標と結果の履歴タブ */}
           <TabsContent value="test" className="space-y-4 mt-6">
-            {testGoals.length === 0 ? (
-              <Card className="card-elevated border-0 shadow-md bg-gradient-to-br from-slate-50 to-gray-50">
-                <CardContent className="py-10 text-center">
-                  <p className="text-gray-700">
-                    まだ目標が設定されていません。
-                    <br />
-                    先に「目標入力」タブで目標を設定してください。
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                {testGoals.map((goal) => {
-                  // この目標に対応する結果を探す
-                  const result = testResults.find(
-                    (r) => r.test_schedule_id === goal.test_schedule_id,
-                  );
+            {(() => {
+              // 目標と結果を統合したリストを作成
+              const allScheduleIds = new Set<string>();
+              testGoals.forEach(g => allScheduleIds.add(g.test_schedule_id));
+              testResults.forEach(r => allScheduleIds.add(r.test_schedule_id));
 
-                  return (
-                    <Card key={goal.id} className="card-elevated border-0 shadow-md bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
-                      <CardHeader className="bg-gradient-to-r from-indigo-100 to-purple-100 border-b border-indigo-200">
-                        <CardTitle className="flex items-center gap-2">
-                          <Calendar className="h-5 w-5 text-indigo-700" />
-                          <span className="text-indigo-900">{goal.test_schedules.detailed_name ||
-                            goal.test_schedules.test_types.name}</span>
-                        </CardTitle>
-                        <p className="text-sm text-indigo-700">
-                          {formatDate(goal.test_schedules.test_date)}
-                        </p>
-                      </CardHeader>
+              const combinedItems = Array.from(allScheduleIds).map(scheduleId => {
+                const goal = testGoals.find(g => g.test_schedule_id === scheduleId);
+                const result = testResults.find(r => r.test_schedule_id === scheduleId);
+                return { scheduleId, goal, result };
+              }).sort((a, b) => {
+                // 日付でソート（新しい順）
+                const dateA = a.goal?.test_schedules?.test_date || a.result?.test_schedules?.test_date || '';
+                const dateB = b.goal?.test_schedules?.test_date || b.result?.test_schedules?.test_date || '';
+                return dateB.localeCompare(dateA);
+              });
+
+              if (combinedItems.length === 0) {
+                return (
+                  <Card className="card-elevated border-0 shadow-md bg-gradient-to-br from-slate-50 to-gray-50">
+                    <CardContent className="py-10 text-center">
+                      <p className="text-gray-700">
+                        まだ目標や結果が登録されていません。
+                      </p>
+                    </CardContent>
+                  </Card>
+                );
+              }
+
+              return (
+                <div className="space-y-4">
+                  {combinedItems.map((item) => {
+                    const { scheduleId, goal, result } = item;
+
+                    // テスト情報を取得（goalまたはresultから）
+                    const testInfo = goal?.test_schedules || result?.test_schedules;
+                    if (!testInfo) return null;
+
+                    return (
+                      <Card key={scheduleId} className="card-elevated border-0 shadow-md bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+                        <CardHeader className="bg-gradient-to-r from-indigo-100 to-purple-100 border-b border-indigo-200">
+                          <CardTitle className="flex items-center gap-2">
+                            <Calendar className="h-5 w-5 text-indigo-700" />
+                            <span className="text-indigo-900">{testInfo.test_types.name}</span>
+                          </CardTitle>
+                          <p className="text-sm text-indigo-700">
+                            {formatDate(testInfo.test_date)}
+                          </p>
+                        </CardHeader>
                       <CardContent className="space-y-4 pt-6">
                         {/* 目標表示 */}
-                        <div className="p-4 bg-white/70 backdrop-blur-sm rounded-lg border border-indigo-200 shadow-sm">
-                          <div className="flex items-center gap-2 mb-3">
-                            <Flag className="h-4 w-4 text-blue-600" />
-                            <span className="font-semibold text-sm">目標</span>
+                        {goal ? (
+                          <div className="p-4 bg-white/70 backdrop-blur-sm rounded-lg border border-indigo-200 shadow-sm">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Flag className="h-4 w-4 text-blue-600" />
+                              <span className="font-semibold text-sm">目標</span>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                              <div className="text-center p-3 bg-white rounded-lg">
+                                <div className="text-xs text-gray-600 mb-1">
+                                  目標コース
+                                </div>
+                                <div className="font-bold text-lg text-blue-600">
+                                  {getCourseName(goal.target_course)}
+                                </div>
+                              </div>
+                              <div className="text-center p-3 bg-white rounded-lg">
+                                <div className="text-xs text-gray-600 mb-1">
+                                  目標の組
+                                </div>
+                                <div className="font-bold text-lg text-blue-600">
+                                  {goal.target_class}組
+                                </div>
+                              </div>
+                            </div>
+                            {goal.goal_thoughts && (
+                              <div className="mt-3 pt-3 border-t border-blue-200">
+                                <div className="text-xs text-gray-600 mb-2">
+                                  今回の思い
+                                </div>
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                                  {goal.goal_thoughts}
+                                </p>
+                              </div>
+                            )}
                           </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                            <div className="text-center p-3 bg-white rounded-lg">
-                              <div className="text-xs text-gray-600 mb-1">
-                                目標コース
-                              </div>
-                              <div className="font-bold text-lg text-blue-600">
-                                {getCourseName(goal.target_course)}
-                              </div>
-                            </div>
-                            <div className="text-center p-3 bg-white rounded-lg">
-                              <div className="text-xs text-gray-600 mb-1">
-                                目標の組
-                              </div>
-                              <div className="font-bold text-lg text-blue-600">
-                                {goal.target_class}組
-                              </div>
+                        ) : (
+                          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <div className="flex items-center gap-2 text-gray-600">
+                              <Flag className="h-4 w-4" />
+                              <span className="text-sm">目標は設定されていません</span>
                             </div>
                           </div>
-                          {goal.goal_thoughts && (
-                            <div className="mt-3 pt-3 border-t border-blue-200">
-                              <div className="text-xs text-gray-600 mb-2">
-                                今回の思い
-                              </div>
-                              <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                                {goal.goal_thoughts}
-                              </p>
-                            </div>
-                          )}
-                        </div>
+                        )}
 
                         {/* 結果表示 */}
                         {result ? (
@@ -1273,12 +1323,14 @@ export default function GoalPage() {
                   );
                 })}
               </div>
-            )}
+            );
+            })()}
           </TabsContent>
         </Tabs>
       </div>
 
       <BottomNavigation />
     </div>
+    </>
   );
 }

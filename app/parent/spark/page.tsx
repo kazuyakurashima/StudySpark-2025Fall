@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -241,8 +242,10 @@ export default function ParentSparkPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-red-50 pb-20">
-      <div className="bg-white/95 backdrop-blur-md shadow-md border-b border-pink-100">
+    <>
+      <UserProfileHeader />
+      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-red-50 pb-20">
+        <div className="bg-white/95 backdrop-blur-md shadow-md border-b border-pink-100">
         <div className="max-w-4xl mx-auto px-4 py-5">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 bg-gradient-to-br from-pink-100 to-rose-100 rounded-xl shadow-sm">
@@ -540,6 +543,7 @@ export default function ParentSparkPage() {
       </div>
 
       <ParentBottomNavigation />
-    </div>
+      </div>
+    </>
   )
 }

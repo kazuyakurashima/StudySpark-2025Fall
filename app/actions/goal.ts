@@ -302,7 +302,7 @@ export async function getAvailableTestsForResult() {
     return new Date(`${value}T00:00:00+09:00`)
   }
 
-  // 結果入力期間内のテストスケジュールを取得
+  // テストスケジュールを取得（実施日が過去のもの）
   const { data: testSchedules, error: schedulesError } = await supabase
     .from("test_schedules")
     .select(`
@@ -323,25 +323,21 @@ export async function getAvailableTestsForResult() {
     return { error: schedulesError.message }
   }
 
-  // 結果入力期間内のテストをフィルタリング
+  // 実施日が過去のテストをフィルタリング
   const availableTests = testSchedules?.filter((test) => {
-    const startRaw = test.result_entry_start_date as string | null
-    const endRaw = test.result_entry_end_date as string | null
-
-    if (!startRaw || !endRaw) {
+    const testDateRaw = test.test_date as string | null
+    if (!testDateRaw) {
       return false
     }
 
-    const startDate = parseAsTokyoDate(startRaw)
-    const endDate = parseAsTokyoDate(endRaw)
-    if (!startDate || !endDate) {
+    const testDate = parseAsTokyoDate(testDateRaw)
+    if (!testDate) {
       return false
     }
 
-    const endOfDay = new Date(endDate.getTime())
-    endOfDay.setHours(23, 59, 59, 999)
-
-    return startDate <= tokyoNow && tokyoNow <= endOfDay
+    // 実施日が今日より前（過去）のテストを含める
+    const startOfToday = new Date(tokyoNow.getFullYear(), tokyoNow.getMonth(), tokyoNow.getDate())
+    return testDate < startOfToday
   }) || []
 
   // 各テストに対応する目標を取得
@@ -378,6 +374,8 @@ export async function saveSimpleTestResult(
   resultCourse: string,
   resultClass: number
 ) {
+  console.log("🔍 [saveSimpleTestResult] Called with:", { testScheduleId, resultCourse, resultClass });
+
   const supabase = createClient()
 
   // 現在のユーザー取得
@@ -400,6 +398,8 @@ export async function saveSimpleTestResult(
     return { success: false, error: "生徒情報が見つかりません" }
   }
 
+  console.log("🔍 [saveSimpleTestResult] Student ID:", student.id);
+
   // 既存の結果をチェック
   const { data: existingResult } = await supabase
     .from("test_results")
@@ -408,22 +408,31 @@ export async function saveSimpleTestResult(
     .eq("test_schedule_id", testScheduleId)
     .maybeSingle()
 
+  console.log("🔍 [saveSimpleTestResult] Existing result:", existingResult);
+
   if (existingResult) {
     return { success: false, error: "この結果は既に入力されています" }
   }
 
   // 新規結果を作成
+  const insertData = {
+    student_id: student.id,
+    test_schedule_id: testScheduleId,
+    result_course: resultCourse,
+    result_class: resultClass,
+    result_entered_at: new Date().toISOString(),
+  };
+
+  console.log("🔍 [saveSimpleTestResult] Inserting data:", insertData);
+
   const { data: newResult, error: insertError } = await supabase
     .from("test_results")
-    .insert({
-      student_id: student.id,
-      test_schedule_id: testScheduleId,
-      result_course: resultCourse,
-      result_class: resultClass,
-      result_entered_at: new Date().toISOString(),
-    })
+    .insert(insertData)
     .select()
     .single()
+
+  console.log("🔍 [saveSimpleTestResult] Insert result:", newResult);
+  console.log("🔍 [saveSimpleTestResult] Insert error:", insertError);
 
   if (insertError) {
     return { success: false, error: insertError.message }

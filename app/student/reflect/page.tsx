@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BottomNavigation } from "@/components/bottom-navigation"
+import { UserProfileHeader } from "@/components/common/user-profile-header"
+import { PageHeader } from "@/components/common/page-header"
 import { ReflectChat } from "./reflect-chat"
 import { AchievementMap } from "./achievement-map"
 import { StudyHistory } from "./study-history"
@@ -156,53 +158,20 @@ export default function ReflectPage() {
 
   const weekTypeInfo = getWeekTypeInfo()
 
-  if (!isAvailable) {
-    return (
-      <div className="min-h-screen bg-background pb-20">
-        <div className="surface-gradient-primary backdrop-blur-lg border-b border-border/30 p-3 sm:p-4 shadow-lg">
-          <div className="max-w-4xl mx-auto">
-            <h1 className="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2">
-              <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-              週次振り返り（リフレクト）
-            </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground">AIコーチと一緒に1週間を振り返ろう</p>
-          </div>
-        </div>
-
-        <div className="max-w-4xl mx-auto p-4">
-          <Card className="card-elevated">
-            <CardContent className="p-8 text-center">
-              <Clock className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-              <h2 className="text-xl font-bold mb-2">振り返りは土曜日12:00から利用できます</h2>
-              <p className="text-muted-foreground mb-4">
-                現在: {currentDay}曜日 {currentTime}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                毎週土曜12:00 〜 水曜23:59の期間に、AIコーチと一緒に1週間を振り返ることができます。
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <BottomNavigation />
-      </div>
-    )
-  }
 
   return (
-    <div className="min-h-screen bg-background pb-20 elegant-fade-in">
-      <div className="surface-gradient-primary backdrop-blur-lg border-b border-border/30 p-3 sm:p-4 shadow-lg">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2">
-            <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-            週次振り返り（リフレクト）
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">AIコーチと一緒に1週間を振り返ろう</p>
-        </div>
-      </div>
+    <>
+      <UserProfileHeader />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 pb-20 elegant-fade-in">
+        <PageHeader
+          icon={Calendar}
+          title="週次振り返り（リフレクト）"
+          subtitle="AIコーチと一緒に1週間を振り返ろう"
+          variant="student"
+        />
 
-      <div className="max-w-4xl mx-auto p-3 sm:p-4 space-y-4 sm:space-y-6">
-        {!isStarted && !summary && weekTypeInfo && weekData && (
+        <div className="max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
+        {isAvailable && !isStarted && !summary && weekTypeInfo && weekData && (
           <>
             <Card className={`card-elevated ${weekTypeInfo.bg} border-0 shadow-2xl`}>
               <CardContent className="p-6">
@@ -255,7 +224,7 @@ export default function ReflectPage() {
           </>
         )}
 
-        {isStarted && sessionId && weekTypeInfo && weekData && (
+        {isAvailable && isStarted && sessionId && weekTypeInfo && weekData && (
           <ReflectChat
             studentName={studentName}
             sessionId={sessionId}
@@ -268,7 +237,7 @@ export default function ReflectPage() {
           />
         )}
 
-        {summary && (
+        {isAvailable && summary && (
           <Card className="card-elevated bg-gradient-to-br from-emerald-50 to-blue-50 border-0 shadow-2xl">
             <CardContent className="p-8 text-center">
               <Sparkles className="h-16 w-16 text-primary mx-auto mb-4" />
@@ -309,9 +278,25 @@ export default function ReflectPage() {
             <CoachingHistory />
           </TabsContent>
         </Tabs>
+
+        {!isAvailable && (
+          <Card className="card-elevated">
+            <CardContent className="p-8 text-center">
+              <Clock className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+              <h2 className="text-xl font-bold mb-2">振り返りは土曜日12:00から利用できます</h2>
+              <p className="text-muted-foreground mb-4">
+                現在: {currentDay}曜日 {currentTime}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                毎週土曜12:00 〜 水曜23:59の期間に、AIコーチと一緒に1週間を振り返ることができます。
+              </p>
+            </CardContent>
+          </Card>
+        )}
+        </div>
       </div>
 
       <BottomNavigation />
-    </div>
+    </>
   )
 }
