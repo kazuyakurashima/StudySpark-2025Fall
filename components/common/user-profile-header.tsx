@@ -2,10 +2,11 @@
 
 import { useState } from "react"
 import Image from "next/image"
-import { LogOut, User, ChevronDown } from "lucide-react"
+import { LogOut, User, ChevronDown, GraduationCap } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { EditProfileModal } from "@/components/profile/edit-profile-modal"
+import { EditCourseModal } from "@/components/profile/edit-course-modal"
 import { useUserProfile } from "@/lib/hooks/use-user-profile"
 import { getAvatarById } from "@/lib/constants/avatars"
 
@@ -14,6 +15,7 @@ export function UserProfileHeader() {
   const { profile, loading, updateProfile } = useUserProfile()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isEditCourseModalOpen, setIsEditCourseModalOpen] = useState(false)
 
   const handleLogout = async () => {
     const supabase = createClient()
@@ -24,6 +26,11 @@ export function UserProfileHeader() {
   const handleEditProfile = () => {
     setIsDropdownOpen(false)
     setIsEditModalOpen(true)
+  }
+
+  const handleEditCourse = () => {
+    setIsDropdownOpen(false)
+    setIsEditCourseModalOpen(true)
   }
 
   if (loading || !profile) {
@@ -81,6 +88,13 @@ export function UserProfileHeader() {
                   プロフィール編集
                 </button>
                 <button
+                  onClick={handleEditCourse}
+                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                >
+                  <GraduationCap className="w-4 h-4" />
+                  コース編集
+                </button>
+                <button
                   onClick={handleLogout}
                   className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
                 >
@@ -99,6 +113,15 @@ export function UserProfileHeader() {
           isOpen={isEditModalOpen}
           onClose={() => setIsEditModalOpen(false)}
           profile={profile}
+          onUpdate={updateProfile}
+        />
+      )}
+
+      {/* コース編集モーダル */}
+      {profile && (
+        <EditCourseModal
+          isOpen={isEditCourseModalOpen}
+          onClose={() => setIsEditCourseModalOpen(false)}
           onUpdate={updateProfile}
         />
       )}

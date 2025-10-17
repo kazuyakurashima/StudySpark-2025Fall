@@ -387,10 +387,10 @@ export async function saveSimpleTestResult(
     return { success: false, error: "ログインが必要です" }
   }
 
-  // 生徒ID取得
+  // 生徒ID取得（現在のコースも取得）
   const { data: student, error: studentError } = await supabase
     .from("students")
-    .select("id")
+    .select("id, course")
     .eq("user_id", user.id)
     .single()
 
@@ -399,6 +399,7 @@ export async function saveSimpleTestResult(
   }
 
   console.log("🔍 [saveSimpleTestResult] Student ID:", student.id);
+  console.log("🔍 [saveSimpleTestResult] Current course:", student.course, "Result course:", resultCourse);
 
   // 既存の結果をチェック
   const { data: existingResult } = await supabase
@@ -436,6 +437,23 @@ export async function saveSimpleTestResult(
 
   if (insertError) {
     return { success: false, error: insertError.message }
+  }
+
+  // 現在のコースと入力結果のコースが異なる場合、コースを更新
+  if (student.course !== resultCourse) {
+    console.log("🔍 [saveSimpleTestResult] Updating course from", student.course, "to", resultCourse);
+
+    const { error: updateCourseError } = await supabase
+      .from("students")
+      .update({ course: resultCourse })
+      .eq("id", student.id)
+
+    if (updateCourseError) {
+      console.error("🔍 [saveSimpleTestResult] Error updating course:", updateCourseError);
+      // コース更新エラーは致命的ではないので、結果保存は成功として返す
+    } else {
+      console.log("🔍 [saveSimpleTestResult] Course updated successfully");
+    }
   }
 
   return { success: true, resultId: newResult.id }

@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { BottomNavigation } from "@/components/bottom-navigation"
+import { UserProfileHeader } from "@/components/common/user-profile-header"
+import { PageHeader } from "@/components/common/page-header"
 import { Calendar, BookOpen, MessageSquare, Save, Sparkles, Flame, Crown, Bot } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
@@ -575,11 +577,19 @@ export function SparkClient({ initialData, preselectedSubject }: SparkClientProp
         const contentDetails = subjectDetails[subjectId] || {}
         const availableContent = getAvailableLearningContent(subjectId)
 
+        console.log(`[AI Reflection] Subject: ${subjectId}`)
+        console.log(`[AI Reflection] Content Details:`, contentDetails)
+        console.log(`[AI Reflection] Available Content:`, availableContent)
+
         studyData.details[subjectId] = {}
 
         for (const content of availableContent) {
           const maxProblems = getProblemCount(subjectId, content.id)
           const correctAnswers = contentDetails[content.id] || 0
+
+          console.log(`[AI Reflection] Content: ${content.name} (${content.id})`)
+          console.log(`[AI Reflection]   Max Problems: ${maxProblems}`)
+          console.log(`[AI Reflection]   Correct Answers: ${correctAnswers}`)
 
           if (maxProblems > 0) {
             studyData.details[subjectId][content.id] = {
@@ -590,6 +600,8 @@ export function SparkClient({ initialData, preselectedSubject }: SparkClientProp
           }
         }
       }
+
+      console.log(`[AI Reflection] Final Study Data:`, JSON.stringify(studyData, null, 2))
 
       // AI生成を呼び出し
       const result = await generateDailyReflections(studyData)
@@ -774,22 +786,18 @@ export function SparkClient({ initialData, preselectedSubject }: SparkClientProp
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 pb-20">
-      <div className="bg-white/95 backdrop-blur-lg border-b border-slate-200/60 shadow-lg p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
-                <CurrentLevelIcon className={`h-7 w-7 ${levels[currentLevel].color}`} />
-                スパーク - {getLevelDisplayName()}
-              </h1>
-              <p className="text-sm text-slate-600 mt-1 font-medium">コース: {currentCourse}コース</p>
-            </div>
-          </div>
-        </div>
-      </div>
+    <>
+      <UserProfileHeader />
+      <PageHeader
+        icon={Sparkles}
+        title={`スパーク - ${getLevelDisplayName()}`}
+        subtitle={`${currentCourse}コース`}
+        variant="student"
+      />
 
-      <div className="max-w-4xl mx-auto p-6 space-y-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 pb-20 ">
+
+      <div className="max-w-screen-xl mx-auto p-6 space-y-8">
         <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm ring-1 ring-slate-200/50">
           <CardHeader className="pb-4 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 rounded-t-lg">
             <CardTitle className="flex items-center gap-3 text-lg font-semibold text-slate-800">
@@ -1239,5 +1247,6 @@ export function SparkClient({ initialData, preselectedSubject }: SparkClientProp
 
       <BottomNavigation activeTab="spark" />
     </div>
+    </>
   )
 }
