@@ -43,15 +43,23 @@ export async function universalLogin(input: string, password: string) {
   }
 
   // 4. プロフィール確認
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("role, setup_completed")
     .eq("id", authData.user.id)
     .single()
 
+  if (profileError) {
+    console.error("[Login] Profile fetch error:", profileError)
+    return { error: `プロフィールエラー: ${profileError.message}` }
+  }
+
   if (!profile) {
+    console.error("[Login] Profile not found for user:", authData.user.id)
     return { error: "プロフィールが見つかりません" }
   }
+
+  console.log("[Login] Success for user:", authData.user.email, "role:", profile.role)
 
   // 5. ロール別リダイレクト
   const role = profile.role
