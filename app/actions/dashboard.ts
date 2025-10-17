@@ -2,6 +2,12 @@
 
 import { createClient } from "@/lib/supabase/server"
 
+function isMissingTable(error: { code?: string; message?: string } | null | undefined, tableName: string) {
+  if (!error) return false
+  if (error.code === "42P01") return true
+  return typeof error.message === "string" && error.message.includes(`relation "${tableName}" does not exist`)
+}
+
 /**
  * 生徒ダッシュボードデータ取得
  */
@@ -247,9 +253,16 @@ async function getRecentStudyLogsForCoach(studentId: string, days: number = 3) {
     .order("study_date", { ascending: false })
     .order("logged_at", { ascending: false })
 
+  if (error) {
+    console.error("🔍 [Coach Logs] Query error:", error)
+    if (isMissingTable(error, "public.study_logs")) {
+      return { today: [], yesterday: [], dayBeforeYesterday: [] }
+    }
+    return { today: [], yesterday: [], dayBeforeYesterday: [] }
+  }
+
   console.log("🔍 [Coach Logs] Query result:", {
     count: logs?.length,
-    error: error?.message,
   })
 
   if (!logs || logs.length === 0) {
@@ -356,6 +369,9 @@ export async function getStudyStreak() {
       .order("study_date", { ascending: false })
 
     if (logsError) {
+      if (isMissingTable(logsError, "public.study_logs")) {
+        return { streak: 0 }
+      }
       return { error: "学習ログの取得に失敗しました" }
     }
 
@@ -447,6 +463,9 @@ export async function getRecentStudyLogs(limit: number = 5) {
 
     if (logsError) {
       console.error("Get recent study logs error:", logsError)
+      if (isMissingTable(logsError, "public.study_logs")) {
+        return { logs: [] }
+      }
       return { error: "学習履歴の取得に失敗しました" }
     }
 
@@ -506,6 +525,9 @@ export async function getRecentEncouragementMessages(limit: number = 3) {
 
     if (messagesError) {
       console.error("Get encouragement messages error:", messagesError)
+      if (isMissingTable(messagesError, "public.encouragement_messages")) {
+        return { messages: [] }
+      }
       return { error: "応援メッセージの取得に失敗しました" }
     }
 
@@ -638,6 +660,9 @@ export async function getWeeklySubjectProgress() {
 
     if (logsError) {
       console.error("Get weekly subject progress error:", logsError)
+      if (isMissingTable(logsError, "public.study_logs")) {
+        return { progress: [], sessionNumber: currentSession.session_number }
+      }
       return { error: "週次進捗の取得に失敗しました" }
     }
 
@@ -794,6 +819,9 @@ export async function getLearningCalendarData() {
 
     if (logsError) {
       console.error("Get learning calendar data error:", logsError)
+      if (isMissingTable(logsError, "public.study_logs")) {
+        return { calendarData: {} }
+      }
       return { error: "カレンダーデータの取得に失敗しました" }
     }
 
@@ -863,6 +891,9 @@ export async function getTodayMissionData() {
 
     if (logsError) {
       console.error("Get today mission data error:", logsError)
+      if (isMissingTable(logsError, "public.study_logs")) {
+        return { todayProgress: [] }
+      }
       return { error: "今日のミッションデータの取得に失敗しました" }
     }
 
@@ -1019,7 +1050,7 @@ async function getTodayMissionForCoach(studentId: string) {
   const yesterdayDateStr = getYesterdayJST()
 
   // 今日の学習ログを取得
-  const { data: todayLogs } = await supabase
+  const { data: todayLogs, error: todayError } = await supabase
     .from("study_logs")
     .select(`
       subject_id,
@@ -1029,6 +1060,20 @@ async function getTodayMissionForCoach(studentId: string) {
     `)
     .eq("student_id", studentId)
     .in("study_date", [todayDateStr, yesterdayDateStr])
+
+  if (todayError) {
+    console.error("Get today mission for coach error:", todayError)
+    if (isMissingTable(todayError, "public.study_logs")) {
+      return {
+        subjects,
+        inputStatus: subjects.map((subject) => ({
+          subject,
+          isInputted: false,
+        })),
+      }
+    }
+    return null
+  }
 
   // 科目別に集計
   const subjectMap: { [subject: string]: { correct: number; total: number } } = {}
