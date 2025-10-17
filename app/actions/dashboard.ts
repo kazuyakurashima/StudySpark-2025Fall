@@ -5,7 +5,13 @@ import { createClient } from "@/lib/supabase/server"
 function isMissingTable(error: { code?: string; message?: string } | null | undefined, tableName: string) {
   if (!error) return false
   if (error.code === "42P01") return true
-  return typeof error.message === "string" && error.message.includes(`relation "${tableName}" does not exist`)
+  // PostgreSQLは "relation \"study_logs\" does not exist" または "relation \"public.study_logs\" does not exist" を返す可能性がある
+  // スキーマプレフィックスを除いたテーブル名で比較
+  const tableNameOnly = tableName.replace(/^public\./, '')
+  return typeof error.message === "string" && (
+    error.message.includes(`relation "${tableNameOnly}" does not exist`) ||
+    error.message.includes(`relation "${tableName}" does not exist`)
+  )
 }
 
 /**
