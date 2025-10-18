@@ -177,8 +177,8 @@ export async function updateProfileCustomization(
 
   const updateData: Record<string, any> = {}
 
-  if (input.avatar_id !== undefined) updateData.avatar_url = input.avatar_id
-  if (input.nickname !== undefined) updateData.display_name = input.nickname
+  if (input.avatar_id !== undefined) updateData.avatar_id = input.avatar_id
+  if (input.nickname !== undefined) updateData.nickname = input.nickname
   if (input.theme_color !== undefined) updateData.theme_color = input.theme_color
 
   const { data: profile, error } = await supabase
@@ -193,4 +193,33 @@ export async function updateProfileCustomization(
   }
 
   return { success: true, profile: profile as UserProfile }
+}
+
+/**
+ * コース情報を更新
+ */
+export async function updateCourse(
+  course: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: "認証されていません" }
+  }
+
+  // studentsテーブルのcourseを更新
+  const { error } = await supabase
+    .from("students")
+    .update({ course })
+    .eq("user_id", user.id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  return { success: true }
 }

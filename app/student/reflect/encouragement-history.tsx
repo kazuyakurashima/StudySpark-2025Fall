@@ -35,8 +35,8 @@ export function EncouragementHistory() {
       displayMode,
     })
 
-    if (!result.error && result.messages) {
-      setMessages(result.messages)
+    if (!result.error) {
+      setMessages(result.messages || [])
     }
     setLoading(false)
   }
@@ -177,17 +177,17 @@ export function EncouragementHistory() {
                   {/* 常に表示される部分 */}
                   <div className="flex items-start gap-3 mb-3">
                     <img
-                      src={getAvatarUrl(message.sender_profile?.avatar)}
+                      src={getAvatarUrl(message.sender_profile?.avatar_url)}
                       alt="avatar"
                       className="w-12 h-12 rounded-full border-2 border-white shadow-md"
                     />
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-semibold">
-                          {message.sender_profile?.nickname || message.sender_profile?.full_name}
+                          {message.sender_profile?.nickname || message.sender_profile?.display_name}
                         </span>
                         <span className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full">
-                          {message.sender_profile?.role === "parent" ? "保護者" : "指導者"}
+                          {message.sender_role === "parent" ? "保護者" : "指導者"}
                         </span>
                       </div>
                       <p className="text-xs text-muted-foreground">

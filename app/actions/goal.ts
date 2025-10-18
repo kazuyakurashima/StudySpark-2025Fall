@@ -670,3 +670,103 @@ export async function getAllTestResults() {
 
   return { results: resultsWithGoals }
 }
+
+/**
+ * 保護者用: 特定の生徒の利用可能なテスト一覧を取得
+ */
+export async function getAvailableTestsForStudent(studentId: string) {
+  const supabase = createClient()
+
+  // 生徒情報取得
+  const { data: student, error: studentError } = await supabase
+    .from("students")
+    .select("grade")
+    .eq("id", studentId)
+    .single()
+
+  if (studentError || !student) {
+    return { error: "生徒情報が見つかりません" }
+  }
+
+  // 現在日時（JST）
+  const now = new Date()
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  })
+  const parts = formatter.formatToParts(now)
+  const tokyoNowString = `${parts.find(p => p.type === 'year')?.value}-${parts.find(p => p.type === 'month')?.value}-${parts.find(p => p.type === 'day')?.value}T${parts.find(p => p.type === 'hour')?.value}:${parts.find(p => p.type === 'minute')?.value}:${parts.find(p => p.type === 'second')?.value}+09:00`
+  const tokyoNow = new Date(tokyoNowString)
+
+  const { data: tests, error: testsError } = await supabase
+    .from("test_schedules")
+    .select(`
+      id,
+      test_type_id,
+      test_date,
+      goal_setting_start_date,
+      goal_setting_end_date,
+      test_types!inner (
+        id,
+        name,
+        grade,
+        type_category
+      )
+    `)
+    .eq("test_types.grade", student.grade)
+    .gte("goal_setting_end_date", tokyoNow.toISOString().split("T")[0])
+    .order("test_date", { ascending: true })
+
+  if (testsError) {
+    return { error: testsError.message }
+  }
+
+  const availableTests = (tests || []).filter((test: any) => {
+    const startDate = new Date(test.goal_setting_start_date + "T00:00:00+09:00")
+    const endDate = new Date(test.goal_setting_end_date + "T23:59:59+09:00")
+    return tokyoNow >= startDate && tokyoNow <= endDate
+  })
+
+  return { tests: availableTests }
+}
+
+/**
+ * 保護者用: 特定の生徒の全テスト目標を取得
+ */
+export async function getAllTestGoalsForStudent(studentId: string) {
+  const supabase = createClient()
+
+  const { data: goals, error: goalsError } = await supabase
+    .from("test_goals")
+    .select(`
+      id,
+      test_schedule_id,
+      target_course,
+      target_class,
+      goal_thoughts,
+      created_at,
+      test_schedules!inner (
+        id,
+        test_date,
+        test_types!inner (
+          id,
+          name,
+          grade
+        )
+      )
+    `)
+    .eq("student_id", studentId)
+    .order("test_schedules.test_date", { ascending: false })
+
+  if (goalsError) {
+    return { error: goalsError.message }
+  }
+
+  return { goals: goals || [] }
+}

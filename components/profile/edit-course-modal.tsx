@@ -3,12 +3,14 @@
 import { useState, useEffect } from "react"
 import { X, GraduationCap } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { updateCourse } from "@/app/actions/profile"
 import { Button } from "@/components/ui/button"
+import { useToast } from "@/hooks/use-toast"
 
 interface EditCourseModalProps {
   isOpen: boolean
   onClose: () => void
-  onUpdate: () => void
+  onUpdate: () => Promise<void>
 }
 
 const courses = [
@@ -19,6 +21,7 @@ const courses = [
 ]
 
 export function EditCourseModal({ isOpen, onClose, onUpdate }: EditCourseModalProps) {
+  const { toast } = useToast()
   const [currentCourse, setCurrentCourse] = useState<string>("")
   const [selectedCourse, setSelectedCourse] = useState<string>("")
   const [loading, setLoading] = useState(false)
@@ -58,26 +61,30 @@ export function EditCourseModal({ isOpen, onClose, onUpdate }: EditCourseModalPr
     setError(null)
 
     try {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
+      // Server Actionでコース更新
+      const result = await updateCourse(selectedCourse)
 
-      if (!user) {
-        throw new Error("ログインが必要です")
+      if (result.success) {
+        toast({
+          title: "保存しました",
+          description: `${selectedCourse}コースに変更しました`,
+        })
+
+        // プロフィールを再読み込みして画面に即反映
+        await onUpdate()
+        onClose()
+      } else {
+        throw new Error(result.error || "コースの更新に失敗しました")
       }
-
-      // studentsテーブルのcourseを更新
-      const { error: updateError } = await supabase
-        .from("students")
-        .update({ course: selectedCourse })
-        .eq("user_id", user.id)
-
-      if (updateError) throw updateError
-
-      onUpdate()
-      onClose()
     } catch (err) {
       console.error("Error updating course:", err)
-      setError("コースの更新に失敗しました")
+      const errorMessage = err instanceof Error ? err.message : "コースの更新に失敗しました"
+      setError(errorMessage)
+      toast({
+        title: "エラー",
+        description: errorMessage,
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }

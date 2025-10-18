@@ -2,12 +2,13 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import ParentBottomNavigation from "@/components/parent-bottom-navigation"
+import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, Sparkles, ChevronLeft, ChevronRight } from "lucide-react"
 import { WeeklySubjectProgressCard } from "@/components/weekly-subject-progress-card"
 
@@ -1349,6 +1350,7 @@ export default function ParentDashboard() {
   const [children, setChildren] = useState<any[]>([])
   const [selectedChildId, setSelectedChildId] = useState<number | null>(null)
   const [selectedChildName, setSelectedChildName] = useState("")
+  const [selectedChildAvatar, setSelectedChildAvatar] = useState("")
   const [todayStatusMessage, setTodayStatusMessage] = useState("")
   const [studyStreak, setStudyStreak] = useState(0)
   const [recentLogs, setRecentLogs] = useState<any[]>([])
@@ -1393,9 +1395,21 @@ export default function ParentDashboard() {
     return null
   })
 
-  // Fetch parent data and children list
+  // ページがフォーカスされたときに再読み込み
   useEffect(() => {
-    const fetchParentData = async () => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // ページが表示されたら、子どものリストを再取得
+        fetchParentData()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [])
+
+  // Fetch parent data and children list
+  const fetchParentData = async () => {
       try {
         console.log("🔍 [CLIENT] Fetching parent data...")
         const { getParentDashboardData, getTodayStatusMessage } = await import("@/app/actions/parent-dashboard")
@@ -1436,6 +1450,7 @@ export default function ParentDashboard() {
 
             setSelectedChildId(firstChild.student_id)
             setSelectedChildName(profile?.display_name || "お子さん")
+            setSelectedChildAvatar(profile?.avatar_url || "student1")
             // Keep loading state true - will be set to false after child data is fetched
           } else {
             // No children associated
@@ -1459,6 +1474,7 @@ export default function ParentDashboard() {
       }
     }
 
+  useEffect(() => {
     fetchParentData()
   }, [])
 
@@ -1636,9 +1652,10 @@ export default function ParentDashboard() {
 
   const greetingMessage = getGreetingMessage(userName, lastLoginInfo)
 
-  const handleChildSelect = (childId: number, childName: string) => {
+  const handleChildSelect = (childId: number, childName: string, childAvatar: string) => {
     setSelectedChildId(childId)
     setSelectedChildName(childName)
+    setSelectedChildAvatar(childAvatar)
     setIsLoading(true)
   }
 
@@ -1654,113 +1671,47 @@ export default function ParentDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20 elegant-fade-in">
-      <div className="surface-gradient-primary backdrop-blur-lg border-b border-border/30 p-6 shadow-lg">
-        <div className="flex items-center justify-between max-w-6xl mx-auto">
-          <div className="flex items-center gap-4">
-            <Avatar className="h-16 w-16 border-3 border-primary/20 shadow-xl ring-2 ring-primary/10">
-              <AvatarImage src={getAvatarSrc(selectedAvatar) || "/placeholder.svg"} alt={userName} />
-              <AvatarFallback className="bg-primary/10 text-primary font-bold text-xl">
-                {userName.charAt(0)}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <h1 className="text-3xl font-bold text-foreground tracking-tight">{greetingMessage}</h1>
-              <p className="text-lg text-muted-foreground mt-1 font-medium">お子さんの成長を見守りましょう</p>
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="flex items-center gap-3 text-primary">
-              <div className="p-2 bg-primary/10 rounded-full">
-                <Flame className="h-7 w-7" />
-              </div>
-              <span className="font-bold text-3xl">{studyStreak}</span>
-            </div>
-            <p className="text-sm text-muted-foreground font-semibold mt-1">連続学習日数</p>
-          </div>
-        </div>
-      </div>
+    <>
+      <UserProfileHeader />
+      <div className="min-h-screen bg-background pb-20 elegant-fade-in">
+        <div className="max-w-6xl mx-auto p-6 space-y-8">
+          {/* Child Selector Tabs */}
+          {children.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {children.map((child) => {
+                const studentData = Array.isArray(child.students) ? child.students[0] : child.students
+                const profile = studentData?.profiles
 
-      <div className="max-w-6xl mx-auto p-6 space-y-8">
-        {/* Child Selector Tabs */}
-        {children.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {children.map((child, index) => {
-              // Extract student and profile data
-              let studentData = child.students
-              if (Array.isArray(studentData)) {
-                studentData = studentData[0]
-              }
-              const profile = studentData?.profiles
+                const isActive = selectedChildId === child.student_id
+                const childName =
+                  isActive && selectedChildName ? selectedChildName : profile?.display_name || "お子さん"
+                const childAvatar =
+                  isActive && selectedChildAvatar ? selectedChildAvatar : profile?.avatar_url || "student1"
 
-              const childName = profile?.display_name || "お子さん"
-              const childAvatar = profile?.avatar_url || "student1"
-              const isActive = selectedChildId === child.student_id
-
-              return (
-                <button
-                  key={child.student_id}
-                  onClick={() => handleChildSelect(child.student_id, childName)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 whitespace-nowrap ${
-                    isActive
-                      ? "bg-primary text-primary-foreground shadow-lg scale-105"
-                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                  }`}
-                >
-                  <Avatar className="h-8 w-8 border-2 border-white">
-                    <AvatarImage src={getAvatarSrc(childAvatar)} alt={childName} />
-                    <AvatarFallback>{childName.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <span>{childName}</span>
-                </button>
-              )
-            })}
-          </div>
-        )}
-
-        <div className="space-y-8 lg:space-y-0">
-          {/* スマホでの表示順序 */}
-          <div className="lg:hidden space-y-8">
-            <Card className="card-elevated ai-coach-gradient border-0 shadow-2xl premium-glow">
-              <CardHeader className="pb-6">
-                <CardTitle className="text-xl font-bold flex items-center gap-4">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-16 w-16 border-3 border-white/30 shadow-2xl ring-2 ring-white/20">
-                      <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
-                      <AvatarFallback className="bg-white/20 text-white font-bold text-lg">AI</AvatarFallback>
+                return (
+                  <button
+                    key={child.student_id}
+                    onClick={() => handleChildSelect(child.student_id, childName, childAvatar)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 whitespace-nowrap ${
+                      isActive
+                        ? "bg-primary text-primary-foreground shadow-lg scale-105"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    <Avatar className="h-8 w-8 border-2 border-white">
+                      <AvatarImage src={getAvatarSrc(childAvatar)} alt={childName} />
+                      <AvatarFallback>{childName.charAt(0)}</AvatarFallback>
                     </Avatar>
-                    <span className="text-slate-800 font-bold text-xl bg-white/95 px-6 py-3 rounded-2xl shadow-xl backdrop-blur-sm">
-                      今日の様子
-                    </span>
-                  </div>
-                  <MessageCircle className="h-8 w-8 text-white sophisticated-scale" />
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border border-white/40 shadow-2xl">
-                  <div className="flex items-start gap-3 mb-4">
-                    <Badge className="bg-gradient-to-r from-blue-500 to-purple-500 text-white border-0 px-3 py-1 flex items-center gap-1">
-                      <Sparkles className="h-3 w-3" />
-                      AI生成
-                    </Badge>
-                  </div>
-                  <p className="text-lg leading-relaxed text-slate-700 font-medium">
-                    {todayStatusMessage || `${selectedChildName}さんの今日の様子を見守りましょう`}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+                    <span>{childName}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
 
-            <ParentTodayMissionCard todayProgress={todayProgress} studentName={selectedChildName} selectedChildId={selectedChildId} />
-            <LearningHistoryCalendar calendarData={calendarData} />
-            <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} sessionNumber={sessionNumber} />
-            <RecentEncouragementCard messages={recentMessages} />
-            <RecentLearningHistoryCard logs={recentLogs} />
-          </div>
-
-          <div className="hidden lg:grid lg:grid-cols-3 lg:gap-8">
-            {/* 左列（メイン - 2/3の幅） */}
-            <div className="lg:col-span-2 space-y-8">
+          <div className="space-y-8 lg:space-y-0">
+            {/* スマホでの表示順序 */}
+            <div className="lg:hidden space-y-8">
               <Card className="card-elevated ai-coach-gradient border-0 shadow-2xl premium-glow">
                 <CardHeader className="pb-6">
                   <CardTitle className="text-xl font-bold flex items-center gap-4">
@@ -1792,20 +1743,61 @@ export default function ParentDashboard() {
               </Card>
 
               <ParentTodayMissionCard todayProgress={todayProgress} studentName={selectedChildName} selectedChildId={selectedChildId} />
+              <LearningHistoryCalendar calendarData={calendarData} />
+              <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} sessionNumber={sessionNumber} />
               <RecentEncouragementCard messages={recentMessages} />
               <RecentLearningHistoryCard logs={recentLogs} />
             </div>
 
-            {/* 右列（サブ - 1/3の幅） */}
-            <div className="lg:col-span-1 space-y-8">
-              <LearningHistoryCalendar calendarData={calendarData} />
-              <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} sessionNumber={sessionNumber} />
+            <div className="hidden lg:grid lg:grid-cols-3 lg:gap-8">
+              {/* 左列（メイン - 2/3の幅） */}
+              <div className="lg:col-span-2 space-y-8">
+                <Card className="card-elevated ai-coach-gradient border-0 shadow-2xl premium-glow">
+                  <CardHeader className="pb-6">
+                    <CardTitle className="text-xl font-bold flex items-center gap-4">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-16 w-16 border-3 border-white/30 shadow-2xl ring-2 ring-white/20">
+                          <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
+                          <AvatarFallback className="bg-white/20 text-white font-bold text-lg">AI</AvatarFallback>
+                        </Avatar>
+                        <span className="text-slate-800 font-bold text-xl bg-white/95 px-6 py-3 rounded-2xl shadow-xl backdrop-blur-sm">
+                          今日の様子
+                        </span>
+                      </div>
+                      <MessageCircle className="h-8 w-8 text-white sophisticated-scale" />
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border border-white/40 shadow-2xl">
+                      <div className="flex items-start gap-3 mb-4">
+                        <Badge className="bg-gradient-to-r from-blue-500 to-purple-500 text-white border-0 px-3 py-1 flex items-center gap-1">
+                          <Sparkles className="h-3 w-3" />
+                          AI生成
+                        </Badge>
+                      </div>
+                      <p className="text-lg leading-relaxed text-slate-700 font-medium">
+                        {todayStatusMessage || `${selectedChildName}さんの今日の様子を見守りましょう`}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <ParentTodayMissionCard todayProgress={todayProgress} studentName={selectedChildName} selectedChildId={selectedChildId} />
+                <RecentEncouragementCard messages={recentMessages} />
+                <RecentLearningHistoryCard logs={recentLogs} />
+              </div>
+
+              {/* 右列（サブ - 1/3の幅） */}
+              <div className="lg:col-span-1 space-y-8">
+                <LearningHistoryCalendar calendarData={calendarData} />
+                <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} sessionNumber={sessionNumber} />
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       <ParentBottomNavigation />
-    </div>
+    </>
   )
 }

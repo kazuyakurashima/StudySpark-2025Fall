@@ -404,7 +404,7 @@ export async function getStudyStreak() {
     }
 
     // Count consecutive days
-    let currentDateStr = sortedDates.includes(todayStr) ? todayStr : yesterdayStr
+    const currentDateStr = sortedDates.includes(todayStr) ? todayStr : yesterdayStr
     let dayOffset = 0
 
     for (const dateStr of sortedDates) {
@@ -478,117 +478,6 @@ export async function getRecentStudyLogs(limit: number = 5) {
     return { logs: logs || [] }
   } catch (error) {
     console.error("Get recent study logs error:", error)
-    return { error: "予期しないエラーが発生しました" }
-  }
-}
-
-/**
- * 直近の応援メッセージ取得
- */
-export async function getRecentEncouragementMessages(limit: number = 3) {
-  try {
-    const supabase = await createClient()
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      return { error: "認証エラー" }
-    }
-
-    const { data: student } = await supabase.from("students").select("id").eq("user_id", user.id).single()
-
-    if (!student) {
-      return { error: "生徒情報が見つかりません" }
-    }
-
-    // Get yesterday 0:00 to today 23:59 in JST
-    const { getYesterdayJST, getTodayJST, getJSTDayStartISO, getJSTDayEndISO } = await import(
-      "@/lib/utils/date-jst"
-    )
-    const yesterdayStr = getYesterdayJST()
-    const todayStr = getTodayJST()
-    const yesterdayStart = getJSTDayStartISO(yesterdayStr)
-    const todayEnd = getJSTDayEndISO(todayStr)
-
-    const { data: messages, error: messagesError } = await supabase
-      .from("encouragement_messages")
-      .select(
-        `
-        id,
-        message,
-        sent_at,
-        sender_role,
-        sender_id
-      `
-      )
-      .eq("student_id", student.id)
-      .gte("sent_at", yesterdayStart)
-      .lte("sent_at", todayEnd)
-      .order("sent_at", { ascending: false })
-      .limit(limit)
-
-    if (messagesError) {
-      console.error("Get encouragement messages error:", messagesError)
-      if (isMissingTable(messagesError, "public.encouragement_messages")) {
-        return { messages: [] }
-      }
-      return { error: "応援メッセージの取得に失敗しました" }
-    }
-
-    // 送信者情報を別途取得（RPC経由で安全に取得）
-    if (!messages || messages.length === 0) {
-      return { messages: [] }
-    }
-
-    const senderIds = messages.map((msg: any) => msg.sender_id)
-    console.log("🔍 [Dashboard] Fetching sender profiles for IDs:", senderIds)
-
-    const { data: senderProfiles, error: senderError } = await supabase.rpc("get_sender_profiles", {
-      sender_ids: senderIds,
-    })
-
-    console.log("🔍 [Dashboard] Sender profiles result:", {
-      profiles: senderProfiles,
-      error: senderError,
-      count: senderProfiles?.length
-    })
-
-    if (senderError) {
-      console.error("Error fetching sender profiles:", senderError)
-      // フォールバック: 送信者情報なしで返す
-      return {
-        messages: messages.map((msg: any) => ({
-          ...msg,
-          sender_profile: { display_name: "不明", avatar_url: null },
-        })),
-      }
-    }
-
-    // 送信者情報をマージ
-    const messagesWithSender = messages.map((msg: any) => {
-      const senderProfile = senderProfiles?.find((profile: any) => profile.id === msg.sender_id)
-      console.log("🔍 [Dashboard] Merging message:", {
-        messageId: msg.id,
-        senderId: msg.sender_id,
-        foundProfile: senderProfile,
-        avatarUrl: senderProfile?.avatar_url
-      })
-      return {
-        ...msg,
-        sender_profile: senderProfile || { display_name: "不明", avatar_url: null },
-      }
-    })
-
-    console.log("🔍 [Dashboard] Final messages with sender:", messagesWithSender.map(m => ({
-      id: m.id,
-      sender_profile: m.sender_profile
-    })))
-
-    return { messages: messagesWithSender }
-  } catch (error) {
-    console.error("Get encouragement messages error:", error)
     return { error: "予期しないエラーが発生しました" }
   }
 }

@@ -14,10 +14,11 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   getParentChildren,
-  getChildAvailableTests,
-  getChildTestGoals,
-  getChildTestGoal,
 } from "@/app/actions/parent"
+import {
+  getAvailableTestsForStudent,
+  getAllTestGoalsForStudent,
+} from "@/app/actions/goal"
 
 interface Child {
   id: string
@@ -129,14 +130,13 @@ export default function ParentGoalNaviPage() {
         setSelectedChild(child)
       }
 
-      // テスト日程取得
-      const { tests } = await getChildAvailableTests(selectedChildId)
+      // studentIdを使って生徒のデータを取得
+      const { tests } = await getAvailableTestsForStudent(selectedChildId)
       if (tests) {
         setAvailableTests(tests)
       }
 
-      // 目標一覧取得
-      const { goals } = await getChildTestGoals(selectedChildId)
+      const { goals } = await getAllTestGoalsForStudent(selectedChildId)
       if (goals) {
         setTestGoals(goals)
       }

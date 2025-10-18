@@ -12,7 +12,7 @@ import { getAvatarById } from "@/lib/constants/avatars"
 
 export function UserProfileHeader() {
   const router = useRouter()
-  const { profile, loading, updateProfile } = useUserProfile()
+  const { profile, loading, updateProfile, refresh } = useUserProfile()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isEditCourseModalOpen, setIsEditCourseModalOpen] = useState(false)
@@ -122,7 +122,7 @@ export function UserProfileHeader() {
         <EditCourseModal
           isOpen={isEditCourseModalOpen}
           onClose={() => setIsEditCourseModalOpen(false)}
-          onUpdate={updateProfile}
+          onUpdate={refresh}
         />
       )}
     </>

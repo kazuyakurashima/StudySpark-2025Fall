@@ -512,16 +512,12 @@ export async function getEncouragementHistory(params?: {
       id,
       message,
       sent_at,
-      is_read,
+      read_at,
       created_at,
       sender_id,
-      sender_profile:user_profiles!encouragement_messages_sender_id_fkey (
-        full_name,
-        nickname,
-        avatar,
-        role
-      ),
-      study_logs (
+      sender_role,
+      related_study_log_id,
+      study_logs:related_study_log_id (
         id,
         logged_at,
         study_date,
@@ -534,7 +530,7 @@ export async function getEncouragementHistory(params?: {
         study_sessions (session_number, start_date, end_date)
       )
     `)
-    .eq("recipient_id", student.id)
+    .eq("student_id", student.id)
 
   // 科目フィルター（study_logs経由）
   // 期間フィルター
@@ -555,6 +551,23 @@ export async function getEncouragementHistory(params?: {
 
   if (error) {
     return { error: error.message }
+  }
+
+  // 送信者のプロフィール情報を取得
+  if (messages && messages.length > 0) {
+    const senderIds = [...new Set(messages.map(m => m.sender_id))]
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, display_name, nickname, avatar_url, role")
+      .in("id", senderIds)
+
+    // メッセージに送信者プロフィールを追加
+    const messagesWithProfiles = messages.map(msg => ({
+      ...msg,
+      sender_profile: profiles?.find(p => p.id === msg.sender_id)
+    }))
+
+    return { messages: messagesWithProfiles }
   }
 
   return { messages: messages || [] }
