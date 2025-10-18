@@ -490,6 +490,13 @@ const ParentTodayMissionCard = ({ todayProgress, studentName, selectedChildId }:
         const key = `${subject}-${logIndex}`
         setEncouragementSent({ ...encouragementSent, [key]: true })
         alert("応援メッセージを送信しました！")
+
+        // 直近の応援履歴を再取得
+        const { getStudentRecentMessages } = await import("@/app/actions/parent-dashboard")
+        const messagesResult = await getStudentRecentMessages(selectedChildId, 3)
+        if (Array.isArray(messagesResult?.messages)) {
+          setRecentMessages(messagesResult.messages)
+        }
       } else {
         alert(`エラー: ${result.error}`)
       }
@@ -549,6 +556,13 @@ const ParentTodayMissionCard = ({ todayProgress, studentName, selectedChildId }:
         // Mark as sent in UI (use same key format as quick encouragement)
         const key = `${currentSubject}-0`
         setEncouragementSent({ ...encouragementSent, [key]: true })
+
+        // 直近の応援履歴を再取得
+        const { getStudentRecentMessages } = await import("@/app/actions/parent-dashboard")
+        const messagesResult = await getStudentRecentMessages(selectedChildId, 3)
+        if (Array.isArray(messagesResult?.messages)) {
+          setRecentMessages(messagesResult.messages)
+        }
       } else {
         alert(`送信エラー: ${result.error}`)
       }

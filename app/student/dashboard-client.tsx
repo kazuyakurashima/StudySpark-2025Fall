@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -1141,6 +1141,7 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
 
 export function StudentDashboardClient({ initialData }: { initialData: DashboardData }) {
   const router = useRouter()
+  const [messages, setMessages] = useState(initialData.recentMessages)
 
   const {
     userName,
@@ -1148,7 +1149,6 @@ export function StudentDashboardClient({ initialData }: { initialData: Dashboard
     aiCoachMessage,
     studyStreak,
     recentLogs,
-    recentMessages,
     lastLoginInfo,
     todayProgress,
     calendarData,
@@ -1156,6 +1156,26 @@ export function StudentDashboardClient({ initialData }: { initialData: Dashboard
     sessionNumber,
     reflectionCompleted,
   } = initialData
+
+  // ページが表示状態になったときに応援履歴を再取得
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible') {
+        try {
+          const { getRecentEncouragementMessages } = await import("@/app/actions/encouragement")
+          const result = await getRecentEncouragementMessages()
+          if (result.success && Array.isArray(result.messages)) {
+            setMessages(result.messages)
+          }
+        } catch (error) {
+          console.error("Failed to refresh encouragement messages:", error)
+        }
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [])
 
   const greetingMessage = getGreetingMessage(userName, lastLoginInfo)
 
@@ -1214,7 +1234,7 @@ export function StudentDashboardClient({ initialData }: { initialData: Dashboard
             <TodayMissionCard todayProgress={todayProgress} reflectionCompleted={reflectionCompleted} weeklyProgress={weeklyProgress} />
             <LearningHistoryCalendar calendarData={calendarData} />
             <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} sessionNumber={sessionNumber} />
-            <RecentEncouragementCard messages={recentMessages} />
+            <RecentEncouragementCard messages={messages} />
             <RecentLearningHistoryCard logs={recentLogs} />
           </div>
 
@@ -1248,7 +1268,7 @@ export function StudentDashboardClient({ initialData }: { initialData: Dashboard
               </Card>
 
               <TodayMissionCard todayProgress={todayProgress} reflectionCompleted={reflectionCompleted} weeklyProgress={weeklyProgress} />
-              <RecentEncouragementCard messages={recentMessages} />
+              <RecentEncouragementCard messages={messages} />
               <RecentLearningHistoryCard logs={recentLogs} />
             </div>
 
