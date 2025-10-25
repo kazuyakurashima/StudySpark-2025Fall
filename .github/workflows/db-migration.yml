@@ -1,0 +1,187 @@
+name: Database Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Type "YES" to confirm production migration'
+        required: true
+        default: 'NO'
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    if: github.event.inputs.confirmation == 'YES'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2  # v4.0.0
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8  # v4.0.2
+        with:
+          node-version: '18'
+          cache: 'pnpm'
+
+      - name: Install Supabase CLI
+        run: |
+          npm install -g supabase@latest
+          supabase --version
+
+      - name: Verify CLI version
+        id: cli-version
+        run: |
+          version=$(supabase --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+          echo "version=$version" >> $GITHUB_OUTPUT
+          echo "Supabase CLI version: $version"
+
+          major=$(echo $version | cut -d. -f1)
+          minor=$(echo $version | cut -d. -f2)
+          patch=$(echo $version | cut -d. -f3)
+
+          if [ $major -lt 1 ] || ([ $major -eq 1 ] && [ $minor -lt 178 ]); then
+            echo "ERROR: Supabase CLI v1.178.0+ required for --format json support"
+            exit 1
+          fi
+
+      - name: Validate environment variables
+        run: |
+          if [ -z "$PROJECT_REF" ]; then
+            echo "ERROR: SUPABASE_PROJECT_REF is not set"
+            exit 1
+          fi
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "ERROR: SUPABASE_ACCESS_TOKEN is not set"
+            exit 1
+          fi
+          if [ -z "$PASSWORD" ]; then
+            echo "ERROR: SUPABASE_DB_PASSWORD is not set"
+            exit 1
+          fi
+          echo "All required environment variables are set"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+
+      - name: Check backup status
+        id: backup-check
+        continue-on-error: true
+        run: |
+          backup_json=$(curl -s -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            "https://api.supabase.com/v1/projects/$PROJECT_REF/database/backups")
+
+          if echo "$backup_json" | jq -e '.code' > /dev/null 2>&1; then
+            error_code=$(echo "$backup_json" | jq -r '.code')
+            error_msg=$(echo "$backup_json" | jq -r '.message')
+            echo "WARNING: Backup API returned error: $error_code - $error_msg"
+            echo "status=api_error" >> $GITHUB_OUTPUT
+          else
+            backup_count=$(echo "$backup_json" | jq 'length')
+            latest_backup=$(echo "$backup_json" | jq -r '.[0].inserted_at // "none"')
+            echo "Backup count: $backup_count"
+            echo "Latest backup: $latest_backup"
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "count=$backup_count" >> $GITHUB_OUTPUT
+            echo "latest=$latest_backup" >> $GITHUB_OUTPUT
+          fi
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+
+      - name: Link Supabase project
+        run: |
+          printf '%s' "$PASSWORD" | \
+            supabase link \
+              --project-ref "$PROJECT_REF" \
+              --password stdin
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+
+      - name: Check migration status
+        id: migration-status
+        run: |
+          migration_json=$(supabase migration list --linked --format json)
+          echo "$migration_json" | jq '.'
+
+          pending_count=$(echo "$migration_json" | jq '[.[] | select(.status == "pending")] | length')
+          applied_count=$(echo "$migration_json" | jq '[.[] | select(.status == "applied")] | length')
+
+          echo "pending_count=$pending_count" >> $GITHUB_OUTPUT
+          echo "applied_count=$applied_count" >> $GITHUB_OUTPUT
+
+          echo "Pending migrations: $pending_count"
+          echo "Applied migrations: $applied_count"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Apply migrations
+        if: steps.migration-status.outputs.pending_count != '0'
+        run: |
+          supabase migration up --linked
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Verify migration completion
+        if: steps.migration-status.outputs.pending_count != '0'
+        run: |
+          migration_json=$(supabase migration list --linked --format json)
+          pending_count=$(echo "$migration_json" | jq '[.[] | select(.status == "pending")] | length')
+
+          if [ "$pending_count" -ne 0 ]; then
+            echo "ERROR: $pending_count migrations still pending after apply"
+            exit 1
+          fi
+
+          echo "All migrations applied successfully"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Collect schema_migrations for troubleshooting
+        if: always()
+        continue-on-error: true
+        run: |
+          mkdir -p artifacts
+          supabase db remote exec \
+            "SELECT version, name FROM supabase_migrations.schema_migrations ORDER BY version;" \
+            > artifacts/schema_migrations.txt 2>&1 || echo "Failed to collect schema_migrations"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3  # v4.3.1
+        with:
+          name: migration-artifacts
+          path: artifacts/
+          retention-days: 90
+
+      - name: Migration summary
+        if: success()
+        run: |
+          echo "✅ Migration completed successfully"
+          echo "Applied: ${{ steps.migration-status.outputs.pending_count }} migrations"
+          echo "Total: ${{ steps.migration-status.outputs.applied_count }} migrations in production"
+
+      - name: Failure summary
+        if: failure()
+        run: |
+          echo "❌ Migration failed"
+          echo "Emergency response:"
+          echo "1. Check artifacts for schema_migrations state"
+          echo "2. Verify database connectivity via Supabase Dashboard"
+          echo "3. Review migration files in supabase/migrations/"
+          echo "4. Consider manual rollback if necessary"
+          echo "5. Check backup restore options if critical"
