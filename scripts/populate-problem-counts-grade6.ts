@@ -3,7 +3,15 @@ import { createClient } from "@supabase/supabase-js"
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey)
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false,
+  },
+  db: {
+    schema: 'public',
+  },
+})
 
 // 小学6年生の問題数データ（要件定義書より）
 const grade6ProblemCounts = [
@@ -64,23 +72,32 @@ async function main() {
   console.log("小学6年生の問題数データを登録します...")
 
   // 全学習回とコンテンツタイプを取得
-  const { data: sessions } = await supabase
+  const { data: sessions, error: sessionsError } = await supabase
     .from("study_sessions")
     .select("id, session_number")
     .eq("grade", 6)
     .order("session_number")
 
-  const { data: subjects } = await supabase
+  const { data: subjects, error: subjectsError } = await supabase
     .from("subjects")
     .select("id, name")
 
-  const { data: contentTypes } = await supabase
+  const { data: contentTypes, error: contentTypesError } = await supabase
     .from("study_content_types")
     .select("id, subject_id, content_name, course")
     .eq("grade", 6)
 
+  if (sessionsError) console.error("sessions error:", sessionsError)
+  if (subjectsError) console.error("subjects error:", subjectsError)
+  if (contentTypesError) console.error("contentTypes error:", contentTypesError)
+
+  console.log(`取得結果: sessions=${sessions?.length}, subjects=${subjects?.length}, contentTypes=${contentTypes?.length}`)
+
   if (!sessions || !subjects || !contentTypes) {
     console.error("マスタデータの取得に失敗しました")
+    console.error("sessions:", sessions)
+    console.error("subjects:", subjects)
+    console.error("contentTypes:", contentTypes)
     return
   }
 
