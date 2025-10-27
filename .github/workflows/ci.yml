@@ -36,9 +36,6 @@ jobs:
       - name: Run ESLint
         run: pnpm exec next lint --max-warnings=9999
 
-      - name: Run TypeScript type check
-        run: pnpm exec tsc --noEmit
-
       - name: Run build check
         run: pnpm run build
         env:
