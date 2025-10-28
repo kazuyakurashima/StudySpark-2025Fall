@@ -11,7 +11,7 @@ import { WeeklySubjectProgressCard } from "@/components/weekly-subject-progress-
 import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { PageHeader } from "@/components/common/page-header"
 import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, ChevronLeft, ChevronRight } from "lucide-react"
-import { useUserProfile } from "@/lib/hooks/use-user-profile"
+import { UserProfileProvider, useUserProfile } from "@/lib/hooks/use-user-profile"
 import { hexWithAlpha, isThemeActive } from "@/lib/utils/theme-color"
 
 interface DashboardData {
@@ -1141,7 +1141,7 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
   )
 }
 
-export function StudentDashboardClient({ initialData }: { initialData: DashboardData }) {
+function StudentDashboardClientInner({ initialData }: { initialData: DashboardData }) {
   const router = useRouter()
   const [messages, setMessages] = useState(initialData.recentMessages)
   const { profile } = useUserProfile()
@@ -1388,5 +1388,16 @@ export function StudentDashboardClient({ initialData }: { initialData: Dashboard
       <BottomNavigation activeTab="home" />
       </div>
     </>
+  )
+}
+
+/**
+ * 生徒用ダッシュボードコンポーネント（Context Provider付き）
+ */
+export function StudentDashboardClient({ initialData }: { initialData: DashboardData }) {
+  return (
+    <UserProfileProvider>
+      <StudentDashboardClientInner initialData={initialData} />
+    </UserProfileProvider>
   )
 }

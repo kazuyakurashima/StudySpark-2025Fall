@@ -1,13 +1,23 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react"
 import { UserProfile, UpdateProfileInput } from "@/lib/types/profile"
 import { getProfile, updateProfileCustomization } from "@/app/actions/profile"
 
+interface UserProfileContextType {
+  profile: UserProfile | null
+  loading: boolean
+  error: string | null
+  updateProfile: (input: UpdateProfileInput) => Promise<{ success: boolean; error?: string }>
+  refresh: () => Promise<void>
+}
+
+const UserProfileContext = createContext<UserProfileContextType | undefined>(undefined)
+
 /**
- * ユーザープロフィール管理用カスタムフック
+ * ユーザープロフィール用プロバイダー
  */
-export function useUserProfile() {
+export function UserProfileProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -58,11 +68,20 @@ export function useUserProfile() {
     return fetchProfile()
   }, [fetchProfile])
 
-  return {
-    profile,
-    loading,
-    error,
-    updateProfile,
-    refresh,
+  return (
+    <UserProfileContext.Provider value={{ profile, loading, error, updateProfile, refresh }}>
+      {children}
+    </UserProfileContext.Provider>
+  )
+}
+
+/**
+ * ユーザープロフィール管理用カスタムフック
+ */
+export function useUserProfile() {
+  const context = useContext(UserProfileContext)
+  if (context === undefined) {
+    throw new Error("useUserProfile must be used within a UserProfileProvider")
   }
+  return context
 }

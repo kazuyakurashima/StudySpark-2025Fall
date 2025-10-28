@@ -11,7 +11,7 @@ import ParentBottomNavigation from "@/components/parent-bottom-navigation"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, Sparkles, ChevronLeft, ChevronRight } from "lucide-react"
 import { WeeklySubjectProgressCard } from "@/components/weekly-subject-progress-card"
-import { useUserProfile } from "@/lib/hooks/use-user-profile"
+import { UserProfileProvider, useUserProfile } from "@/lib/hooks/use-user-profile"
 import { hexWithAlpha, isThemeActive } from "@/lib/utils/theme-color"
 
 const getGreetingMessage = (userName: string, lastLoginInfo: { lastLoginDays: number | null, lastLoginHours: number, isFirstTime: boolean } | null) => {
@@ -1360,7 +1360,7 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
   )
 }
 
-export default function ParentDashboard() {
+function ParentDashboardInner() {
   const { profile } = useUserProfile()
   const [userName, setUserName] = useState("")
   const [selectedAvatar, setSelectedAvatar] = useState("")
@@ -1935,5 +1935,16 @@ export default function ParentDashboard() {
 
       <ParentBottomNavigation />
     </>
+  )
+}
+
+/**
+ * 保護者用ダッシュボードコンポーネント（Context Provider付き）
+ */
+export default function ParentDashboard() {
+  return (
+    <UserProfileProvider>
+      <ParentDashboardInner />
+    </UserProfileProvider>
   )
 }
