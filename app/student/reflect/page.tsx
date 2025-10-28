@@ -32,10 +32,11 @@ import {
   Bot,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { UserProfileProvider } from "@/lib/hooks/use-user-profile"
 
 const AVATAR_AI_COACH = "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png"
 
-export default function ReflectPage() {
+function ReflectPageInner() {
   const [studentName, setStudentName] = useState("")
   const [studentGrade, setStudentGrade] = useState(5)
   const [studentCourse, setStudentCourse] = useState("A")
@@ -298,5 +299,16 @@ export default function ReflectPage() {
 
       <BottomNavigation />
     </>
+  )
+}
+
+/**
+ * リフレクトページ（Context Provider付き）
+ */
+export default function ReflectPage() {
+  return (
+    <UserProfileProvider>
+      <ReflectPageInner />
+    </UserProfileProvider>
   )
 }

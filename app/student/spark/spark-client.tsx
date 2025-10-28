@@ -21,6 +21,7 @@ import {
   getContentTypeId,
 } from "@/app/actions/study-log"
 import { generateDailyReflections } from "@/app/actions/ai-reflection"
+import { UserProfileProvider } from "@/lib/hooks/use-user-profile"
 
 const subjects = [
   {
@@ -400,7 +401,7 @@ type SparkClientProps = {
   preselectedSubject?: string
 }
 
-export function SparkClient({ initialData, preselectedSubject }: SparkClientProps) {
+function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps) {
   const { student } = initialData
   const studentGrade = student.grade.toString()
   const currentCourse = student.course
@@ -1248,5 +1249,16 @@ export function SparkClient({ initialData, preselectedSubject }: SparkClientProp
       <BottomNavigation activeTab="spark" />
     </div>
     </>
+  )
+}
+
+/**
+ * スパーククライアント（Context Provider付き）
+ */
+export function SparkClient({ initialData, preselectedSubject }: SparkClientProps) {
+  return (
+    <UserProfileProvider>
+      <SparkClientInner initialData={initialData} preselectedSubject={preselectedSubject} />
+    </UserProfileProvider>
   )
 }

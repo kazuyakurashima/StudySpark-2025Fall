@@ -23,6 +23,7 @@ import {
 } from "lucide-react"
 import ParentBottomNavigation from "@/components/parent-bottom-navigation"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { UserProfileProvider } from "@/lib/hooks/use-user-profile"
 
 const sparkRecords = [
   {
@@ -156,7 +157,7 @@ const generateAIMessages = (record: (typeof sparkRecords)[0]) => {
   return messages.slice(0, 3)
 }
 
-export default function ParentSparkPage() {
+function ParentSparkPageInner() {
   const [selectedChild, setSelectedChild] = useState("child1")
   const [customMessage, setCustomMessage] = useState("")
   const [isSending, setIsSending] = useState(false)
@@ -545,5 +546,16 @@ export default function ParentSparkPage() {
       <ParentBottomNavigation />
       </div>
     </>
+  )
+}
+
+/**
+ * 保護者応援ページ（Context Provider付き）
+ */
+export default function ParentSparkPage() {
+  return (
+    <UserProfileProvider>
+      <ParentSparkPageInner />
+    </UserProfileProvider>
   )
 }
