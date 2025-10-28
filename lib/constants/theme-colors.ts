@@ -19,40 +19,40 @@ export const THEME_COLORS: ThemeColor[] = [
   },
   {
     id: 1,
-    name: "ブルー",
-    value: "#3B82F6", // Blue 500
+    name: "オーシャン",
+    value: "#0EA5E9", // Sky 500 - 爽やかで明るい青空色
   },
   {
     id: 2,
-    name: "ライム",
-    value: "#84CC16", // Lime 500 - 明るく鮮やかな黄緑
+    name: "エメラルド",
+    value: "#10B981", // Emerald 500 - 鮮やかな宝石緑
   },
   {
     id: 3,
-    name: "パープル",
-    value: "#8B5CF6", // Violet 500
+    name: "アメジスト",
+    value: "#A855F7", // Purple 500 - 高貴で鮮やかな紫
   },
   {
     id: 4,
-    name: "ピンク",
-    value: "#EC4899", // Pink 500
+    name: "コーラル",
+    value: "#F43F5E", // Rose 500 - 温かみのある珊瑚ピンク
   },
   {
     id: 5,
-    name: "オレンジ",
-    value: "#F59E0B", // Amber 500
+    name: "サンセット",
+    value: "#F97316", // Orange 500 - 夕焼けのような鮮やかなオレンジ
   },
   {
     id: 6,
-    name: "インディゴ",
-    value: "#6366F1", // Indigo 500 - 深みのある青紫
+    name: "ターコイズ",
+    value: "#06B6D4", // Cyan 500 - 爽やかな青緑（宝石のトルコ石）
   },
 ]
 
 /**
- * デフォルトのテーマカラー
+ * デフォルトのテーマカラー（オーシャン）
  */
-export const DEFAULT_THEME_COLOR = "#3B82F6"
+export const DEFAULT_THEME_COLOR = "#0EA5E9"
 
 /**
  * HEXカラー形式の検証（"default"も許可）
