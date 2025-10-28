@@ -20,32 +20,32 @@ export const THEME_COLORS: ThemeColor[] = [
   {
     id: 1,
     name: "ブルー",
-    value: "#3B82F6",
+    value: "#3B82F6", // Blue 500
   },
   {
     id: 2,
-    name: "グリーン",
-    value: "#10B981",
+    name: "ライム",
+    value: "#84CC16", // Lime 500 - 明るく鮮やかな黄緑
   },
   {
     id: 3,
     name: "パープル",
-    value: "#8B5CF6",
+    value: "#8B5CF6", // Violet 500
   },
   {
     id: 4,
     name: "ピンク",
-    value: "#EC4899",
+    value: "#EC4899", // Pink 500
   },
   {
     id: 5,
     name: "オレンジ",
-    value: "#F59E0B",
+    value: "#F59E0B", // Amber 500
   },
   {
     id: 6,
-    name: "ティール",
-    value: "#14B8A6",
+    name: "インディゴ",
+    value: "#6366F1", // Indigo 500 - 深みのある青紫
   },
 ]
 
