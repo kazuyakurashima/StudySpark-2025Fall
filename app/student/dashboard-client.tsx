@@ -1244,13 +1244,13 @@ export function StudentDashboardClient({ initialData }: { initialData: Dashboard
                 <CardTitle className="text-xl font-bold flex items-center gap-4">
                   <div className="flex items-center gap-3">
                     <Avatar
-                      className="h-16 w-16 border-3 shadow-xl ring-2 transition-all duration-300"
+                      className="h-16 w-16 shadow-xl transition-all duration-300"
                       style={
                         isThemeActive(themeColor)
                           ? {
-                              backgroundColor: hexWithAlpha(themeColor, 15),
-                              borderColor: 'white',
-                              boxShadow: `0 0 0 2px ${hexWithAlpha(themeColor, 30)}`,
+                              backgroundColor: hexWithAlpha(themeColor, 20),
+                              border: `4px solid ${hexWithAlpha(themeColor, 70)}`,
+                              boxShadow: `0 4px 12px ${hexWithAlpha(themeColor, 30)}`,
                             }
                           : {}
                       }
@@ -1329,13 +1329,13 @@ export function StudentDashboardClient({ initialData }: { initialData: Dashboard
                   <CardTitle className="text-xl font-bold flex items-center gap-4">
                     <div className="flex items-center gap-3">
                       <Avatar
-                        className="h-16 w-16 border-3 shadow-xl ring-2 transition-all duration-300"
+                        className="h-16 w-16 shadow-xl transition-all duration-300"
                         style={
                           isThemeActive(themeColor)
                             ? {
-                                backgroundColor: hexWithAlpha(themeColor, 15),
-                                borderColor: 'white',
-                                boxShadow: `0 0 0 2px ${hexWithAlpha(themeColor, 30)}`,
+                                backgroundColor: hexWithAlpha(themeColor, 20),
+                                border: `4px solid ${hexWithAlpha(themeColor, 70)}`,
+                                boxShadow: `0 4px 12px ${hexWithAlpha(themeColor, 30)}`,
                               }
                             : {}
                         }

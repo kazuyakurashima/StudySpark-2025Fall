@@ -65,8 +65,9 @@ export function UserProfileHeader() {
               style={
                 isThemeActive(profile.theme_color)
                   ? {
-                      backgroundColor: hexWithAlpha(profile.theme_color, 12),
-                      boxShadow: `0 0 0 2px ${hexWithAlpha(profile.theme_color, 25)}`,
+                      backgroundColor: hexWithAlpha(profile.theme_color, 20),
+                      border: `3px solid ${hexWithAlpha(profile.theme_color, 60)}`,
+                      boxShadow: `0 0 0 1px ${hexWithAlpha(profile.theme_color, 30)}`,
                     }
                   : { backgroundColor: '#f3f4f6' }
               }
