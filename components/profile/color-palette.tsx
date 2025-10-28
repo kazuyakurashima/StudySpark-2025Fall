@@ -13,7 +13,6 @@ export function ColorPalette({ selectedColor, onSelect }: ColorPaletteProps) {
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-3">
         テーマカラー
-        <span className="ml-2 text-xs text-gray-500">（効果を比較できます）</span>
       </label>
       <div className="flex gap-3 flex-wrap">
         {THEME_COLORS.map((color) => {
@@ -49,7 +48,7 @@ export function ColorPalette({ selectedColor, onSelect }: ColorPaletteProps) {
         })}
       </div>
       <p className="mt-2 text-xs text-gray-500">
-        💡 「デフォルト」を選ぶと、テーマカラーなしの状態に戻せます
+        💡 ×マークを選ぶと、色なしに戻せるよ
       </p>
     </div>
   )
