@@ -92,7 +92,7 @@ function LoginPageContent() {
                 <Input
                   id="emailOrId"
                   type="text"
-                  placeholder="demo-student5"
+                  placeholder="akira5"
                   value={emailOrId}
                   onChange={(e) => setEmailOrId(e.target.value)}
                   required
