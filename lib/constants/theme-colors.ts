@@ -9,9 +9,14 @@ export interface ThemeColor {
 }
 
 /**
- * テーマカラー選択肢（6色）
+ * テーマカラー選択肢（7色: デフォルト + 6色）
  */
 export const THEME_COLORS: ThemeColor[] = [
+  {
+    id: 0,
+    name: "デフォルト",
+    value: "default",
+  },
   {
     id: 1,
     name: "ブルー",
@@ -50,8 +55,15 @@ export const THEME_COLORS: ThemeColor[] = [
 export const DEFAULT_THEME_COLOR = "#3B82F6"
 
 /**
- * HEXカラー形式の検証
+ * HEXカラー形式の検証（"default"も許可）
  */
 export function isValidHexColor(color: string): boolean {
-  return /^#[0-9A-Fa-f]{6}$/.test(color)
+  return color === "default" || /^#[0-9A-Fa-f]{6}$/.test(color)
+}
+
+/**
+ * テーマカラーが適用されているかチェック
+ */
+export function isThemeColorActive(color: string): boolean {
+  return color !== "default"
 }

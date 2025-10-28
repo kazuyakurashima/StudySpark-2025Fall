@@ -9,6 +9,7 @@ import { EditProfileModal } from "@/components/profile/edit-profile-modal"
 import { EditCourseModal } from "@/components/profile/edit-course-modal"
 import { useUserProfile } from "@/lib/hooks/use-user-profile"
 import { getAvatarById } from "@/lib/constants/avatars"
+import { hexWithAlpha, isThemeActive } from "@/lib/utils/theme-color"
 
 export function UserProfileHeader() {
   const router = useRouter()
@@ -58,8 +59,18 @@ export function UserProfileHeader() {
             data-testid="user-avatar"
             className="flex items-center gap-2 hover:bg-gray-50 rounded-lg p-2 transition-colors"
           >
-            {/* アバター */}
-            <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
+            {/* アバター with テーマカラー */}
+            <div
+              className="w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center overflow-hidden transition-all duration-300"
+              style={
+                isThemeActive(profile.theme_color)
+                  ? {
+                      backgroundColor: hexWithAlpha(profile.theme_color, 12),
+                      boxShadow: `0 0 0 2px ${hexWithAlpha(profile.theme_color, 25)}`,
+                    }
+                  : { backgroundColor: '#f3f4f6' }
+              }
+            >
               {avatar && <Image src={avatar.src} alt={avatar.name} width={40} height={40} className="object-cover" />}
             </div>
 
