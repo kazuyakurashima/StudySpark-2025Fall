@@ -11,6 +11,8 @@ import { WeeklySubjectProgressCard } from "@/components/weekly-subject-progress-
 import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { PageHeader } from "@/components/common/page-header"
 import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, ChevronLeft, ChevronRight } from "lucide-react"
+import { useUserProfile } from "@/lib/hooks/use-user-profile"
+import { hexWithAlpha, isThemeActive } from "@/lib/utils/theme-color"
 
 interface DashboardData {
   userName: string
@@ -1142,6 +1144,7 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
 export function StudentDashboardClient({ initialData }: { initialData: DashboardData }) {
   const router = useRouter()
   const [messages, setMessages] = useState(initialData.recentMessages)
+  const { profile } = useUserProfile()
 
   const {
     userName,
@@ -1156,6 +1159,9 @@ export function StudentDashboardClient({ initialData }: { initialData: Dashboard
     sessionNumber,
     reflectionCompleted,
   } = initialData
+
+  // テーマカラーを取得（デフォルトは使わない）
+  const themeColor = profile?.theme_color || "default"
 
   // ページが表示状態になったときに応援履歴を再取得
   useEffect(() => {
@@ -1205,25 +1211,74 @@ export function StudentDashboardClient({ initialData }: { initialData: Dashboard
         <div className="space-y-8 lg:space-y-0">
           {/* スマホでの表示順序 */}
           <div className="lg:hidden space-y-8">
-            <Card className="bg-gradient-to-br from-cyan-50 via-teal-50 to-emerald-50 border-cyan-200/60 shadow-xl backdrop-blur-sm">
-              <CardHeader className="pb-6 bg-gradient-to-r from-cyan-500/10 to-teal-500/10 rounded-t-lg">
+            <Card
+              className="bg-gradient-to-br border shadow-xl backdrop-blur-sm transition-all duration-300"
+              style={
+                isThemeActive(themeColor)
+                  ? {
+                      backgroundImage: `linear-gradient(to bottom right, ${hexWithAlpha(themeColor, 8)}, ${hexWithAlpha(themeColor, 15)})`,
+                      borderColor: hexWithAlpha(themeColor, 25),
+                    }
+                  : {}
+              }
+            >
+              <CardHeader
+                className="pb-6 bg-gradient-to-r rounded-t-lg relative overflow-hidden"
+                style={
+                  isThemeActive(themeColor)
+                    ? {
+                        backgroundImage: `linear-gradient(90deg, ${hexWithAlpha(themeColor, 12)}, ${hexWithAlpha(themeColor, 18)})`,
+                      }
+                    : {}
+                }
+              >
+                {/* テーマカラーのグラデーションライン（上部） */}
+                {isThemeActive(themeColor) && (
+                  <div
+                    className="absolute top-0 left-0 right-0 h-1"
+                    style={{
+                      background: `linear-gradient(90deg, transparent 0%, ${themeColor} 50%, transparent 100%)`,
+                    }}
+                  />
+                )}
                 <CardTitle className="text-xl font-bold flex items-center gap-4">
                   <div className="flex items-center gap-3">
-                    <Avatar className="h-16 w-16 border-3 border-white shadow-xl ring-2 ring-cyan-100">
+                    <Avatar
+                      className="h-16 w-16 shadow-xl transition-all duration-300"
+                      style={
+                        isThemeActive(themeColor)
+                          ? {
+                              backgroundColor: hexWithAlpha(themeColor, 20),
+                              border: `4px solid ${hexWithAlpha(themeColor, 70)}`,
+                              boxShadow: `0 4px 12px ${hexWithAlpha(themeColor, 30)}`,
+                            }
+                          : {}
+                      }
+                    >
                       <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
-                      <AvatarFallback className="bg-cyan-100 text-cyan-700 font-bold text-lg">AI</AvatarFallback>
+                      <AvatarFallback className="font-bold text-lg" style={{ backgroundColor: hexWithAlpha(themeColor, 20) || '#e0f2fe' }}>AI</AvatarFallback>
                     </Avatar>
-                    <span className="text-cyan-900 font-bold text-xl">
+                    <span className="font-bold text-xl" style={{ color: isThemeActive(themeColor) ? themeColor : '#164e63' }}>
                       AIコーチからのメッセージ
                     </span>
                   </div>
-                  <div className="p-2 bg-cyan-100 rounded-full shadow-sm">
-                    <MessageCircle className="h-6 w-6 text-cyan-600" />
+                  <div
+                    className="p-2 rounded-full shadow-sm transition-all duration-300"
+                    style={{ backgroundColor: hexWithAlpha(themeColor, 15) || '#e0f2fe' }}
+                  >
+                    <MessageCircle className="h-6 w-6" style={{ color: isThemeActive(themeColor) ? themeColor : '#0891b2' }} />
                   </div>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border border-cyan-100 shadow-lg">
+                <div
+                  className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border shadow-lg transition-all duration-300"
+                  style={
+                    isThemeActive(themeColor)
+                      ? { borderColor: hexWithAlpha(themeColor, 20) }
+                      : {}
+                  }
+                >
                   <p className="text-lg leading-relaxed text-slate-700 font-medium">
                     {aiCoachMessage || "今日も一緒に頑張ろう！"}
                   </p>
@@ -1241,25 +1296,74 @@ export function StudentDashboardClient({ initialData }: { initialData: Dashboard
           <div className="hidden lg:grid lg:grid-cols-3 lg:gap-8">
             {/* 左列（メイン - 2/3の幅） */}
             <div className="lg:col-span-2 space-y-8">
-              <Card className="bg-gradient-to-br from-cyan-50 via-teal-50 to-emerald-50 border-cyan-200/60 shadow-xl backdrop-blur-sm">
-                <CardHeader className="pb-6 bg-gradient-to-r from-cyan-500/10 to-teal-500/10 rounded-t-lg">
+              <Card
+                className="bg-gradient-to-br border shadow-xl backdrop-blur-sm transition-all duration-300"
+                style={
+                  isThemeActive(themeColor)
+                    ? {
+                        backgroundImage: `linear-gradient(to bottom right, ${hexWithAlpha(themeColor, 8)}, ${hexWithAlpha(themeColor, 15)})`,
+                        borderColor: hexWithAlpha(themeColor, 25),
+                      }
+                    : {}
+                }
+              >
+                <CardHeader
+                  className="pb-6 bg-gradient-to-r rounded-t-lg relative overflow-hidden"
+                  style={
+                    isThemeActive(themeColor)
+                      ? {
+                          backgroundImage: `linear-gradient(90deg, ${hexWithAlpha(themeColor, 12)}, ${hexWithAlpha(themeColor, 18)})`,
+                        }
+                      : {}
+                  }
+                >
+                  {/* テーマカラーのグラデーションライン（上部） */}
+                  {isThemeActive(themeColor) && (
+                    <div
+                      className="absolute top-0 left-0 right-0 h-1"
+                      style={{
+                        background: `linear-gradient(90deg, transparent 0%, ${themeColor} 50%, transparent 100%)`,
+                      }}
+                    />
+                  )}
                   <CardTitle className="text-xl font-bold flex items-center gap-4">
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-16 w-16 border-3 border-white shadow-xl ring-2 ring-cyan-100">
+                      <Avatar
+                        className="h-16 w-16 shadow-xl transition-all duration-300"
+                        style={
+                          isThemeActive(themeColor)
+                            ? {
+                                backgroundColor: hexWithAlpha(themeColor, 20),
+                                border: `4px solid ${hexWithAlpha(themeColor, 70)}`,
+                                boxShadow: `0 4px 12px ${hexWithAlpha(themeColor, 30)}`,
+                              }
+                            : {}
+                        }
+                      >
                         <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
-                        <AvatarFallback className="bg-cyan-100 text-cyan-700 font-bold text-lg">AI</AvatarFallback>
+                        <AvatarFallback className="font-bold text-lg" style={{ backgroundColor: hexWithAlpha(themeColor, 20) || '#e0f2fe' }}>AI</AvatarFallback>
                       </Avatar>
-                      <span className="text-cyan-900 font-bold text-xl">
+                      <span className="font-bold text-xl" style={{ color: isThemeActive(themeColor) ? themeColor : '#164e63' }}>
                         AIコーチからのメッセージ
                       </span>
                     </div>
-                    <div className="p-2 bg-cyan-100 rounded-full shadow-sm">
-                      <MessageCircle className="h-6 w-6 text-cyan-600" />
+                    <div
+                      className="p-2 rounded-full shadow-sm transition-all duration-300"
+                      style={{ backgroundColor: hexWithAlpha(themeColor, 15) || '#e0f2fe' }}
+                    >
+                      <MessageCircle className="h-6 w-6" style={{ color: isThemeActive(themeColor) ? themeColor : '#0891b2' }} />
                     </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border border-white/40 shadow-2xl">
+                  <div
+                    className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border shadow-2xl transition-all duration-300"
+                    style={
+                      isThemeActive(themeColor)
+                        ? { borderColor: hexWithAlpha(themeColor, 20) }
+                        : {}
+                    }
+                  >
                     <p className="text-lg leading-relaxed text-slate-700 font-medium">
                       {aiCoachMessage || "今日も一緒に頑張ろう！"}
                     </p>

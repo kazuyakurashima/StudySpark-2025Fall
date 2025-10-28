@@ -12,6 +12,7 @@ import { AvatarSelector } from "./avatar-selector"
 import { ColorPalette } from "./color-palette"
 import { UserProfile, UpdateProfileInput } from "@/lib/types/profile"
 import { getAvatarById } from "@/lib/constants/avatars"
+import { isThemeColorActive } from "@/lib/constants/theme-colors"
 
 interface EditProfileModalProps {
   isOpen: boolean
@@ -93,11 +94,19 @@ export function EditProfileModal({ isOpen, onClose, profile, onUpdate }: EditPro
           {/* アバタープレビュー */}
           <div className="flex flex-col items-center">
             <div
-              className="w-24 h-24 rounded-full flex items-center justify-center relative"
-              style={{ backgroundColor: `${themeColor}1A` }} // 10%透明度
+              className="w-24 h-24 rounded-full flex items-center justify-center relative transition-all duration-300 p-1"
+              style={
+                isThemeColorActive(themeColor)
+                  ? {
+                      backgroundColor: `${themeColor}33`, // 20%透明度
+                      border: `4px solid ${themeColor}B3`, // 70%透明度
+                      boxShadow: `0 4px 12px ${themeColor}4D`, // 30%透明度
+                    }
+                  : { backgroundColor: '#f3f4f6' }
+              }
             >
               {selectedAvatar && (
-                <Image src={selectedAvatar.src} alt={selectedAvatar.name} width={80} height={80} className="rounded-full" />
+                <Image src={selectedAvatar.src} alt={selectedAvatar.name} width={72} height={72} className="rounded-full" />
               )}
             </div>
             {nickname && <p className="mt-2 text-sm font-medium text-gray-700">{nickname}</p>}
