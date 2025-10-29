@@ -1197,7 +1197,7 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
           actions={
             <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm px-3 py-2 rounded-lg border border-border/30 shadow-sm">
               <div
-                className="flex items-center gap-2"
+                className={`flex items-center gap-2 ${!isThemeActive(themeColor) ? "text-primary" : ""}`}
                 style={isThemeActive(themeColor) ? { color: themeColor } : {}}
               >
                 <div
