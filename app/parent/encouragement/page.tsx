@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { UserProfileHeader } from "@/components/common/user-profile-header"
+import { PageHeader } from "@/components/common/page-header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -137,16 +139,21 @@ export default function ParentEncouragementPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-pink-50 pb-20">
-      {/* ヘッダー */}
-      <div className="bg-white border-b border-slate-200 p-4">
-        <h1 className="text-2xl font-bold text-slate-800">応援</h1>
-        <p className="text-sm text-slate-600 mt-1">お子さんの学習を応援しましょう</p>
-      </div>
+    <>
+      <UserProfileHeader />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 pb-20 elegant-fade-in">
+        <PageHeader
+          icon={Heart}
+          title="応援履歴"
+          subtitle="送った応援メッセージを確認"
+          variant="parent"
+        />
 
-      {/* フィルター・ソート */}
-      <div className="p-4 bg-white border-b border-slate-200">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+        {/* フィルター・ソート */}
+        <Card className="bg-white/95 backdrop-blur-sm shadow-md border">
+          <CardContent className="p-4 sm:p-6">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <Select
             value={filters.hasEncouragement}
             onValueChange={(value: any) => setFilters({ ...filters, hasEncouragement: value })}
@@ -208,11 +215,12 @@ export default function ParentEncouragementPage() {
               <SelectItem value="asc">昇順</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-      </div>
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* 学習記録一覧 */}
-      <div className="p-4 space-y-4">
+        {/* 学習記録一覧 */}
+        <div className="space-y-4">
         {loading ? (
           <div className="flex justify-center items-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -364,9 +372,9 @@ export default function ParentEncouragementPage() {
             )
           })
         )}
-      </div>
+        </div>
 
-      {/* AI応援ダイアログ */}
+        {/* AI応援ダイアログ */}
       {aiDialogOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <Card className="w-full max-w-lg max-h-[80vh] overflow-y-auto">
@@ -459,7 +467,8 @@ export default function ParentEncouragementPage() {
         </div>
       )}
 
-      <ParentBottomNavigation activeTab="encouragement" />
-    </div>
+        <ParentBottomNavigation activeTab="encouragement" />
+      </div>
+    </>
   )
 }

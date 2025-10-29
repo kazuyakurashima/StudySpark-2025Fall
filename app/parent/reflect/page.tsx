@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { UserProfileHeader } from "@/components/common/user-profile-header"
+import { PageHeader } from "@/components/common/page-header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -24,6 +26,7 @@ import {
   Users,
   Bot,
   Lock,
+  MessageCircle,
 } from "lucide-react"
 
 interface Child {
@@ -143,21 +146,17 @@ export default function ParentReflectPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white pb-20">
-      <div className="container max-w-4xl mx-auto px-4 py-6 space-y-6">
-        {/* ヘッダー */}
-        <div className="text-center space-y-2">
-          <div className="flex items-center justify-center gap-2">
-            <Bot className="h-8 w-8 text-purple-500" />
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-              リフレクト
-            </h1>
-          </div>
-          <p className="text-sm text-gray-600 flex items-center justify-center gap-2">
-            <Eye className="h-4 w-4" />
-            お子様の振り返りを確認できます（読み取り専用）
-          </p>
-        </div>
+    <>
+      <UserProfileHeader />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 pb-20 elegant-fade-in">
+        <PageHeader
+          icon={MessageCircle}
+          title="振り返り閲覧"
+          subtitle="お子さんの振り返りを見守りましょう"
+          variant="parent"
+        />
+
+      <div className="max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
 
         {/* 子ども切り替えタブ */}
         <Card>
@@ -305,7 +304,8 @@ export default function ParentReflectPage() {
         </Tabs>
       </div>
 
-      <ParentBottomNavigation />
-    </div>
+        <ParentBottomNavigation />
+      </div>
+    </>
   )
 }

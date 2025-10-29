@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { UserProfileHeader } from "@/components/common/user-profile-header"
+import { PageHeader } from "@/components/common/page-header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -184,22 +186,17 @@ export default function ParentGoalNaviPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20 elegant-fade-in">
-      <div className="surface-gradient-primary backdrop-blur-lg border-b border-border/30 p-3 sm:p-4 shadow-lg">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2">
-            <Flag className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-            ゴールナビ
-            <span className="text-sm text-muted-foreground ml-2 flex items-center gap-1">
-              <Eye className="h-3 w-3" />
-              （読み取り専用）
-            </span>
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">お子様の目標を確認できます</p>
-        </div>
-      </div>
+    <>
+      <UserProfileHeader />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 pb-20 elegant-fade-in">
+        <PageHeader
+          icon={Flag}
+          title="ゴール閲覧"
+          subtitle="お子さんの目標を確認しましょう"
+          variant="parent"
+        />
 
-      <div className="max-w-4xl mx-auto p-3 sm:p-4">
+      <div className="max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         {/* 子ども切り替えタブ */}
         {children.length > 0 && (
           <div className="flex gap-2 overflow-x-auto pb-2 mb-6">
@@ -367,7 +364,8 @@ export default function ParentGoalNaviPage() {
         </Tabs>
       </div>
 
-      <ParentBottomNavigation />
-    </div>
+        <ParentBottomNavigation />
+      </div>
+    </>
   )
 }

@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import ParentBottomNavigation from "@/components/parent-bottom-navigation"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
+import { PageHeader } from "@/components/common/page-header"
 import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, Sparkles, ChevronLeft, ChevronRight } from "lucide-react"
 import { WeeklySubjectProgressCard } from "@/components/weekly-subject-progress-card"
 import { UserProfileProvider, useUserProfile } from "@/lib/hooks/use-user-profile"
@@ -1693,8 +1694,26 @@ function ParentDashboardInner() {
   return (
     <>
       <UserProfileHeader />
-      <div className="min-h-screen bg-background pb-20 elegant-fade-in">
-        <div className="max-w-6xl mx-auto p-6 space-y-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 pb-20 elegant-fade-in">
+        <PageHeader
+          icon={Home}
+          title="ホーム"
+          subtitle={greetingMessage}
+          variant="parent"
+          actions={
+            <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm px-3 py-2 rounded-lg border border-border/30 shadow-sm">
+              <div className="flex items-center gap-2 text-primary">
+                <div className="p-1.5 bg-primary/10 rounded-full">
+                  <Flame className="h-5 w-5" />
+                </div>
+                <span className="font-bold text-2xl">{studyStreak}</span>
+              </div>
+              <span className="text-xs text-muted-foreground font-semibold">連続学習日数</span>
+            </div>
+          }
+        />
+
+        <div className="max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
           {/* Child Selector Tabs */}
           {children.length > 0 && (
             <div className="flex gap-2 overflow-x-auto pb-2">
