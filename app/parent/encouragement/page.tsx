@@ -17,8 +17,9 @@ import {
   sendCustomEncouragement,
 } from "@/app/actions/encouragement"
 import type { QuickEncouragementType } from "@/lib/openai/prompts"
+import { UserProfileProvider } from "@/lib/hooks/use-user-profile"
 
-export default function ParentEncouragementPage() {
+function ParentEncouragementPageInner() {
   const [selectedChild, setSelectedChild] = useState("student1")
   const [studyLogs, setStudyLogs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -466,9 +467,21 @@ export default function ParentEncouragementPage() {
           </Card>
         </div>
       )}
-
-        <ParentBottomNavigation activeTab="encouragement" />
       </div>
+
+      <ParentBottomNavigation activeTab="encouragement" />
+    </div>
     </>
+  )
+}
+
+/**
+ * 保護者応援履歴ページ（Context Provider付き）
+ */
+export default function ParentEncouragementPage() {
+  return (
+    <UserProfileProvider>
+      <ParentEncouragementPageInner />
+    </UserProfileProvider>
   )
 }

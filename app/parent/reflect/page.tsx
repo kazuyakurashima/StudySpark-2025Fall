@@ -28,6 +28,7 @@ import {
   Lock,
   MessageCircle,
 } from "lucide-react"
+import { UserProfileProvider } from "@/lib/hooks/use-user-profile"
 
 interface Child {
   id: string
@@ -48,7 +49,7 @@ interface Reflection {
   created_at: string
 }
 
-export default function ParentReflectPage() {
+function ParentReflectPageInner() {
   const [children, setChildren] = useState<Child[]>([])
   const [selectedChildId, setSelectedChildId] = useState<string>("")
   const [selectedChild, setSelectedChild] = useState<Child | null>(null)
@@ -307,5 +308,16 @@ export default function ParentReflectPage() {
         <ParentBottomNavigation />
       </div>
     </>
+  )
+}
+
+/**
+ * 保護者振り返り閲覧ページ（Context Provider付き）
+ */
+export default function ParentReflectPage() {
+  return (
+    <UserProfileProvider>
+      <ParentReflectPageInner />
+    </UserProfileProvider>
   )
 }

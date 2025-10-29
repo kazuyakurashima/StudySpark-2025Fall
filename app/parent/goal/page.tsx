@@ -21,6 +21,7 @@ import {
   getAvailableTestsForStudent,
   getAllTestGoalsForStudent,
 } from "@/app/actions/goal"
+import { UserProfileProvider } from "@/lib/hooks/use-user-profile"
 
 interface Child {
   id: string
@@ -80,7 +81,7 @@ const getAvatarSrc = (avatarId?: string | null) => {
   return avatarMap[avatarId || ""] || avatarMap["student1"]
 }
 
-export default function ParentGoalNaviPage() {
+function ParentGoalNaviPageInner() {
   const [children, setChildren] = useState<Child[]>([])
   const [selectedChildId, setSelectedChildId] = useState<string>("")
   const [selectedChild, setSelectedChild] = useState<Child | null>(null)
@@ -367,5 +368,16 @@ export default function ParentGoalNaviPage() {
         <ParentBottomNavigation />
       </div>
     </>
+  )
+}
+
+/**
+ * 保護者ゴール閲覧ページ（Context Provider付き）
+ */
+export default function ParentGoalNaviPage() {
+  return (
+    <UserProfileProvider>
+      <ParentGoalNaviPageInner />
+    </UserProfileProvider>
   )
 }
