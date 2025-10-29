@@ -1196,8 +1196,14 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
           variant="student"
           actions={
             <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm px-3 py-2 rounded-lg border border-border/30 shadow-sm">
-              <div className="flex items-center gap-2 text-primary">
-                <div className="p-1.5 bg-primary/10 rounded-full">
+              <div
+                className="flex items-center gap-2"
+                style={isThemeActive(themeColor) ? { color: themeColor } : {}}
+              >
+                <div
+                  className={!isThemeActive(themeColor) ? "p-1.5 bg-primary/10 rounded-full" : "p-1.5 rounded-full"}
+                  style={isThemeActive(themeColor) ? { backgroundColor: hexWithAlpha(themeColor, 10) } : {}}
+                >
                   <Flame className="h-5 w-5" />
                 </div>
                 <span className="font-bold text-2xl">{studyStreak}</span>
