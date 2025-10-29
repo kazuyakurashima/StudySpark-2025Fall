@@ -743,6 +743,9 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
       setIsSubmitting(false)
 
       alert("学習記録を保存しました！")
+
+      // ページトップにスムーズスクロール
+      window.scrollTo({ top: 0, behavior: "smooth" })
     } catch (error) {
       console.error("Submit error:", error)
       alert("保存中にエラーが発生しました")
