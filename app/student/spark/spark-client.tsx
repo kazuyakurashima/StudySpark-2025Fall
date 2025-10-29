@@ -21,7 +21,7 @@ import {
   getContentTypeId,
 } from "@/app/actions/study-log"
 import { generateDailyReflections } from "@/app/actions/ai-reflection"
-import { UserProfileProvider } from "@/lib/hooks/use-user-profile"
+import { UserProfileProvider, useUserProfile } from "@/lib/hooks/use-user-profile"
 
 const subjects = [
   {
@@ -402,7 +402,10 @@ type SparkClientProps = {
 }
 
 function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps) {
-  const { student } = initialData
+  const { profile, loading: profileLoading } = useUserProfile()
+
+  // Prioritize profile.student over initialData.student for real-time updates
+  const student = profile?.student || initialData.student
   const studentGrade = student.grade.toString()
   const currentCourse = student.course
 
@@ -784,6 +787,30 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
     if (currentCourse === "A") return "Spark(楽しくスタート)"
     if (currentCourse === "B") return "Flame(成長ステップ)"
     return "Blaze(最高にチャレンジ)"
+  }
+
+  // Show loading state while profile is being fetched
+  if (profileLoading && !profile) {
+    return (
+      <>
+        <UserProfileHeader />
+        <PageHeader
+          icon={Sparkles}
+          title="スパーク"
+          subtitle="読み込み中..."
+          variant="student"
+        />
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 pb-20">
+          <div className="max-w-screen-xl mx-auto p-6">
+            <div className="flex items-center justify-center py-16">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-600"></div>
+              <span className="ml-6 text-xl text-slate-700 font-medium">読み込み中...</span>
+            </div>
+          </div>
+        </div>
+        <BottomNavigation activeTab="spark" />
+      </>
+    )
   }
 
   return (
