@@ -10,7 +10,7 @@ import { BottomNavigation } from "@/components/bottom-navigation"
 import { WeeklySubjectProgressCard } from "@/components/weekly-subject-progress-card"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { PageHeader } from "@/components/common/page-header"
-import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, ChevronLeft, ChevronRight } from "lucide-react"
+import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, ChevronLeft, ChevronRight, Bot } from "lucide-react"
 import { UserProfileProvider, useUserProfile } from "@/lib/hooks/use-user-profile"
 import { hexWithAlpha, isThemeActive } from "@/lib/utils/theme-color"
 
@@ -331,6 +331,20 @@ const LearningHistoryCalendar = ({ calendarData }: { calendarData: { [dateStr: s
 
 const TodayMissionCard = ({ todayProgress, reflectionCompleted, weeklyProgress }: { todayProgress: Array<{subject: string, accuracy: number, correctCount: number, totalProblems: number, logCount: number}>, reflectionCompleted: boolean, weeklyProgress: Array<{subject: string, accuracy: number, totalProblems: number}> }) => {
   const router = useRouter()
+
+  // Helper function for accuracy color coding
+  const getAccuracyColor = (accuracy: number) => {
+    if (accuracy >= 80) return "text-green-600"
+    if (accuracy >= 50) return "text-amber-600"
+    return "text-orange-600"
+  }
+
+  // Helper function to calculate diff from weekly average
+  const calculateDiff = (subject: string, currentAccuracy: number) => {
+    const weeklyData = weeklyProgress.find(w => w.subject === subject)
+    if (!weeklyData || weeklyData.totalProblems === 0) return null
+    return currentAccuracy - weeklyData.accuracy
+  }
 
   const getTodayWeekday = () => {
     const today = new Date()
@@ -669,6 +683,10 @@ const TodayMissionCard = ({ todayProgress, reflectionCompleted, weeklyProgress }
               {missionData.panels.map((panel: any, index: number) => {
                 // 入力済み（完了 or 1回以上入力）は目立たなくする
                 const hasInput = panel.isCompleted || panel.inputCount > 0
+                const diff = hasInput && panel.correctRate > 0 ? calculateDiff(panel.subject, panel.correctRate) : null
+                const showPositiveFeedback = diff !== null && diff >= 10
+                const showEncouragement = hasInput && panel.correctRate < 50
+
                 return (
                   <div
                     key={index}
@@ -691,6 +709,50 @@ const TodayMissionCard = ({ todayProgress, reflectionCompleted, weeklyProgress }
                         {panel.status}
                       </Badge>
                     </div>
+
+                    {/* Live Progress Display */}
+                    {hasInput && panel.correctRate > 0 && (
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className={`text-lg font-bold ${getAccuracyColor(panel.correctRate)}`}>
+                          {panel.correctRate}%
+                        </span>
+
+                        {/* Diff badge with CSS animation */}
+                        {diff !== null && Math.abs(diff) >= 10 && (
+                          <div
+                            className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${
+                              diff >= 10
+                                ? "bg-green-100 text-green-700 animate-bounce-in"
+                                : "bg-orange-100 text-orange-700"
+                            }`}
+                            style={{
+                              animation: diff >= 10 ? "bounceIn 0.6s ease-out" : "none"
+                            }}
+                          >
+                            {diff >= 10 ? "↑" : "↓"}{Math.abs(Math.round(diff))}%
+                          </div>
+                        )}
+
+                        {/* Emoji feedback with fade-in animation */}
+                        {showPositiveFeedback && (
+                          <span
+                            className="text-xl animate-fade-in"
+                            style={{ animation: "fadeIn 0.6s ease-out" }}
+                          >
+                            🎉
+                          </span>
+                        )}
+                        {showEncouragement && (
+                          <span
+                            className="text-xl animate-fade-in"
+                            style={{ animation: "fadeIn 0.6s ease-out" }}
+                          >
+                            💪
+                          </span>
+                        )}
+                      </div>
+                    )}
+
                     <Button
                       onClick={() => handleSparkNavigation(panel.subject)}
                       className={`w-full py-3 px-4 rounded-lg text-sm font-bold transition-all duration-300 ${
@@ -1247,6 +1309,10 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
                     }}
                   />
                 )}
+                <div className="flex items-center gap-2 mb-3">
+                  <Bot className="h-5 w-5 text-blue-600" />
+                  <span className="text-xs text-gray-500 font-medium">今朝のメッセージ</span>
+                </div>
                 <CardTitle className="text-xl font-bold flex items-center gap-4">
                   <div className="flex items-center gap-3">
                     <Avatar
@@ -1332,6 +1398,10 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
                       }}
                     />
                   )}
+                  <div className="flex items-center gap-2 mb-3">
+                    <Bot className="h-5 w-5 text-blue-600" />
+                    <span className="text-xs text-gray-500 font-medium">今朝のメッセージ</span>
+                  </div>
                   <CardTitle className="text-xl font-bold flex items-center gap-4">
                     <div className="flex items-center gap-3">
                       <Avatar
