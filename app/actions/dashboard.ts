@@ -772,6 +772,8 @@ export async function getTodayMissionData() {
     const { getTodayJST } = await import("@/lib/utils/date-jst")
     const todayDateStr = getTodayJST()
 
+    console.log("🔍 [getTodayMissionData] student_id:", student.id, "grade:", student.grade, "today:", todayDateStr)
+
     // Find this week's study session
     const { data: currentSession, error: sessionError } = await supabase
       .from("study_sessions")
@@ -785,6 +787,8 @@ export async function getTodayMissionData() {
       console.error("No current session found for today's mission:", sessionError)
       return { todayProgress: [] }
     }
+
+    console.log("🔍 [getTodayMissionData] current session_id:", currentSession.id)
 
     // Get today's logs for this week's session only
     const { data: todayLogs, error: logsError } = await supabase
@@ -809,6 +813,8 @@ export async function getTodayMissionData() {
       return { error: "今日のミッションデータの取得に失敗しました" }
     }
 
+    console.log("🔍 [getTodayMissionData] todayLogs count:", todayLogs?.length || 0)
+
     // Aggregate by subject
     const subjectMap: { [key: string]: { totalCorrect: number; totalProblems: number; logCount: number } } = {}
 
@@ -830,6 +836,8 @@ export async function getTodayMissionData() {
       totalProblems: data.totalProblems,
       logCount: data.logCount, // 入力回数を追加
     }))
+
+    console.log("🔍 [getTodayMissionData] todayProgress:", JSON.stringify(todayProgress, null, 2))
 
     return { todayProgress }
   } catch (error) {

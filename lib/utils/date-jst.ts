@@ -37,10 +37,39 @@ export function getDateJST(daysOffset: number = 0): string {
 }
 
 /**
- * 現在のJST日時を取得（ISO 8601形式）
+ * 現在のJST日時を取得
+ *
+ * Intl.DateTimeFormat で JST の年月日時分秒を取得し、
+ * それを Date オブジェクトとして返す。
+ * クラウド環境（UTC）でも正しく JST として扱えるようにする。
  */
 export function getNowJST(): Date {
-  return new Date()
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  })
+
+  const parts = formatter.formatToParts(new Date())
+  const get = (type: Intl.DateTimeFormatPartTypes, fallback = '0') =>
+    parts.find(p => p.type === type)?.value ?? fallback
+
+  const year = Number(get('year'))
+  const month = Number(get('month')) - 1  // Date constructor uses 0-indexed months
+  const day = Number(get('day'))
+  const hour = Number(get('hour'))
+  const minute = Number(get('minute'))
+  const second = Number(get('second'))
+
+  // JST のカレンダー時刻を UTC エポックに戻すために hour - 9
+  // これで内部的には実際の「今」と同じタイムスタンプを指しつつ、
+  // formatDateToJST 等に渡すと正しく JST として扱える
+  return new Date(Date.UTC(year, month, day, hour - 9, minute, second, 0))
 }
 
 /**

@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { createClient as createSupabaseClient } from "@supabase/supabase-js"
 import { getOpenAIClient, handleOpenAIError, getDefaultModel } from "@/lib/openai/client"
+import { formatDateToJST, getJSTDayStartISO, getJSTDayEndISO } from "@/lib/utils/date-jst"
 
 /**
  * 過去4週間の学習データを集計
@@ -24,8 +25,8 @@ export async function getWeeklyStudyData(studentId: string, weekStartDate: Date,
     `
     )
     .eq("student_id", studentId)
-    .gte("study_date", weekStartDate.toISOString().split("T")[0])
-    .lte("study_date", weekEndDate.toISOString().split("T")[0])
+    .gte("study_date", formatDateToJST(weekStartDate))
+    .lte("study_date", formatDateToJST(weekEndDate))
     .order("study_date", { ascending: false })
 
   if (logsError) {
@@ -87,8 +88,8 @@ export async function getWeeklyEncouragementData(
     .from("encouragement_messages")
     .select("id, support_type, sender_role, created_at")
     .eq("student_id", studentId)
-    .gte("created_at", weekStartDate.toISOString())
-    .lte("created_at", weekEndDate.toISOString())
+    .gte("created_at", getJSTDayStartISO(formatDateToJST(weekStartDate)))
+    .lte("created_at", getJSTDayEndISO(formatDateToJST(weekEndDate)))
     .order("created_at", { ascending: false })
 
   if (error) {
@@ -124,8 +125,8 @@ export async function getWeeklyReflectionData(studentId: string, weekStartDate: 
     .select("id, session_type, week_start_date, completed_at, summary")
     .eq("student_id", studentId)
     .eq("session_type", "reflection")
-    .gte("week_start_date", weekStartDate.toISOString().split("T")[0])
-    .lte("week_start_date", weekEndDate.toISOString().split("T")[0])
+    .gte("week_start_date", formatDateToJST(weekStartDate))
+    .lte("week_start_date", formatDateToJST(weekEndDate))
     .not("completed_at", "is", null)
 
   if (error) {
@@ -147,8 +148,8 @@ export async function getWeeklyGoalData(studentId: string, weekStartDate: Date, 
     .select("id, session_type, week_start_date, completed_at, summary")
     .eq("student_id", studentId)
     .eq("session_type", "goal")
-    .gte("week_start_date", weekStartDate.toISOString().split("T")[0])
-    .lte("week_start_date", weekEndDate.toISOString().split("T")[0])
+    .gte("week_start_date", formatDateToJST(weekStartDate))
+    .lte("week_start_date", formatDateToJST(weekEndDate))
     .not("completed_at", "is", null)
 
   if (error) {
@@ -244,8 +245,8 @@ export async function generateWeeklyAnalysis(studentId: string, weekStartDate: D
       .upsert(
         {
           student_id: studentId,
-          week_start_date: weekStartDate.toISOString().split("T")[0],
-          week_end_date: weekEndDate.toISOString().split("T")[0],
+          week_start_date: formatDateToJST(weekStartDate),
+          week_end_date: formatDateToJST(weekEndDate),
           strengths: analysis.strengths,
           challenges: analysis.challenges,
           advice: analysis.advice,
@@ -345,7 +346,7 @@ export async function getStoredWeeklyAnalysis(studentId: string, weekStartDate: 
     .from("weekly_analysis")
     .select("*")
     .eq("student_id", studentId)
-    .eq("week_start_date", weekStartDate.toISOString().split("T")[0])
+    .eq("week_start_date", formatDateToJST(weekStartDate))
     .single()
 
   if (error) {
@@ -397,8 +398,8 @@ export async function generateWeeklyAnalysisForBatch(studentId: string, weekStar
     `
     )
     .eq("student_id", studentId)
-    .gte("study_date", weekStartDate.toISOString().split("T")[0])
-    .lte("study_date", weekEndDate.toISOString().split("T")[0])
+    .gte("study_date", formatDateToJST(weekStartDate))
+    .lte("study_date", formatDateToJST(weekEndDate))
     .order("study_date", { ascending: false })
 
   if (logsError) {
@@ -443,8 +444,8 @@ export async function generateWeeklyAnalysisForBatch(studentId: string, weekStar
     .from("encouragement_messages")
     .select("id, support_type, sender_role, created_at")
     .eq("student_id", studentId)
-    .gte("created_at", weekStartDate.toISOString())
-    .lte("created_at", weekEndDate.toISOString())
+    .gte("created_at", getJSTDayStartISO(formatDateToJST(weekStartDate)))
+    .lte("created_at", getJSTDayEndISO(formatDateToJST(weekEndDate)))
 
   const encouragementStats = {
     total: messages?.length || 0,
@@ -465,8 +466,8 @@ export async function generateWeeklyAnalysisForBatch(studentId: string, weekStar
     .select("id, session_type, week_start_date, completed_at, summary")
     .eq("student_id", studentId)
     .eq("session_type", "reflection")
-    .gte("week_start_date", weekStartDate.toISOString().split("T")[0])
-    .lte("week_start_date", weekEndDate.toISOString().split("T")[0])
+    .gte("week_start_date", formatDateToJST(weekStartDate))
+    .lte("week_start_date", formatDateToJST(weekEndDate))
     .not("completed_at", "is", null)
 
   // 目標データを取得
@@ -475,8 +476,8 @@ export async function generateWeeklyAnalysisForBatch(studentId: string, weekStar
     .select("id, session_type, week_start_date, completed_at, summary")
     .eq("student_id", studentId)
     .eq("session_type", "goal")
-    .gte("week_start_date", weekStartDate.toISOString().split("T")[0])
-    .lte("week_start_date", weekEndDate.toISOString().split("T")[0])
+    .gte("week_start_date", formatDateToJST(weekStartDate))
+    .lte("week_start_date", formatDateToJST(weekEndDate))
     .not("completed_at", "is", null)
 
   // AI分析プロンプトを構築
@@ -523,8 +524,8 @@ export async function generateWeeklyAnalysisForBatch(studentId: string, weekStar
       .upsert(
         {
           student_id: studentId,
-          week_start_date: weekStartDate.toISOString().split("T")[0],
-          week_end_date: weekEndDate.toISOString().split("T")[0],
+          week_start_date: formatDateToJST(weekStartDate),
+          week_end_date: formatDateToJST(weekEndDate),
           strengths: analysis.strengths,
           challenges: analysis.challenges,
           advice: analysis.advice,

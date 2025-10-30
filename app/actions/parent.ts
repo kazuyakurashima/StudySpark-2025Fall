@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient, createAdminClient } from "@/lib/supabase/server"
+import { formatDateToJST, getNowJST } from "@/lib/utils/date-jst"
 
 /**
  * 保護者認証と親子関係の検証を行うヘルパー関数
@@ -342,8 +343,7 @@ export async function getChildAvailableTests(studentId: string) {
   }
 
   // 現在日時（Asia/Tokyo）
-  const now = new Date()
-  const tokyoNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Tokyo" }))
+  const tokyoNow = getNowJST()
 
   // 目標設定期間内のテスト日程を取得
   const { data: tests, error: testsError } = await supabase
@@ -361,7 +361,7 @@ export async function getChildAvailableTests(studentId: string) {
       )
     `)
     .eq("test_types.grade", student.grade)
-    .gte("goal_setting_end_date", tokyoNow.toISOString().split("T")[0])
+    .gte("goal_setting_end_date", formatDateToJST(tokyoNow))
     .order("test_date", { ascending: true })
 
   if (testsError) {
@@ -445,11 +445,11 @@ export async function getChildStudyHistory(
   if (params?.periodFilter === "1week") {
     const oneWeekAgo = new Date()
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
-    query = query.gte("study_date", oneWeekAgo.toISOString().split("T")[0])
+    query = query.gte("study_date", formatDateToJST(oneWeekAgo))
   } else if (params?.periodFilter === "1month") {
     const oneMonthAgo = new Date()
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1)
-    query = query.gte("study_date", oneMonthAgo.toISOString().split("T")[0])
+    query = query.gte("study_date", formatDateToJST(oneMonthAgo))
   }
 
   query = query.order("logged_at", { ascending: false })
