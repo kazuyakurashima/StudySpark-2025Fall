@@ -23,11 +23,8 @@ export async function getCurrentSession(grade: number) {
     const supabase = await createClient()
 
     // JSTで今日の日付を取得
-    const now = new Date()
-    const jstDate = new Date(
-      now.toLocaleString("en-US", { timeZone: "Asia/Tokyo" })
-    )
-    const today = jstDate.toISOString().split("T")[0] // YYYY-MM-DD
+    const { getTodayJST } = await import("@/lib/utils/date-jst")
+    const today = getTodayJST()
 
     // データベースから現在の学習回を取得
     const { data: session, error } = await supabase
@@ -87,6 +84,9 @@ export async function saveStudyLog(logs: StudyLogInput[]) {
       return { error: "生徒情報が見つかりません" }
     }
 
+    // Import date utility
+    const { getTodayJST } = await import("@/lib/utils/date-jst")
+
     // 【セーフガード】各ログのsession_idが有効かチェック
     for (const log of logs) {
       const { data: session, error: sessionError } = await supabase
@@ -104,7 +104,7 @@ export async function saveStudyLog(logs: StudyLogInput[]) {
       }
 
       // 警告ログ: study_dateがsession期間外の場合
-      const studyDate = log.study_date || new Date().toISOString().split("T")[0]
+      const studyDate = log.study_date || getTodayJST()
       if (studyDate < session.start_date || studyDate > session.end_date) {
         console.warn(
           `Session date mismatch: study_date=${studyDate} is outside session ${session.session_number} period (${session.start_date} ~ ${session.end_date})`
@@ -114,7 +114,7 @@ export async function saveStudyLog(logs: StudyLogInput[]) {
     }
 
     // Prepare study logs for insertion
-    const studyDate = logs[0]?.study_date || new Date().toISOString().split("T")[0]
+    const studyDate = logs[0]?.study_date || getTodayJST()
     const reflectionText = logs[0]?.reflection_text || null
 
     // Check for existing logs for the same session/subject/content combinations

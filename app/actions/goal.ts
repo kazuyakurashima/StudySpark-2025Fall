@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { formatDateToJST, getNowJST } from "@/lib/utils/date-jst"
 
 /**
  * 生徒の学年に応じたテスト日程を取得
@@ -29,21 +30,8 @@ export async function getAvailableTests() {
     return { error: "生徒情報が見つかりません" }
   }
 
-  // 現在日時（JST形式のYYYY-MM-DD HH:mm:ss文字列で取得）
-  const now = new Date()
-  const formatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Tokyo',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  })
-  const parts = formatter.formatToParts(now)
-  const tokyoNowString = `${parts.find(p => p.type === 'year')?.value}-${parts.find(p => p.type === 'month')?.value}-${parts.find(p => p.type === 'day')?.value}T${parts.find(p => p.type === 'hour')?.value}:${parts.find(p => p.type === 'minute')?.value}:${parts.find(p => p.type === 'second')?.value}+09:00`
-  const tokyoNow = new Date(tokyoNowString)
+  // 現在日時（JST）
+  const tokyoNow = getNowJST()
 
   // 目標設定期間内のテスト日程を取得
   // 条件: goal_setting_start_date <= 今 <= goal_setting_end_date
@@ -63,8 +51,8 @@ export async function getAvailableTests() {
       )
     `)
     .eq("test_types.grade", student.grade)
-    .lte("goal_setting_start_date", tokyoNow.toISOString())
-    .gte("goal_setting_end_date", tokyoNow.toISOString())
+    .lte("goal_setting_start_date", formatDateToJST(tokyoNow))
+    .gte("goal_setting_end_date", formatDateToJST(tokyoNow))
     .order("test_date", { ascending: true })
 
   console.log("🔍 [getAvailableTests] tokyoNow:", tokyoNow.toISOString())
@@ -277,21 +265,8 @@ export async function getAvailableTestsForResult() {
     return { error: "生徒情報が見つかりません" }
   }
 
-  // 現在日時（JST形式のYYYY-MM-DD HH:mm:ss文字列で取得）
-  const now = new Date()
-  const formatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Tokyo',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  })
-  const parts = formatter.formatToParts(now)
-  const tokyoNowString = `${parts.find(p => p.type === 'year')?.value}-${parts.find(p => p.type === 'month')?.value}-${parts.find(p => p.type === 'day')?.value}T${parts.find(p => p.type === 'hour')?.value}:${parts.find(p => p.type === 'minute')?.value}:${parts.find(p => p.type === 'second')?.value}+09:00`
-  const tokyoNow = new Date(tokyoNowString)
+  // 現在日時（JST）
+  const tokyoNow = getNowJST()
 
   const parseAsTokyoDate = (value: string | null) => {
     if (!value) return null
@@ -689,20 +664,7 @@ export async function getAvailableTestsForStudent(studentId: string) {
   }
 
   // 現在日時（JST）
-  const now = new Date()
-  const formatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Tokyo',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  })
-  const parts = formatter.formatToParts(now)
-  const tokyoNowString = `${parts.find(p => p.type === 'year')?.value}-${parts.find(p => p.type === 'month')?.value}-${parts.find(p => p.type === 'day')?.value}T${parts.find(p => p.type === 'hour')?.value}:${parts.find(p => p.type === 'minute')?.value}:${parts.find(p => p.type === 'second')?.value}+09:00`
-  const tokyoNow = new Date(tokyoNowString)
+  const tokyoNow = getNowJST()
 
   const { data: tests, error: testsError } = await supabase
     .from("test_schedules")
@@ -720,7 +682,7 @@ export async function getAvailableTestsForStudent(studentId: string) {
       )
     `)
     .eq("test_types.grade", student.grade)
-    .gte("goal_setting_end_date", tokyoNow.toISOString().split("T")[0])
+    .gte("goal_setting_end_date", formatDateToJST(tokyoNow))
     .order("test_date", { ascending: true })
 
   if (testsError) {

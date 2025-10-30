@@ -1,14 +1,14 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { formatDateToJST, getNowJST } from "@/lib/utils/date-jst"
 
 /**
  * 週次振り返りが利用可能かチェック
  * 土曜12:00 〜 水曜23:59のみ利用可能
  */
 export async function checkReflectAvailability() {
-  const now = new Date()
-  const tokyoNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Tokyo" }))
+  const tokyoNow = getNowJST()
 
   const dayOfWeek = tokyoNow.getDay() // 0=日, 1=月, 2=火, 3=水, 4=木, 5=金, 6=土
   const hours = tokyoNow.getHours()
@@ -55,8 +55,7 @@ export async function determineWeekType() {
   }
 
   // 今週と先週の学習ログを取得
-  const now = new Date()
-  const tokyoNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Tokyo" }))
+  const tokyoNow = getNowJST()
 
   // 今週の月曜日
   const thisMonday = new Date(tokyoNow)
@@ -86,12 +85,12 @@ export async function determineWeekType() {
       study_sessions!inner(start_date, end_date)
     `)
     .eq("student_id", student.id)
-    .gte("study_sessions.start_date", twoWeeksAgo.toISOString().split('T')[0])
+    .gte("study_sessions.start_date", formatDateToJST(twoWeeksAgo))
 
   // JavaScript側でフィルタリング（学習回の期間で判定）
-  const thisMondayStr = thisMonday.toISOString().split('T')[0]
-  const lastMondayStr = lastMonday.toISOString().split('T')[0]
-  const lastSundayStr = lastSunday.toISOString().split('T')[0]
+  const thisMondayStr = formatDateToJST(thisMonday)
+  const lastMondayStr = formatDateToJST(lastMonday)
+  const lastSundayStr = formatDateToJST(lastSunday)
 
   const thisWeekLogs = (allRecentLogs || []).filter(log => {
     const sessionStartDate = log.study_sessions?.start_date
@@ -131,13 +130,13 @@ export async function determineWeekType() {
   nextWeekSundayEnd.setHours(23, 59, 59, 999)
 
   console.log("=== 特別週判定 ===")
-  console.log("今週月曜日:", thisMonday.toISOString().split('T')[0])
-  console.log("来週日曜日:", nextWeekSunday.toISOString().split('T')[0])
+  console.log("今週月曜日:", formatDateToJST(thisMonday))
+  console.log("来週日曜日:", formatDateToJST(nextWeekSunday))
 
   const { data: upcomingTests } = await supabase
     .from("test_schedules")
     .select("test_date, test_types(name, grade)")
-    .eq("test_date", nextWeekSunday.toISOString().split('T')[0])
+    .eq("test_date", formatDateToJST(nextWeekSunday))
 
   console.log("来週日曜日のテスト:", upcomingTests)
 
@@ -186,8 +185,7 @@ export async function startCoachingSession(weekType: string) {
   }
 
   // 今週の開始・終了日を算出
-  const now = new Date()
-  const tokyoNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Tokyo" }))
+  const tokyoNow = getNowJST()
 
   // 今週の月曜日（週開始日）
   const weekStartDate = new Date(tokyoNow)
@@ -204,7 +202,7 @@ export async function startCoachingSession(weekType: string) {
     .from("coaching_sessions")
     .select("id")
     .eq("student_id", student.id)
-    .eq("week_start_date", weekStartDate.toISOString().split('T')[0])
+    .eq("week_start_date", formatDateToJST(weekStartDate))
     .maybeSingle()
 
   if (existingSession) {
@@ -216,8 +214,8 @@ export async function startCoachingSession(weekType: string) {
     .from("coaching_sessions")
     .insert({
       student_id: student.id,
-      week_start_date: weekStartDate.toISOString().split('T')[0],
-      week_end_date: weekEndDate.toISOString().split('T')[0],
+      week_start_date: formatDateToJST(weekStartDate),
+      week_end_date: formatDateToJST(weekEndDate),
       week_type: weekType,
       status: "in_progress",
       started_at: tokyoNow.toISOString(),
