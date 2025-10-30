@@ -69,56 +69,118 @@ const LearningHistoryCalendar = ({ calendarData }: { calendarData: { [dateStr: s
     return "dark"
   }
 
-  // ナビゲーション関数
+  // JST で年月日を取得するヘルパー関数
+  const getJSTDateParts = (date: Date) => {
+    const formatter = new Intl.DateTimeFormat('ja-JP', {
+      timeZone: 'Asia/Tokyo',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      weekday: 'short'
+    })
+    const parts = formatter.formatToParts(date)
+    return {
+      year: Number(parts.find(p => p.type === 'year')?.value),
+      month: Number(parts.find(p => p.type === 'month')?.value),
+      day: Number(parts.find(p => p.type === 'day')?.value),
+      weekday: parts.find(p => p.type === 'weekday')?.value || ''
+    }
+  }
+
+  // JST の曜日文字列を数値に変換
+  const getWeekdayNumber = (weekdayStr: string): number => {
+    const weekdayMap: { [key: string]: number } = {
+      '日': 0, '月': 1, '火': 2, '水': 3, '木': 4, '金': 5, '土': 6
+    }
+    return weekdayMap[weekdayStr] ?? 0
+  }
+
+  // JST で YYYY-MM-DD 形式の文字列を生成
+  const formatJSTDateString = (date: Date): string => {
+    const parts = getJSTDateParts(date)
+    return `${parts.year}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`
+  }
+
+  // ナビゲーション関数（JST 基準）
   const goToPreviousMonth = () => {
-    const newMonth = new Date(selectedMonth)
-    newMonth.setMonth(selectedMonth.getMonth() - 1)
-    setSelectedMonth(newMonth)
+    const parts = getJSTDateParts(selectedMonth)
+    // 前月の1日を JST で作成
+    let newYear = parts.year
+    let newMonth = parts.month - 1
+    if (newMonth < 1) {
+      newMonth = 12
+      newYear -= 1
+    }
+    // UTC で作成するが、JST の年月日を意図して作成
+    const newDate = new Date(Date.UTC(newYear, newMonth - 1, 1, 0, 0, 0))
+    setSelectedMonth(newDate)
   }
 
   const goToNextMonth = () => {
-    const newMonth = new Date(selectedMonth)
-    newMonth.setMonth(selectedMonth.getMonth() + 1)
-    setSelectedMonth(newMonth)
+    const parts = getJSTDateParts(selectedMonth)
+    // 次月の1日を JST で作成
+    let newYear = parts.year
+    let newMonth = parts.month + 1
+    if (newMonth > 12) {
+      newMonth = 1
+      newYear += 1
+    }
+    const newDate = new Date(Date.UTC(newYear, newMonth - 1, 1, 0, 0, 0))
+    setSelectedMonth(newDate)
   }
 
   const goToToday = () => {
     setSelectedMonth(new Date())
   }
 
-  // 選択された月のデータのみ生成
+  // 選択された月のデータのみ生成（JST 基準）
   const targetMonth = selectedMonth
-  const monthKey = `${targetMonth.getFullYear()}-${String(targetMonth.getMonth() + 1).padStart(2, "0")}`
-  const monthName = `${targetMonth.getFullYear()}年${targetMonth.getMonth() + 1}月`
+  const targetParts = getJSTDateParts(targetMonth)
+  const monthKey = `${targetParts.year}-${String(targetParts.month).padStart(2, "0")}`
+  const monthName = `${targetParts.year}年${targetParts.month}月`
 
   const weeks = []
-  const firstDay = new Date(targetMonth.getFullYear(), targetMonth.getMonth(), 1)
-  const lastDay = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0)
 
-  const startDate = new Date(firstDay)
-  startDate.setDate(startDate.getDate() - firstDay.getDay())
+  // その月の最初の日と最後の日を JST で取得
+  // UTC で作成するが、JST の年月日を意図
+  const firstDayUTC = new Date(Date.UTC(targetParts.year, targetParts.month - 1, 1, 0, 0, 0))
+  const lastDayUTC = new Date(Date.UTC(targetParts.year, targetParts.month, 0, 0, 0, 0))
 
-  const endDate = new Date(lastDay)
-  endDate.setDate(endDate.getDate() + (6 - lastDay.getDay()))
+  const firstDayParts = getJSTDateParts(firstDayUTC)
+  const lastDayParts = getJSTDateParts(lastDayUTC)
 
-  const currentDate = new Date(startDate)
-  while (currentDate <= endDate) {
+  // カレンダーの開始日（月初の曜日に応じて前月の日付を含む）
+  const firstWeekday = getWeekdayNumber(firstDayParts.weekday)
+  const startDayNum = firstDayParts.day - firstWeekday
+  const startDateUTC = new Date(Date.UTC(targetParts.year, targetParts.month - 1, startDayNum, 0, 0, 0))
+
+  // カレンダーの終了日（月末の曜日に応じて次月の日付を含む）
+  const lastWeekday = getWeekdayNumber(lastDayParts.weekday)
+  const endDayNum = lastDayParts.day + (6 - lastWeekday)
+  const endDateUTC = new Date(Date.UTC(targetParts.year, targetParts.month - 1, endDayNum, 0, 0, 0))
+
+  // カレンダーを日付ごとに生成
+  let currentDateUTC = new Date(startDateUTC)
+  while (currentDateUTC <= endDateUTC) {
     const week = []
     for (let day = 0; day < 7; day++) {
-      const dateStr = currentDate.toISOString().split("T")[0]
+      const currentParts = getJSTDateParts(currentDateUTC)
+      const dateStr = formatJSTDateString(currentDateUTC)
+
       // 判定基準に基づいて濃淡を決定
       const intensity = getLearningIntensity(dateStr)
-      const isCurrentMonth = currentDate.getMonth() === targetMonth.getMonth()
+      const isCurrentMonth = currentParts.month === targetParts.month
 
       week.push({
         date: dateStr,
-        day: currentDate.getDate(),
+        day: currentParts.day,
         intensity: isCurrentMonth ? intensity : "none",
         data: calendarData[dateStr],
         isCurrentMonth,
       })
 
-      currentDate.setDate(currentDate.getDate() + 1)
+      // 次の日へ（24時間加算で日付変更を JST ベースで実現）
+      currentDateUTC = new Date(currentDateUTC.getTime() + 24 * 60 * 60 * 1000)
     }
     weeks.push(week)
   }
@@ -262,12 +324,30 @@ const ParentTodayMissionCard = ({ todayProgress, studentName, selectedChildId }:
 
   const getTodayWeekday = () => {
     const today = new Date()
-    return today.getDay() // 0=日曜, 1=月曜, ..., 6=土曜
+    // JST での曜日を取得
+    const formatter = new Intl.DateTimeFormat('ja-JP', {
+      timeZone: 'Asia/Tokyo',
+      weekday: 'short'
+    })
+    const weekdayStr = formatter.format(today)
+    // 曜日文字列を数値に変換
+    const weekdayMap: { [key: string]: number } = {
+      '日': 0, '月': 1, '火': 2, '水': 3, '木': 4, '金': 5, '土': 6
+    }
+    return weekdayMap[weekdayStr] ?? 0 // 0=日曜, 1=月曜, ..., 6=土曜
   }
 
   const getCurrentHour = () => {
     const now = new Date()
-    return now.getHours()
+    // JST での時刻を取得
+    const formatter = new Intl.DateTimeFormat('ja-JP', {
+      timeZone: 'Asia/Tokyo',
+      hour: 'numeric',
+      hour12: false
+    })
+    const parts = formatter.formatToParts(now)
+    const hour = Number(parts.find(p => p.type === 'hour')?.value)
+    return hour
   }
 
   const getSubjectBlock = (weekday: number) => {
@@ -579,7 +659,17 @@ const ParentTodayMissionCard = ({ todayProgress, studentName, selectedChildId }:
 
   const formatLogTime = (loggedAt: string) => {
     const date = new Date(loggedAt)
-    return `${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`
+    // JST で時刻を取得
+    const formatter = new Intl.DateTimeFormat('ja-JP', {
+      timeZone: 'Asia/Tokyo',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: false
+    })
+    const parts = formatter.formatToParts(date)
+    const hour = parts.find(p => p.type === 'hour')?.value
+    const minute = parts.find(p => p.type === 'minute')?.value
+    return `${hour}:${minute}`
   }
 
   return (
@@ -1001,18 +1091,51 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
     const date = new Date(dateStr)
     if (Number.isNaN(date.getTime())) return "記録日時不明"
 
-    const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-    const logDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+    // JST で日付と時刻を取得（サーバー・クライアント両方で統一）
+    const formatter = new Intl.DateTimeFormat('ja-JP', {
+      timeZone: 'Asia/Tokyo',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: false
+    })
+    const parts = formatter.formatToParts(date)
+    const get = (type: Intl.DateTimeFormatPartTypes) =>
+      parts.find(p => p.type === type)?.value
+    const year = Number(get('year'))
+    const month = Number(get('month'))
+    const day = Number(get('day'))
+    const hour = Number(get('hour'))
+    const minute = get('minute')
 
-    if (logDate.getTime() === today.getTime()) {
-      return `今日 ${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`
-    } else if (logDate.getTime() === yesterday.getTime()) {
-      return `昨日 ${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`
+    // 今日と昨日の判定（JST 基準）
+    const nowFormatter = new Intl.DateTimeFormat('ja-JP', {
+      timeZone: 'Asia/Tokyo',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric'
+    })
+    const nowParts = nowFormatter.formatToParts(new Date())
+    const nowYear = Number(nowParts.find(p => p.type === 'year')?.value)
+    const nowMonth = Number(nowParts.find(p => p.type === 'month')?.value)
+    const nowDay = Number(nowParts.find(p => p.type === 'day')?.value)
+
+    // 昨日の日付を計算（JST 基準）
+    const yesterday = new Date()
+    yesterday.setTime(yesterday.getTime() - 24 * 60 * 60 * 1000)
+    const yParts = nowFormatter.formatToParts(yesterday)
+    const yYear = Number(yParts.find(p => p.type === 'year')?.value)
+    const yMonth = Number(yParts.find(p => p.type === 'month')?.value)
+    const yDay = Number(yParts.find(p => p.type === 'day')?.value)
+
+    if (year === nowYear && month === nowMonth && day === nowDay) {
+      return `今日 ${hour}:${minute}`
+    } else if (year === yYear && month === yMonth && day === yDay) {
+      return `昨日 ${hour}:${minute}`
     } else {
-      return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`
+      return `${month}/${day} ${hour}:${minute}`
     }
   }
 
@@ -1029,8 +1152,20 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
       if (log.study_sessions.start_date && log.study_sessions.end_date) {
         const startDate = new Date(log.study_sessions.start_date)
         const endDate = new Date(log.study_sessions.end_date)
-        const startStr = `${startDate.getMonth() + 1}/${startDate.getDate()}`
-        const endStr = `${endDate.getMonth() + 1}/${endDate.getDate()}`
+        // JST で日付を取得
+        const formatter = new Intl.DateTimeFormat('ja-JP', {
+          timeZone: 'Asia/Tokyo',
+          month: 'numeric',
+          day: 'numeric'
+        })
+        const startParts = formatter.formatToParts(startDate)
+        const startMonth = startParts.find(p => p.type === 'month')?.value
+        const startDay = startParts.find(p => p.type === 'day')?.value
+        const endParts = formatter.formatToParts(endDate)
+        const endMonth = endParts.find(p => p.type === 'month')?.value
+        const endDay = endParts.find(p => p.type === 'day')?.value
+        const startStr = `${startMonth}/${startDay}`
+        const endStr = `${endMonth}/${endDay}`
         sessionDisplay = `第${sessionNum}回(${startStr}〜${endStr})`
       } else {
         sessionDisplay = `第${sessionNum}回`
@@ -1200,18 +1335,51 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
     const date = new Date(dateStr)
     if (Number.isNaN(date.getTime())) return "記録日時不明"
 
-    const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-    const logDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+    // JST で日付と時刻を取得（サーバー・クライアント両方で統一）
+    const formatter = new Intl.DateTimeFormat('ja-JP', {
+      timeZone: 'Asia/Tokyo',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: false
+    })
+    const parts = formatter.formatToParts(date)
+    const get = (type: Intl.DateTimeFormatPartTypes) =>
+      parts.find(p => p.type === type)?.value
+    const year = Number(get('year'))
+    const month = Number(get('month'))
+    const day = Number(get('day'))
+    const hour = Number(get('hour'))
+    const minute = get('minute')
 
-    if (logDate.getTime() === today.getTime()) {
-      return `今日 ${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`
-    } else if (logDate.getTime() === yesterday.getTime()) {
-      return `昨日 ${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`
+    // 今日と昨日の判定（JST 基準）
+    const nowFormatter = new Intl.DateTimeFormat('ja-JP', {
+      timeZone: 'Asia/Tokyo',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric'
+    })
+    const nowParts = nowFormatter.formatToParts(new Date())
+    const nowYear = Number(nowParts.find(p => p.type === 'year')?.value)
+    const nowMonth = Number(nowParts.find(p => p.type === 'month')?.value)
+    const nowDay = Number(nowParts.find(p => p.type === 'day')?.value)
+
+    // 昨日の日付を計算（JST 基準）
+    const yesterday = new Date()
+    yesterday.setTime(yesterday.getTime() - 24 * 60 * 60 * 1000)
+    const yParts = nowFormatter.formatToParts(yesterday)
+    const yYear = Number(yParts.find(p => p.type === 'year')?.value)
+    const yMonth = Number(yParts.find(p => p.type === 'month')?.value)
+    const yDay = Number(yParts.find(p => p.type === 'day')?.value)
+
+    if (year === nowYear && month === nowMonth && day === nowDay) {
+      return `今日 ${hour}:${minute}`
+    } else if (year === yYear && month === yMonth && day === yDay) {
+      return `昨日 ${hour}:${minute}`
     } else {
-      return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`
+      return `${month}/${day} ${hour}:${minute}`
     }
   }
 

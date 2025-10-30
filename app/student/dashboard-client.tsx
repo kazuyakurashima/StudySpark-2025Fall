@@ -77,13 +77,18 @@ function getSubjectIcon(subject: string) {
 function formatDateTime(isoString: string | null) {
   if (!isoString) return ""
   const date = new Date(isoString)
-  const month = date.getMonth() + 1
-  const day = date.getDate()
-  const hour = date.getHours()
-  const minute = date.getMinutes()
-  const ampm = hour < 12 ? "AM" : "PM"
-  const hour12 = hour % 12 || 12
-  return `${month}/${day} ${hour12}:${minute.toString().padStart(2, '0')}${ampm}`
+
+  // JST で日付と時刻を取得（サーバー・クライアント両方で統一）
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Tokyo',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  })
+
+  return formatter.format(date)
 }
 
 function getGreetingMessage(userName: string, lastLoginInfo: { lastLoginDays: number | null, lastLoginHours: number, isFirstTime: boolean } | null) {
@@ -176,74 +181,161 @@ const LearningHistoryCalendar = ({ calendarData }: { calendarData: { [dateStr: s
   const [selectedMonth, setSelectedMonth] = useState(new Date())
   const [criteriaMode, setCriteriaMode] = useState<"input" | "accuracy">("input")
 
-  // データ取得範囲（6週間前まで）
-  const today = new Date()
-  const sixWeeksAgo = new Date(today)
-  sixWeeksAgo.setDate(today.getDate() - 42)
+  // JST で日付のパーツ（年月日・曜日）を取得
+  const getJSTDateParts = (date: Date) => {
+    const formatter = new Intl.DateTimeFormat('ja-JP', {
+      timeZone: 'Asia/Tokyo',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      weekday: 'short'
+    })
+    const parts = formatter.formatToParts(date)
+    return {
+      year: Number(parts.find(p => p.type === 'year')?.value),
+      month: Number(parts.find(p => p.type === 'month')?.value),
+      day: Number(parts.find(p => p.type === 'day')?.value),
+      weekday: parts.find(p => p.type === 'weekday')?.value || ''
+    }
+  }
 
+  // JST の曜日文字列を数値に変換
+  const getWeekdayNumber = (weekdayStr: string): number => {
+    const weekdayMap: { [key: string]: number } = {
+      '日': 0, '月': 1, '火': 2, '水': 3, '木': 4, '金': 5, '土': 6
+    }
+    return weekdayMap[weekdayStr] ?? 0
+  }
+
+  // JST で YYYY-MM-DD 形式の文字列を生成
+  const formatJSTDateString = (date: Date): string => {
+    const parts = getJSTDateParts(date)
+    return `${parts.year}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`
+  }
+
+  // データ取得範囲（6週間前まで、JST基準）
+  const today = new Date()
+  const todayParts = getJSTDateParts(today)
+  const sixWeeksAgo = new Date(today.getTime() - 42 * 24 * 60 * 60 * 1000)
+  const sixWeeksAgoParts = getJSTDateParts(sixWeeksAgo)
+
+  // ナビゲーション関数（JST 基準）
   const goToPreviousMonth = () => {
-    const newMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1, 1)
-    setSelectedMonth(newMonth)
+    const parts = getJSTDateParts(selectedMonth)
+    // 前月の1日を JST で作成
+    let newYear = parts.year
+    let newMonth = parts.month - 1
+    if (newMonth < 1) {
+      newMonth = 12
+      newYear -= 1
+    }
+    // UTC で作成するが、JST の年月日を意図して作成
+    const newDate = new Date(Date.UTC(newYear, newMonth - 1, 1, 0, 0, 0))
+    setSelectedMonth(newDate)
   }
 
   const goToNextMonth = () => {
-    const newMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 1)
-    setSelectedMonth(newMonth)
+    const parts = getJSTDateParts(selectedMonth)
+    // 次月の1日を JST で作成
+    let newYear = parts.year
+    let newMonth = parts.month + 1
+    if (newMonth > 12) {
+      newMonth = 1
+      newYear += 1
+    }
+    const newDate = new Date(Date.UTC(newYear, newMonth - 1, 1, 0, 0, 0))
+    setSelectedMonth(newDate)
   }
 
   const goToToday = () => {
     setSelectedMonth(new Date())
   }
 
-  // 前月・次月ボタンの有効/無効判定
+  // 前月・次月ボタンの有効/無効判定（JST 基準）
   const canGoPrevious = () => {
-    const prevMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1, 1)
-    const lastDayOfPrevMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 0)
-    return lastDayOfPrevMonth >= sixWeeksAgo
+    const parts = getJSTDateParts(selectedMonth)
+    // 前月の最終日を取得
+    let prevYear = parts.year
+    let prevMonth = parts.month - 1
+    if (prevMonth < 1) {
+      prevMonth = 12
+      prevYear -= 1
+    }
+    // 前月の最終日 = 当月の0日目
+    const lastDayOfPrevMonth = new Date(Date.UTC(parts.year, parts.month - 1, 0, 0, 0, 0))
+    const lastDayParts = getJSTDateParts(lastDayOfPrevMonth)
+
+    // 6週間前との比較
+    if (lastDayParts.year < sixWeeksAgoParts.year) return false
+    if (lastDayParts.year > sixWeeksAgoParts.year) return true
+    if (lastDayParts.month < sixWeeksAgoParts.month) return false
+    if (lastDayParts.month > sixWeeksAgoParts.month) return true
+    return lastDayParts.day >= sixWeeksAgoParts.day
   }
 
   const canGoNext = () => {
-    const nextMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 1)
-    return nextMonth <= today
+    const parts = getJSTDateParts(selectedMonth)
+    // 次月の1日を取得
+    let nextYear = parts.year
+    let nextMonth = parts.month + 1
+    if (nextMonth > 12) {
+      nextMonth = 1
+      nextYear += 1
+    }
+
+    // 今日との比較
+    if (nextYear > todayParts.year) return false
+    if (nextYear < todayParts.year) return true
+    if (nextMonth > todayParts.month) return false
+    return true
   }
 
-  // 選択月がデータ範囲外かチェック
-  const isOutOfRange = () => {
-    const firstDayOfMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1)
-    const lastDayOfMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0)
-    return lastDayOfMonth < sixWeeksAgo || firstDayOfMonth > today
-  }
-
-  // 選択された月のカレンダーデータを生成
-  const monthName = `${selectedMonth.getFullYear()}年${selectedMonth.getMonth() + 1}月`
+  // 選択された月のカレンダーデータを生成（JST 基準）
+  const targetParts = getJSTDateParts(selectedMonth)
+  const monthName = `${targetParts.year}年${targetParts.month}月`
 
   const weeks = []
-  const firstDay = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1)
-  const lastDay = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0)
 
-  const startDate = new Date(firstDay)
-  startDate.setDate(startDate.getDate() - firstDay.getDay())
+  // その月の最初の日と最後の日を JST で取得
+  // UTC で作成するが、JST の年月日を意図
+  const firstDayUTC = new Date(Date.UTC(targetParts.year, targetParts.month - 1, 1, 0, 0, 0))
+  const lastDayUTC = new Date(Date.UTC(targetParts.year, targetParts.month, 0, 0, 0, 0))
 
-  const endDate = new Date(lastDay)
-  endDate.setDate(endDate.getDate() + (6 - lastDay.getDay()))
+  const firstDayParts = getJSTDateParts(firstDayUTC)
+  const lastDayParts = getJSTDateParts(lastDayUTC)
 
-  const currentDate = new Date(startDate)
-  while (currentDate <= endDate) {
+  // カレンダーの開始日（月初の曜日に応じて前月の日付を含む）
+  const firstWeekday = getWeekdayNumber(firstDayParts.weekday)
+  const startDayNum = firstDayParts.day - firstWeekday
+  const startDateUTC = new Date(Date.UTC(targetParts.year, targetParts.month - 1, startDayNum, 0, 0, 0))
+
+  // カレンダーの終了日（月末の曜日に応じて次月の日付を含む）
+  const lastWeekday = getWeekdayNumber(lastDayParts.weekday)
+  const endDayNum = lastDayParts.day + (6 - lastWeekday)
+  const endDateUTC = new Date(Date.UTC(targetParts.year, targetParts.month - 1, endDayNum, 0, 0, 0))
+
+  // カレンダーを日付ごとに生成
+  let currentDateUTC = new Date(startDateUTC)
+  while (currentDateUTC <= endDateUTC) {
     const week = []
     for (let day = 0; day < 7; day++) {
-      const dateStr = currentDate.toISOString().split("T")[0]
+      const currentParts = getJSTDateParts(currentDateUTC)
+      const dateStr = formatJSTDateString(currentDateUTC)
+
+      // 判定基準に基づいて濃淡を決定
       const intensity = getLearningIntensity(dateStr, calendarData, criteriaMode)
-      const isCurrentMonth = currentDate.getMonth() === selectedMonth.getMonth()
+      const isCurrentMonth = currentParts.month === targetParts.month
 
       week.push({
         date: dateStr,
-        day: currentDate.getDate(),
+        day: currentParts.day,
         intensity: isCurrentMonth ? intensity : "none",
         data: calendarData[dateStr],
         isCurrentMonth,
       })
 
-      currentDate.setDate(currentDate.getDate() + 1)
+      // 次の日へ（24時間加算で日付変更を JST ベースで実現）
+      currentDateUTC = new Date(currentDateUTC.getTime() + 24 * 60 * 60 * 1000)
     }
     weeks.push(week)
   }
@@ -255,7 +347,7 @@ const LearningHistoryCalendar = ({ calendarData }: { calendarData: { [dateStr: s
     dark: "bg-primary border-primary",
   }
 
-  const isCurrentMonth = selectedMonth.getFullYear() === today.getFullYear() && selectedMonth.getMonth() === today.getMonth()
+  const isCurrentMonth = targetParts.year === todayParts.year && targetParts.month === todayParts.month
 
   return (
     <Card className="bg-gradient-to-br from-blue-50 to-primary/10 border-primary/20 shadow-lg">
@@ -849,27 +941,53 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
     const date = new Date(dateStr)
     if (Number.isNaN(date.getTime())) return "記録日時不明"
 
-    // デバッグ: UTCと変換後の時刻を確認
-    console.log('formatDate debug:', {
-      input: dateStr,
-      utcDate: date.toISOString(),
-      localDate: date.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }),
-      getHours: date.getHours(),
-      getMinutes: date.getMinutes()
+    // JST で日付と時刻を取得（サーバー・クライアント両方で統一）
+    const formatter = new Intl.DateTimeFormat('ja-JP', {
+      timeZone: 'Asia/Tokyo',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: false
     })
 
-    const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-    const logDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+    const parts = formatter.formatToParts(date)
+    const get = (type: Intl.DateTimeFormatPartTypes) =>
+      parts.find(p => p.type === type)?.value
 
-    if (logDate.getTime() === today.getTime()) {
-      return `今日 ${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`
-    } else if (logDate.getTime() === yesterday.getTime()) {
-      return `昨日 ${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`
+    const year = Number(get('year'))
+    const month = Number(get('month'))
+    const day = Number(get('day'))
+    const hour = Number(get('hour'))
+    const minute = get('minute')
+
+    // 今日と昨日の判定（JST 基準）
+    const nowFormatter = new Intl.DateTimeFormat('ja-JP', {
+      timeZone: 'Asia/Tokyo',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric'
+    })
+    const nowParts = nowFormatter.formatToParts(new Date())
+    const nowYear = Number(nowParts.find(p => p.type === 'year')?.value)
+    const nowMonth = Number(nowParts.find(p => p.type === 'month')?.value)
+    const nowDay = Number(nowParts.find(p => p.type === 'day')?.value)
+
+    // 昨日の日付を計算（JST 基準）
+    const yesterday = new Date()
+    yesterday.setTime(yesterday.getTime() - 24 * 60 * 60 * 1000)
+    const yParts = nowFormatter.formatToParts(yesterday)
+    const yYear = Number(yParts.find(p => p.type === 'year')?.value)
+    const yMonth = Number(yParts.find(p => p.type === 'month')?.value)
+    const yDay = Number(yParts.find(p => p.type === 'day')?.value)
+
+    if (year === nowYear && month === nowMonth && day === nowDay) {
+      return `今日 ${hour}:${minute}`
+    } else if (year === yYear && month === yMonth && day === yDay) {
+      return `昨日 ${hour}:${minute}`
     } else {
-      return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`
+      return `${month}/${day} ${hour}:${minute}`
     }
   }
 
@@ -1056,18 +1174,53 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
     const date = new Date(dateStr)
     if (Number.isNaN(date.getTime())) return "記録日時不明"
 
-    const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-    const logDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+    // JST で日付と時刻を取得（サーバー・クライアント両方で統一）
+    const formatter = new Intl.DateTimeFormat('ja-JP', {
+      timeZone: 'Asia/Tokyo',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: false
+    })
 
-    if (logDate.getTime() === today.getTime()) {
-      return `今日 ${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`
-    } else if (logDate.getTime() === yesterday.getTime()) {
-      return `昨日 ${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`
+    const parts = formatter.formatToParts(date)
+    const get = (type: Intl.DateTimeFormatPartTypes) =>
+      parts.find(p => p.type === type)?.value
+
+    const year = Number(get('year'))
+    const month = Number(get('month'))
+    const day = Number(get('day'))
+    const hour = Number(get('hour'))
+    const minute = get('minute')
+
+    // 今日と昨日の判定（JST 基準）
+    const nowFormatter = new Intl.DateTimeFormat('ja-JP', {
+      timeZone: 'Asia/Tokyo',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric'
+    })
+    const nowParts = nowFormatter.formatToParts(new Date())
+    const nowYear = Number(nowParts.find(p => p.type === 'year')?.value)
+    const nowMonth = Number(nowParts.find(p => p.type === 'month')?.value)
+    const nowDay = Number(nowParts.find(p => p.type === 'day')?.value)
+
+    // 昨日の日付を計算（JST 基準）
+    const yesterday = new Date()
+    yesterday.setTime(yesterday.getTime() - 24 * 60 * 60 * 1000)
+    const yParts = nowFormatter.formatToParts(yesterday)
+    const yYear = Number(yParts.find(p => p.type === 'year')?.value)
+    const yMonth = Number(yParts.find(p => p.type === 'month')?.value)
+    const yDay = Number(yParts.find(p => p.type === 'day')?.value)
+
+    if (year === nowYear && month === nowMonth && day === nowDay) {
+      return `今日 ${hour}:${minute}`
+    } else if (year === yYear && month === yMonth && day === yDay) {
+      return `昨日 ${hour}:${minute}`
     } else {
-      return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`
+      return `${month}/${day} ${hour}:${minute}`
     }
   }
 
