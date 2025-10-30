@@ -10,7 +10,7 @@ import { BottomNavigation } from "@/components/bottom-navigation"
 import { WeeklySubjectProgressCard } from "@/components/weekly-subject-progress-card"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { PageHeader } from "@/components/common/page-header"
-import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, ChevronLeft, ChevronRight, Bot } from "lucide-react"
+import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, ChevronLeft, ChevronRight, Bot, Sparkles, ChevronDown, ChevronUp } from "lucide-react"
 import { UserProfileProvider, useUserProfile } from "@/lib/hooks/use-user-profile"
 import { hexWithAlpha, isThemeActive } from "@/lib/utils/theme-color"
 
@@ -18,6 +18,7 @@ interface DashboardData {
   userName: string
   selectedAvatar: string
   aiCoachMessage: string
+  aiCoachMessageCreatedAt: string | null
   studyStreak: number
   recentLogs: any[]
   recentMessages: any[]
@@ -33,6 +34,12 @@ interface DashboardData {
     totalProblems: number
     logCount: number
   }>
+  yesterdayProgress: Array<{
+    subject: string
+    accuracy: number
+    correctCount: number
+    totalProblems: number
+  }>
   calendarData: { [dateStr: string]: { subjectCount: number; accuracy80Count: number } }
   weeklyProgress: Array<{
     subject: string
@@ -44,6 +51,39 @@ interface DashboardData {
   }>
   sessionNumber: number | null
   reflectionCompleted: boolean
+  liveUpdates: Array<{
+    subject: string
+    improvement: number
+    isFirstTime: boolean
+    todayCorrect: number
+    todayTotal: number
+  }>
+  lastUpdateTime: string | null
+  hasLiveUpdates: boolean
+}
+
+// ユーティリティ関数: 科目名 → アイコン
+function getSubjectIcon(subject: string) {
+  const icons: { [key: string]: string } = {
+    "算数": "📐",
+    "国語": "📖",
+    "理科": "🔬",
+    "社会": "🌏",
+  }
+  return icons[subject] || "✨"
+}
+
+// ユーティリティ関数: 日時のフォーマット（JST）
+function formatDateTime(isoString: string | null) {
+  if (!isoString) return ""
+  const date = new Date(isoString)
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  const hour = date.getHours()
+  const minute = date.getMinutes()
+  const ampm = hour < 12 ? "AM" : "PM"
+  const hour12 = hour % 12 || 12
+  return `${month}/${day} ${hour12}:${minute.toString().padStart(2, '0')}${ampm}`
 }
 
 function getGreetingMessage(userName: string, lastLoginInfo: { lastLoginDays: number | null, lastLoginHours: number, isFirstTime: boolean } | null) {
@@ -329,7 +369,7 @@ const LearningHistoryCalendar = ({ calendarData }: { calendarData: { [dateStr: s
   )
 }
 
-const TodayMissionCard = ({ todayProgress, reflectionCompleted, weeklyProgress }: { todayProgress: Array<{subject: string, accuracy: number, correctCount: number, totalProblems: number, logCount: number}>, reflectionCompleted: boolean, weeklyProgress: Array<{subject: string, accuracy: number, totalProblems: number}> }) => {
+const TodayMissionCard = ({ todayProgress, yesterdayProgress, reflectionCompleted }: { todayProgress: Array<{subject: string, accuracy: number, correctCount: number, totalProblems: number, logCount: number}>, yesterdayProgress: Array<{subject: string, accuracy: number, correctCount: number, totalProblems: number}>, reflectionCompleted: boolean }) => {
   const router = useRouter()
 
   // Helper function for accuracy color coding
@@ -339,11 +379,16 @@ const TodayMissionCard = ({ todayProgress, reflectionCompleted, weeklyProgress }
     return "text-orange-600"
   }
 
-  // Helper function to calculate diff from weekly average
+  // Helper function to calculate diff from yesterday
   const calculateDiff = (subject: string, currentAccuracy: number) => {
-    const weeklyData = weeklyProgress.find(w => w.subject === subject)
-    if (!weeklyData || weeklyData.totalProblems === 0) return null
-    return currentAccuracy - weeklyData.accuracy
+    const yesterdayData = yesterdayProgress.find(y => y.subject === subject)
+
+    if (!yesterdayData || yesterdayData.totalProblems === 0) {
+      return null
+    }
+
+    const diff = currentAccuracy - yesterdayData.accuracy
+    return diff
   }
 
   const getTodayWeekday = () => {
@@ -1212,6 +1257,7 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
     userName,
     selectedAvatar,
     aiCoachMessage,
+    aiCoachMessageCreatedAt,
     studyStreak,
     recentLogs,
     lastLoginInfo,
@@ -1220,10 +1266,33 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
     weeklyProgress,
     sessionNumber,
     reflectionCompleted,
+    liveUpdates,
+    lastUpdateTime,
+    hasLiveUpdates,
   } = initialData
 
   // テーマカラーを取得（デフォルトは使わない）
   const themeColor = profile?.theme_color || "default"
+
+  // AIコーチメッセージの開閉状態を管理（初期値は常に true でサーバーとクライアントを一致）
+  const [isCoachMessageExpanded, setIsCoachMessageExpanded] = useState(true)
+  const [isHydrated, setIsHydrated] = useState(false)
+
+  // マウント後に localStorage から状態を復元
+  useEffect(() => {
+    setIsHydrated(true)
+    const saved = localStorage.getItem('aiCoachMessageExpanded')
+    if (saved !== null) {
+      setIsCoachMessageExpanded(saved === 'true')
+    }
+  }, [])
+
+  // 開閉状態をlocalStorageに保存（hydration 後のみ）
+  useEffect(() => {
+    if (isHydrated) {
+      localStorage.setItem('aiCoachMessageExpanded', String(isCoachMessageExpanded))
+    }
+  }, [isCoachMessageExpanded, isHydrated])
 
   // ページが表示状態になったときに応援履歴を再取得
   useEffect(() => {
@@ -1309,56 +1378,82 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
                     }}
                   />
                 )}
-                <div className="flex items-center gap-2 mb-3">
-                  <Bot className="h-5 w-5 text-blue-600" />
-                  <span className="text-xs text-gray-500 font-medium">今朝のメッセージ</span>
-                </div>
-                <CardTitle className="text-xl font-bold flex items-center gap-4">
+                <div
+                  className="flex items-center justify-between cursor-pointer group"
+                  onClick={() => setIsCoachMessageExpanded(!isCoachMessageExpanded)}
+                >
                   <div className="flex items-center gap-3">
                     <Avatar
-                      className="h-16 w-16 shadow-xl transition-all duration-300"
+                      className="h-14 w-14 shadow-lg transition-all duration-300 group-hover:scale-105"
                       style={
                         isThemeActive(themeColor)
                           ? {
                               backgroundColor: hexWithAlpha(themeColor, 20),
-                              border: `4px solid ${hexWithAlpha(themeColor, 70)}`,
-                              boxShadow: `0 4px 12px ${hexWithAlpha(themeColor, 30)}`,
+                              border: `3px solid ${hexWithAlpha(themeColor, 60)}`,
+                              boxShadow: `0 4px 12px ${hexWithAlpha(themeColor, 25)}`,
                             }
                           : {}
                       }
                     >
                       <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
-                      <AvatarFallback className="font-bold text-lg" style={{ backgroundColor: hexWithAlpha(themeColor, 20) || '#e0f2fe' }}>AI</AvatarFallback>
+                      <AvatarFallback className="font-bold text-base" style={{ backgroundColor: hexWithAlpha(themeColor, 20) || '#e0f2fe' }}>AI</AvatarFallback>
                     </Avatar>
-                    <span className="font-bold text-xl" style={{ color: isThemeActive(themeColor) ? themeColor : '#164e63' }}>
-                      AIコーチからのメッセージ
-                    </span>
+                    <div>
+                      <CardTitle className="text-lg font-bold mb-1" style={{ color: isThemeActive(themeColor) ? themeColor : '#164e63' }}>
+                        AIコーチ
+                      </CardTitle>
+                      {!isCoachMessageExpanded && (
+                        <p className="text-xs text-gray-500">タップして表示</p>
+                      )}
+                    </div>
                   </div>
-                  <div
-                    className="p-2 rounded-full shadow-sm transition-all duration-300"
-                    style={{ backgroundColor: hexWithAlpha(themeColor, 15) || '#e0f2fe' }}
+                  <button
+                    className="p-2.5 rounded-full transition-all duration-300 hover:scale-110"
+                    style={{
+                      backgroundColor: isThemeActive(themeColor)
+                        ? hexWithAlpha(themeColor, 15)
+                        : '#e0f2fe',
+                    }}
+                    aria-label={isCoachMessageExpanded ? "メッセージを閉じる" : "メッセージを開く"}
                   >
-                    <MessageCircle className="h-6 w-6" style={{ color: isThemeActive(themeColor) ? themeColor : '#0891b2' }} />
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div
-                  className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border shadow-lg transition-all duration-300"
-                  style={
-                    isThemeActive(themeColor)
-                      ? { borderColor: hexWithAlpha(themeColor, 20) }
-                      : {}
-                  }
-                >
-                  <p className="text-lg leading-relaxed text-slate-700 font-medium">
-                    {aiCoachMessage || "今日も一緒に頑張ろう！"}
-                  </p>
+                    {isCoachMessageExpanded ? (
+                      <ChevronUp
+                        className="h-5 w-5 transition-transform duration-300"
+                        style={{ color: isThemeActive(themeColor) ? themeColor : '#0891b2' }}
+                      />
+                    ) : (
+                      <ChevronDown
+                        className="h-5 w-5 transition-transform duration-300"
+                        style={{ color: isThemeActive(themeColor) ? themeColor : '#0891b2' }}
+                      />
+                    )}
+                  </button>
                 </div>
-              </CardContent>
+              </CardHeader>
+              {isCoachMessageExpanded && (
+                <CardContent className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
+                  <div
+                    className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border shadow-lg transition-all duration-300 relative"
+                    style={
+                      isThemeActive(themeColor)
+                        ? { borderColor: hexWithAlpha(themeColor, 20) }
+                        : {}
+                    }
+                  >
+                    <p className="text-lg leading-relaxed text-slate-700 font-medium mb-6">
+                      {aiCoachMessage || "今日も一緒に頑張ろう！"}
+                    </p>
+                    {aiCoachMessageCreatedAt && (
+                      <div className="text-right">
+                        <span className="text-xs text-gray-400">作成: {formatDateTime(aiCoachMessageCreatedAt)}</span>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              )}
             </Card>
 
-            <TodayMissionCard todayProgress={todayProgress} reflectionCompleted={reflectionCompleted} weeklyProgress={weeklyProgress} />
+            <TodayMissionCard todayProgress={todayProgress} yesterdayProgress={initialData.yesterdayProgress} reflectionCompleted={reflectionCompleted} />
             <LearningHistoryCalendar calendarData={calendarData} />
             <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} sessionNumber={sessionNumber} />
             <RecentEncouragementCard messages={messages} />
@@ -1398,14 +1493,13 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
                       }}
                     />
                   )}
-                  <div className="flex items-center gap-2 mb-3">
-                    <Bot className="h-5 w-5 text-blue-600" />
-                    <span className="text-xs text-gray-500 font-medium">今朝のメッセージ</span>
-                  </div>
-                  <CardTitle className="text-xl font-bold flex items-center gap-4">
-                    <div className="flex items-center gap-3">
+                  <div
+                    className="flex items-center justify-between cursor-pointer group"
+                    onClick={() => setIsCoachMessageExpanded(!isCoachMessageExpanded)}
+                  >
+                    <div className="flex items-center gap-4">
                       <Avatar
-                        className="h-16 w-16 shadow-xl transition-all duration-300"
+                        className="h-16 w-16 shadow-xl transition-all duration-300 group-hover:scale-105"
                         style={
                           isThemeActive(themeColor)
                             ? {
@@ -1419,35 +1513,62 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
                         <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
                         <AvatarFallback className="font-bold text-lg" style={{ backgroundColor: hexWithAlpha(themeColor, 20) || '#e0f2fe' }}>AI</AvatarFallback>
                       </Avatar>
-                      <span className="font-bold text-xl" style={{ color: isThemeActive(themeColor) ? themeColor : '#164e63' }}>
-                        AIコーチからのメッセージ
-                      </span>
+                      <div>
+                        <CardTitle className="text-xl font-bold mb-1" style={{ color: isThemeActive(themeColor) ? themeColor : '#164e63' }}>
+                          AIコーチ
+                        </CardTitle>
+                        {!isCoachMessageExpanded && (
+                          <p className="text-sm text-gray-500">クリックして表示</p>
+                        )}
+                      </div>
                     </div>
-                    <div
-                      className="p-2 rounded-full shadow-sm transition-all duration-300"
-                      style={{ backgroundColor: hexWithAlpha(themeColor, 15) || '#e0f2fe' }}
+                    <button
+                      className="p-3 rounded-full transition-all duration-300 hover:scale-110"
+                      style={{
+                        backgroundColor: isThemeActive(themeColor)
+                          ? hexWithAlpha(themeColor, 15)
+                          : '#e0f2fe',
+                      }}
+                      aria-label={isCoachMessageExpanded ? "メッセージを閉じる" : "メッセージを開く"}
                     >
-                      <MessageCircle className="h-6 w-6" style={{ color: isThemeActive(themeColor) ? themeColor : '#0891b2' }} />
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div
-                    className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border shadow-2xl transition-all duration-300"
-                    style={
-                      isThemeActive(themeColor)
-                        ? { borderColor: hexWithAlpha(themeColor, 20) }
-                        : {}
-                    }
-                  >
-                    <p className="text-lg leading-relaxed text-slate-700 font-medium">
-                      {aiCoachMessage || "今日も一緒に頑張ろう！"}
-                    </p>
+                      {isCoachMessageExpanded ? (
+                        <ChevronUp
+                          className="h-6 w-6 transition-transform duration-300"
+                          style={{ color: isThemeActive(themeColor) ? themeColor : '#0891b2' }}
+                        />
+                      ) : (
+                        <ChevronDown
+                          className="h-6 w-6 transition-transform duration-300"
+                          style={{ color: isThemeActive(themeColor) ? themeColor : '#0891b2' }}
+                        />
+                      )}
+                    </button>
                   </div>
-                </CardContent>
+                </CardHeader>
+                {isCoachMessageExpanded && (
+                  <CardContent className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
+                    <div
+                      className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border shadow-2xl transition-all duration-300 relative"
+                      style={
+                        isThemeActive(themeColor)
+                          ? { borderColor: hexWithAlpha(themeColor, 20) }
+                          : {}
+                      }
+                    >
+                      <p className="text-lg leading-relaxed text-slate-700 font-medium mb-6">
+                        {aiCoachMessage || "今日も一緒に頑張ろう！"}
+                      </p>
+                      {aiCoachMessageCreatedAt && (
+                        <div className="text-right">
+                          <span className="text-xs text-gray-400">作成: {formatDateTime(aiCoachMessageCreatedAt)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                )}
               </Card>
 
-              <TodayMissionCard todayProgress={todayProgress} reflectionCompleted={reflectionCompleted} weeklyProgress={weeklyProgress} />
+              <TodayMissionCard todayProgress={todayProgress} yesterdayProgress={initialData.yesterdayProgress} reflectionCompleted={reflectionCompleted} />
               <RecentEncouragementCard messages={messages} />
               <RecentLearningHistoryCard logs={recentLogs} />
             </div>

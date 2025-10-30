@@ -14,6 +14,52 @@ export type StudyLogInput = {
 }
 
 /**
+ * 現在の学習回をデータベースから取得（JST基準）
+ * @param grade 学年 (5 or 6)
+ * @returns 現在の学習回の情報 (id, session_number, start_date, end_date)
+ */
+export async function getCurrentSession(grade: number) {
+  try {
+    const supabase = await createClient()
+
+    // JSTで今日の日付を取得
+    const now = new Date()
+    const jstDate = new Date(
+      now.toLocaleString("en-US", { timeZone: "Asia/Tokyo" })
+    )
+    const today = jstDate.toISOString().split("T")[0] // YYYY-MM-DD
+
+    // データベースから現在の学習回を取得
+    const { data: session, error } = await supabase
+      .from("study_sessions")
+      .select("id, session_number, start_date, end_date")
+      .eq("grade", grade)
+      .lte("start_date", today)
+      .gte("end_date", today)
+      .single()
+
+    if (error) {
+      console.error("Failed to get current session:", error)
+      // エラー時は最新のセッションを返す
+      const { data: fallbackSession } = await supabase
+        .from("study_sessions")
+        .select("id, session_number, start_date, end_date")
+        .eq("grade", grade)
+        .order("session_number", { ascending: false })
+        .limit(1)
+        .single()
+
+      return fallbackSession
+    }
+
+    return session
+  } catch (error) {
+    console.error("Error in getCurrentSession:", error)
+    return null
+  }
+}
+
+/**
  * 学習ログを保存（新規作成または更新）
  */
 export async function saveStudyLog(logs: StudyLogInput[]) {
@@ -33,12 +79,38 @@ export async function saveStudyLog(logs: StudyLogInput[]) {
     // Get student record
     const { data: student, error: studentError } = await supabase
       .from("students")
-      .select("id")
+      .select("id, grade")
       .eq("user_id", user.id)
       .single()
 
     if (studentError || !student) {
       return { error: "生徒情報が見つかりません" }
+    }
+
+    // 【セーフガード】各ログのsession_idが有効かチェック
+    for (const log of logs) {
+      const { data: session, error: sessionError } = await supabase
+        .from("study_sessions")
+        .select("id, session_number, start_date, end_date")
+        .eq("id", log.session_id)
+        .eq("grade", student.grade)
+        .single()
+
+      if (sessionError || !session) {
+        console.error(`Invalid session_id: ${log.session_id} for grade ${student.grade}`)
+        return {
+          error: `学習回の選択が正しくありません（ID: ${log.session_id}）。ページを再読み込みして、もう一度お試しください。`
+        }
+      }
+
+      // 警告ログ: study_dateがsession期間外の場合
+      const studyDate = log.study_date || new Date().toISOString().split("T")[0]
+      if (studyDate < session.start_date || studyDate > session.end_date) {
+        console.warn(
+          `Session date mismatch: study_date=${studyDate} is outside session ${session.session_number} period (${session.start_date} ~ ${session.end_date})`
+        )
+        // 警告のみで、保存は続行（過去データの修正などを許容）
+      }
     }
 
     // Prepare study logs for insertion
