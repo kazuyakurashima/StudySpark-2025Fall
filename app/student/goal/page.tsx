@@ -43,6 +43,7 @@ import {
   saveSimpleTestResult,
 } from "@/app/actions/goal";
 import { createClient } from "@/lib/supabase/client";
+import { UserProfileProvider } from "@/lib/hooks/use-user-profile";
 
 interface TestSchedule {
   id: string;
@@ -137,7 +138,7 @@ const getAvatarSrc = (avatarId?: string) => {
   return avatarMap[avatarId || ""] || avatarMap["student1"];
 };
 
-export default function GoalPage() {
+function GoalPageInner() {
   const [studentName, setStudentName] = useState("");
   const [studentGrade, setStudentGrade] = useState<number | null>(null);
   const [studentAvatar, setStudentAvatar] = useState<string>("");
@@ -1332,5 +1333,16 @@ export default function GoalPage() {
       <BottomNavigation />
     </div>
     </>
+  );
+}
+
+/**
+ * ゴールナビページ（Context Provider付き）
+ */
+export default function GoalPage() {
+  return (
+    <UserProfileProvider>
+      <GoalPageInner />
+    </UserProfileProvider>
   );
 }

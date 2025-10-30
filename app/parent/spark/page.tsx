@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
+import { PageHeader } from "@/components/common/page-header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -23,6 +24,7 @@ import {
 } from "lucide-react"
 import ParentBottomNavigation from "@/components/parent-bottom-navigation"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { UserProfileProvider } from "@/lib/hooks/use-user-profile"
 
 const sparkRecords = [
   {
@@ -156,7 +158,7 @@ const generateAIMessages = (record: (typeof sparkRecords)[0]) => {
   return messages.slice(0, 3)
 }
 
-export default function ParentSparkPage() {
+function ParentSparkPageInner() {
   const [selectedChild, setSelectedChild] = useState("child1")
   const [customMessage, setCustomMessage] = useState("")
   const [isSending, setIsSending] = useState(false)
@@ -244,19 +246,17 @@ export default function ParentSparkPage() {
   return (
     <>
       <UserProfileHeader />
-      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-red-50 pb-20">
-        <div className="bg-white/95 backdrop-blur-md shadow-md border-b border-pink-100">
-        <div className="max-w-4xl mx-auto px-4 py-5">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-gradient-to-br from-pink-100 to-rose-100 rounded-xl shadow-sm">
-              <Heart className="h-6 w-6 text-pink-600" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-slate-800">応援</h1>
-              <p className="text-sm text-slate-600">お子さんの学習記録に応援を送ろう</p>
-            </div>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 pb-20 elegant-fade-in">
+        <PageHeader
+          icon={Heart}
+          title="応援メッセージ"
+          subtitle="お子さんの頑張りを応援しましょう"
+          variant="parent"
+        />
 
+        <div className="max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+          <Card className="bg-white/95 backdrop-blur-md shadow-md border border-pink-100">
+            <CardContent className="p-4 sm:p-6">
           {/* 生徒選択タブ */}
           <div className="flex gap-1 bg-slate-100 p-1 rounded-lg mb-4">
             {children.map((child) => (
@@ -317,10 +317,10 @@ export default function ParentSparkPage() {
               </Select>
             </div>
           </div>
-        </div>
-      </div>
+            </CardContent>
+          </Card>
 
-      <div className="max-w-4xl mx-auto p-4 space-y-4">
+      <div className="space-y-4">
         {filteredRecords.length === 0 ? (
           <Card className="border-l-4 border-l-pink-400 bg-white/90 backdrop-blur-sm">
             <CardContent className="p-6 text-center">
@@ -541,9 +541,21 @@ export default function ParentSparkPage() {
           })
         )}
       </div>
+        </div>
 
-      <ParentBottomNavigation />
+        <ParentBottomNavigation />
       </div>
     </>
+  )
+}
+
+/**
+ * 保護者応援ページ（Context Provider付き）
+ */
+export default function ParentSparkPage() {
+  return (
+    <UserProfileProvider>
+      <ParentSparkPageInner />
+    </UserProfileProvider>
   )
 }

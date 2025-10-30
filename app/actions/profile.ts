@@ -156,6 +156,28 @@ export async function getProfile(): Promise<{ profile: UserProfile | null; error
     return { profile: null, error: error.message }
   }
 
+  // 生徒ロールの場合は生徒情報も取得
+  if (profile.role === "student") {
+    const { data: student, error: studentError } = await supabase
+      .from("students")
+      .select("id, grade, course")
+      .eq("user_id", user.id)
+      .single()
+
+    if (!studentError && student) {
+      return {
+        profile: {
+          ...profile,
+          student: {
+            id: student.id,
+            grade: student.grade,
+            course: student.course as "A" | "B" | "C" | "S",
+          },
+        } as UserProfile,
+      }
+    }
+  }
+
   return { profile: profile as UserProfile }
 }
 

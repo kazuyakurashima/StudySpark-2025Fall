@@ -4,8 +4,9 @@ import { Settings } from "lucide-react"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { PageHeader } from "@/components/common/page-header"
 import StudentPasswordResetForm from "./student-password-reset-form"
+import { UserProfileProvider } from "@/lib/hooks/use-user-profile"
 
-export default async function ParentSettingsPage() {
+async function ParentSettingsPageInner() {
   const supabase = await createClient()
 
   // 認証チェック
@@ -74,5 +75,16 @@ export default async function ParentSettingsPage() {
       </div>
       </div>
       </>
+  )
+}
+
+/**
+ * 保護者設定ページ（Context Provider付き）
+ */
+export default async function ParentSettingsPage() {
+  return (
+    <UserProfileProvider>
+      <ParentSettingsPageInner />
+    </UserProfileProvider>
   )
 }

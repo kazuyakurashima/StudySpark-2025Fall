@@ -11,6 +11,12 @@ export interface UserProfile {
   role: UserRole
   created_at: string
   updated_at: string
+  // 生徒ロールの場合のみ存在する情報
+  student?: {
+    id: number
+    grade: number
+    course: "A" | "B" | "C" | "S"
+  }
 }
 
 /**

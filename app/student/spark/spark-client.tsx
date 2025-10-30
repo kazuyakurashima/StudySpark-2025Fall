@@ -19,8 +19,10 @@ import {
   getContentTypes,
   saveStudyLog,
   getContentTypeId,
+  getCurrentSession,
 } from "@/app/actions/study-log"
 import { generateDailyReflections } from "@/app/actions/ai-reflection"
+import { UserProfileProvider, useUserProfile } from "@/lib/hooks/use-user-profile"
 
 const subjects = [
   {
@@ -362,32 +364,7 @@ const levels = {
   blaze: { name: "Blaze", icon: Crown, description: "最高にチャレンジ", color: "text-purple-500" },
 }
 
-const getCurrentLearningSession = (grade: string) => {
-  const today = new Date()
-  const sessions = grade === "5" ? grade5Sessions : grade6Sessions
-
-  for (const session of sessions) {
-    const [startDate, endDate] = session.period.split("〜")
-    const currentYear = today.getFullYear()
-
-    // Parse start date
-    const [startMonth, startDay] = startDate.split("/").map(Number)
-    const startYear = startMonth >= 8 ? currentYear : currentYear + 1
-    const start = new Date(startYear, startMonth - 1, startDay)
-
-    // Parse end date
-    const [endMonth, endDay] = endDate.split("/").map(Number)
-    const endYear = endMonth >= 8 ? currentYear : currentYear + 1
-    const end = new Date(endYear, endMonth - 1, endDay, 23, 59, 59)
-
-    if (today >= start && today <= end) {
-      return session.id
-    }
-  }
-
-  // If no current session found, return the first session
-  return sessions[0].id
-}
+// 削除: getCurrentLearningSession() はServer Actionに置き換え
 
 type SparkClientProps = {
   initialData: {
@@ -400,12 +377,18 @@ type SparkClientProps = {
   preselectedSubject?: string
 }
 
-export function SparkClient({ initialData, preselectedSubject }: SparkClientProps) {
-  const { student } = initialData
+function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps) {
+  const { profile, loading: profileLoading } = useUserProfile()
+
+  // Prioritize profile.student over initialData.student for real-time updates
+  const student = profile?.student || initialData.student
   const studentGrade = student.grade.toString()
   const currentCourse = student.course
 
-  const [selectedSession, setSelectedSession] = useState(getCurrentLearningSession(studentGrade))
+  // セッション選択の状態（初期値はnull、useEffectでサーバーから取得）
+  const [selectedSession, setSelectedSession] = useState<string | null>(null)
+  const [currentSessionId, setCurrentSessionId] = useState<number | null>(null) // 現在の週のセッションDB ID
+  const [currentSessionNumber, setCurrentSessionNumber] = useState<number | null>(null) // 現在の週のセッション番号
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>(
     preselectedSubject ? [preselectedSubject] : []
   )
@@ -421,6 +404,28 @@ export function SparkClient({ initialData, preselectedSubject }: SparkClientProp
   const [aiReflections, setAiReflections] = useState<string[]>([])
   const [isGeneratingAI, setIsGeneratingAI] = useState(false)
   const [reflectionMode, setReflectionMode] = useState<"manual" | "ai" | null>(null)
+
+  // 初回マウント時に現在のセッションをサーバーから取得
+  useEffect(() => {
+    async function initializeCurrentSession() {
+      const grade = parseInt(studentGrade)
+      const session = await getCurrentSession(grade)
+
+      if (session) {
+        setCurrentSessionId(session.id)
+        setCurrentSessionNumber(session.session_number)
+        setSelectedSession(`session${session.session_number}`)
+      } else {
+        // フォールバック: 最初のセッションを選択
+        const sessions = grade === 5 ? grade5Sessions : grade6Sessions
+        if (sessions.length > 0) {
+          setSelectedSession(sessions[0].id)
+        }
+      }
+    }
+
+    initializeCurrentSession()
+  }, [studentGrade])
 
   // Fetch existing study logs when session or subjects change
   useEffect(() => {
@@ -472,7 +477,7 @@ export function SparkClient({ initialData, preselectedSubject }: SparkClientProp
 
             // Find matching content in UI by name
             const matchingContent = availableContent.find((c) => c.name === contentType.content_name)
-            if (matchingContent) {
+            if (matchingContent && newDetails[matchingContent.id] === undefined) {
               newDetails[matchingContent.id] = log.correct_count
             }
 
@@ -739,6 +744,9 @@ export function SparkClient({ initialData, preselectedSubject }: SparkClientProp
       setIsSubmitting(false)
 
       alert("学習記録を保存しました！")
+
+      // ページトップにスムーズスクロール
+      window.scrollTo({ top: 0, behavior: "smooth" })
     } catch (error) {
       console.error("Submit error:", error)
       alert("保存中にエラーが発生しました")
@@ -785,6 +793,30 @@ export function SparkClient({ initialData, preselectedSubject }: SparkClientProp
     return "Blaze(最高にチャレンジ)"
   }
 
+  // Show loading state while profile is being fetched
+  if (profileLoading && !profile) {
+    return (
+      <>
+        <UserProfileHeader />
+        <PageHeader
+          icon={Sparkles}
+          title="スパーク"
+          subtitle="読み込み中..."
+          variant="student"
+        />
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 pb-20">
+          <div className="max-w-screen-xl mx-auto p-6">
+            <div className="flex items-center justify-center py-16">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-600"></div>
+              <span className="ml-6 text-xl text-slate-700 font-medium">読み込み中...</span>
+            </div>
+          </div>
+        </div>
+        <BottomNavigation activeTab="spark" />
+      </>
+    )
+  }
+
   return (
     <>
       <UserProfileHeader />
@@ -820,23 +852,35 @@ export function SparkClient({ initialData, preselectedSubject }: SparkClientProp
                 </SelectContent>
               </Select>
 
-              {selectedSession && (
-                <div className="flex items-center gap-3">
-                  <Badge variant="outline" className="text-sm px-4 py-2 bg-slate-50 border-slate-300 font-medium">
-                    {getAvailableSessions().find((s) => s.id === selectedSession)?.period}
-                  </Badge>
-                  {(() => {
-                    const currentSession = getCurrentLearningSession(studentGrade)
-                    return (
-                      selectedSession === currentSession && (
+              {selectedSession && (() => {
+                const selectedSessionNumber = parseInt(selectedSession.replace("session", ""))
+                const isCurrentWeek = currentSessionNumber && selectedSessionNumber === currentSessionNumber
+
+                return (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <Badge variant="outline" className="text-sm px-4 py-2 bg-slate-50 border-slate-300 font-medium">
+                        {getAvailableSessions().find((s) => s.id === selectedSession)?.period}
+                      </Badge>
+                      {isCurrentWeek && (
                         <Badge className="bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm px-4 py-2 shadow-lg">
                           今回
                         </Badge>
-                      )
-                    )
-                  })()}
-                </div>
-              )}
+                      )}
+                    </div>
+
+                    {/* 警告: 選択セッション ≠ 現在の週 */}
+                    {currentSessionNumber && !isCurrentWeek && (
+                      <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-amber-400 rounded-lg">
+                        <p className="text-sm text-amber-800 font-semibold flex items-center gap-2">
+                          <span className="text-lg">⚠️</span>
+                          今週の学習回ではありません。過去または未来の週を選択しています。
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
 
               <p className="text-sm text-slate-600 font-medium">小学{studentGrade}年生の学習回が表示されています</p>
             </div>
@@ -1248,5 +1292,16 @@ export function SparkClient({ initialData, preselectedSubject }: SparkClientProp
       <BottomNavigation activeTab="spark" />
     </div>
     </>
+  )
+}
+
+/**
+ * スパーククライアント（Context Provider付き）
+ */
+export function SparkClient({ initialData, preselectedSubject }: SparkClientProps) {
+  return (
+    <UserProfileProvider>
+      <SparkClientInner initialData={initialData} preselectedSubject={preselectedSubject} />
+    </UserProfileProvider>
   )
 }

@@ -106,7 +106,7 @@ export async function getAICoachMessage() {
     // キャッシュチェック
     const { data: cached } = await supabase
       .from("ai_cache")
-      .select("cached_content, hit_count")
+      .select("cached_content, hit_count, created_at")
       .eq("cache_key", cacheKey)
       .eq("cache_type", "coach_message")
       .single()
@@ -123,7 +123,7 @@ export async function getAICoachMessage() {
 
       const message = JSON.parse(cached.cached_content) as string
       console.log(`[Coach Message] Cache HIT: ${cacheKey}`)
-      return { message }
+      return { message, createdAt: cached.created_at }
     }
 
     // キャッシュミス - AI生成
@@ -164,14 +164,16 @@ export async function getAICoachMessage() {
     }
 
     // キャッシュ保存
+    const now = getNowJST().toISOString()
     await supabase.from("ai_cache").insert({
       cache_key: cacheKey,
       cache_type: "coach_message",
       cached_content: JSON.stringify(result.message),
+      created_at: now,
     })
 
     console.log(`[Coach Message] AI generated and cached: ${cacheKey}`)
-    return { message: result.message }
+    return { message: result.message, createdAt: now }
   } catch (error) {
     console.error("Get AI coach message error:", error)
 
@@ -760,17 +762,31 @@ export async function getTodayMissionData() {
       return { error: "認証エラー" }
     }
 
-    const { data: student } = await supabase.from("students").select("id").eq("user_id", user.id).single()
+    const { data: student } = await supabase.from("students").select("id, grade").eq("user_id", user.id).single()
 
     if (!student) {
       return { error: "生徒情報が見つかりません" }
     }
 
-    // Get today's logs (using study_date with JST timezone)
-    const { getTodayJST, getYesterdayJST } = await import("@/lib/utils/date-jst")
+    // Get today's date and current session
+    const { getTodayJST } = await import("@/lib/utils/date-jst")
     const todayDateStr = getTodayJST()
-    const yesterdayDateStr = getYesterdayJST()
 
+    // Find this week's study session
+    const { data: currentSession, error: sessionError } = await supabase
+      .from("study_sessions")
+      .select("id")
+      .eq("grade", student.grade)
+      .lte("start_date", todayDateStr)
+      .gte("end_date", todayDateStr)
+      .single()
+
+    if (sessionError || !currentSession) {
+      console.error("No current session found for today's mission:", sessionError)
+      return { todayProgress: [] }
+    }
+
+    // Get today's logs for this week's session only
     const { data: todayLogs, error: logsError } = await supabase
       .from("study_logs")
       .select(
@@ -782,7 +798,8 @@ export async function getTodayMissionData() {
       `
       )
       .eq("student_id", student.id)
-      .in("study_date", [todayDateStr, yesterdayDateStr])
+      .eq("session_id", currentSession.id)
+      .eq("study_date", todayDateStr)
 
     if (logsError) {
       console.error("Get today mission data error:", logsError)
@@ -818,6 +835,234 @@ export async function getTodayMissionData() {
   } catch (error) {
     console.error("Get today mission data error:", error)
     return { error: "予期しないエラーが発生しました" }
+  }
+}
+
+/**
+ * 昨日のミッションデータを取得（diff計算用）
+ */
+export async function getYesterdayMissionData() {
+  try {
+    const supabase = await createClient()
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return { error: "認証エラー" }
+    }
+
+    const { data: student } = await supabase.from("students").select("id, grade").eq("user_id", user.id).single()
+
+    if (!student) {
+      return { error: "生徒情報が見つかりません" }
+    }
+
+    // Get yesterday's date and current session
+    const { getYesterdayJST, getTodayJST } = await import("@/lib/utils/date-jst")
+    const yesterdayDateStr = getYesterdayJST()
+    const todayDateStr = getTodayJST()
+
+    // Find this week's study session
+    const { data: currentSession, error: sessionError } = await supabase
+      .from("study_sessions")
+      .select("id")
+      .eq("grade", student.grade)
+      .lte("start_date", todayDateStr)
+      .gte("end_date", todayDateStr)
+      .single()
+
+    if (sessionError || !currentSession) {
+      return { yesterdayProgress: [] }
+    }
+
+    // Get yesterday's logs for this week's session only
+    const { data: yesterdayLogs, error: logsError } = await supabase
+      .from("study_logs")
+      .select(
+        `
+        id,
+        correct_count,
+        total_problems,
+        subjects (name)
+      `
+      )
+      .eq("student_id", student.id)
+      .eq("session_id", currentSession.id)
+      .eq("study_date", yesterdayDateStr)
+
+    if (logsError) {
+      console.error("Get yesterday mission data error:", logsError)
+      return { yesterdayProgress: [] }
+    }
+
+    // Aggregate by subject
+    const subjectMap: { [key: string]: { totalCorrect: number; totalProblems: number } } = {}
+
+    yesterdayLogs?.forEach((log) => {
+      const subject = Array.isArray(log.subjects) ? log.subjects[0] : log.subjects
+      const subjectName = subject?.name || "不明"
+      if (!subjectMap[subjectName]) {
+        subjectMap[subjectName] = { totalCorrect: 0, totalProblems: 0 }
+      }
+      subjectMap[subjectName].totalCorrect += log.correct_count || 0
+      subjectMap[subjectName].totalProblems += log.total_problems || 0
+    })
+
+    const yesterdayProgress = Object.entries(subjectMap).map(([subject, data]) => ({
+      subject,
+      accuracy: data.totalProblems > 0 ? Math.round((data.totalCorrect / data.totalProblems) * 100) : 0,
+      correctCount: data.totalCorrect,
+      totalProblems: data.totalProblems,
+    }))
+
+    return { yesterdayProgress }
+  } catch (error) {
+    console.error("Get yesterday mission data error:", error)
+    return { error: "予期しないエラーが発生しました" }
+  }
+}
+
+/**
+ * AIコーチメッセージのライブ更新データを取得
+ * 今日 vs 昨日の科目別進捗を比較
+ */
+export async function getLiveUpdateData() {
+  try {
+    const supabase = await createClient()
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return { error: "認証エラー", updates: [] }
+    }
+
+    const { data: student } = await supabase.from("students").select("id, grade").eq("user_id", user.id).single()
+
+    if (!student) {
+      return { error: "生徒情報が見つかりません", updates: [] }
+    }
+
+    // Get today's and yesterday's dates
+    const { getTodayJST, getYesterdayJST } = await import("@/lib/utils/date-jst")
+    const todayDateStr = getTodayJST()
+    const yesterdayDateStr = getYesterdayJST()
+
+    // Find this week's study session
+    const { data: currentSession } = await supabase
+      .from("study_sessions")
+      .select("id")
+      .eq("grade", student.grade)
+      .lte("start_date", todayDateStr)
+      .gte("end_date", todayDateStr)
+      .single()
+
+    if (!currentSession) {
+      return { error: "今週のセッションが見つかりません", updates: [] }
+    }
+
+    // Get today's logs
+    const { data: todayLogs } = await supabase
+      .from("study_logs")
+      .select(`
+        id,
+        correct_count,
+        total_problems,
+        subjects (name)
+      `)
+      .eq("student_id", student.id)
+      .eq("session_id", currentSession.id)
+      .eq("study_date", todayDateStr)
+
+    // Get yesterday's logs
+    const { data: yesterdayLogs } = await supabase
+      .from("study_logs")
+      .select(`
+        id,
+        correct_count,
+        total_problems,
+        subjects (name)
+      `)
+      .eq("student_id", student.id)
+      .eq("session_id", currentSession.id)
+      .eq("study_date", yesterdayDateStr)
+
+    // Aggregate by subject
+    const todayBySubject: { [key: string]: { correct: number; total: number } } = {}
+    const yesterdayBySubject: { [key: string]: { correct: number; total: number } } = {}
+
+    todayLogs?.forEach((log: any) => {
+      const subject = log.subjects?.name
+      if (!subject) return
+      if (!todayBySubject[subject]) {
+        todayBySubject[subject] = { correct: 0, total: 0 }
+      }
+      todayBySubject[subject].correct += log.correct_count || 0
+      todayBySubject[subject].total += log.total_problems || 0
+    })
+
+    yesterdayLogs?.forEach((log: any) => {
+      const subject = log.subjects?.name
+      if (!subject) return
+      if (!yesterdayBySubject[subject]) {
+        yesterdayBySubject[subject] = { correct: 0, total: 0 }
+      }
+      yesterdayBySubject[subject].correct += log.correct_count || 0
+      yesterdayBySubject[subject].total += log.total_problems || 0
+    })
+
+    // Calculate improvements
+    const updates: Array<{
+      subject: string
+      improvement: number // 正答数の増加
+      isFirstTime: boolean // 初回入力かどうか
+      todayCorrect: number
+      todayTotal: number
+    }> = []
+
+    Object.entries(todayBySubject).forEach(([subject, todayData]) => {
+      const yesterdayData = yesterdayBySubject[subject]
+
+      if (!yesterdayData) {
+        // 初回入力
+        if (todayData.correct > 0) {
+          updates.push({
+            subject,
+            improvement: todayData.correct,
+            isFirstTime: true,
+            todayCorrect: todayData.correct,
+            todayTotal: todayData.total,
+          })
+        }
+      } else {
+        // 前回より正答数が増えた場合
+        const improvement = todayData.correct - yesterdayData.correct
+        if (improvement > 0) {
+          updates.push({
+            subject,
+            improvement,
+            isFirstTime: false,
+            todayCorrect: todayData.correct,
+            todayTotal: todayData.total,
+          })
+        }
+      }
+    })
+
+    // 更新時刻を取得
+    const lastUpdateTime = todayLogs && todayLogs.length > 0 ? new Date().toISOString() : null
+
+    return {
+      updates,
+      lastUpdateTime,
+      hasUpdates: updates.length > 0,
+    }
+  } catch (error) {
+    console.error("Get live update data error:", error)
+    return { error: "予期しないエラーが発生しました", updates: [] }
   }
 }
 

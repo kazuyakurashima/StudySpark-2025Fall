@@ -6,9 +6,11 @@ import {
   getRecentStudyLogs,
   getLastLoginInfo,
   getTodayMissionData,
+  getYesterdayMissionData,
   getLearningCalendarData,
   getWeeklySubjectProgress,
-  getWeeklyReflectionStatus
+  getWeeklyReflectionStatus,
+  getLiveUpdateData
 } from "@/app/actions/dashboard"
 import { getRecentEncouragementMessages } from "@/app/actions/encouragement"
 
@@ -22,9 +24,11 @@ export default async function StudentDashboard() {
     messagesResult,
     loginInfo,
     todayMission,
+    yesterdayMission,
     calendar,
     weeklySubject,
-    reflectionStatus
+    reflectionStatus,
+    liveUpdates
   ] = await Promise.all([
     getStudentDashboardData(),
     getAICoachMessage(),
@@ -33,9 +37,11 @@ export default async function StudentDashboard() {
     getRecentEncouragementMessages(),
     getLastLoginInfo(),
     getTodayMissionData(),
+    getYesterdayMissionData(),
     getLearningCalendarData(),
     getWeeklySubjectProgress(),
-    getWeeklyReflectionStatus()
+    getWeeklyReflectionStatus(),
+    getLiveUpdateData()
   ])
 
   // Handle error states
@@ -55,15 +61,20 @@ export default async function StudentDashboard() {
     userName: dashboardData?.profile?.display_name || "学習者",
     selectedAvatar: dashboardData?.profile?.avatar_url || "student1",
     aiCoachMessage: coachMsg?.message || "今日も一緒に頑張ろう！",
+    aiCoachMessageCreatedAt: coachMsg?.createdAt || null,
     studyStreak: typeof streakResult?.streak === "number" ? streakResult.streak : 0,
     recentLogs: Array.isArray(logsResult?.logs) ? logsResult.logs : [],
     recentMessages: messagesResult?.success && Array.isArray(messagesResult?.messages) ? messagesResult.messages : [],
     lastLoginInfo: loginInfo?.error ? null : loginInfo,
     todayProgress: Array.isArray(todayMission?.todayProgress) ? todayMission.todayProgress : [],
+    yesterdayProgress: Array.isArray(yesterdayMission?.yesterdayProgress) ? yesterdayMission.yesterdayProgress : [],
     calendarData: calendar?.calendarData || {},
     weeklyProgress: Array.isArray(weeklySubject?.progress) ? weeklySubject.progress : [],
     sessionNumber: typeof weeklySubject?.sessionNumber === "number" ? weeklySubject.sessionNumber : null,
     reflectionCompleted: reflectionStatus?.reflectionCompleted || false,
+    liveUpdates: liveUpdates?.updates || [],
+    lastUpdateTime: liveUpdates?.lastUpdateTime || null,
+    hasLiveUpdates: liveUpdates?.hasUpdates || false,
   }
 
   return <StudentDashboardClient initialData={initialData} />
