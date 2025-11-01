@@ -278,10 +278,6 @@ export function GoalNavigationChat({
             </Button>
           </div>
         )}
-
-        <div className="text-xs text-muted-foreground text-center">
-          Enterキーで送信（Shift+Enterで改行）
-        </div>
       </CardContent>
     </Card>
   )

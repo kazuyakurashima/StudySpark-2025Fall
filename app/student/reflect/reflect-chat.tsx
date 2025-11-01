@@ -256,14 +256,8 @@ export function ReflectChat({
             <Textarea
               value={userInput}
               onChange={(e) => setUserInput(e.target.value)}
-              placeholder="あなたの気持ちを教えてね..."
+              placeholder="あなたの気持ちを教えてね...（Enterで改行、送信ボタンで送信）"
               className="flex-1 min-h-[60px] resize-none"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault()
-                  sendMessage()
-                }
-              }}
               disabled={isLoading}
             />
             <Button
@@ -276,10 +270,6 @@ export function ReflectChat({
             </Button>
           </div>
         )}
-
-        <div className="text-xs text-muted-foreground text-center">
-          Enterキーで送信（Shift+Enterで改行）
-        </div>
       </CardContent>
     </Card>
   )
