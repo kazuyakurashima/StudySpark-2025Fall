@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { EditProfileModal } from "@/components/profile/edit-profile-modal"
 import { EditCourseModal } from "@/components/profile/edit-course-modal"
+import { DailySparkLogo } from "@/components/common/daily-spark-logo"
 import { useUserProfile } from "@/lib/hooks/use-user-profile"
 import { getAvatarById } from "@/lib/constants/avatars"
 import { hexWithAlpha, isThemeActive } from "@/lib/utils/theme-color"
@@ -54,11 +55,12 @@ export function UserProfileHeader() {
   return (
     <>
       <header className="h-14 md:h-16 border-b border-gray-200 bg-white flex items-center justify-between px-4 sticky top-0 z-10 shadow-sm">
-        {/* ロゴ */}
+        {/* ロゴ - Daily Spark対応 */}
         <div className="flex items-center">
-          <h1 className="text-lg md:text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            StudySpark
-          </h1>
+          <DailySparkLogo
+            studentId={profile.role === "student" ? profile.student?.id : selectedChild?.id}
+            parentUserId={profile.role === "parent" ? profile.id : undefined}
+          />
         </div>
 
         {/* 右側：子供情報（保護者のみ） + ユーザー情報 */}

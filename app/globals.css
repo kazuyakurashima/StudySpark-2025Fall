@@ -385,3 +385,18 @@
     font-size: 16px;
   }
 }
+
+/* Daily Spark Logo Animations */
+@keyframes rainbow-shimmer {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-rainbow-shimmer {
+  background-size: 200% 200%;
+  animation: rainbow-shimmer 3s ease-in-out infinite;
+}
