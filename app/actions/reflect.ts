@@ -561,7 +561,7 @@ export async function getEncouragementHistory(params?: {
     const senderIds = [...new Set(messages.map(m => m.sender_id))]
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, display_name, nickname, avatar_url, role")
+      .select("id, display_name, nickname, avatar_id, role")
       .in("id", senderIds)
 
     // メッセージに送信者プロフィールを追加

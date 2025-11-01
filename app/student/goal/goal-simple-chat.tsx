@@ -75,11 +75,11 @@ export function GoalSimpleChat({
       if (user) {
         const { data: profile } = await supabase
           .from("profiles")
-          .select("avatar_url")
+          .select("avatar_id")
           .eq("id", user.id)
           .single()
 
-        setStudentAvatar(getAvatarSrc(profile?.avatar_url))
+        setStudentAvatar(getAvatarSrc(profile?.avatar_id))
       } else {
         setStudentAvatar(getAvatarSrc())
       }

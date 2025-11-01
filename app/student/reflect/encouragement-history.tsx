@@ -177,7 +177,7 @@ export function EncouragementHistory() {
                   {/* 常に表示される部分 */}
                   <div className="flex items-start gap-3 mb-3">
                     <img
-                      src={getAvatarUrl(message.sender_profile?.avatar_url)}
+                      src={getAvatarUrl(message.sender_profile?.avatar_id)}
                       alt="avatar"
                       className="w-12 h-12 rounded-full border-2 border-white shadow-md"
                     />

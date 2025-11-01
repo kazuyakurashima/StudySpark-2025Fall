@@ -328,7 +328,7 @@ export async function getCoachStudents() {
     .from("coach_student_relations")
     .select(`
       student_id,
-      students(id, full_name, grade, profiles!students_user_id_fkey(avatar_url))
+      students(id, full_name, grade, profiles!students_user_id_fkey(avatar_id))
     `)
     .eq("coach_id", coachData.id)
 
@@ -378,7 +378,7 @@ export async function getAllStudyLogsForCoach(filters?: {
       correct_count,
       reflection_text,
       created_at,
-      students(id, full_name, grade, profiles!students_user_id_fkey(avatar_url)),
+      students(id, full_name, grade, profiles!students_user_id_fkey(avatar_id)),
       study_sessions(session_number, grade),
       subjects(name),
       study_content_types(content_name),
@@ -709,7 +709,7 @@ export async function getRecentEncouragementMessages() {
       success: true as const,
       messages: messages.map((msg) => ({
         ...msg,
-        sender_profile: { display_name: "不明", avatar_url: null },
+        sender_profile: { display_name: "不明", avatar_id: null },
       })),
     }
   }
@@ -719,7 +719,7 @@ export async function getRecentEncouragementMessages() {
     const senderProfile = senderProfiles?.find((profile: any) => profile.id === msg.sender_id)
     return {
       ...msg,
-      sender_profile: senderProfile || { display_name: "不明", avatar_url: null },
+      sender_profile: senderProfile || { display_name: "不明", avatar_id: null },
     }
   })
 
@@ -842,7 +842,7 @@ export async function getAllEncouragementMessages(filters?: {
       success: true as const,
       messages: filteredMessages.map((msg) => ({
         ...msg,
-        sender_profile: { display_name: "不明", avatar_url: null },
+        sender_profile: { display_name: "不明", avatar_id: null },
       })),
     }
   }
@@ -852,7 +852,7 @@ export async function getAllEncouragementMessages(filters?: {
     const senderProfile = senderProfiles?.find((profile: any) => profile.id === msg.sender_id)
     return {
       ...msg,
-      sender_profile: senderProfile || { display_name: "不明", avatar_url: null },
+      sender_profile: senderProfile || { display_name: "不明", avatar_id: null },
     }
   })
 

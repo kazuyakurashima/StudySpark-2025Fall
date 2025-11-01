@@ -18,7 +18,7 @@ export async function updateAvatar(avatar: string) {
     return { error: "認証されていません" }
   }
 
-  const { error } = await supabase.from("profiles").update({ avatar_url: avatar }).eq("id", user.id)
+  const { error } = await supabase.from("profiles").update({ avatar_id: avatar }).eq("id", user.id)
 
   if (error) {
     return { error: error.message }

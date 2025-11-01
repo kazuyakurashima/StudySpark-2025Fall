@@ -34,7 +34,7 @@ interface Child {
   id: string
   full_name: string
   display_name: string
-  avatar_url: string | null
+  avatar_id: string | null
   grade: number
 }
 

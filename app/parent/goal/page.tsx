@@ -27,7 +27,7 @@ interface Child {
   id: string
   full_name: string
   display_name: string
-  avatar_url: string | null
+  avatar_id: string | null
   grade: number
 }
 
@@ -203,7 +203,7 @@ function ParentGoalNaviPageInner() {
           <div className="flex gap-2 overflow-x-auto pb-2 mb-6">
             {children.map((child) => {
               const childName = child.display_name
-              const childAvatar = child.avatar_url || "student1"
+              const childAvatar = child.avatar_id || "student1"
               const isActive = selectedChildId === child.id
 
               return (

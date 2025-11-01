@@ -56,7 +56,7 @@ async function verifyParentChildRelation(studentId: string) {
   const adminClient = createAdminClient()
   const { data: profile, error: profileError } = await adminClient
     .from("profiles")
-    .select("display_name, avatar_url")
+    .select("display_name, avatar_id")
     .eq("id", student.user_id)
     .single()
 
@@ -67,7 +67,7 @@ async function verifyParentChildRelation(studentId: string) {
     grade: student.grade,
     user_id: student.user_id,
     display_name: profile?.display_name || student.full_name,
-    avatar_url: profile?.avatar_url || null
+    avatar_id: profile?.avatar_id || null
   }
 
   return { error: null, supabase, parent, student: studentWithProfile }
@@ -147,7 +147,7 @@ export async function getParentChildren() {
   const userIds = students.map((s) => s.user_id)
   const { data: profiles, error: profilesError } = await adminClient
     .from("profiles")
-    .select("id, display_name, avatar_url")
+    .select("id, display_name, avatar_id")
     .in("id", userIds)
 
   console.log("🔍 [SERVER] Profiles count:", profiles?.length, "Error:", profilesError?.message)
@@ -162,7 +162,7 @@ export async function getParentChildren() {
       display_name: profile?.display_name || student.full_name,
       grade: student.grade,
       user_id: student.user_id,
-      avatar_url: profile?.avatar_url || null
+      avatar_id: profile?.avatar_id || null
     }
   })
 

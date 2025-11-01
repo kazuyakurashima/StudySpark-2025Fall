@@ -1410,7 +1410,7 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
     return {
       recordTime: formatDate(msg.sent_at),
       from: senderProfile?.display_name || "応援者",
-      avatar: senderProfile?.avatar_url || (msg.sender_role === "parent" ? "parent1" : "coach"),
+      avatar: senderProfile?.avatar_id || (msg.sender_role === "parent" ? "parent1" : "coach"),
       message: baseMessage,
       senderRole: msg.sender_role || "unknown",
       studyInfo,
@@ -1619,7 +1619,7 @@ function ParentDashboardInner() {
 
         if (!parentData?.error && parentData?.profile) {
           setUserName(parentData.profile.display_name || "保護者")
-          setSelectedAvatar(parentData.profile.avatar_url || "parent1")
+          setSelectedAvatar(parentData.profile.avatar_id || "parent1")
         }
 
         if (!parentData?.error && parentData?.children) {

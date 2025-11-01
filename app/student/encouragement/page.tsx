@@ -193,7 +193,7 @@ export default function StudentEncouragementPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <Avatar className="h-12 w-12 border-2 border-white shadow-md">
-                        <AvatarImage src={getAvatarSrc(senderProfile?.avatar_url, msg.sender_role)} />
+                        <AvatarImage src={getAvatarSrc(senderProfile?.avatar_id, msg.sender_role)} />
                         <AvatarFallback>
                           {senderProfile?.display_name?.charAt(0) || (msg.sender_role === "coach" ? "指" : "保")}
                         </AvatarFallback>

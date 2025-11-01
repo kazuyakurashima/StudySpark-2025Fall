@@ -6,7 +6,7 @@ export interface CoachStudent {
   id: string
   full_name: string
   nickname: string | null
-  avatar_url: string | null
+  avatar_id: string | null
   grade: string
   course: string | null
 }
@@ -48,7 +48,7 @@ export async function getCoachStudents() {
         user_id,
         full_name,
         nickname,
-        avatar_url,
+        avatar_id,
         grade,
         course
       )
@@ -70,7 +70,7 @@ export async function getCoachStudents() {
         id: student.id,
         full_name: student.full_name,
         nickname: student.nickname,
-        avatar_url: student.avatar_url,
+        avatar_id: student.avatar_id,
         grade: student.grade === 5 ? "小学5年" : "小学6年",
         course: student.course,
       })) || []
@@ -119,7 +119,7 @@ export async function getStudentDetail(studentId: string) {
   // 生徒の詳細情報を取得
   const { data: student, error: studentError } = await supabase
     .from("students")
-    .select("id, user_id, full_name, nickname, avatar_url, grade, course, target_school, target_class")
+    .select("id, user_id, full_name, nickname, avatar_id, grade, course, target_school, target_class")
     .eq("id", studentId)
     .single()
 

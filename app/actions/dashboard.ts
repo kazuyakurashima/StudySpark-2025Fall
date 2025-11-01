@@ -34,7 +34,7 @@ export async function getStudentDashboardData() {
     // Get student profile
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("display_name, avatar_url")
+      .select("display_name, avatar_id")
       .eq("id", user.id)
       .single()
 

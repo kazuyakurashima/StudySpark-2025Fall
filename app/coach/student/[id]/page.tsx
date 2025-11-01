@@ -15,7 +15,7 @@ interface Student {
   id: string
   full_name: string
   nickname: string | null
-  avatar_url: string | null
+  avatar_id: string | null
   grade: string
   course: string | null
   streak: number
@@ -235,7 +235,7 @@ export default function StudentDetailPage() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <Avatar className="h-12 w-12">
-              <AvatarImage src={student.avatar_url || "/placeholder.svg"} alt={student.full_name} />
+              <AvatarImage src={student.avatar_id || "/placeholder.svg"} alt={student.full_name} />
               <AvatarFallback>{student.full_name.charAt(0)}</AvatarFallback>
             </Avatar>
             <div>
