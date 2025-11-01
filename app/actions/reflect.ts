@@ -200,12 +200,17 @@ export async function startCoachingSession(weekType: string) {
   // 今週のセッションが既に存在するかチェック
   const { data: existingSession } = await supabase
     .from("coaching_sessions")
-    .select("id")
+    .select("id, status, completed_at")
     .eq("student_id", student.id)
     .eq("week_start_date", formatDateToJST(weekStartDate))
     .maybeSingle()
 
   if (existingSession) {
+    // 完了済みセッションの場合はエラーを返す
+    if (existingSession.status === "completed" || existingSession.completed_at) {
+      return { error: "今週の振り返りは既に完了しています", alreadyCompleted: true }
+    }
+    // 進行中のセッションは継続可能
     return { sessionId: existingSession.id, isNew: false }
   }
 

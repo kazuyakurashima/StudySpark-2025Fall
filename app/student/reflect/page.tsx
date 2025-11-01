@@ -50,12 +50,14 @@ function ReflectPageInner() {
   const [summary, setSummary] = useState<string | null>(null)
   const [pastSessions, setPastSessions] = useState<any[]>([])
   const [showHistory, setShowHistory] = useState(false)
+  const [isCompletedThisWeek, setIsCompletedThisWeek] = useState(false)
 
   useEffect(() => {
     loadStudentInfo()
     checkAvailability()
     loadWeekType()
     loadPastSessions()
+    checkThisWeekCompletion()
   }, [])
 
   const loadStudentInfo = async () => {
@@ -99,6 +101,47 @@ function ReflectPageInner() {
     }
   }
 
+  const checkThisWeekCompletion = async () => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) return
+
+    const { data: student } = await supabase
+      .from("students")
+      .select("id")
+      .eq("user_id", user.id)
+      .single()
+
+    if (!student) return
+
+    // 今週の月曜日を取得（JST基準）
+    const now = new Date()
+    const dayOfWeek = now.getDay()
+    const diff = (dayOfWeek === 0 ? -6 : 1) - dayOfWeek // 月曜日への日数差
+    const thisMonday = new Date(now)
+    thisMonday.setDate(now.getDate() + diff)
+    thisMonday.setHours(0, 0, 0, 0)
+
+    const weekStartStr = `${thisMonday.getFullYear()}-${String(thisMonday.getMonth() + 1).padStart(2, '0')}-${String(thisMonday.getDate()).padStart(2, '0')}`
+
+    // 今週の完了済みセッションをチェック
+    const { data: completedSession } = await supabase
+      .from("coaching_sessions")
+      .select("id, completed_at, summary_text")
+      .eq("student_id", student.id)
+      .gte("week_start_date", weekStartStr)
+      .not("completed_at", "is", null)
+      .maybeSingle()
+
+    if (completedSession) {
+      setIsCompletedThisWeek(true)
+      if (completedSession.summary_text) {
+        setSummary(completedSession.summary_text)
+      }
+    }
+  }
+
   const handleStartReflect = async () => {
     if (!weekType) return
 
@@ -114,6 +157,7 @@ function ReflectPageInner() {
   const handleComplete = (generatedSummary: string) => {
     setSummary(generatedSummary)
     setIsStarted(false)
+    setIsCompletedThisWeek(true)
     loadPastSessions()
   }
 
@@ -172,7 +216,7 @@ function ReflectPageInner() {
         />
 
         <div className="max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
-        {isAvailable && !isStarted && !summary && weekTypeInfo && weekData && (
+        {isAvailable && !isStarted && !summary && !isCompletedThisWeek && weekTypeInfo && weekData && (
           <>
             <Card className={`card-elevated ${weekTypeInfo.bg} border-0 shadow-2xl`}>
               <CardContent className="p-6">
@@ -238,16 +282,29 @@ function ReflectPageInner() {
           />
         )}
 
-        {isAvailable && summary && (
+        {isAvailable && isCompletedThisWeek && summary && (
           <Card className="card-elevated bg-gradient-to-br from-emerald-50 to-blue-50 border-0 shadow-2xl">
             <CardContent className="p-8 text-center">
               <Sparkles className="h-16 w-16 text-primary mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-primary mb-4">振り返り完了！</h2>
+              <h2 className="text-2xl font-bold text-primary mb-4">今週の振り返り完了！</h2>
               <div className="bg-white rounded-lg p-6 mb-6">
                 <h3 className="text-sm font-semibold text-muted-foreground mb-2">今週の振り返りまとめ</h3>
                 <p className="text-lg leading-relaxed">{summary}</p>
               </div>
               <p className="text-muted-foreground">
+                また来週も一緒に頑張ろうね！✨
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {isAvailable && isCompletedThisWeek && !summary && (
+          <Card className="card-elevated bg-gradient-to-br from-emerald-50 to-blue-50 border-0 shadow-2xl">
+            <CardContent className="p-8 text-center">
+              <Sparkles className="h-16 w-16 text-primary mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-primary mb-4">今週の振り返り完了！</h2>
+              <p className="text-muted-foreground">
+                今週の振り返りはもう完了しているよ。<br />
                 また来週も一緒に頑張ろうね！✨
               </p>
             </CardContent>
