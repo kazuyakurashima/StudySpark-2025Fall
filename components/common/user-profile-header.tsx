@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Image from "next/image"
-import { LogOut, User, ChevronDown, Check, Users } from "lucide-react"
+import { LogOut, User, ChevronDown, Check, Users, GraduationCap } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { EditProfileModal } from "@/components/profile/edit-profile-modal"
@@ -203,6 +203,17 @@ export function UserProfileHeader() {
                     <User className="w-4 h-4" />
                     プロフィール編集
                   </button>
+
+                  {/* コース選択（生徒のみ） */}
+                  {profile.role === "student" && (
+                    <button
+                      onClick={handleEditCourse}
+                      className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors"
+                    >
+                      <GraduationCap className="w-4 h-4" />
+                      コース選択
+                    </button>
+                  )}
 
                   {/* ログアウト */}
                   <button
