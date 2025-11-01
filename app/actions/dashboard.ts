@@ -1104,7 +1104,6 @@ export async function getWeeklyReflectionStatus() {
       .from("coaching_sessions")
       .select("id, completed_at")
       .eq("student_id", student.id)
-      .eq("session_type", "reflection")
       .gte("week_start_date", weekStartStr)
       .not("completed_at", "is", null)
       .maybeSingle()
