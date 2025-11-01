@@ -56,13 +56,63 @@ export async function getDailySparkLevel(
 }
 
 /**
+ * 今週の振り返り完了をチェック（日曜日専用）
+ *
+ * @param studentId 生徒ID
+ * @param date 日付（YYYY-MM-DD、JST）
+ * @returns 今週の振り返りが完了しているか
+ */
+async function checkWeeklyReflectionComplete(studentId: number, date: string): Promise<boolean> {
+  try {
+    // 1. 今週の月曜日の日付を計算（week_start_date）
+    const dateObj = new Date(date + "T00:00:00+09:00")
+    const dayOfWeek = dateObj.getDay() // 0=日, 1=月, ..., 6=土
+
+    // 日曜日（0）の場合、今週の月曜日は -6日
+    // その他の曜日の場合、今週の月曜日は (1 - dayOfWeek)日
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+    const weekStart = new Date(dateObj)
+    weekStart.setDate(dateObj.getDate() + diff)
+
+    // YYYY-MM-DD形式に変換
+    const year = weekStart.getFullYear()
+    const month = String(weekStart.getMonth() + 1).padStart(2, "0")
+    const day = String(weekStart.getDate()).padStart(2, "0")
+    const weekStartStr = `${year}-${month}-${day}`
+
+    const adminClient = createAdminClient()
+
+    // 2. coaching_sessionsテーブルから今週のセッションを検索
+    const { data: session, error } = await adminClient
+      .from("coaching_sessions")
+      .select("id, status, completed_at, summary_text")
+      .eq("student_id", studentId)
+      .eq("week_start_date", weekStartStr)
+      .eq("status", "completed")
+      .not("completed_at", "is", null)
+      .single()
+
+    if (error) {
+      // セッションが存在しない場合は未達成
+      return false
+    }
+
+    // 3. 完了しているかチェック
+    return session !== null && session.summary_text !== null
+  } catch (error) {
+    console.error("[checkWeeklyReflectionComplete] Exception:", error)
+    return false
+  }
+}
+
+/**
  * 生徒の今日のミッション達成をチェック（厳格版）
  *
  * 判定基準：指定3科目すべて完了
  * - 月火（ブロックA）: 算数、国語、社会
  * - 水木（ブロックB）: 算数、国語、理科
  * - 金土（ブロックC）: 算数、理科、社会
- * - 日曜: 振り返り（ミッション対象外、常にfalse）
+ * - 日曜: 週次振り返り（リフレクト）完了
  *
  * @param studentId 生徒ID
  * @param date 日付（YYYY-MM-DD、JST）
@@ -73,9 +123,9 @@ async function checkStudentMissionComplete(studentId: number, date: string): Pro
     // 1. 今日のミッション科目を取得
     const missionSubjects = getTodayMissionSubjectsFromString(date)
 
-    // 日曜日はミッション対象外
+    // 日曜日は週次振り返り完了をチェック
     if (missionSubjects.length === 0) {
-      return false
+      return await checkWeeklyReflectionComplete(studentId, date)
     }
 
     const adminClient = createAdminClient()
