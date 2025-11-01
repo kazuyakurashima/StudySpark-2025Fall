@@ -461,7 +461,7 @@ const LearningHistoryCalendar = ({ calendarData }: { calendarData: { [dateStr: s
   )
 }
 
-const TodayMissionCard = ({ todayProgress, yesterdayProgress, reflectionCompleted }: { todayProgress: Array<{subject: string, accuracy: number, correctCount: number, totalProblems: number, logCount: number}>, yesterdayProgress: Array<{subject: string, accuracy: number, correctCount: number, totalProblems: number}>, reflectionCompleted: boolean }) => {
+const TodayMissionCard = ({ todayProgress, yesterdayProgress, reflectionCompleted, weeklyProgress }: { todayProgress: Array<{subject: string, accuracy: number, correctCount: number, totalProblems: number, logCount: number}>, yesterdayProgress: Array<{subject: string, accuracy: number, correctCount: number, totalProblems: number}>, reflectionCompleted: boolean, weeklyProgress: Array<{subject: string, colorCode: string, accuracy: number, correctCount: number, totalProblems: number, details: Array<{content: string, remaining: number}>}> }) => {
   const router = useRouter()
 
   // Helper function for accuracy color coding
@@ -1606,7 +1606,7 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
               )}
             </Card>
 
-            <TodayMissionCard todayProgress={todayProgress} yesterdayProgress={initialData.yesterdayProgress} reflectionCompleted={reflectionCompleted} />
+            <TodayMissionCard todayProgress={todayProgress} yesterdayProgress={initialData.yesterdayProgress} reflectionCompleted={reflectionCompleted} weeklyProgress={weeklyProgress} />
             <LearningHistoryCalendar calendarData={calendarData} />
             <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} sessionNumber={sessionNumber} />
             <RecentEncouragementCard messages={messages} />
@@ -1721,7 +1721,7 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
                 )}
               </Card>
 
-              <TodayMissionCard todayProgress={todayProgress} yesterdayProgress={initialData.yesterdayProgress} reflectionCompleted={reflectionCompleted} />
+              <TodayMissionCard todayProgress={todayProgress} yesterdayProgress={initialData.yesterdayProgress} reflectionCompleted={reflectionCompleted} weeklyProgress={weeklyProgress} />
               <RecentEncouragementCard messages={messages} />
               <RecentLearningHistoryCard logs={recentLogs} />
             </div>
