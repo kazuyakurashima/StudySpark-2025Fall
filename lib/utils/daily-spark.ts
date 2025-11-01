@@ -1,6 +1,7 @@
 "use server"
 
 import { createAdminClient } from "@/lib/supabase/server"
+import { getTodayMissionSubjectsFromString } from "./get-today-mission"
 
 /**
  * Daily Sparkのレベル
@@ -55,30 +56,53 @@ export async function getDailySparkLevel(
 }
 
 /**
- * 生徒の今日のミッション達成をチェック
+ * 生徒の今日のミッション達成をチェック（厳格版）
+ *
+ * 判定基準：指定3科目すべて完了
+ * - 月火（ブロックA）: 算数、国語、社会
+ * - 水木（ブロックB）: 算数、国語、理科
+ * - 金土（ブロックC）: 算数、理科、社会
+ * - 日曜: 振り返り（ミッション対象外、常にfalse）
+ *
  * @param studentId 生徒ID
- * @param date 日付（YYYY-MM-DD）
+ * @param date 日付（YYYY-MM-DD、JST）
  * @returns 達成しているかどうか
  */
 async function checkStudentMissionComplete(studentId: number, date: string): Promise<boolean> {
   try {
+    // 1. 今日のミッション科目を取得
+    const missionSubjects = getTodayMissionSubjectsFromString(date)
+
+    // 日曜日はミッション対象外
+    if (missionSubjects.length === 0) {
+      return false
+    }
+
     const adminClient = createAdminClient()
 
-    // 今日の学習記録をチェック
+    // 2. 今日の学習記録を取得（科目のみ）
     const { data: logs, error } = await adminClient
       .from("study_logs")
-      .select("id")
+      .select("subject")
       .eq("student_id", studentId)
       .eq("study_date", date)
-      .limit(1)
 
     if (error) {
       console.error("[checkStudentMissionComplete] Error:", error)
       return false
     }
 
-    // 学習記録が1件でもあれば達成とみなす
-    return logs && logs.length > 0
+    if (!logs || logs.length === 0) {
+      return false
+    }
+
+    // 3. 記録された科目を抽出（重複除去）
+    const recordedSubjects = [...new Set(logs.map((log) => log.subject))]
+
+    // 4. すべてのミッション科目が記録されているかチェック
+    const allSubjectsCompleted = missionSubjects.every((subject) => recordedSubjects.includes(subject))
+
+    return allSubjectsCompleted
   } catch (error) {
     console.error("[checkStudentMissionComplete] Exception:", error)
     return false
