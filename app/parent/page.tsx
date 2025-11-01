@@ -1639,7 +1639,7 @@ function ParentDashboardInner() {
 
             setSelectedChildId(firstChild.student_id)
             setSelectedChildName(profile?.display_name || "お子さん")
-            setSelectedChildAvatar(profile?.avatar_url || "student1")
+            setSelectedChildAvatar(profile?.avatar_id || "student1")
             // Keep loading state true - will be set to false after child data is fetched
           } else {
             // No children associated
@@ -1893,7 +1893,7 @@ function ParentDashboardInner() {
                 const childName =
                   isActive && selectedChildName ? selectedChildName : profile?.display_name || "お子さん"
                 const childAvatar =
-                  isActive && selectedChildAvatar ? selectedChildAvatar : profile?.avatar_url || "student1"
+                  isActive && selectedChildAvatar ? selectedChildAvatar : profile?.avatar_id || "student1"
 
                 return (
                   <button

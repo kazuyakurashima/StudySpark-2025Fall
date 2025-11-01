@@ -31,7 +31,7 @@ export async function getParentDashboardData() {
     // Get parent profile
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("display_name, avatar_url, role")
+      .select("display_name, avatar_id, role")
       .eq("id", user.id)
       .single()
 
@@ -108,7 +108,7 @@ export async function getParentDashboardData() {
 
     const { data: profiles, error: profilesError } = await adminClient
       .from("profiles")
-      .select("id, display_name, avatar_url")
+      .select("id, display_name, avatar_id")
       .in("id", userIds)
 
     console.log("🔍 [SERVER] Profiles query:", { count: profiles?.length, error: profilesError?.message })
@@ -134,7 +134,7 @@ export async function getParentDashboardData() {
           profiles: profile
             ? {
                 display_name: profile.display_name,
-                avatar_url: profile.avatar_url,
+                avatar_id: profile.avatar_id,
               }
             : null,
         },
@@ -1207,7 +1207,7 @@ export async function getStudentRecentMessages(studentId: number, limit: number 
     const senderIds = [...new Set(messages.map((msg: any) => msg.sender_id))]
     const { data: senderProfiles, error: senderError } = await adminClient
       .from("profiles")
-      .select("id, display_name, avatar_url")
+      .select("id, display_name, avatar_id")
       .in("id", senderIds)
 
     if (senderError) {
@@ -1216,7 +1216,7 @@ export async function getStudentRecentMessages(studentId: number, limit: number 
       return {
         messages: messages.map((msg: any) => ({
           ...msg,
-          sender_profile: { display_name: "不明", avatar_url: null },
+          sender_profile: { display_name: "不明", avatar_id: null },
         })),
       }
     }
@@ -1226,7 +1226,7 @@ export async function getStudentRecentMessages(studentId: number, limit: number 
       const senderProfile = senderProfiles?.find((profile: any) => profile.id === msg.sender_id)
       return {
         ...msg,
-        sender_profile: senderProfile || { display_name: "不明", avatar_url: null },
+        sender_profile: senderProfile || { display_name: "不明", avatar_id: null },
       }
     })
 
