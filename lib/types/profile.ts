@@ -35,3 +35,16 @@ export interface ProfileValidationError {
   field: "nickname" | "avatar_id" | "theme_color"
   message: string
 }
+
+/**
+ * 子供のプロフィール型定義（保護者画面用）
+ */
+export interface ChildProfile {
+  id: number // student_id
+  user_id: string
+  nickname: string
+  avatar_id: string
+  theme_color: string
+  grade: number
+  course: "A" | "B" | "C" | "S"
+}

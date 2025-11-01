@@ -1,6 +1,96 @@
 "use server"
 
 import { createClient, createAdminClient } from "@/lib/supabase/server"
+import { ChildProfile } from "@/lib/types/profile"
+
+/**
+ * 保護者に紐づく子供のリストを取得
+ */
+export async function getParentChildren(): Promise<{ children: ChildProfile[]; error?: string }> {
+  try {
+    const supabase = await createClient()
+
+    // 現在のユーザーを取得
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
+
+    if (userError || !user) {
+      return { children: [], error: "認証エラー" }
+    }
+
+    // 保護者レコードを取得
+    const { data: parent, error: parentError } = await supabase
+      .from("parents")
+      .select("id")
+      .eq("user_id", user.id)
+      .single()
+
+    if (parentError || !parent) {
+      return { children: [], error: "保護者情報が見つかりません" }
+    }
+
+    // Admin clientを使用してRLSをバイパス
+    const adminClient = createAdminClient()
+
+    // parent_child_relationsから子供のIDを取得
+    const { data: relations, error: relationsError } = await adminClient
+      .from("parent_child_relations")
+      .select("student_id")
+      .eq("parent_id", parent.id)
+
+    if (relationsError || !relations || relations.length === 0) {
+      return { children: [] }
+    }
+
+    const studentIds = relations.map((r) => r.student_id)
+
+    // 生徒情報を取得
+    const { data: students, error: studentsError } = await adminClient
+      .from("students")
+      .select("id, full_name, grade, course, user_id")
+      .in("id", studentIds)
+
+    if (studentsError || !students) {
+      return { children: [], error: "生徒情報の取得に失敗しました" }
+    }
+
+    // プロフィール情報を取得
+    const userIds = students.map((s) => s.user_id).filter(Boolean)
+    const { data: profiles, error: profilesError } = await adminClient
+      .from("profiles")
+      .select("id, nickname, avatar_id, theme_color")
+      .in("id", userIds)
+
+    if (profilesError || !profiles) {
+      return { children: [], error: "プロフィール情報の取得に失敗しました" }
+    }
+
+    // データを組み合わせて ChildProfile 型に整形
+    const children: ChildProfile[] = students
+      .map((student) => {
+        const profile = profiles.find((p) => p.id === student.user_id)
+        if (!profile) return null
+
+        return {
+          id: student.id,
+          user_id: student.user_id,
+          nickname: profile.nickname,
+          avatar_id: profile.avatar_id,
+          theme_color: profile.theme_color,
+          grade: student.grade,
+          course: student.course as "A" | "B" | "C" | "S",
+        }
+      })
+      .filter((child): child is ChildProfile => child !== null)
+
+    return { children }
+  } catch (error) {
+    console.error("getParentChildren error:", error)
+    return { children: [], error: "予期しないエラーが発生しました" }
+  }
+}
 
 /**
  * 保護者ダッシュボードデータ取得

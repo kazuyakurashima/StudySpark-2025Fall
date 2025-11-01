@@ -1,8 +1,9 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react"
-import { UserProfile, UpdateProfileInput } from "@/lib/types/profile"
+import { UserProfile, UpdateProfileInput, ChildProfile } from "@/lib/types/profile"
 import { getProfile, updateProfileCustomization } from "@/app/actions/profile"
+import { getParentChildren } from "@/app/actions/parent-dashboard"
 
 interface UserProfileContextType {
   profile: UserProfile | null
@@ -10,6 +11,10 @@ interface UserProfileContextType {
   error: string | null
   updateProfile: (input: UpdateProfileInput) => Promise<{ success: boolean; error?: string }>
   refresh: () => Promise<void>
+  // 保護者用：子供リストと選択状態
+  children: ChildProfile[]
+  selectedChild: ChildProfile | null
+  setSelectedChildId: (childId: number) => void
 }
 
 const UserProfileContext = createContext<UserProfileContextType | undefined>(undefined)
@@ -21,6 +26,10 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // 保護者用：子供リストと選択状態
+  const [childrenList, setChildrenList] = useState<ChildProfile[]>([])
+  const [selectedChildId, setSelectedChildIdState] = useState<number | null>(null)
 
   // プロフィール取得
   const fetchProfile = useCallback(async () => {
@@ -34,6 +43,22 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       setProfile(null)
     } else {
       setProfile(result.profile)
+
+      // 保護者の場合、子供リストを取得
+      if (result.profile?.role === "parent") {
+        const childrenResult = await getParentChildren()
+        if (!childrenResult.error && childrenResult.children.length > 0) {
+          setChildrenList(childrenResult.children)
+          // 最初の子供をデフォルトで選択（localStorage から復元も可能）
+          const savedChildId = typeof window !== "undefined"
+            ? localStorage.getItem("selectedChildId")
+            : null
+          const defaultChildId = savedChildId
+            ? parseInt(savedChildId)
+            : childrenResult.children[0].id
+          setSelectedChildIdState(defaultChildId)
+        }
+      }
     }
 
     setLoading(false)
@@ -68,8 +93,31 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     return fetchProfile()
   }, [fetchProfile])
 
+  // 子供選択ハンドラー
+  const setSelectedChildId = useCallback((childId: number) => {
+    setSelectedChildIdState(childId)
+    // localStorageに保存
+    if (typeof window !== "undefined") {
+      localStorage.setItem("selectedChildId", childId.toString())
+    }
+  }, [])
+
+  // 選択中の子供オブジェクト
+  const selectedChild = childrenList.find((child) => child.id === selectedChildId) || null
+
   return (
-    <UserProfileContext.Provider value={{ profile, loading, error, updateProfile, refresh }}>
+    <UserProfileContext.Provider
+      value={{
+        profile,
+        loading,
+        error,
+        updateProfile,
+        refresh,
+        children: childrenList,
+        selectedChild,
+        setSelectedChildId,
+      }}
+    >
       {children}
     </UserProfileContext.Provider>
   )
