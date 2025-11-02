@@ -428,7 +428,7 @@ async function getWeeklyCumulativeProgress(studentId: number) {
         const remainingToTarget = Math.max(0, targetCorrect - data.weekCorrect)
 
         return {
-          subject,
+          subjectName: subject,
           weekCorrect: data.weekCorrect,
           weekTotal: data.weekTotal,
           weekAccuracy,

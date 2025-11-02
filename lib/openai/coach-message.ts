@@ -1,7 +1,7 @@
 import { getOpenAIClient, getDefaultModel } from "./client"
 
 export interface CoachMessageContext {
-  studentId: string
+  studentId: number
   studentName: string
   grade: number
   course: string

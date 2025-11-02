@@ -99,7 +99,7 @@ async function testCoachMessageGeneration() {
 /**
  * テストシナリオ1: 通常シナリオ（GROWデータ + 学習ログあり）
  */
-async function testScenario1(studentId: string) {
+async function testScenario1(studentId: number) {
   const { generateCoachMessage } = await import("@/lib/openai/coach-message")
   const supabase = await createClient()
 
@@ -155,7 +155,7 @@ async function testScenario1(studentId: string) {
 /**
  * テストシナリオ2: 新規生徒シナリオ（GROWデータなし）
  */
-async function testScenario2(studentId: string) {
+async function testScenario2(studentId: number) {
   const { generateCoachMessage } = await import("@/lib/openai/coach-message")
 
   const context = {
@@ -182,7 +182,7 @@ async function testScenario2(studentId: string) {
 /**
  * テストシナリオ3: テスト直前シナリオ
  */
-async function testScenario3(studentId: string) {
+async function testScenario3(studentId: number) {
   const { generateCoachMessage } = await import("@/lib/openai/coach-message")
 
   const context = {
