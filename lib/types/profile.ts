@@ -48,3 +48,25 @@ export interface ChildProfile {
   grade: number
   course: "A" | "B" | "C" | "S"
 }
+
+/**
+ * 保護者ダッシュボードの初期データ型定義
+ * 各フィールドは成功時とエラー時のデータを持つ
+ */
+export interface ParentDashboardData {
+  todayStatus: { message: string } | { error: string }
+  streak: { streak: number } | { error: string }
+  todayMission: { todayProgress: any[] } | { error: string }
+  weeklyProgress: { progress: any[]; sessionNumber: number | null } | { error: string }
+  calendarData: { calendarData: { [dateStr: string]: { subjectCount: number; accuracy80Count: number } } } | { error: string }
+  recentLogs: { logs: any[] } | { error: string }
+  recentMessages: { messages: any[] } | { error: string }
+  reflectionStatus: { completed: boolean } | { error: string }
+}
+
+/**
+ * 型ガード: エラーかどうかをチェック
+ */
+export function isError<T>(result: T | { error: string }): result is { error: string } {
+  return 'error' in result && typeof result.error === 'string'
+}

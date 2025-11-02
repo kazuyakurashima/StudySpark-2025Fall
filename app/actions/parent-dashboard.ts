@@ -915,7 +915,7 @@ export async function getStudentWeeklyProgress(studentId: number) {
 
     if (sessionError || !currentSession) {
       console.error("No current session found:", sessionError)
-      return { progress: [] }
+      return { progress: [], sessionNumber: null }
     }
 
     // Get all logs for this student in this session
@@ -947,7 +947,7 @@ export async function getStudentWeeklyProgress(studentId: number) {
 
     if (!logs || logs.length === 0) {
       console.log("🔍 [SERVER] Weekly progress - No logs found, returning empty array")
-      return { progress: [] }
+      return { progress: [], sessionNumber: currentSession.session_number }
     }
 
     // Get problem counts for this session (with content name for mapping)

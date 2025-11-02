@@ -19,17 +19,28 @@ interface UserProfileContextType {
 
 const UserProfileContext = createContext<UserProfileContextType | undefined>(undefined)
 
+interface UserProfileProviderProps {
+  children: ReactNode
+  // サーバーから渡された初期データ（保護者用）
+  initialChildren?: ChildProfile[]
+  initialSelectedChildId?: number
+}
+
 /**
  * ユーザープロフィール用プロバイダー
  */
-export function UserProfileProvider({ children }: { children: ReactNode }) {
+export function UserProfileProvider({
+  children,
+  initialChildren,
+  initialSelectedChildId
+}: UserProfileProviderProps) {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   // 保護者用：子供リストと選択状態
-  const [childrenList, setChildrenList] = useState<ChildProfile[]>([])
-  const [selectedChildId, setSelectedChildIdState] = useState<number | null>(null)
+  const [childrenList, setChildrenList] = useState<ChildProfile[]>(initialChildren || [])
+  const [selectedChildId, setSelectedChildIdState] = useState<number | null>(initialSelectedChildId || null)
 
   // プロフィール取得
   const fetchProfile = useCallback(async () => {
@@ -44,8 +55,8 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     } else {
       setProfile(result.profile)
 
-      // 保護者の場合、子供リストを取得
-      if (result.profile?.role === "parent") {
+      // 保護者の場合、子供リストを取得（初期データがない場合のみ）
+      if (result.profile?.role === "parent" && !initialChildren) {
         const childrenResult = await getParentChildren()
         if (!childrenResult.error && childrenResult.children.length > 0) {
           setChildrenList(childrenResult.children)
@@ -62,7 +73,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     }
 
     setLoading(false)
-  }, [])
+  }, [initialChildren])
 
   // 初回読み込み
   useEffect(() => {
