@@ -506,7 +506,7 @@ const TodayMissionCard = ({ todayProgress, yesterdayProgress, reflectionComplete
   }
 
   const getMissionMode = (weekday: number, hour: number) => {
-    if (weekday === 0) return "sunday" // 日曜日
+    if (weekday === 0) return "special" // 日曜日も特別モード
     if (weekday === 6 && hour >= 12) return "special" // 土曜12時以降
     // 月〜金（土曜12時前も）は全て入力促進モード
     return "input"
@@ -526,32 +526,7 @@ const TodayMissionCard = ({ todayProgress, yesterdayProgress, reflectionComplete
     })
 
 
-    // 日曜日：リフレクト促進
-    if (mode === "sunday") {
-      // reflectionCompletedステータスを確認（propsから渡される想定）
-      const isReflectCompleted = reflectionCompleted
-      return {
-        mode: "sunday",
-        subjects: [],
-        panels: [
-          {
-            name: "リフレクト",
-            status: isReflectCompleted ? "完了" : "未完了",
-            description: "週間振り返りを記録しよう",
-            type: "reflect",
-            needsAction: !isReflectCompleted,
-            isCompleted: isReflectCompleted,
-          },
-        ],
-        statusMessage: isReflectCompleted
-          ? "今週の振り返りが完了しました！素晴らしいです！"
-          : "今週の学習を振り返って、来週に向けて準備しよう！",
-        completionStatus: isReflectCompleted ? "1/1入力完了" : "0/1入力完了",
-        allCompleted: isReflectCompleted,
-      }
-    }
-
-    // 土曜12時以降：特別モード
+    // 土曜12時以降・日曜日：特別モード（リフレクト + 低正答率2科目）
     if (mode === "special") {
       const isReflectCompleted = reflectionCompleted
 
