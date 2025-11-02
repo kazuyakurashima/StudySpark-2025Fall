@@ -385,7 +385,6 @@ const ParentTodayMissionCard = ({ todayProgress, studentName, selectedChildId }:
 
     // 日曜日：リフレクト促進
     if (mode === "sunday") {
-      const isReflectCompleted = false // 実際の実装では外部データから取得
       return {
         mode: "sunday",
         subjects: [],
@@ -409,7 +408,6 @@ const ParentTodayMissionCard = ({ todayProgress, studentName, selectedChildId }:
 
     // 土曜12時以降：特別モード
     if (mode === "special") {
-      const isReflectCompleted = false // 実際の実装では外部データから取得
       const lowAccuracySubjects = todayProgress
         .filter((item) => item.accuracy < 80 && item.totalProblems > 0)
         .slice(0, 2)
@@ -1547,6 +1545,7 @@ function ParentDashboardInner() {
   const [weeklyProgress, setWeeklyProgress] = useState<any[]>([])
   const [sessionNumber, setSessionNumber] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isReflectCompleted, setIsReflectCompleted] = useState(false)
 
   // テーマカラーを取得（デフォルトは使わない）
   const themeColor = profile?.theme_color || "default"
@@ -1690,6 +1689,7 @@ function ParentDashboardInner() {
           getStudentCalendarData,
           getStudentRecentLogs,
           getStudentRecentMessages,
+          checkStudentWeeklyReflection,
         } = await import("@/app/actions/parent-dashboard")
 
         // Get current date string for cache comparison
@@ -1734,6 +1734,7 @@ function ParentDashboardInner() {
           getStudentCalendarData(selectedChildId),
           getStudentRecentLogs(selectedChildId, 50),
           getStudentRecentMessages(selectedChildId, 3),
+          checkStudentWeeklyReflection(selectedChildId),
         ]
 
         const [
@@ -1744,6 +1745,7 @@ function ParentDashboardInner() {
           calendar,
           logsResult,
           messagesResult,
+          reflectionResult,
         ] = await Promise.all(fetchPromises)
 
         if (!statusMsg?.error && statusMsg?.message) {
@@ -1825,6 +1827,16 @@ function ParentDashboardInner() {
             console.error("❌ [CLIENT] Recent messages error:", messagesResult.error)
           }
           setRecentMessages([])
+        }
+
+        // 振り返り完了状態を設定
+        if (reflectionResult && typeof reflectionResult.completed === "boolean") {
+          setIsReflectCompleted(reflectionResult.completed)
+        } else {
+          if (reflectionResult?.error) {
+            console.error("❌ [CLIENT] Reflection check error:", reflectionResult.error)
+          }
+          setIsReflectCompleted(false)
         }
 
         console.log("🔍 [CLIENT] All child data fetched successfully")

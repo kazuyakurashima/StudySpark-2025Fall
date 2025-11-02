@@ -1326,3 +1326,74 @@ export async function getStudentRecentMessages(studentId: number, limit: number 
     return { error: "予期しないエラーが発生しました" }
   }
 }
+
+/**
+ * 子どもの今週の振り返り完了状態を取得（日曜日用）
+ */
+export async function checkStudentWeeklyReflection(studentId: number): Promise<{ completed: boolean; error?: string }> {
+  try {
+    const supabase = await createClient()
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return { completed: false, error: "認証エラー" }
+    }
+
+    // Verify parent-child relationship
+    const { data: parent } = await supabase.from("parents").select("id").eq("user_id", user.id).single()
+
+    if (!parent) {
+      return { completed: false, error: "保護者情報が見つかりません" }
+    }
+
+    const adminClient = createAdminClient()
+
+    const { data: relation } = await adminClient
+      .from("parent_child_relations")
+      .select("student_id")
+      .eq("parent_id", parent.id)
+      .eq("student_id", studentId)
+      .single()
+
+    if (!relation) {
+      return { completed: false, error: "お子様の情報が見つかりません" }
+    }
+
+    // 1. 今週の月曜日の日付を計算（week_start_date）
+    const now = new Date()
+    const jstOffset = 9 * 60 // JSTはUTC+9
+    const jstTime = new Date(now.getTime() + jstOffset * 60 * 1000)
+
+    const dayOfWeek = jstTime.getUTCDay() // 0=日, 1=月, ..., 6=土
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+    const weekStart = new Date(jstTime)
+    weekStart.setUTCDate(jstTime.getUTCDate() + diff)
+
+    // YYYY-MM-DD形式に変換
+    const year = weekStart.getUTCFullYear()
+    const month = String(weekStart.getUTCMonth() + 1).padStart(2, "0")
+    const day = String(weekStart.getUTCDate()).padStart(2, "0")
+    const weekStartStr = `${year}-${month}-${day}`
+
+    // 2. coaching_sessionsテーブルから今週のセッションを検索
+    const { data: session } = await adminClient
+      .from("coaching_sessions")
+      .select("id, status, completed_at, summary_text")
+      .eq("student_id", studentId)
+      .eq("week_start_date", weekStartStr)
+      .eq("status", "completed")
+      .not("completed_at", "is", null)
+      .single()
+
+    // 3. 完了しているかチェック
+    const completed = session !== null && session.summary_text !== null
+
+    return { completed }
+  } catch (error) {
+    console.error("Check student weekly reflection error:", error)
+    return { completed: false }
+  }
+}
