@@ -130,12 +130,13 @@ export async function getAICoachMessage() {
     console.log(`[Coach Message] Cache MISS: ${cacheKey}, generating...`)
 
     // データ収集
-    const [willData, logsData, streakData, testData, missionData] = await Promise.all([
+    const [willData, logsData, streakData, testData, missionData, weeklyData] = await Promise.all([
       getLatestWillAndGoalForCoach(student.id),
       getRecentStudyLogsForCoach(student.id, 3),
       getStudyStreak(),
       getUpcomingTestForCoach(student.id),
       getTodayMissionForCoach(student.id),
+      getWeeklyCumulativeProgress(student.id),
     ])
 
     // AI生成（動的インポート）
@@ -150,6 +151,7 @@ export async function getAICoachMessage() {
       latestWill: willData?.will,
       latestGoal: willData?.goal,
       recentLogs: logsData || [],
+      weeklyProgress: weeklyData?.progress,
       upcomingTest: testData || undefined,
       studyStreak: typeof streakData?.streak === "number" ? streakData.streak : 0,
       todayMission: missionData || undefined,
@@ -313,6 +315,133 @@ async function getRecentStudyLogsForCoach(studentId: string, days: number = 3) {
     today: todayLogs,
     yesterday: yesterdayLogs,
     dayBeforeYesterday: dayBeforeYesterdayLogs,
+  }
+}
+
+/**
+ * 今週の累積進捗取得（AIコーチメッセージ用）
+ * @param studentId - student.id（数値ID）
+ * @returns 科目別の週次累積進捗（算→国→理→社の順）
+ */
+async function getWeeklyCumulativeProgress(studentId: number) {
+  const supabase = await createClient()
+  const { getTodayJST } = await import("@/lib/utils/date-jst")
+  const todayStr = getTodayJST()
+
+  console.log("🔍 [Coach Weekly] Fetching weekly progress for student:", studentId)
+
+  try {
+    // student.idから直接gradeを取得
+    const { data: student, error: studentError } = await supabase
+      .from("students")
+      .select("grade")
+      .eq("id", studentId)
+      .single()
+
+    if (studentError || !student) {
+      console.error("🔍 [Coach Weekly] Student not found:", studentError)
+      return { progress: [] }
+    }
+
+    console.log("🔍 [Coach Weekly] Student grade:", student.grade)
+
+    // 今週のstudy_sessionを取得
+    const { data: currentSession, error: sessionError } = await supabase
+      .from("study_sessions")
+      .select("id, session_number, start_date, end_date")
+      .eq("grade", student.grade)
+      .lte("start_date", todayStr)
+      .gte("end_date", todayStr)
+      .single()
+
+    if (sessionError || !currentSession) {
+      console.error("🔍 [Coach Weekly] No current session found:", sessionError)
+      return { progress: [] }
+    }
+
+    console.log("🔍 [Coach Weekly] Current session:", {
+      id: currentSession.id,
+      number: currentSession.session_number,
+      start: currentSession.start_date,
+      end: currentSession.end_date,
+    })
+
+    // 今週の全ログを取得（最新のみではなく全て）
+    const { data: logs, error: logsError } = await supabase
+      .from("study_logs")
+      .select(`
+        correct_count,
+        total_problems,
+        subject_id,
+        subjects (id, name)
+      `)
+      .eq("student_id", studentId)
+      .eq("session_id", currentSession.id)
+
+    if (logsError) {
+      console.error("🔍 [Coach Weekly] Logs fetch error:", logsError)
+      return { progress: [] }
+    }
+
+    if (!logs || logs.length === 0) {
+      console.log("🔍 [Coach Weekly] No logs found for this session")
+      return { progress: [] }
+    }
+
+    console.log("🔍 [Coach Weekly] Fetched", logs.length, "logs")
+
+    // 科目別に累積集計
+    const subjectMap: {
+      [subject: string]: {
+        weekCorrect: number
+        weekTotal: number
+      }
+    } = {}
+
+    logs.forEach((log) => {
+      const subject = log.subjects?.name || "不明"
+      if (!subjectMap[subject]) {
+        subjectMap[subject] = { weekCorrect: 0, weekTotal: 0 }
+      }
+      subjectMap[subject].weekCorrect += log.correct_count || 0
+      subjectMap[subject].weekTotal += log.total_problems || 0
+    })
+
+    console.log("🔍 [Coach Weekly] Aggregated by subject:", subjectMap)
+
+    // 科目順序を固定（算→国→理→社）
+    const subjectOrder = ["算数", "国語", "理科", "社会"]
+
+    // 各科目の進捗を計算
+    const progress = subjectOrder
+      .filter((subject) => {
+        const data = subjectMap[subject]
+        // データが存在し、かつ weekTotal >= 10 の科目のみ
+        return data && data.weekTotal >= 10
+      })
+      .map((subject) => {
+        const data = subjectMap[subject]
+        const weekAccuracy = data.weekTotal > 0 ? Math.round((data.weekCorrect / data.weekTotal) * 100) : 0
+
+        // 正しい計算式: 分母を増やさず、既存問題の80%正解を目指す
+        const targetCorrect = Math.ceil(0.8 * data.weekTotal)
+        const remainingToTarget = Math.max(0, targetCorrect - data.weekCorrect)
+
+        return {
+          subject,
+          weekCorrect: data.weekCorrect,
+          weekTotal: data.weekTotal,
+          weekAccuracy,
+          remainingToTarget,
+        }
+      })
+
+    console.log("🔍 [Coach Weekly] Final progress (sorted):", progress)
+
+    return { progress }
+  } catch (error) {
+    console.error("🔍 [Coach Weekly] Unexpected error:", error)
+    return { progress: [] }
   }
 }
 

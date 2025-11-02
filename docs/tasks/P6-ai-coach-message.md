@@ -358,3 +358,137 @@ Phase 6完了の条件:
 - P6-5: テストスクリプト作成
 - P6-7: モニタリング実装（キャッシュヒット率、レスポンスタイム）
 - P6-8: 総合テスト
+- **P6-9: 週次進捗データ追加（2025-11-02追加）** ← 🔄 進行中
+
+---
+
+## P6-9: 週次進捗データ追加 ✅ 完了 (4/5)
+
+**追加日:** 2025年11月2日
+**完了日:** 2025年11月2日
+**優先度:** 高
+**所要時間:** 2-3時間（実績: 約2時間）
+
+### 背景
+
+現状のAIコーチメッセージは直近3日間のログのみを参照しており、今週の累積進捗（週次目標80%達成）との距離が伝えられない問題があった。
+
+**課題例:**
+- 今週の社会: 14/22問（64%）
+- 昨日の社会: 7/15問（47%）
+- AIメッセージ: 「社会が47%で...」← 週次進捗と混同
+
+### 実装内容
+
+- [x] `getWeeklyCumulativeProgress()`関数を実装
+  - 今週の学習回の全ログを累積集計
+  - 科目別に`weekCorrect / weekTotal`を計算
+  - 80%達成まで残り問題数を算出（正しい計算式）
+  - 科目順を固定（算→国→理→社）
+  - データ不足時（weekTotal < 10）は除外
+  - エラーハンドリングとログ出力を追加
+  - ファイル: `app/actions/dashboard.ts:319-444`
+
+- [x] `CoachMessageContext`型定義を拡張
+  - `weeklyProgress`プロパティを追加（オプショナル）
+  - ファイル: `lib/openai/coach-message.ts:36-42`
+
+- [x] `getAICoachMessage()`を修正
+  - `Promise.all`に`getWeeklyCumulativeProgress()`を追加
+  - `context.weeklyProgress`にデータを設定
+  - ファイル: `app/actions/dashboard.ts:132-158`
+
+- [x] システムプロンプトを更新
+  - 直近ログと週次進捗の使い分けルールを明記
+  - Few-shot例を追加（良い例・悪い例）
+  - 目標達成済み科目の扱いを追加
+  - ファイル: `lib/openai/coach-message.ts:70-98, 185-210, 232-233, 339-351`
+
+- [ ] テストケースを作成
+  - 通常ケース（週途中）
+  - 目標達成済み
+  - データ不足（週初め）
+  - 全科目データなし
+
+### 技術仕様
+
+**計算式（重要）:**
+```typescript
+// 分母を増やさず、既存問題で80%正解を目指す
+const targetCorrect = Math.ceil(0.8 * weekTotal)
+const remainingToTarget = Math.max(0, targetCorrect - weekCorrect)
+```
+
+**科目順序:**
+```typescript
+const subjectOrder = ["算数", "国語", "理科", "社会"]
+```
+
+**データ取得:**
+- 週の境界: `study_sessions`の`start_date`〜`end_date`
+- 全ログ累積（最新のみではない）
+
+### 期待される改善
+
+**Before:**
+> 「難しい問題に挑戦したね！社会が47%で、目標の80%まであと33%だよ。」
+
+**After:**
+> 「難しい問題に挑戦したね！今日は社会を7問解いたよ。今週の社会は14/22問（64%）で、目標の80%まであと4問だね。今日はまず算数に取り組んでみよう！」
+
+### 関連ドキュメント
+
+- `docs/AI_COACH_MESSAGE_WEEKLY_PROGRESS.md` - 詳細仕様書（2025-11-02作成）
+
+### 実装完了詳細（2025-11-02）
+
+**実装したコンポーネント:**
+
+1. **`getWeeklyCumulativeProgress()`関数** (`app/actions/dashboard.ts:319-444`)
+   - 今週の学習回（study_session）の全ログを取得
+   - 科目別に累積集計（weekTotal, weekCorrect, weekAccuracy）
+   - 80%目標達成まで残り問題数を正しく計算
+   - 固定順序でソート（算数→国語→理科→社会）
+   - データ不足フィルタ（weekTotal < 10は除外）
+   - 全段階でエラーログ出力
+
+2. **`CoachMessageContext`型拡張** (`lib/openai/coach-message.ts:36-42`)
+   ```typescript
+   weeklyProgress?: {
+     subjectName: string
+     weekTotal: number
+     weekCorrect: number
+     weekAccuracy: number
+     remainingToTarget: number
+   }[]
+   ```
+
+3. **`getAICoachMessage()`修正** (`app/actions/dashboard.ts:132-158`)
+   - `Promise.all`に`getWeeklyCumulativeProgress()`を追加
+   - `context.weeklyProgress`に週次進捗を設定
+   - デバッグログにweeklyProgressを含める
+
+4. **システムプロンプト更新** (`lib/openai/coach-message.ts`)
+   - データの使い分けルール追加（70-98行目）
+     - 直近ログ vs 週次累積進捗の明確な区別
+     - 使用ルールと良い例・悪い例を明記
+   - ユーザープロンプトに週次進捗セクション追加（185-210行目）
+     - 「今週の累積進捗」として表示
+     - 各科目の80%達成状況と残り問題数
+     - 使用方法とメッセージ例を明示
+   - 今日の学習記録に説明追加（232-233行目）
+   - 生成ルールに使い分け制約追加（339-351行目）
+
+**技術的改善点:**
+- 正しい計算式: `remainingToTarget = Math.max(0, Math.ceil(0.8 * weekTotal - weekCorrect))`
+- エラーハンドリング: 各ステップでcatch & ログ出力
+- パフォーマンス: 必要データのみSELECT
+- 型安全性: 完全なTypeScript型定義
+
+**未完了タスク:**
+- テストケース作成（通常/目標達成/データ不足/全科目なし）
+
+**次のステップ:**
+1. 本番環境でメッセージ品質を確認
+2. 必要に応じてテストケース作成
+3. P6-5（テストスクリプト）、P6-7（モニタリング）へ進む
