@@ -366,17 +366,21 @@ async function getWeeklyCumulativeProgress(studentId: number) {
       end: currentSession.end_date,
     })
 
-    // 今週の全ログを取得（最新のみではなく全て）
+    // 今週の全ログを取得（logged_at降順で取得）
     const { data: logs, error: logsError } = await supabase
       .from("study_logs")
       .select(`
         correct_count,
         total_problems,
         subject_id,
-        subjects (id, name)
+        study_content_type_id,
+        logged_at,
+        subjects (id, name),
+        study_content_types (id, content_name)
       `)
       .eq("student_id", studentId)
       .eq("session_id", currentSession.id)
+      .order("logged_at", { ascending: false })
 
     if (logsError) {
       console.error("🔍 [Coach Weekly] Logs fetch error:", logsError)
@@ -390,7 +394,26 @@ async function getWeeklyCumulativeProgress(studentId: number) {
 
     console.log("🔍 [Coach Weekly] Fetched", logs.length, "logs")
 
-    // 科目別に累積集計
+    // 科目×学習内容の組み合わせごとに最新のログのみを保持
+    // （getWeeklySubjectProgress()と同じロジック）
+    const latestLogsMap = new Map<string, typeof logs[0]>()
+
+    logs.forEach((log) => {
+      const contentType = Array.isArray(log.study_content_types)
+        ? log.study_content_types[0]
+        : log.study_content_types
+      const contentName = contentType?.content_name || "その他"
+      const key = `${log.subject_id}_${contentName}`
+
+      // ログは logged_at DESC でソートされているため、最初の出現が最新
+      if (!latestLogsMap.has(key)) {
+        latestLogsMap.set(key, log)
+      }
+    })
+
+    console.log("🔍 [Coach Weekly] Latest logs count:", latestLogsMap.size)
+
+    // 科目別に集計（最新ログのみを使用）
     const subjectMap: {
       [subject: string]: {
         weekCorrect: number
@@ -398,13 +421,15 @@ async function getWeeklyCumulativeProgress(studentId: number) {
       }
     } = {}
 
-    logs.forEach((log) => {
-      const subject = log.subjects?.name || "不明"
-      if (!subjectMap[subject]) {
-        subjectMap[subject] = { weekCorrect: 0, weekTotal: 0 }
+    latestLogsMap.forEach((log) => {
+      const subject = Array.isArray(log.subjects) ? log.subjects[0]?.name : log.subjects?.name
+      const subjectName = subject || "不明"
+
+      if (!subjectMap[subjectName]) {
+        subjectMap[subjectName] = { weekCorrect: 0, weekTotal: 0 }
       }
-      subjectMap[subject].weekCorrect += log.correct_count || 0
-      subjectMap[subject].weekTotal += log.total_problems || 0
+      subjectMap[subjectName].weekCorrect += log.correct_count || 0
+      subjectMap[subjectName].weekTotal += log.total_problems || 0
     })
 
     console.log("🔍 [Coach Weekly] Aggregated by subject:", subjectMap)
