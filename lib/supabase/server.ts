@@ -48,11 +48,23 @@ export function createClient() {
  * 注意:
  * - RLSをバイパスするため、使用前に必ずユーザー権限を検証すること
  * - 機密データへのアクセスには細心の注意を払うこと
+ * - SUPABASE_SERVICE_ROLE_KEYが未設定の場合はエラーをスローする
  */
 export function createAdminClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl) {
+    throw new Error('NEXT_PUBLIC_SUPABASE_URL is not defined in environment variables')
+  }
+
+  if (!serviceRoleKey) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not defined in environment variables. This is required for admin operations.')
+  }
+
   return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    supabaseUrl,
+    serviceRoleKey,
     {
       auth: {
         autoRefreshToken: false,

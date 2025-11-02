@@ -1,5 +1,8 @@
 "use server"
 
+// Force Node.js runtime for Service Role operations
+export const runtime = "nodejs"
+
 import { createClient, createAdminClient } from "@/lib/supabase/server"
 import { generateEncouragementMessages, type EncouragementContext } from "@/lib/openai/encouragement"
 import { QUICK_ENCOURAGEMENT_TEMPLATES, type QuickEncouragementType } from "@/lib/openai/prompts"

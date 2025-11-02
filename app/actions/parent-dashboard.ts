@@ -1,5 +1,8 @@
 "use server"
 
+// Force Node.js runtime for Service Role operations
+export const runtime = "nodejs"
+
 import { createClient, createAdminClient } from "@/lib/supabase/server"
 import { ChildProfile } from "@/lib/types/profile"
 
