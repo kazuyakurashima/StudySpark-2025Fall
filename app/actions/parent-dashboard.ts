@@ -1,9 +1,9 @@
 "use server"
 
-// Force Node.js runtime for Service Role operations
+// Force Node.js runtime for server-side operations
 export const runtime = "nodejs"
 
-import { createClient, createAdminClient } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/server"
 import { ChildProfile } from "@/lib/types/profile"
 
 /**
@@ -34,46 +34,39 @@ export async function getParentChildren(): Promise<{ children: ChildProfile[]; e
       return { children: [], error: "保護者情報が見つかりません" }
     }
 
-    // Admin clientを使用してRLSをバイパス
-    const adminClient = createAdminClient()
-
-    // parent_child_relationsから子供のIDを取得
-    const { data: relations, error: relationsError } = await adminClient
+    // parent_child_relationsから子供の情報を取得（RLSで保護者自身の関係のみ取得可能）
+    // students と profiles を JOIN で一度に取得
+    const { data: relations, error: relationsError } = await supabase
       .from("parent_child_relations")
-      .select("student_id")
+      .select(`
+        student_id,
+        students!inner (
+          id,
+          full_name,
+          grade,
+          course,
+          user_id,
+          profiles!inner (
+            id,
+            nickname,
+            avatar_id,
+            theme_color
+          )
+        )
+      `)
       .eq("parent_id", parent.id)
 
     if (relationsError || !relations || relations.length === 0) {
       return { children: [] }
     }
 
-    const studentIds = relations.map((r) => r.student_id)
-
-    // 生徒情報を取得
-    const { data: students, error: studentsError } = await adminClient
-      .from("students")
-      .select("id, full_name, grade, course, user_id")
-      .in("id", studentIds)
-
-    if (studentsError || !students) {
-      return { children: [], error: "生徒情報の取得に失敗しました" }
-    }
-
-    // プロフィール情報を取得
-    const userIds = students.map((s) => s.user_id).filter(Boolean)
-    const { data: profiles, error: profilesError } = await adminClient
-      .from("profiles")
-      .select("id, nickname, avatar_id, theme_color")
-      .in("id", userIds)
-
-    if (profilesError || !profiles) {
-      return { children: [], error: "プロフィール情報の取得に失敗しました" }
-    }
-
     // データを組み合わせて ChildProfile 型に整形
-    const children: ChildProfile[] = students
-      .map((student) => {
-        const profile = profiles.find((p) => p.id === student.user_id)
+    const children: ChildProfile[] = relations
+      .map((relation) => {
+        const student = Array.isArray(relation.students) ? relation.students[0] : relation.students
+        if (!student) return null
+
+        const profile = Array.isArray(student.profiles) ? student.profiles[0] : student.profiles
         if (!profile) return null
 
         return {
@@ -159,10 +152,11 @@ export async function getParentDashboardData() {
     }
 
     // Use admin client for cross-table queries (bypasses RLS)
-    const adminClient = createAdminClient()
+    // RLSポリシーにより、保護者は自分の子供のデータのみアクセス可能
+    // createAdminClient() は不要
 
     // Get student IDs associated with this parent
-    const { data: relations, error: relationsError } = await adminClient
+    const { data: relations, error: relationsError } = await supabase
       .from("parent_child_relations")
       .select("student_id")
       .eq("parent_id", parent.id)
@@ -183,7 +177,7 @@ export async function getParentDashboardData() {
     const studentIds = relations.map((r) => r.student_id)
     console.log("🔍 [SERVER] Student IDs:", studentIds)
 
-    const { data: students, error: studentsError } = await adminClient
+    const { data: students, error: studentsError } = await supabase
       .from("students")
       .select("id, full_name, grade, course, user_id")
       .in("id", studentIds)
@@ -199,7 +193,7 @@ export async function getParentDashboardData() {
     const userIds = students.map((s) => s.user_id).filter(Boolean)
     console.log("🔍 [SERVER] User IDs for profiles:", userIds)
 
-    const { data: profiles, error: profilesError } = await adminClient
+    const { data: profiles, error: profilesError } = await supabase
       .from("profiles")
       .select("id, display_name, avatar_id")
       .in("id", userIds)
@@ -296,8 +290,9 @@ export async function getTodayStatusMessage(studentId: number) {
     threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
     const threeDaysAgoStr = formatter.format(threeDaysAgo)
 
-    const adminClient = createAdminClient()
-    const { data: recentLogs } = await adminClient
+    // RLSポリシーにより、保護者は自分の子供のデータのみアクセス可能
+    // createAdminClient() は不要
+    const { data: recentLogs } = await supabase
       .from("study_logs")
       .select("id, correct_count, total_problems, study_date, subjects (name)")
       .eq("student_id", studentId)
@@ -377,9 +372,10 @@ export async function getTodayLogCount(studentId: number) {
       return { error: "保護者情報が見つかりません" }
     }
 
-    const adminClient = createAdminClient()
+    // RLSポリシーにより、保護者は自分の子供のデータのみアクセス可能
+    // createAdminClient() は不要
 
-    const { data: relation } = await adminClient
+    const { data: relation } = await supabase
       .from("parent_child_relations")
       .select("student_id")
       .eq("parent_id", parent.id)
@@ -394,7 +390,7 @@ export async function getTodayLogCount(studentId: number) {
     const { getTodayJST } = await import("@/lib/utils/date-jst")
     const todayStr = getTodayJST()
 
-    const { count, error } = await adminClient
+    const { count, error } = await supabase
       .from("study_logs")
       .select("id", { count: "exact", head: true })
       .eq("student_id", studentId)
@@ -436,9 +432,10 @@ export async function getTodayStatusMessageAI(studentId: number) {
       return { error: "保護者情報が見つかりません" }
     }
 
-    const adminClient = createAdminClient()
+    // RLSポリシーにより、保護者は自分の子供のデータのみアクセス可能
+    // createAdminClient() は不要
 
-    const { data: relation } = await adminClient
+    const { data: relation } = await supabase
       .from("parent_child_relations")
       .select("student_id")
       .eq("parent_id", parent.id)
@@ -450,7 +447,7 @@ export async function getTodayStatusMessageAI(studentId: number) {
     }
 
     // Get student info
-    const { data: student, error: studentError } = await adminClient
+    const { data: student, error: studentError } = await supabase
       .from("students")
       .select("id, grade, course, user_id")
       .eq("id", studentId)
@@ -460,7 +457,7 @@ export async function getTodayStatusMessageAI(studentId: number) {
       return { error: "生徒情報の取得に失敗しました" }
     }
 
-    const { data: profile } = await adminClient
+    const { data: profile } = await supabase
       .from("profiles")
       .select("display_name")
       .eq("id", student.user_id)
@@ -484,7 +481,7 @@ export async function getTodayStatusMessageAI(studentId: number) {
     const threeDaysAgoStr = formatter.format(threeDaysAgo)
 
     // Get recent logs (last 3 days) for context and trend analysis
-    const { data: recentLogs } = await adminClient
+    const { data: recentLogs } = await supabase
       .from("study_logs")
       .select(
         `
@@ -519,14 +516,14 @@ export async function getTodayStatusMessageAI(studentId: number) {
     twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
     const twoWeeksAgoDateStr = formatter.format(twoWeeksAgo)
 
-    const { data: thisWeekLogs } = await adminClient
+    const { data: thisWeekLogs } = await supabase
       .from("study_logs")
       .select("correct_count, total_problems")
       .eq("student_id", studentId)
       .gte("study_date", oneWeekAgoDateStr)
       .lt("study_date", todayDateStr)
 
-    const { data: lastWeekLogs } = await adminClient
+    const { data: lastWeekLogs } = await supabase
       .from("study_logs")
       .select("correct_count, total_problems")
       .eq("student_id", studentId)
@@ -553,7 +550,7 @@ export async function getTodayStatusMessageAI(studentId: number) {
     }
 
     // Get recent reflection
-    const { data: recentReflection } = await adminClient
+    const { data: recentReflection } = await supabase
       .from("reflect_sessions")
       .select("summary")
       .eq("student_id", studentId)
@@ -564,7 +561,7 @@ export async function getTodayStatusMessageAI(studentId: number) {
     // Get upcoming test
     const { getTodayJST } = await import("@/lib/utils/date-jst")
     const todayStr = getTodayJST()
-    const { data: upcomingTest } = await adminClient
+    const { data: upcomingTest } = await supabase
       .from("test_schedules")
       .select(
         `
@@ -658,9 +655,10 @@ export async function getStudentStreak(studentId: number) {
       return { error: "保護者情報が見つかりません" }
     }
 
-    const adminClient = createAdminClient()
+    // RLSポリシーにより、保護者は自分の子供のデータのみアクセス可能
+    // createAdminClient() は不要
 
-    const { data: relation } = await adminClient
+    const { data: relation } = await supabase
       .from("parent_child_relations")
       .select("student_id")
       .eq("parent_id", parent.id)
@@ -672,7 +670,7 @@ export async function getStudentStreak(studentId: number) {
     }
 
     // Get all study logs ordered by study_date descending
-    const { data: logs, error: logsError } = await adminClient
+    const { data: logs, error: logsError } = await supabase
       .from("study_logs")
       .select("study_date")
       .eq("student_id", studentId)
@@ -742,9 +740,10 @@ export async function getStudentTodayMissionData(studentId: number) {
       return { error: "保護者情報が見つかりません" }
     }
 
-    const adminClient = createAdminClient()
+    // RLSポリシーにより、保護者は自分の子供のデータのみアクセス可能
+    // createAdminClient() は不要
 
-    const { data: relation } = await adminClient
+    const { data: relation } = await supabase
       .from("parent_child_relations")
       .select("student_id")
       .eq("parent_id", parent.id)
@@ -760,7 +759,7 @@ export async function getStudentTodayMissionData(studentId: number) {
     const todayDateStr = getTodayJST()
     const yesterdayDateStr = getYesterdayJST()
 
-    const { data: todayLogs, error: logsError } = await adminClient
+    const { data: todayLogs, error: logsError } = await supabase
       .from("study_logs")
       .select(
         `
@@ -864,9 +863,10 @@ export async function getStudentWeeklyProgress(studentId: number) {
       return { error: "保護者情報が見つかりません" }
     }
 
-    const adminClient = createAdminClient()
+    // RLSポリシーにより、保護者は自分の子供のデータのみアクセス可能
+    // createAdminClient() は不要
 
-    const { data: relation } = await adminClient
+    const { data: relation } = await supabase
       .from("parent_child_relations")
       .select("student_id")
       .eq("parent_id", parent.id)
@@ -878,7 +878,7 @@ export async function getStudentWeeklyProgress(studentId: number) {
     }
 
     // Get student info (need grade for session lookup)
-    const { data: student } = await adminClient
+    const { data: student } = await supabase
       .from("students")
       .select("id, grade")
       .eq("id", studentId)
@@ -902,7 +902,7 @@ export async function getStudentWeeklyProgress(studentId: number) {
     console.log("🔍 [SERVER] Weekly progress - Student grade:", student.grade)
 
     // Find this week's study session
-    const { data: currentSession, error: sessionError } = await adminClient
+    const { data: currentSession, error: sessionError } = await supabase
       .from("study_sessions")
       .select("id, session_number, start_date, end_date")
       .eq("grade", student.grade)
@@ -919,7 +919,7 @@ export async function getStudentWeeklyProgress(studentId: number) {
     }
 
     // Get all logs for this student in this session
-    const { data: logs, error: logsError } = await adminClient
+    const { data: logs, error: logsError } = await supabase
       .from("study_logs")
       .select(
         `
@@ -951,7 +951,7 @@ export async function getStudentWeeklyProgress(studentId: number) {
     }
 
     // Get problem counts for this session (with content name for mapping)
-    const { data: problemCounts, error: problemCountsError } = await adminClient
+    const { data: problemCounts, error: problemCountsError } = await supabase
       .from("problem_counts")
       .select(`
         study_content_type_id,
@@ -1084,9 +1084,10 @@ export async function getStudentCalendarData(studentId: number) {
       return { error: "保護者情報が見つかりません" }
     }
 
-    const adminClient = createAdminClient()
+    // RLSポリシーにより、保護者は自分の子供のデータのみアクセス可能
+    // createAdminClient() は不要
 
-    const { data: relation } = await adminClient
+    const { data: relation } = await supabase
       .from("parent_child_relations")
       .select("student_id")
       .eq("parent_id", parent.id)
@@ -1102,7 +1103,7 @@ export async function getStudentCalendarData(studentId: number) {
     const todayStr = getTodayJST()
     const sixWeeksAgoStr = getDaysAgoJST(42)
 
-    const { data: logs, error: logsError } = await adminClient
+    const { data: logs, error: logsError } = await supabase
       .from("study_logs")
       .select(
         `
@@ -1170,9 +1171,10 @@ export async function getStudentRecentLogs(studentId: number, limit: number = 50
       return { error: "保護者情報が見つかりません" }
     }
 
-    const adminClient = createAdminClient()
+    // RLSポリシーにより、保護者は自分の子供のデータのみアクセス可能
+    // createAdminClient() は不要
 
-    const { data: relation } = await adminClient
+    const { data: relation } = await supabase
       .from("parent_child_relations")
       .select("student_id")
       .eq("parent_id", parent.id)
@@ -1185,7 +1187,7 @@ export async function getStudentRecentLogs(studentId: number, limit: number = 50
 
     // Get recent study logs with related data (no date filtering, just order by study_date)
     // This matches the student dashboard logic for consistency
-    const { data: logs, error: logsError } = await adminClient
+    const { data: logs, error: logsError } = await supabase
       .from("study_logs")
       .select(
         `
@@ -1240,9 +1242,10 @@ export async function getStudentRecentMessages(studentId: number, limit: number 
       return { error: "保護者情報が見つかりません" }
     }
 
-    const adminClient = createAdminClient()
+    // RLSポリシーにより、保護者は自分の子供のデータのみアクセス可能
+    // createAdminClient() は不要
 
-    const { data: relation } = await adminClient
+    const { data: relation } = await supabase
       .from("parent_child_relations")
       .select("student_id")
       .eq("parent_id", parent.id)
@@ -1262,7 +1265,7 @@ export async function getStudentRecentMessages(studentId: number, limit: number 
     const yesterdayStart = getJSTDayStartISO(yesterdayStr)
     const todayEnd = getJSTDayEndISO(todayStr)
 
-    const { data: messages, error: messagesError } = await adminClient
+    const { data: messages, error: messagesError } = await supabase
       .from("encouragement_messages")
       .select(
         `
@@ -1298,7 +1301,7 @@ export async function getStudentRecentMessages(studentId: number, limit: number 
 
     // 送信者情報を直接取得（admin clientを使用）
     const senderIds = [...new Set(messages.map((msg: any) => msg.sender_id))]
-    const { data: senderProfiles, error: senderError } = await adminClient
+    const { data: senderProfiles, error: senderError } = await supabase
       .from("profiles")
       .select("id, display_name, avatar_id")
       .in("id", senderIds)
@@ -1352,9 +1355,10 @@ export async function checkStudentWeeklyReflection(studentId: number): Promise<{
       return { completed: false, error: "保護者情報が見つかりません" }
     }
 
-    const adminClient = createAdminClient()
+    // RLSポリシーにより、保護者は自分の子供のデータのみアクセス可能
+    // createAdminClient() は不要
 
-    const { data: relation } = await adminClient
+    const { data: relation } = await supabase
       .from("parent_child_relations")
       .select("student_id")
       .eq("parent_id", parent.id)
@@ -1382,7 +1386,7 @@ export async function checkStudentWeeklyReflection(studentId: number): Promise<{
     const weekStartStr = `${year}-${month}-${day}`
 
     // 2. coaching_sessionsテーブルから今週のセッションを検索
-    const { data: session } = await adminClient
+    const { data: session } = await supabase
       .from("coaching_sessions")
       .select("id, status, completed_at, summary_text")
       .eq("student_id", studentId)
