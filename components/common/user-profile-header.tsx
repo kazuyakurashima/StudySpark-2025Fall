@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Image from "next/image"
-import { LogOut, User, ChevronDown, Check, Users, GraduationCap } from "lucide-react"
+import { LogOut, User, ChevronDown, Check, Users, GraduationCap, Heart } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { EditProfileModal } from "@/components/profile/edit-profile-modal"
@@ -13,7 +13,11 @@ import { getAvatarById } from "@/lib/constants/avatars"
 import { hexWithAlpha, isThemeActive } from "@/lib/utils/theme-color"
 import { cn } from "@/lib/utils"
 
-export function UserProfileHeader() {
+interface UserProfileHeaderProps {
+  encouragementStatus?: { [childId: number]: boolean }
+}
+
+export function UserProfileHeader({ encouragementStatus }: UserProfileHeaderProps = {}) {
   const router = useRouter()
   const { profile, loading, updateProfile, refresh, children, selectedChild, setSelectedChildId } = useUserProfile()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
@@ -74,20 +78,28 @@ export function UserProfileHeader() {
                 border: `1.5px solid ${hexWithAlpha(selectedChild.theme_color, 30)}`,
               }}
             >
-              <div
-                className="w-6 h-6 md:w-7 md:h-7 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 transition-transform hover:scale-110"
-                style={{
-                  backgroundColor: hexWithAlpha(selectedChild.theme_color, 20),
-                  border: `2px solid ${hexWithAlpha(selectedChild.theme_color, 60)}`,
-                }}
-              >
-                <Image
-                  src={getAvatarById(selectedChild.avatar_id)?.src || ""}
-                  alt={selectedChild.nickname}
-                  width={28}
-                  height={28}
-                  className="object-cover"
-                />
+              <div className="relative">
+                <div
+                  className="w-6 h-6 md:w-7 md:h-7 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 transition-transform hover:scale-110"
+                  style={{
+                    backgroundColor: hexWithAlpha(selectedChild.theme_color, 20),
+                    border: `2px solid ${hexWithAlpha(selectedChild.theme_color, 60)}`,
+                  }}
+                >
+                  <Image
+                    src={getAvatarById(selectedChild.avatar_id)?.src || ""}
+                    alt={selectedChild.nickname}
+                    width={28}
+                    height={28}
+                    className="object-cover"
+                  />
+                </div>
+                {/* ハートバッジ */}
+                {encouragementStatus?.[selectedChild.id] && (
+                  <div className="absolute -top-1 -right-1 bg-pink-500 rounded-full p-0.5 shadow-md">
+                    <Heart className="h-2.5 w-2.5 md:h-3 md:w-3 text-white fill-white" />
+                  </div>
+                )}
               </div>
               <span className="text-sm font-semibold hidden sm:inline" style={{ color: selectedChild.theme_color }}>
                 {selectedChild.nickname}

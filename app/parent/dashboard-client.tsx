@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import ParentBottomNavigation from "@/components/parent-bottom-navigation"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { PageHeader } from "@/components/common/page-header"
-import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, Sparkles, ChevronLeft, ChevronRight } from "lucide-react"
+import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Sparkles, ChevronLeft, ChevronRight } from "lucide-react"
 import { WeeklySubjectProgressCard } from "@/components/weekly-subject-progress-card"
 import { UserProfileProvider, useUserProfile } from "@/lib/hooks/use-user-profile"
 import { hexWithAlpha, isThemeActive } from "@/lib/utils/theme-color"
@@ -1848,7 +1848,7 @@ function ParentDashboardInner({
 
   return (
     <>
-      <UserProfileHeader />
+      <UserProfileHeader encouragementStatus={encouragementStatus} />
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 pb-20 elegant-fade-in">
         <PageHeader
           icon={Home}
@@ -1876,7 +1876,6 @@ function ParentDashboardInner({
                 const isActive = selectedChildId === child.id
                 const childName = isActive && selectedChildName ? selectedChildName : child.nickname
                 const childAvatar = isActive && selectedChildAvatar ? selectedChildAvatar : child.avatar_id
-                const hasEncouragement = encouragementStatus[child.id] || false
 
                 return (
                   <button
@@ -1888,17 +1887,10 @@ function ParentDashboardInner({
                         : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                     }`}
                   >
-                    <div className="relative">
-                      <Avatar className="h-8 w-8 border-2 border-white">
-                        <AvatarImage src={getAvatarSrc(childAvatar)} alt={childName} />
-                        <AvatarFallback>{childName.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      {hasEncouragement && (
-                        <div className="absolute -top-1 -right-1 bg-pink-500 rounded-full p-0.5 shadow-md">
-                          <Heart className="h-3 w-3 text-white fill-white" />
-                        </div>
-                      )}
-                    </div>
+                    <Avatar className="h-8 w-8 border-2 border-white">
+                      <AvatarImage src={getAvatarSrc(childAvatar)} alt={childName} />
+                      <AvatarFallback>{childName.charAt(0)}</AvatarFallback>
+                    </Avatar>
                     <span>{childName}</span>
                   </button>
                 )
