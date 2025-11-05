@@ -43,7 +43,7 @@ export async function getParentChildren(): Promise<{ children: ChildProfile[]; e
           grade,
           course,
           user_id,
-          profiles!inner (
+          profiles:user_id (
             id,
             nickname,
             avatar_id,
