@@ -17,13 +17,15 @@ import {
   sendCustomEncouragement,
 } from "@/app/actions/encouragement"
 import type { QuickEncouragementType } from "@/lib/openai/prompts"
-import { UserProfileProvider } from "@/lib/hooks/use-user-profile"
+import { UserProfileProvider, useUserProfile } from "@/lib/hooks/use-user-profile"
 
 function ParentEncouragementPageInner() {
+  const { profile, children, setSelectedChildId: setProviderChildId } = useUserProfile()
   const [selectedChild, setSelectedChild] = useState("student1")
   const [studyLogs, setStudyLogs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
+  const [encouragementStatus, setEncouragementStatus] = useState<{ [childId: number]: boolean }>({})
 
   // フィルター・ソート状態
   const [filters, setFilters] = useState({
@@ -44,6 +46,35 @@ function ParentEncouragementPageInner() {
   // カスタム応援ダイアログ状態
   const [customDialogOpen, setCustomDialogOpen] = useState<string | null>(null)
   const [customMessage, setCustomMessage] = useState("")
+
+  // Daily Spark の応援状態をチェック
+  useEffect(() => {
+    const checkEncouragementStatus = async () => {
+      if (!children || children.length === 0 || !profile?.id) return
+
+      const { getDailySparkLevel } = await import("@/app/actions/daily-spark")
+      const statusMap: { [childId: number]: boolean } = {}
+
+      for (const child of children) {
+        const childIdNumber = parseInt(child.id, 10)
+        const level = await getDailySparkLevel(childIdNumber, profile.id)
+        statusMap[childIdNumber] = level === "parent" || level === "both"
+      }
+
+      setEncouragementStatus(statusMap)
+    }
+
+    checkEncouragementStatus()
+  }, [children, profile?.id])
+
+  // 最初の子供が読み込まれたらProviderにも設定
+  useEffect(() => {
+    if (children && children.length > 0 && selectedChild === "student1") {
+      const firstChildId = parseInt(children[0].id, 10)
+      setSelectedChild(children[0].id)
+      setProviderChildId(firstChildId)
+    }
+  }, [children, selectedChild, setProviderChildId])
 
   useEffect(() => {
     loadStudyLogs()
@@ -85,6 +116,8 @@ function ParentEncouragementPageInner() {
   const handleQuickEncouragement = async (studyLogId: string, quickType: QuickEncouragementType) => {
     const result = await sendQuickEncouragement(selectedChild, studyLogId, quickType)
     if (result.success) {
+      // 即座にハートバッジを更新
+      setEncouragementStatus(prev => ({ ...prev, [Number(selectedChild)]: true }))
       await loadStudyLogs()
     } else {
       alert(result.error)
@@ -119,6 +152,8 @@ function ParentEncouragementPageInner() {
 
     const result = await sendCustomEncouragement(selectedChild, aiDialogOpen, editingMessage, "ai")
     if (result.success) {
+      // 即座にハートバッジを更新
+      setEncouragementStatus(prev => ({ ...prev, [Number(selectedChild)]: true }))
       setAiDialogOpen(null)
       await loadStudyLogs()
     } else {
@@ -131,6 +166,8 @@ function ParentEncouragementPageInner() {
 
     const result = await sendCustomEncouragement(selectedChild, customDialogOpen, customMessage, "custom")
     if (result.success) {
+      // 即座にハートバッジを更新
+      setEncouragementStatus(prev => ({ ...prev, [Number(selectedChild)]: true }))
       setCustomDialogOpen(null)
       setCustomMessage("")
       await loadStudyLogs()
@@ -141,7 +178,7 @@ function ParentEncouragementPageInner() {
 
   return (
     <>
-      <UserProfileHeader />
+      <UserProfileHeader encouragementStatus={encouragementStatus} />
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 pb-20 elegant-fade-in">
         <PageHeader
           icon={Heart}

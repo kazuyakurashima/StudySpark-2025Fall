@@ -82,6 +82,7 @@ const getAvatarSrc = (avatarId?: string | null) => {
 }
 
 function ParentGoalNaviPageInner() {
+  const { setSelectedChildId: setProviderChildId } = useUserProfile()
   const [children, setChildren] = useState<Child[]>([])
   const [selectedChildId, setSelectedChildId] = useState<string>("")
   const [selectedChild, setSelectedChild] = useState<Child | null>(null)
@@ -90,6 +91,7 @@ function ParentGoalNaviPageInner() {
   const [selectedGoal, setSelectedGoal] = useState<TestGoal | null>(null)
   const [activeTab, setActiveTab] = useState<"input" | "result" | "test">("input")
   const [loading, setLoading] = useState(true)
+  const [encouragementStatus, setEncouragementStatus] = useState<{ [childId: number]: boolean }>({})
 
   // 子ども一覧を読み込み
   useEffect(() => {
@@ -111,6 +113,8 @@ function ParentGoalNaviPageInner() {
           if (result.children.length > 0) {
             setSelectedChildId(result.children[0].id)
             setSelectedChild(result.children[0])
+            // Provider の selectedChild も更新
+            setProviderChildId(parseInt(result.children[0].id, 10))
           }
         }
       } catch (error) {
@@ -121,7 +125,39 @@ function ParentGoalNaviPageInner() {
     }
 
     loadChildren()
-  }, [])
+  }, [setProviderChildId])
+
+  // 全ての子供の今日の応援状況をチェック
+  useEffect(() => {
+    const checkEncouragementStatus = async () => {
+      if (children.length === 0) return
+
+      const { getDailySparkLevel } = await import("@/app/actions/daily-spark")
+      const statusMap: { [childId: number]: boolean } = {}
+
+      // 保護者のuser_idを取得（仮にauth.uidを使用）
+      const { createClient } = await import("@/lib/supabase/client")
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) return
+
+      for (const child of children) {
+        try {
+          const childIdNumber = parseInt(child.id, 10)
+          const level = await getDailySparkLevel(childIdNumber, user.id)
+          statusMap[childIdNumber] = level === "parent" || level === "both"
+        } catch (error) {
+          console.error(`[EncouragementStatus] Error for child ${child.id}:`, error)
+          statusMap[parseInt(child.id, 10)] = false
+        }
+      }
+
+      setEncouragementStatus(statusMap)
+    }
+
+    checkEncouragementStatus()
+  }, [children])
 
   // 選択された子どものデータを読み込み
   useEffect(() => {
@@ -188,7 +224,7 @@ function ParentGoalNaviPageInner() {
 
   return (
     <>
-      <UserProfileHeader />
+      <UserProfileHeader encouragementStatus={encouragementStatus} />
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 pb-20 elegant-fade-in">
         <PageHeader
           icon={Flag}

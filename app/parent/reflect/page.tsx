@@ -28,7 +28,7 @@ import {
   Lock,
   MessageCircle,
 } from "lucide-react"
-import { UserProfileProvider } from "@/lib/hooks/use-user-profile"
+import { UserProfileProvider, useUserProfile } from "@/lib/hooks/use-user-profile"
 
 interface Child {
   id: string
@@ -50,6 +50,7 @@ interface Reflection {
 }
 
 function ParentReflectPageInner() {
+  const { profile, setSelectedChildId: setProviderChildId } = useUserProfile()
   const [children, setChildren] = useState<Child[]>([])
   const [selectedChildId, setSelectedChildId] = useState<string>("")
   const [selectedChild, setSelectedChild] = useState<Child | null>(null)
@@ -58,6 +59,7 @@ function ParentReflectPageInner() {
   const [messages, setMessages] = useState<any[]>([])
   const [activeTab, setActiveTab] = useState<"map" | "history" | "encouragement" | "coaching">("map")
   const [loading, setLoading] = useState(true)
+  const [encouragementStatus, setEncouragementStatus] = useState<{ [childId: number]: boolean }>({})
 
   // 子ども一覧を読み込み
   useEffect(() => {
@@ -68,13 +70,15 @@ function ParentReflectPageInner() {
         if (children.length > 0) {
           setSelectedChildId(children[0].id)
           setSelectedChild(children[0])
+          // Provider の selectedChild も更新
+          setProviderChildId(parseInt(children[0].id, 10))
         }
       }
       setLoading(false)
     }
 
     loadChildren()
-  }, [])
+  }, [setProviderChildId])
 
   // 選択された子どものデータを読み込み
   useEffect(() => {
@@ -95,6 +99,26 @@ function ParentReflectPageInner() {
 
     loadChildData()
   }, [selectedChildId, children])
+
+  // Daily Spark の応援状態をチェック
+  useEffect(() => {
+    const checkEncouragementStatus = async () => {
+      if (children.length === 0 || !profile?.id) return
+
+      const { getDailySparkLevel } = await import("@/app/actions/daily-spark")
+      const statusMap: { [childId: number]: boolean } = {}
+
+      for (const child of children) {
+        const childIdNumber = parseInt(child.id, 10)
+        const level = await getDailySparkLevel(childIdNumber, profile.id)
+        statusMap[childIdNumber] = level === "parent" || level === "both"
+      }
+
+      setEncouragementStatus(statusMap)
+    }
+
+    checkEncouragementStatus()
+  }, [children, profile?.id])
 
   const getWeekTypeLabel = (weekType: string) => {
     switch (weekType) {
@@ -148,7 +172,7 @@ function ParentReflectPageInner() {
 
   return (
     <>
-      <UserProfileHeader />
+      <UserProfileHeader encouragementStatus={encouragementStatus} />
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 pb-20 elegant-fade-in">
         <PageHeader
           icon={MessageCircle}
