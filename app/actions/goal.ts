@@ -8,7 +8,7 @@ import { formatDateToJST, getNowJST } from "@/lib/utils/date-jst"
  * 目標設定期間内のテストのみ取得
  */
 export async function getAvailableTests() {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // 現在のユーザー取得
   const {
@@ -77,7 +77,7 @@ export async function saveTestGoal(
   targetClass: number,
   goalThoughts: string
 ) {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // 現在のユーザー取得
   const {
@@ -150,7 +150,7 @@ export async function saveTestGoal(
  * 特定のテストに対する目標を取得
  */
 export async function getTestGoal(testScheduleId: string) {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // 現在のユーザー取得
   const {
@@ -191,7 +191,7 @@ export async function getTestGoal(testScheduleId: string) {
  * 生徒の全目標一覧を取得
  */
 export async function getAllTestGoals() {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // 現在のユーザー取得
   const {
@@ -243,7 +243,7 @@ export async function getAllTestGoals() {
  * 結果入力可能なテスト（目標設定済み＋結果入力期間内）を取得
  */
 export async function getAvailableTestsForResult() {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // 現在のユーザー取得
   const {
@@ -351,7 +351,7 @@ export async function saveSimpleTestResult(
 ) {
   console.log("🔍 [saveSimpleTestResult] Called with:", { testScheduleId, resultCourse, resultClass });
 
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // 現在のユーザー取得
   const {
@@ -446,7 +446,7 @@ export async function saveTestResult(
   socialDeviation?: number,
   totalDeviation?: number
 ) {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // 現在のユーザー取得
   const {
@@ -536,7 +536,7 @@ export async function saveTestResult(
  * テスト結果取得
  */
 export async function getTestResult(testScheduleId: string) {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // 現在のユーザー取得
   const {
@@ -577,7 +577,7 @@ export async function getTestResult(testScheduleId: string) {
  * 生徒の全テスト結果を目標と一緒に取得
  */
 export async function getAllTestResults() {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // 現在のユーザー取得
   const {
@@ -650,7 +650,7 @@ export async function getAllTestResults() {
  * 保護者用: 特定の生徒の利用可能なテスト一覧を取得
  */
 export async function getAvailableTestsForStudent(studentId: string) {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // 生徒情報取得
   const { data: student, error: studentError } = await supabase
@@ -702,7 +702,7 @@ export async function getAvailableTestsForStudent(studentId: string) {
  * 保護者用: 特定の生徒の全テスト目標を取得
  */
 export async function getAllTestGoalsForStudent(studentId: string) {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const { data: goals, error: goalsError } = await supabase
     .from("test_goals")

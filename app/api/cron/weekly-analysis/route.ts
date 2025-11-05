@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { generateWeeklyAnalysisForBatch } from "@/app/actions/weekly-analysis"
 
+export const dynamic = 'force-dynamic'
+
 // Supabase Admin Client（バッチ処理用）
 function getSupabaseAdmin() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!

@@ -12,8 +12,8 @@ import { cookies } from 'next/headers'
  * - Route Handlers内ではcookie設定が必ず成功する
  * - Server Actions用にはserver.tsを使用すること
  */
-export function createClient() {
-  const cookieStore = cookies()
+export async function createClient() {
+  const cookieStore = await cookies()
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

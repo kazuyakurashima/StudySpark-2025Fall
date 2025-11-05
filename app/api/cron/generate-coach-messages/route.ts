@@ -9,6 +9,8 @@ import {
   getNowJSTISO,
 } from "@/lib/utils/date-jst"
 
+export const dynamic = 'force-dynamic'
+
 /**
  * AIコーチメッセージバックグラウンド生成
  *

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
+export const dynamic = 'force-dynamic'
+
 /**
  * データ保持ポリシー実行バッチ処理
  *
