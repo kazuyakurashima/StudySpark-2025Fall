@@ -7,7 +7,7 @@ export default async function SparkPage({
 }: {
   searchParams: { subject?: string }
 }) {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // Get authenticated user
   const {
