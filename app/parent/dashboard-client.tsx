@@ -560,6 +560,10 @@ const ParentTodayMissionCard = ({
       if (result.success) {
         const key = `${subject}-${logIndex}`
         setEncouragementSent({ ...encouragementSent, [key]: true })
+
+        // 応援ステータスを更新（ハートバッジを表示）
+        setEncouragementStatus({ ...encouragementStatus, [selectedChildId]: true })
+
         alert("応援メッセージを送信しました！")
 
         // 直近の応援履歴を再取得
@@ -624,9 +628,13 @@ const ParentTodayMissionCard = ({
       if (result.success) {
         alert("AI応援メッセージを送信しました！")
         setShowAIDialog(false)
+
         // Mark as sent in UI (use same key format as quick encouragement)
         const key = `${currentSubject}-0`
         setEncouragementSent({ ...encouragementSent, [key]: true })
+
+        // 応援ステータスを更新（ハートバッジを表示）
+        setEncouragementStatus({ ...encouragementStatus, [selectedChildId]: true })
 
         // 直近の応援履歴を再取得
         const { getStudentRecentMessages } = await import("@/app/actions/parent-dashboard")
@@ -1575,6 +1583,7 @@ function ParentDashboardInner({
   const themeColor = profile?.theme_color || parentProfile.themeColor || "default"
 
   // Cache for AI-generated status message (persisted in localStorage)
+  const [encouragementStatus, setEncouragementStatus] = useState<{ [childId: number]: boolean }>({})
   const [aiMessageCache, setAiMessageCache] = useState<{
     studentId: number
     date: string
@@ -1792,6 +1801,31 @@ function ParentDashboardInner({
     fetchChildData()
   }, [selectedChildId])
 
+  // 全ての子供の今日の応援状況をチェック
+  useEffect(() => {
+    const checkEncouragementStatus = async () => {
+      if (!children || children.length === 0 || !profile?.id) return
+
+      const { getDailySparkLevel } = await import("@/app/actions/daily-spark")
+      const statusMap: { [childId: number]: boolean } = {}
+
+      for (const child of children) {
+        try {
+          const level = await getDailySparkLevel(child.id, profile.id)
+          // "parent" または "both" なら応援済み
+          statusMap[child.id] = level === "parent" || level === "both"
+        } catch (error) {
+          console.error(`[EncouragementStatus] Error for child ${child.id}:`, error)
+          statusMap[child.id] = false
+        }
+      }
+
+      setEncouragementStatus(statusMap)
+    }
+
+    checkEncouragementStatus()
+  }, [children, profile?.id])
+
   const greetingMessage = getGreetingMessage(userName, lastLoginInfo)
 
   const handleChildSelect = (childId: number, childName: string, childAvatar: string) => {
@@ -1839,29 +1873,32 @@ function ParentDashboardInner({
           {children.length > 0 && (
             <div className="flex gap-2 overflow-x-auto pb-2">
               {children.map((child) => {
-                const studentData = Array.isArray(child.students) ? child.students[0] : child.students
-                const profile = studentData?.profiles
-
-                const isActive = selectedChildId === child.student_id
-                const childName =
-                  isActive && selectedChildName ? selectedChildName : profile?.display_name || "お子さん"
-                const childAvatar =
-                  isActive && selectedChildAvatar ? selectedChildAvatar : profile?.avatar_id || "student1"
+                const isActive = selectedChildId === child.id
+                const childName = isActive && selectedChildName ? selectedChildName : child.nickname
+                const childAvatar = isActive && selectedChildAvatar ? selectedChildAvatar : child.avatar_id
+                const hasEncouragement = encouragementStatus[child.id] || false
 
                 return (
                   <button
-                    key={child.student_id}
-                    onClick={() => handleChildSelect(child.student_id, childName, childAvatar)}
+                    key={child.id}
+                    onClick={() => handleChildSelect(child.id, childName, childAvatar)}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 whitespace-nowrap ${
                       isActive
                         ? "bg-primary text-primary-foreground shadow-lg scale-105"
                         : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                     }`}
                   >
-                    <Avatar className="h-8 w-8 border-2 border-white">
-                      <AvatarImage src={getAvatarSrc(childAvatar)} alt={childName} />
-                      <AvatarFallback>{childName.charAt(0)}</AvatarFallback>
-                    </Avatar>
+                    <div className="relative">
+                      <Avatar className="h-8 w-8 border-2 border-white">
+                        <AvatarImage src={getAvatarSrc(childAvatar)} alt={childName} />
+                        <AvatarFallback>{childName.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      {hasEncouragement && (
+                        <div className="absolute -top-1 -right-1 bg-pink-500 rounded-full p-0.5 shadow-md">
+                          <Heart className="h-3 w-3 text-white fill-white" />
+                        </div>
+                      )}
+                    </div>
                     <span>{childName}</span>
                   </button>
                 )

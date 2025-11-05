@@ -1,6 +1,6 @@
 "use server"
 
-import { createAdminClient } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/server"
 import { getTodayMissionSubjectsFromString } from "./get-today-mission"
 
 /**
@@ -28,7 +28,7 @@ function getTodayInJST(): string {
 }
 
 /**
- * Daily Sparkのレベルを取得
+ * Daily Sparkのレベルを取得（Server Action）
  * @param studentId 生徒ID
  * @param parentUserId 保護者のユーザーID（保護者ログイン時のみ）
  * @returns SparkLevel
@@ -42,11 +42,10 @@ export async function getDailySparkLevel(
   // 子供の達成チェック
   const childAchieved = await checkStudentMissionComplete(studentId, today)
 
-  // 保護者の応援チェック（Phase 2で実装）
+  // 保護者の応援チェック
   let parentAchieved = false
   if (parentUserId) {
-    // TODO: Phase 2で実装
-    // parentAchieved = await checkParentEncouragementSent(parentUserId, studentId, today)
+    parentAchieved = await checkParentEncouragementSent(parentUserId, studentId, today)
   }
 
   if (childAchieved && parentAchieved) return "both"
@@ -80,10 +79,10 @@ async function checkWeeklyReflectionComplete(studentId: number, date: string): P
     const day = String(weekStart.getDate()).padStart(2, "0")
     const weekStartStr = `${year}-${month}-${day}`
 
-    const adminClient = createAdminClient()
+    const supabase = await createClient()
 
     // 2. coaching_sessionsテーブルから今週のセッションを検索
-    const { data: session, error } = await adminClient
+    const { data: session, error } = await supabase
       .from("coaching_sessions")
       .select("id, status, completed_at, summary_text")
       .eq("student_id", studentId)
@@ -128,14 +127,20 @@ async function checkStudentMissionComplete(studentId: number, date: string): Pro
       return await checkWeeklyReflectionComplete(studentId, date)
     }
 
-    const adminClient = createAdminClient()
+    const supabase = await createClient()
 
-    // 2. 今日の学習記録を取得（科目のみ）
-    const { data: logs, error } = await adminClient
+    // 2. 今日の学習記録を取得（科目名を含む）
+    const { data: logs, error } = await supabase
       .from("study_logs")
-      .select("subject")
+      .select(
+        `
+        id,
+        subjects!inner (name)
+      `
+      )
       .eq("student_id", studentId)
-      .eq("study_date", date)
+      .gte("logged_at", `${date}T00:00:00+09:00`)
+      .lt("logged_at", `${date}T23:59:59+09:00`)
 
     if (error) {
       console.error("[checkStudentMissionComplete] Error:", error)
@@ -147,7 +152,7 @@ async function checkStudentMissionComplete(studentId: number, date: string): Pro
     }
 
     // 3. 記録された科目を抽出（重複除去）
-    const recordedSubjects = [...new Set(logs.map((log) => log.subject))]
+    const recordedSubjects = [...new Set(logs.map((log: any) => log.subjects.name))]
 
     // 4. すべてのミッション科目が記録されているかチェック
     const allSubjectsCompleted = missionSubjects.every((subject) => recordedSubjects.includes(subject))
@@ -172,16 +177,16 @@ async function checkParentEncouragementSent(
   date: string
 ): Promise<boolean> {
   try {
-    const adminClient = createAdminClient()
+    const supabase = await createClient()
 
     // 今日の応援メッセージをチェック
-    const { data: messages, error } = await adminClient
+    const { data: messages, error } = await supabase
       .from("encouragement_messages")
       .select("id")
-      .eq("sender_user_id", parentUserId)
+      .eq("sender_id", parentUserId)
       .eq("student_id", studentId)
-      .gte("created_at", `${date}T00:00:00+09:00`)
-      .lt("created_at", `${date}T23:59:59+09:00`)
+      .gte("sent_at", `${date}T00:00:00+09:00`)
+      .lt("sent_at", `${date}T23:59:59+09:00`)
       .limit(1)
 
     if (error) {

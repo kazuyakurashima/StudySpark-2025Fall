@@ -1,8 +1,5 @@
 "use server"
 
-// Force Node.js runtime for server-side operations
-export const runtime = "nodejs"
-
 import { createClient } from "@/lib/supabase/server"
 import { ChildProfile } from "@/lib/types/profile"
 
