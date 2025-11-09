@@ -134,11 +134,30 @@ export function AchievementMap({ studentGrade, studentCourse }: AchievementMapPr
     Object.keys(session).forEach((contentName) => allContentNames.add(contentName))
   })
 
+  // 科目順でソート（算数 → 国語 → 理科 → 社会）
+  const subjectOrder = ["算数", "国語", "理科", "社会"]
+  const sortedContentNames = Array.from(allContentNames).sort((a, b) => {
+    // 全科目表示の場合は「科目名 - 学習内容」形式なので科目名を抽出
+    const subjectA = a.split(" - ")[0]
+    const subjectB = b.split(" - ")[0]
+
+    const indexA = subjectOrder.indexOf(subjectA)
+    const indexB = subjectOrder.indexOf(subjectB)
+
+    // 科目順で比較
+    if (indexA !== indexB) {
+      return indexA - indexB
+    }
+
+    // 同じ科目内では文字列順
+    return a.localeCompare(b, 'ja')
+  })
+
   // 全学習回を初期化
   for (let i = 1; i <= totalSessions; i++) {
     allSessions[i] = {}
     // 各学習内容をnullで初期化（データなし）
-    allContentNames.forEach((contentName) => {
+    sortedContentNames.forEach((contentName) => {
       allSessions[i][contentName] = groupedData[i]?.[contentName] ?? null
     })
   }
@@ -224,8 +243,8 @@ export function AchievementMap({ studentGrade, studentCourse }: AchievementMapPr
                       <thead>
                         <tr>
                           <th className="sticky left-0 bg-white z-10 text-left text-xs sm:text-sm font-semibold p-1 sm:p-2 border-b">学習回</th>
-                          {/* 学習内容の列ヘッダー（動的に生成） */}
-                          {Array.from(allContentNames).map((contentName) => (
+                          {/* 学習内容の列ヘッダー（科目順でソート済み） */}
+                          {sortedContentNames.map((contentName) => (
                             <th key={contentName} className="text-center text-[10px] sm:text-xs font-semibold p-1 sm:p-2 border-b min-w-[60px] sm:min-w-[80px]">
                               <div className="break-words">{contentName}</div>
                             </th>
@@ -238,7 +257,7 @@ export function AchievementMap({ studentGrade, studentCourse }: AchievementMapPr
                           .map((sessionNum) => (
                             <tr key={sessionNum}>
                               <td className="sticky left-0 bg-white z-10 text-xs sm:text-sm font-medium p-1 sm:p-2 border-b whitespace-nowrap">第{sessionNum}回</td>
-                              {Array.from(allContentNames).map((contentName) => {
+                              {sortedContentNames.map((contentName) => {
                                 const cellData = allSessions[sessionNum][contentName]
                                 const accuracy = cellData?.accuracy ?? null
                                 const subjectName = cellData?.subjectName
