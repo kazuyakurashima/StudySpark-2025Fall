@@ -589,18 +589,22 @@ const TodayMissionCard = ({ todayProgress, yesterdayProgress, reflectionComplete
       let needsAction = false
       let isCompleted = false
 
-      // 新要件: 正答率80%以上は未入力でも完了扱い
-      if (data.accuracy >= 80) {
-        status = `進捗率${data.accuracy}%`
-        isCompleted = true
-        needsAction = false
-      } else if (data.inputCount > 0) {
-        // 入力済みだが80%未満
-        status = `進捗率${data.accuracy}%`
-        isCompleted = true
-        needsAction = false
+      // 完了判定: 入力あり＋正答率80%以上
+      if (data.inputCount > 0) {
+        // 入力あり
+        if (data.accuracy >= 80) {
+          // 入力あり＋正答率80%以上 → 完了
+          status = `進捗率${data.accuracy}%`
+          isCompleted = true
+          needsAction = false
+        } else {
+          // 入力あり＋正答率80%未満 → 入力済みだが要改善
+          status = `進捗率${data.accuracy}%`
+          isCompleted = false
+          needsAction = true
+        }
       } else {
-        // 未入力かつ80%未満
+        // 入力なし → 未入力
         status = "未入力"
         needsAction = true
         isCompleted = false
@@ -616,40 +620,39 @@ const TodayMissionCard = ({ todayProgress, yesterdayProgress, reflectionComplete
       }
     })
 
-    // 入力済み（完了 + 1回以上入力）をカウント
-    const inputCompletedCount = panels.filter((p) => p.isCompleted || p.inputCount > 0).length
+    // 完了数（正答率80%以上）をカウント
+    const completedCount = panels.filter((p) => p.isCompleted).length
+    // 入力数（何らかの入力があった科目）をカウント
+    const inputCount = panels.filter((p) => p.inputCount > 0).length
     const actionNeededCount = panels.filter((p) => p.needsAction).length
 
-    // 全て入力済みの場合の判定
-    const allCompleted = inputCompletedCount === panels.length
+    // 全て完了の場合の判定（正答率80%以上）
+    const allCompleted = completedCount === panels.length
 
     // ミッション状況メッセージの生成
     let statusMessage = ""
 
     if (allCompleted) {
-      // 全て入力完了 → 習得状況を伝える（習得率80%を促す）
-      const notMasteredSubjects = panels.filter((p) => p.correctRate < 80)
-      const masteredCount = panels.length - notMasteredSubjects.length
+      // 全て80%以上達成 → パーフェクトマスター
+      statusMessage = "🎉 パーフェクトマスターおめでとう！全科目で習得率80%以上達成！"
+    } else if (inputCount === panels.length) {
+      // 全て入力済みだが80%未満がある → 見直しを促す
+      const notMasteredSubjects = panels.filter((p) => !p.isCompleted)
 
-      if (notMasteredSubjects.length === 0) {
-        // パーフェクトマスター（全科目80%以上）
-        statusMessage = "🎉 パーフェクトマスターおめでとう！全科目で習得率80%以上達成！"
-      } else if (notMasteredSubjects.length === 1) {
-        // 1科目だけ80%未満 → その科目を具体的に促す
+      if (notMasteredSubjects.length === 1) {
         const subject = notMasteredSubjects[0].subject
         statusMessage = `${subject}の見直しをして、パーフェクトマスターを目指そう！`
       } else {
-        // 複数科目が80%未満 → 科目名を列挙
         const subjectList = notMasteredSubjects.map(p => p.subject).join("、")
         statusMessage = `${subjectList}の見直しをして、パーフェクトマスターを目指そう！`
       }
     } else {
-      // 入力未完了 → 入力状況を伝える
+      // まだ入力していない科目がある
       if (actionNeededCount === 1) {
         const remainingSubject = panels.find((p) => p.needsAction)?.subject
-        statusMessage = `${inputCompletedCount}/${panels.length}入力完了！あと${remainingSubject}を入力したら、入力完了だね！`
+        statusMessage = `${inputCount}/${panels.length}入力完了！あと${remainingSubject}を入力したら、入力完了だね！`
       } else {
-        statusMessage = `${inputCompletedCount}/${panels.length}入力完了！あと${actionNeededCount}科目入力して今日のミッション達成！`
+        statusMessage = `${inputCount}/${panels.length}入力完了！あと${actionNeededCount}科目入力して今日のミッション達成！`
       }
     }
 
@@ -658,7 +661,7 @@ const TodayMissionCard = ({ todayProgress, yesterdayProgress, reflectionComplete
       subjects,
       panels,
       statusMessage,
-      completionStatus: `${inputCompletedCount}/${panels.length}入力完了`,
+      completionStatus: `${inputCount}/${panels.length}入力完了`,
       allCompleted,
     }
   }
@@ -722,16 +725,27 @@ const TodayMissionCard = ({ todayProgress, yesterdayProgress, reflectionComplete
     router.push("/student/reflect")
   }
 
+  // 科目別ボタンスタイル
+  const getSubjectButtonStyle = (subject: string) => {
+    const styles = {
+      算数: "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-600/40 ring-2 ring-blue-400/50",
+      国語: "bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 shadow-lg shadow-pink-500/30 hover:shadow-xl hover:shadow-pink-600/40 ring-2 ring-pink-400/50",
+      理科: "bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-600/40 ring-2 ring-orange-400/50",
+      社会: "bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-600/40 ring-2 ring-emerald-400/50",
+    }
+    return styles[subject as keyof typeof styles] || "bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 shadow-lg shadow-amber-600/40 ring-2 ring-amber-400/60"
+  }
+
   return (
     <Card className="bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 border-amber-200/60 shadow-xl">
       <CardHeader className="pb-4 bg-gradient-to-r from-amber-500/10 to-yellow-500/10 rounded-t-lg">
         <div className="flex items-center justify-between">
           <CardTitle className="text-xl font-bold flex items-center gap-3">
-            <Home className="h-7 w-7 text-primary" />
+            <Home className="h-7 w-7 text-amber-600" />
             <span className="text-slate-800">{getModeTitle()}</span>
           </CardTitle>
           {missionData.completionStatus && (
-            <Badge className="bg-primary text-primary-foreground border-primary font-bold text-base px-4 py-2 shadow-md">
+            <Badge className="bg-amber-100/80 text-amber-800 border-amber-300/50 font-semibold text-base px-4 py-2 shadow-sm">
               {missionData.completionStatus}
             </Badge>
           )}
@@ -778,7 +792,7 @@ const TodayMissionCard = ({ todayProgress, yesterdayProgress, reflectionComplete
                     }
                     className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
                       panel.needsAction || panel.status === "未完了"
-                        ? "bg-blue-500 text-white hover:bg-blue-600 shadow-lg hover:scale-105"
+                        ? "bg-gradient-to-r from-amber-600 to-amber-700 text-white hover:from-amber-700 hover:to-amber-800 shadow-lg shadow-amber-600/40 hover:shadow-xl hover:shadow-amber-700/50 hover:scale-105 ring-2 ring-amber-400/60"
                         : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                     }`}
                   >
@@ -817,27 +831,53 @@ const TodayMissionCard = ({ todayProgress, yesterdayProgress, reflectionComplete
                         <span className={`font-bold text-lg ${hasInput ? "text-slate-600" : "text-slate-800"}`}>
                           {panel.subject}
                         </span>
-                      <Badge
-                        className={`text-xs px-2 py-1 border ${getStatusBadgeColor(panel.status, panel.needsAction)}`}
-                      >
-                        {panel.status}
-                      </Badge>
-                    </div>
+                        {/* 未入力の場合のみバッジ表示 */}
+                        {!hasInput && (
+                          <Badge className="text-xs px-2 py-1 bg-slate-100 text-slate-600 border border-slate-300">
+                            未入力
+                          </Badge>
+                        )}
+                      </div>
 
-                    {/* Live Progress Display */}
+                    {/* Live Progress Display - 洗練されたカラーリング */}
                     {hasInput && panel.correctRate > 0 && (
                       <div className="flex items-center gap-2 mt-2">
-                        <span className={`text-lg font-bold ${getAccuracyColor(panel.correctRate)}`}>
-                          {panel.correctRate}%
-                        </span>
+                        {/* メイン進捗率表示 - グラデーション＋シャドウで洗練 */}
+                        <div className="flex items-center">
+                          <span
+                            className={`text-2xl font-bold bg-gradient-to-br bg-clip-text text-transparent ${
+                              panel.correctRate >= 80
+                                ? "from-blue-600 via-blue-500 to-cyan-500"
+                                : panel.correctRate >= 50
+                                ? "from-amber-600 via-yellow-500 to-orange-500"
+                                : "from-rose-600 via-pink-500 to-red-500"
+                            }`}
+                            style={{
+                              filter: "drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1))"
+                            }}
+                          >
+                            {panel.correctRate}
+                          </span>
+                          <span
+                            className={`text-base font-semibold ml-0.5 ${
+                              panel.correctRate >= 80
+                                ? "text-blue-500"
+                                : panel.correctRate >= 50
+                                ? "text-amber-500"
+                                : "text-rose-500"
+                            }`}
+                          >
+                            %
+                          </span>
+                        </div>
 
-                        {/* Diff badge with CSS animation */}
+                        {/* Diff badge - より洗練されたデザイン */}
                         {diff !== null && Math.abs(diff) >= 10 && (
                           <div
-                            className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${
+                            className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold shadow-sm ${
                               diff >= 10
-                                ? "bg-green-100 text-green-700 animate-bounce-in"
-                                : "bg-orange-100 text-orange-700"
+                                ? "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 border border-emerald-200/50"
+                                : "bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 border border-orange-200/50"
                             }`}
                             style={{
                               animation: diff >= 10 ? "bounceIn 0.6s ease-out" : "none"
@@ -847,7 +887,7 @@ const TodayMissionCard = ({ todayProgress, yesterdayProgress, reflectionComplete
                           </div>
                         )}
 
-                        {/* Emoji feedback with fade-in animation */}
+                        {/* Emoji feedback */}
                         {showPositiveFeedback && (
                           <span
                             className="text-xl animate-fade-in"
@@ -869,9 +909,9 @@ const TodayMissionCard = ({ todayProgress, yesterdayProgress, reflectionComplete
 
                     <Button
                       onClick={() => handleSparkNavigation(panel.subject)}
-                      className={`w-full py-3 px-4 rounded-lg text-sm font-bold transition-all duration-300 ${
+                      className={`w-full py-3 px-4 rounded-lg text-sm font-bold transition-all duration-300 text-white hover:scale-105 ${
                         panel.needsAction
-                          ? "bg-primary text-white hover:bg-primary/90 shadow-lg hover:scale-105 ring-2 ring-primary/30"
+                          ? getSubjectButtonStyle(panel.subject)
                           : hasInput
                           ? "bg-slate-200 text-slate-500 hover:bg-slate-300"
                           : "bg-slate-100 text-slate-600 hover:bg-slate-200"

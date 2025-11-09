@@ -751,11 +751,40 @@ export async function getStudentTodayMissionData(studentId: number) {
       return { error: "アクセス権限がありません" }
     }
 
-    // Get today's and yesterday's logs (to handle late-night viewing)
-    const { getTodayJST, getYesterdayJST } = await import("@/lib/utils/date-jst")
-    const todayDateStr = getTodayJST()
-    const yesterdayDateStr = getYesterdayJST()
+    // Get student's grade to find current session
+    const { data: student } = await supabase
+      .from("students")
+      .select("grade")
+      .eq("id", studentId)
+      .single()
 
+    if (!student) {
+      return { error: "生徒情報が見つかりません" }
+    }
+
+    // Get today's date
+    const { getTodayJST } = await import("@/lib/utils/date-jst")
+    const todayDateStr = getTodayJST()
+
+    console.log("🔍 [PARENT] getStudentTodayMissionData - student_id:", studentId, "grade:", student.grade, "today:", todayDateStr)
+
+    // Find this week's study session
+    const { data: currentSession, error: sessionError } = await supabase
+      .from("study_sessions")
+      .select("id")
+      .eq("grade", student.grade)
+      .lte("start_date", todayDateStr)
+      .gte("end_date", todayDateStr)
+      .single()
+
+    if (sessionError || !currentSession) {
+      console.error("No current session found for parent today mission:", sessionError)
+      return { todayProgress: [] }
+    }
+
+    console.log("🔍 [PARENT] getStudentTodayMissionData - current session_id:", currentSession.id)
+
+    // Get today's logs for this week's session only
     const { data: todayLogs, error: logsError } = await supabase
       .from("study_logs")
       .select(
@@ -773,8 +802,9 @@ export async function getStudentTodayMissionData(studentId: number) {
       `
       )
       .eq("student_id", studentId)
-      .in("study_date", [todayDateStr, yesterdayDateStr])
-      .order("study_date", { ascending: false })
+      .eq("session_id", currentSession.id)
+      .eq("study_date", todayDateStr)
+      .order("logged_at", { ascending: false })
 
     if (logsError) {
       console.error("Get student today mission data error:", logsError)
@@ -818,12 +848,8 @@ export async function getStudentTodayMissionData(studentId: number) {
       logs: data.logs,
     }))
 
-    console.log("🔍 [PARENT SERVER] Today mission - Student ID:", studentId)
-    console.log("🔍 [PARENT SERVER] Today mission - Date filter (today/yesterday):", todayDateStr, "/", yesterdayDateStr)
-    console.log("🔍 [PARENT SERVER] Today mission - Logs count:", todayLogs?.length)
-    console.log("🔍 [PARENT SERVER] Today mission - First log:", todayLogs?.[0])
-    console.log("🔍 [PARENT SERVER] Today mission - Progress:", JSON.stringify(todayProgress, null, 2))
-    console.log("🔍 [PARENT SERVER] Today mission - Subject map:", JSON.stringify(subjectMap, null, 2))
+    console.log("🔍 [PARENT] getStudentTodayMissionData - todayLogs count:", todayLogs?.length || 0)
+    console.log("🔍 [PARENT] getStudentTodayMissionData - todayProgress:", JSON.stringify(todayProgress, null, 2))
 
     return { todayProgress }
   } catch (error) {

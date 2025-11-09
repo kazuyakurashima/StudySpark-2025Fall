@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { X } from "lucide-react"
 import Image from "next/image"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -78,16 +77,7 @@ export function EditProfileModal({ isOpen, onClose, profile, onUpdate }: EditPro
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            プロフィール編集
-            <button
-              onClick={onClose}
-              className="rounded-full p-1 hover:bg-gray-100 transition-colors"
-              aria-label="閉じる"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </DialogTitle>
+          <DialogTitle>プロフィール編集</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
