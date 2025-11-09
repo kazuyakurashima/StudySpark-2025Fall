@@ -48,18 +48,29 @@ export function DailySparkLogo({ studentId, parentUserId }: DailySparkLogoProps)
     checkLevel()
   }, [studentId, parentUserId])
 
-  // ロゴのスタイル
-  const logoClasses = cn(
-    "text-lg md:text-xl font-bold transition-all duration-700",
-    level === "none" && "text-gray-700",
-    (level === "child" || level === "parent" || level === "both") &&
-      "bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent"
-  )
-
   // ローディング中は通常表示
   if (isLoading) {
     return <h1 className="text-lg md:text-xl font-bold text-gray-700">StudySpark</h1>
   }
 
-  return <h1 className={logoClasses}>StudySpark</h1>
+  // 光るエフェクトの場合はインラインスタイルで確実に表示
+  const isGlowing = level === "child" || level === "parent" || level === "both"
+
+  if (isGlowing) {
+    return (
+      <h1
+        className="text-lg md:text-xl font-bold transition-all duration-700"
+        style={{
+          background: 'linear-gradient(to right, rgb(59, 130, 246), rgb(147, 51, 234))',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+        }}
+      >
+        StudySpark
+      </h1>
+    )
+  }
+
+  return <h1 className="text-lg md:text-xl font-bold text-gray-700">StudySpark</h1>
 }
