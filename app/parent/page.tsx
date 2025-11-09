@@ -34,7 +34,7 @@ export default async function ParentDashboardPage() {
   // 保護者プロフィール取得
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("display_name, avatar_id, role, theme_color")
+    .select("display_name, avatar_id, role, theme_color, nickname")
     .eq("id", user.id)
     .single()
 
@@ -65,7 +65,7 @@ export default async function ParentDashboardPage() {
     return (
       <ParentDashboardClient
         parentProfile={{
-          displayName: profile.display_name || "保護者",
+          displayName: profile.nickname || "保護者",
           avatarId: profile.avatar_id || "parent1",
           themeColor: profile.theme_color || "default",
         }}
@@ -114,7 +114,7 @@ export default async function ParentDashboardPage() {
   return (
     <ParentDashboardClient
       parentProfile={{
-        displayName: profile.display_name || "保護者",
+        displayName: profile.nickname || "保護者",
         avatarId: profile.avatar_id || "parent1",
         themeColor: profile.theme_color || "default",
       }}

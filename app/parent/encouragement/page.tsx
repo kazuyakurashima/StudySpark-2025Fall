@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ParentBottomNavigation } from "@/components/parent-bottom-navigation"
-import { Heart, Star, ThumbsUp, Sparkles, MessageSquare, ChevronDown, ChevronUp, Loader2 } from "lucide-react"
+import { Heart, Star, ThumbsUp, Sparkles, ChevronDown, ChevronUp, Loader2 } from "lucide-react"
 import {
   getStudyLogsForEncouragement,
   sendQuickEncouragement,
@@ -42,10 +42,6 @@ function ParentEncouragementPageInner() {
   const [aiLoading, setAiLoading] = useState(false)
   const [selectedAiMessage, setSelectedAiMessage] = useState<string | null>(null)
   const [editingMessage, setEditingMessage] = useState("")
-
-  // カスタム応援ダイアログ状態
-  const [customDialogOpen, setCustomDialogOpen] = useState<string | null>(null)
-  const [customMessage, setCustomMessage] = useState("")
 
   // Daily Spark の応援状態をチェック
   useEffect(() => {
@@ -155,21 +151,6 @@ function ParentEncouragementPageInner() {
       // 即座にハートバッジを更新
       setEncouragementStatus(prev => ({ ...prev, [Number(selectedChild)]: true }))
       setAiDialogOpen(null)
-      await loadStudyLogs()
-    } else {
-      alert(result.error)
-    }
-  }
-
-  const handleSendCustomMessage = async () => {
-    if (!customDialogOpen || !customMessage) return
-
-    const result = await sendCustomEncouragement(selectedChild, customDialogOpen, customMessage, "custom")
-    if (result.success) {
-      // 即座にハートバッジを更新
-      setEncouragementStatus(prev => ({ ...prev, [Number(selectedChild)]: true }))
-      setCustomDialogOpen(null)
-      setCustomMessage("")
       await loadStudyLogs()
     } else {
       alert(result.error)
@@ -307,35 +288,47 @@ function ParentEncouragementPageInner() {
                 </CardHeader>
 
                 <CardContent className="space-y-4">
-                  {/* クイック応援ボタン（常に表示） */}
+                  {/* クイック応援ボタン - ホーム機能と統一されたデザイン */}
                   {!hasEncouragement && (
-                    <div className="flex gap-2">
+                    <div className="space-y-2.5">
                       <Button
-                        variant="outline"
-                        size="sm"
                         onClick={() => handleQuickEncouragement(log.id, "heart")}
-                        className="flex-1 border-pink-300 text-pink-700 hover:bg-pink-50"
+                        className="group relative w-full py-3 px-4 rounded-xl text-sm overflow-hidden
+                          bg-gradient-to-br from-rose-50 via-pink-50 to-rose-100
+                          hover:from-rose-100 hover:via-pink-100 hover:to-rose-200
+                          text-rose-700 border border-rose-200/50 shadow-sm hover:shadow-md
+                          transform hover:scale-[1.02] active:scale-[0.98]
+                          transition-all duration-300 ease-out
+                          flex items-center justify-center gap-2"
                       >
-                        <Heart className="h-4 w-4 mr-1" />
-                        いつも頑張っているね
+                        <Heart className="h-4 w-4 group-hover:scale-110 transition-transform duration-300 fill-rose-500" />
+                        <span>がんばったね</span>
                       </Button>
                       <Button
-                        variant="outline"
-                        size="sm"
                         onClick={() => handleQuickEncouragement(log.id, "star")}
-                        className="flex-1 border-yellow-300 text-yellow-700 hover:bg-yellow-50"
+                        className="group relative w-full py-3 px-4 rounded-xl text-sm overflow-hidden
+                          bg-gradient-to-br from-amber-50 via-yellow-50 to-amber-100
+                          hover:from-amber-100 hover:via-yellow-100 hover:to-amber-200
+                          text-amber-700 border border-amber-200/50 shadow-sm hover:shadow-md
+                          transform hover:scale-[1.02] active:scale-[0.98]
+                          transition-all duration-300 ease-out
+                          flex items-center justify-center gap-2"
                       >
-                        <Star className="h-4 w-4 mr-1" />
-                        すごい！
+                        <span className="text-lg group-hover:scale-110 transition-transform duration-300">⭐</span>
+                        <span>すごい！</span>
                       </Button>
                       <Button
-                        variant="outline"
-                        size="sm"
                         onClick={() => handleQuickEncouragement(log.id, "thumbsup")}
-                        className="flex-1 border-blue-300 text-blue-700 hover:bg-blue-50"
+                        className="group relative w-full py-3 px-4 rounded-xl text-sm overflow-hidden
+                          bg-gradient-to-br from-sky-50 via-blue-50 to-sky-100
+                          hover:from-sky-100 hover:via-blue-100 hover:to-sky-200
+                          text-sky-700 border border-sky-200/50 shadow-sm hover:shadow-md
+                          transform hover:scale-[1.02] active:scale-[0.98]
+                          transition-all duration-300 ease-out
+                          flex items-center justify-center gap-2"
                       >
-                        <ThumbsUp className="h-4 w-4 mr-1" />
-                        よくできました
+                        <span className="text-lg group-hover:scale-110 transition-transform duration-300">👍</span>
+                        <span>よくできました</span>
                       </Button>
                     </div>
                   )}
@@ -382,26 +375,24 @@ function ParentEncouragementPageInner() {
                         </div>
                       )}
 
-                      {/* AI応援・カスタム応援ボタン（詳細展開時のみ） */}
+                      {/* AI応援ボタン - ホーム機能と統一されたデザイン */}
                       {!hasEncouragement && (
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            onClick={() => handleOpenAIDialog(log.id)}
-                            className="flex-1 border-purple-300 text-purple-700 hover:bg-purple-50"
-                          >
-                            <Sparkles className="h-4 w-4 mr-1" />
-                            AI応援
-                          </Button>
-                          <Button
-                            variant="outline"
-                            onClick={() => setCustomDialogOpen(log.id)}
-                            className="flex-1 border-slate-300 text-slate-700 hover:bg-slate-50"
-                          >
-                            <MessageSquare className="h-4 w-4 mr-1" />
-                            カスタム応援
-                          </Button>
-                        </div>
+                        <Button
+                          onClick={() => handleOpenAIDialog(log.id)}
+                          className="group relative w-full py-3.5 px-4 rounded-xl text-sm overflow-hidden
+                            bg-gradient-to-br from-violet-50 via-purple-50 to-violet-100
+                            hover:from-violet-100 hover:via-purple-100 hover:to-violet-200
+                            text-violet-700 border border-violet-200/50 shadow-sm hover:shadow-md
+                            transform hover:scale-[1.02] active:scale-[0.98]
+                            transition-all duration-300 ease-out
+                            flex items-center justify-center gap-2"
+                        >
+                          {/* シマー効果 */}
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent
+                            translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000 ease-in-out" />
+                          <Sparkles className="h-4 w-4 relative z-10 group-hover:rotate-12 group-hover:scale-110 transition-all duration-300 fill-violet-500" />
+                          <span className="relative z-10 tracking-wide">AI応援メッセージ</span>
+                        </Button>
                       )}
                     </div>
                   )}
@@ -412,96 +403,142 @@ function ParentEncouragementPageInner() {
         )}
         </div>
 
-        {/* AI応援ダイアログ */}
+        {/* AI応援ダイアログ - プレミアムデザイン */}
       {aiDialogOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-lg max-h-[80vh] overflow-y-auto">
-            <CardHeader>
-              <CardTitle>AI応援メッセージ</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {aiLoading ? (
-                <div className="flex justify-center items-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <p className="ml-2 text-slate-600">応援メッセージを生成中...</p>
-                </div>
-              ) : (
-                <>
-                  {aiMessages.map((message, index) => (
-                    <Button
-                      key={index}
-                      variant={selectedAiMessage === message ? "default" : "outline"}
-                      onClick={() => handleSelectAIMessage(message)}
-                      className="w-full text-left h-auto p-4 whitespace-normal"
-                    >
-                      {message}
-                    </Button>
-                  ))}
-
-                  {selectedAiMessage && (
-                    <div className="space-y-2">
-                      <label className="text-sm text-slate-600">メッセージを編集できます:</label>
-                      <Textarea
-                        value={editingMessage}
-                        onChange={(e) => setEditingMessage(e.target.value)}
-                        rows={4}
-                        maxLength={200}
-                        className="resize-none"
-                      />
-                      <p className="text-xs text-slate-500 text-right">{editingMessage.length} / 200文字</p>
-                    </div>
-                  )}
-
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setAiDialogOpen(null)} className="flex-1">
-                      キャンセル
-                    </Button>
-                    <Button onClick={handleSendAIMessage} disabled={!editingMessage} className="flex-1">
-                      送信
-                    </Button>
+        <div className="fixed inset-0 bg-gradient-to-br from-black/60 via-purple-900/30 to-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50 animate-in fade-in duration-200" onClick={() => !aiLoading && setAiDialogOpen(null)}>
+          <div className="bg-gradient-to-br from-white via-purple-50/30 to-white rounded-3xl p-6 sm:p-8 max-w-2xl w-full max-h-[90vh] sm:max-h-[80vh] overflow-y-auto shadow-2xl border-2 border-purple-100/50 animate-in slide-in-from-bottom-4 duration-300" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-fuchsia-600 rounded-xl blur-md opacity-50 animate-pulse"></div>
+                  <div className="relative bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-600 p-2.5 rounded-xl shadow-lg">
+                    <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                   </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* カスタム応援ダイアログ */}
-      {customDialogOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-lg">
-            <CardHeader>
-              <CardTitle>カスタム応援メッセージ</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Textarea
-                value={customMessage}
-                onChange={(e) => setCustomMessage(e.target.value)}
-                placeholder="お子さんへの応援メッセージを入力してください"
-                rows={6}
-                maxLength={200}
-                className="resize-none"
-              />
-              <p className="text-xs text-slate-500 text-right">{customMessage.length} / 200文字</p>
-
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setCustomDialogOpen(null)
-                    setCustomMessage("")
-                  }}
-                  className="flex-1"
-                >
-                  キャンセル
-                </Button>
-                <Button onClick={handleSendCustomMessage} disabled={!customMessage.trim()} className="flex-1">
-                  送信
-                </Button>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 bg-clip-text text-transparent">
+                  AI応援メッセージ
+                </h3>
               </div>
-            </CardContent>
-          </Card>
+              <button
+                onClick={() => setAiDialogOpen(null)}
+                disabled={aiLoading}
+                className="group relative w-10 h-10 rounded-full hover:bg-slate-100 transition-all duration-200 disabled:opacity-50 flex items-center justify-center"
+              >
+                <span className="text-slate-400 group-hover:text-slate-600 text-2xl font-light transition-colors">✕</span>
+              </button>
+            </div>
+
+            {aiLoading ? (
+              <div className="py-16 text-center">
+                <div className="relative inline-block mb-6">
+                  <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-fuchsia-600 rounded-full blur-xl opacity-30 animate-pulse"></div>
+                  <div className="relative animate-spin inline-block w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full"></div>
+                </div>
+                <p className="text-lg font-semibold bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
+                  AI応援メッセージを生成中...
+                </p>
+                <p className="text-sm text-slate-500 mt-2">心を込めて考えています</p>
+              </div>
+            ) : (
+              <div className="space-y-4 sm:space-y-5">
+                <div className="bg-gradient-to-r from-purple-50 via-violet-50 to-purple-50 rounded-2xl p-4 border border-purple-100">
+                  <p className="text-sm text-slate-700 leading-relaxed">
+                    <span className="font-semibold text-purple-700">✨ 3つの応援メッセージ</span>から選んでください。<br />
+                    <span className="text-xs text-slate-600">メッセージは自由に編集できます。</span>
+                  </p>
+                </div>
+
+                {/* 3つのメッセージ選択肢 - プレミアムデザイン */}
+                <div className="space-y-3 sm:space-y-4">
+                  {aiMessages.map((message, index) => (
+                    <div key={index} className="relative group">
+                      <input
+                        type="radio"
+                        id={`message-${index}`}
+                        name="ai-message"
+                        checked={selectedAiMessage === message}
+                        onChange={() => handleSelectAIMessage(message)}
+                        className="sr-only"
+                      />
+                      <label
+                        htmlFor={`message-${index}`}
+                        className={`block p-4 sm:p-5 rounded-2xl border-2 cursor-pointer transition-all duration-300 ${
+                          selectedAiMessage === message
+                            ? "border-purple-400 bg-gradient-to-br from-purple-50 via-violet-50 to-fuchsia-50 shadow-lg scale-[1.02]"
+                            : "border-slate-200 bg-white hover:border-purple-200 hover:shadow-md"
+                        }`}
+                      >
+                        <div className="flex items-start gap-3 sm:gap-4">
+                          <div className={`flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
+                            selectedAiMessage === message
+                              ? "border-purple-500 bg-gradient-to-br from-violet-500 to-fuchsia-600 shadow-lg scale-110"
+                              : "border-slate-300 group-hover:border-purple-300"
+                          }`}>
+                            {selectedAiMessage === message && (
+                              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className={`text-xs font-bold px-2.5 py-1 rounded-full transition-all duration-300 ${
+                                selectedAiMessage === message
+                                  ? "bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white shadow-md"
+                                  : "bg-purple-100 text-purple-700"
+                              }`}>
+                                {index === 0 ? "💪 励まし型" : index === 1 ? "🤝 共感型" : "🌟 次への期待型"}
+                              </span>
+                            </div>
+                            <p className="text-sm sm:text-base text-slate-700 leading-relaxed break-words">{message}</p>
+                          </div>
+                        </div>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+
+                {/* メッセージ編集エリア - エレガントデザイン */}
+                {selectedAiMessage && (
+                  <div className="mt-6 sm:mt-8 bg-gradient-to-br from-slate-50 to-purple-50/30 rounded-2xl p-4 sm:p-5 border border-purple-100/50">
+                    <label className="block text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4 text-purple-600" />
+                      メッセージを編集（任意）
+                    </label>
+                    <textarea
+                      value={editingMessage}
+                      onChange={(e) => setEditingMessage(e.target.value)}
+                      placeholder="選択したメッセージを編集できます..."
+                      className="w-full p-4 rounded-xl border-2 border-slate-200 focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all duration-200 text-sm sm:text-base resize-none"
+                      rows={4}
+                      maxLength={200}
+                    />
+                    <div className="flex justify-between items-center mt-3">
+                      <span className="text-xs text-slate-500">{editingMessage.length}/200文字</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* 送信ボタン - プレミアムデザイン */}
+                <div className="flex gap-3 mt-6 sm:mt-8">
+                  <Button
+                    onClick={() => setAiDialogOpen(null)}
+                    className="flex-1 py-3 px-6 rounded-xl border-2 border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-semibold transition-all duration-200"
+                  >
+                    キャンセル
+                  </Button>
+                  <Button
+                    onClick={handleSendAIMessage}
+                    disabled={!editingMessage}
+                    className="flex-1 py-3 px-6 rounded-xl bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-600 hover:from-violet-600 hover:via-purple-600 hover:to-fuchsia-700 text-white font-bold shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    送信する
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
       </div>

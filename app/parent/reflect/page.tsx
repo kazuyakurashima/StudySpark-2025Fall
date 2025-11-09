@@ -183,30 +183,6 @@ function ParentReflectPageInner() {
 
       <div className="max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
 
-        {/* 子ども切り替えタブ */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              お子様を選択
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              {children.map((child) => (
-                <Button
-                  key={child.id}
-                  variant={selectedChildId === child.id ? "default" : "outline"}
-                  onClick={() => setSelectedChildId(child.id)}
-                  className="flex-shrink-0"
-                >
-                  {child.display_name}
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
         {/* AIコーチング制限の通知 */}
         <Card className="border-amber-200 bg-amber-50">
           <CardContent className="py-4">

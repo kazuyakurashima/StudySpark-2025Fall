@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import ParentBottomNavigation from "@/components/parent-bottom-navigation"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { PageHeader } from "@/components/common/page-header"
-import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, Sparkles, ChevronLeft, ChevronRight } from "lucide-react"
+import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, Sparkles, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from "lucide-react"
 import { WeeklySubjectProgressCard } from "@/components/weekly-subject-progress-card"
 import { UserProfileProvider, useUserProfile } from "@/lib/hooks/use-user-profile"
 import { hexWithAlpha, isThemeActive } from "@/lib/utils/theme-color"
@@ -26,6 +26,24 @@ const getGreetingMessage = (userName: string, lastLoginInfo: { lastLoginDays: nu
   }
 
   return `お久しぶり、${userName}さん`
+}
+
+// ユーティリティ関数: 日時のフォーマット（JST）
+function formatDateTime(isoString: string | null) {
+  if (!isoString) return ""
+  const date = new Date(isoString)
+
+  // JST で日付と時刻を取得
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Tokyo',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  })
+
+  return formatter.format(date)
 }
 
 const getAvatarSrc = (avatarId?: string) => {
@@ -601,15 +619,16 @@ const ParentTodayMissionCard = ({
       if (result.success && result.messages && result.messages.length > 0) {
         setAiMessages(result.messages)
         setSelectedMessage(result.messages[0])
+        setIsGeneratingAI(false)
       } else {
         alert(`エラー: ${result.error || "AI応援メッセージ生成に失敗しました"}`)
         setShowAIDialog(false)
+        setIsGeneratingAI(false)
       }
     } catch (error) {
       console.error("AI応援エラー:", error)
       alert("AI応援機能でエラーが発生しました")
       setShowAIDialog(false)
-    } finally {
       setIsGeneratingAI(false)
     }
   }
@@ -677,7 +696,7 @@ const ParentTodayMissionCard = ({
             <span className="text-slate-800">{getModeTitle()}</span>
           </CardTitle>
           {missionData.completionStatus && (
-            <Badge className="bg-primary text-primary-foreground border-primary font-bold text-base px-4 py-2 shadow-md">
+            <Badge className="bg-primary text-primary-foreground border-primary text-base px-4 py-2 shadow-md">
               {missionData.completionStatus}
             </Badge>
           )}
@@ -697,35 +716,159 @@ const ParentTodayMissionCard = ({
         )}
 
         {/* 日曜日・特別モード */}
-        {(missionData.mode === "sunday" || missionData.mode === "special") && (
-          <div className="space-y-4">
-            {missionData.panels.map((panel: any, index: number) => (
-              <div
-                key={index}
-                className={`flex items-center justify-between p-6 rounded-xl bg-white/90 border-2 shadow-sm transition-all duration-300 hover:shadow-md ${
-                  panel.type === "reflect"
-                    ? "border-primary/30 bg-gradient-to-r from-primary/5 to-accent/5"
-                    : getSubjectColor(panel.subject || "")
-                }`}
-              >
-                <div className="flex-1">
-                  <h3 className="font-bold text-lg text-slate-800">
-                    {panel.type === "reflect" ? panel.name : panel.subject}
+        {(missionData.mode === "sunday" || missionData.mode === "special") && (() => {
+          const subjectPanels = missionData.panels.filter((p: any) => p.type !== "reflect")
+          const reflectPanel = missionData.panels.find((p: any) => p.type === "reflect")
+
+          return (
+            <div className="space-y-6">
+              {/* リフレクトカード（フル幅・独立セクション） */}
+              {reflectPanel && (
+                <div className="w-full p-6 rounded-xl bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 border-2 border-primary/30 shadow-lg">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 rounded-lg bg-primary/10">
+                          <span className="text-2xl">📝</span>
+                        </div>
+                        <h3 className="text-xl font-bold text-slate-800">リフレクト</h3>
+                      </div>
+                      <p className="text-sm text-slate-600 mb-1">
+                        今週の学習を振り返り、来週の目標を立てましょう
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        利用可能: 土曜 12:00 - 水曜 23:59
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Button
+                        onClick={() => window.location.href = "/parent/reflect"}
+                        className="bg-primary hover:bg-primary/90 text-white"
+                      >
+                        見守る
+                      </Button>
+                      <Badge className="border border-slate-300 bg-slate-100 text-slate-600">
+                        {reflectPanel.status}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 科目カードセクション */}
+              {subjectPanels.length > 0 ? (
+                <div className={`grid gap-4 ${
+                  subjectPanels.length === 1 ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2"
+                }`}>
+                  {subjectPanels.map((panel: any, index: number) => (
+                    <div
+                      key={index}
+                      className={`p-4 rounded-xl border-2 shadow-md hover:shadow-lg transition-all duration-200 bg-white ${getSubjectColor(panel.subject)}`}
+                    >
+                      {/* ヘッダー */}
+                      <div className="flex justify-between items-center mb-3">
+                        <h3 className="font-bold text-lg text-slate-800">{panel.subject}</h3>
+                        <Badge className={`border ${getStatusBadgeColor(panel.status, panel.needsAction)}`}>
+                          {panel.status}
+                        </Badge>
+                      </div>
+
+                      {/* 応援ボタン（平日と同じ） */}
+                      {panel.logs && panel.logs.length > 0 ? (
+                        <div className="space-y-2.5">
+                          {/* 3つの応援ボタン */}
+                          <Button
+                            onClick={() => handleQuickEncouragement(panel.subject, 0, panel.logs[0].id, "heart")}
+                            className="group relative w-full py-3 px-4 rounded-xl text-sm overflow-hidden bg-gradient-to-br from-rose-50 via-pink-50 to-rose-100 hover:from-rose-100 hover:via-pink-100 hover:to-rose-200 text-rose-700 border border-rose-200/50 shadow-sm hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 ease-out disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+                            disabled={panel.logs[0].hasParentEncouragement}
+                          >
+                            <Heart className="h-4 w-4 group-hover:scale-110 transition-transform duration-300 fill-rose-500" />
+                            <span>がんばったね</span>
+                          </Button>
+                          <Button
+                            onClick={() => handleQuickEncouragement(panel.subject, 0, panel.logs[0].id, "star")}
+                            className="group relative w-full py-3 px-4 rounded-xl text-sm overflow-hidden bg-gradient-to-br from-amber-50 via-yellow-50 to-amber-100 hover:from-amber-100 hover:via-yellow-100 hover:to-amber-200 text-amber-700 border border-amber-200/50 shadow-sm hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 ease-out disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+                            disabled={panel.logs[0].hasParentEncouragement}
+                          >
+                            <span className="text-lg group-hover:scale-110 transition-transform duration-300">⭐</span>
+                            <span>すごい！</span>
+                          </Button>
+                          <Button
+                            onClick={() => handleQuickEncouragement(panel.subject, 0, panel.logs[0].id, "thumbsup")}
+                            className="group relative w-full py-3 px-4 rounded-xl text-sm overflow-hidden bg-gradient-to-br from-sky-50 via-blue-50 to-sky-100 hover:from-sky-100 hover:via-blue-100 hover:to-sky-200 text-sky-700 border border-sky-200/50 shadow-sm hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 ease-out disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+                            disabled={panel.logs[0].hasParentEncouragement}
+                          >
+                            <span className="text-lg group-hover:scale-110 transition-transform duration-300">👍</span>
+                            <span>よくできました</span>
+                          </Button>
+
+                          {/* AI応援ボタン */}
+                          <Button
+                            onClick={() => handleOpenAIDialog(panel.subject, panel.logs[0].id)}
+                            className="group relative w-full py-3.5 px-4 rounded-xl text-sm overflow-hidden bg-gradient-to-br from-violet-50 via-purple-50 to-violet-100 hover:from-violet-100 hover:via-purple-100 hover:to-violet-200 text-violet-700 border border-violet-200/50 shadow-sm hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 ease-out disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+                            disabled={panel.logs[0].hasParentEncouragement}
+                          >
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000 ease-in-out" />
+                            <Sparkles className="h-4 w-4 relative z-10 group-hover:rotate-12 group-hover:scale-110 transition-all duration-300 fill-violet-500" />
+                            <span className="relative z-10 tracking-wide">AI応援メッセージ</span>
+                          </Button>
+
+                          {/* 応援済み表示 */}
+                          {panel.logs[0].hasParentEncouragement && (
+                            <div className="flex items-center justify-center gap-2 py-2 px-4 rounded-xl bg-gradient-to-r from-emerald-50 via-green-50 to-teal-50 border border-emerald-200/50 shadow-sm">
+                              <div className="flex items-center justify-center w-5 h-5 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 shadow-md">
+                                <span className="text-white text-xs font-bold">✓</span>
+                              </div>
+                              <span className="text-sm font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                                応援済み
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <Button disabled className="w-full py-3 px-4 rounded-lg text-sm bg-slate-100 text-slate-400 cursor-not-allowed">
+                          未完了
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {/* ポジティブメッセージカード（科目が0の場合） */}
+              {subjectPanels.length === 0 && (
+                <div className="w-full p-8 rounded-xl border-2 border-emerald-400 bg-gradient-to-br from-emerald-100 to-teal-100 text-center shadow-none cursor-default">
+                  <div className="text-7xl mb-4">🎉</div>
+                  <h3 className="text-2xl font-bold text-emerald-800 mb-3">
+                    おめでとうございます！
                   </h3>
-                  {panel.description && <p className="text-sm text-slate-600 mt-1">{panel.description}</p>}
-                  {panel.correctRate && (
-                    <p className="text-sm text-slate-600 mt-1">現在の正答率: {panel.correctRate}%</p>
-                  )}
+                  <p className="text-base text-slate-700 mb-2">
+                    お子様はすべての科目で80%以上を達成しています！
+                  </p>
+                  <p className="text-sm text-slate-600">
+                    今週は振り返りを通じて、さらなる成長をサポートしましょう。
+                  </p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Badge className={`border ${getStatusBadgeColor(panel.status, panel.needsAction || false)}`}>
-                    {panel.status}
-                  </Badge>
+              )}
+
+              {/* 1科目特化メッセージ（科目が1つの場合） */}
+              {subjectPanels.length === 1 && (
+                <div className="w-full p-6 rounded-xl border-2 border-dashed border-emerald-300 bg-gradient-to-br from-emerald-50 to-teal-50 text-center shadow-none cursor-default">
+                  <div className="text-6xl mb-3">💪</div>
+                  <h3 className="text-lg font-bold text-emerald-700 mb-2">
+                    もう少しです！
+                  </h3>
+                  <p className="text-sm text-slate-600 mb-1">
+                    他の科目は80%以上を達成しています
+                  </p>
+                  <p className="text-sm text-slate-600 font-semibold">
+                    {subjectPanels[0].subject}をクリアすれば全科目目標達成です！
+                  </p>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              )}
+            </div>
+          )
+        })()}
 
         {/* 通常モード（入力促進・復習促進） */}
         {(missionData.mode === "input" || missionData.mode === "review") && (
@@ -753,86 +896,81 @@ const ParentTodayMissionCard = ({
                       </Badge>
                     </div>
 
-                    {/* Show buttons based on completion status */}
-                    {panel.status === "未入力" ? (
+                    {/* Show buttons based on whether logs exist */}
+                    {!panel.logs || panel.logs.length === 0 ? (
                       <Button
                         disabled
-                        className="w-full py-3 px-4 rounded-lg text-sm font-bold bg-slate-100 text-slate-400 cursor-not-allowed"
+                        className="w-full py-3 px-4 rounded-lg text-sm bg-slate-100 text-slate-400 cursor-not-allowed"
                       >
                         未完了
                       </Button>
                     ) : (
                       <div className="space-y-2">
-                        {/* クイック応援ボタン（3種類） */}
+                        {/* クイック応援ボタン（3種類） - Soft Gradation Style */}
                         <div className="space-y-2.5">
                           <Button
                             onClick={() => handleQuickEncouragement(panel.subject, 0, panel.logs?.[0]?.id, "heart")}
-                            className="group relative w-full py-3 px-4 rounded-xl text-sm font-bold overflow-hidden
-                              bg-gradient-to-br from-rose-400 via-pink-400 to-rose-500
-                              hover:from-rose-500 hover:via-pink-500 hover:to-rose-600
-                              text-white shadow-lg hover:shadow-xl
+                            className="group relative w-full py-3 px-4 rounded-xl text-sm overflow-hidden
+                              bg-gradient-to-br from-rose-50 via-pink-50 to-rose-100
+                              hover:from-rose-100 hover:via-pink-100 hover:to-rose-200
+                              text-rose-700 border border-rose-200/50 shadow-sm hover:shadow-md
                               transform hover:scale-[1.02] active:scale-[0.98]
                               transition-all duration-300 ease-out
                               disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
                               flex items-center justify-center gap-2"
                             disabled={encouragementSent[`${panel.subject}-0`] || panel.logs?.[0]?.hasParentEncouragement || !panel.logs?.[0]?.id}
                           >
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                            <Heart className="h-4 w-4 relative z-10 group-hover:scale-110 transition-transform duration-300" />
-                            <span className="relative z-10">がんばったね</span>
+                            <Heart className="h-4 w-4 group-hover:scale-110 transition-transform duration-300 fill-rose-500" />
+                            <span>がんばったね</span>
                           </Button>
                           <Button
                             onClick={() => handleQuickEncouragement(panel.subject, 0, panel.logs?.[0]?.id, "star")}
-                            className="group relative w-full py-3 px-4 rounded-xl text-sm font-bold overflow-hidden
-                              bg-gradient-to-br from-amber-300 via-yellow-400 to-orange-400
-                              hover:from-amber-400 hover:via-yellow-500 hover:to-orange-500
-                              text-white shadow-lg hover:shadow-xl
+                            className="group relative w-full py-3 px-4 rounded-xl text-sm overflow-hidden
+                              bg-gradient-to-br from-amber-50 via-yellow-50 to-amber-100
+                              hover:from-amber-100 hover:via-yellow-100 hover:to-amber-200
+                              text-amber-700 border border-amber-200/50 shadow-sm hover:shadow-md
                               transform hover:scale-[1.02] active:scale-[0.98]
                               transition-all duration-300 ease-out
                               disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
                               flex items-center justify-center gap-2"
                             disabled={encouragementSent[`${panel.subject}-0`] || panel.logs?.[0]?.hasParentEncouragement || !panel.logs?.[0]?.id}
                           >
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                            <span className="text-lg relative z-10 group-hover:scale-110 transition-transform duration-300">⭐</span>
-                            <span className="relative z-10">すごい！</span>
+                            <span className="text-lg group-hover:scale-110 transition-transform duration-300">⭐</span>
+                            <span>すごい！</span>
                           </Button>
                           <Button
                             onClick={() => handleQuickEncouragement(panel.subject, 0, panel.logs?.[0]?.id, "thumbsup")}
-                            className="group relative w-full py-3 px-4 rounded-xl text-sm font-bold overflow-hidden
-                              bg-gradient-to-br from-sky-400 via-blue-400 to-indigo-500
-                              hover:from-sky-500 hover:via-blue-500 hover:to-indigo-600
-                              text-white shadow-lg hover:shadow-xl
+                            className="group relative w-full py-3 px-4 rounded-xl text-sm overflow-hidden
+                              bg-gradient-to-br from-sky-50 via-blue-50 to-sky-100
+                              hover:from-sky-100 hover:via-blue-100 hover:to-sky-200
+                              text-sky-700 border border-sky-200/50 shadow-sm hover:shadow-md
                               transform hover:scale-[1.02] active:scale-[0.98]
                               transition-all duration-300 ease-out
                               disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
                               flex items-center justify-center gap-2"
                             disabled={encouragementSent[`${panel.subject}-0`] || panel.logs?.[0]?.hasParentEncouragement || !panel.logs?.[0]?.id}
                           >
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                            <span className="text-lg relative z-10 group-hover:scale-110 transition-transform duration-300">👍</span>
-                            <span className="relative z-10">よくできました</span>
+                            <span className="text-lg group-hover:scale-110 transition-transform duration-300">👍</span>
+                            <span>よくできました</span>
                           </Button>
                         </div>
                         {/* AI応援ボタン - 特別なデザイン */}
                         <Button
                           onClick={() => handleOpenAIDialog(panel.subject, panel.logs?.[0]?.id)}
-                          className="group relative w-full py-3.5 px-4 rounded-xl text-sm font-bold overflow-hidden
-                            bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-600
-                            hover:from-violet-600 hover:via-purple-600 hover:to-fuchsia-700
-                            text-white shadow-xl hover:shadow-2xl
+                          className="group relative w-full py-3.5 px-4 rounded-xl text-sm overflow-hidden
+                            bg-gradient-to-br from-violet-50 via-purple-50 to-violet-100
+                            hover:from-violet-100 hover:via-purple-100 hover:to-violet-200
+                            text-violet-700 border border-violet-200/50 shadow-sm hover:shadow-md
                             transform hover:scale-[1.02] active:scale-[0.98]
                             transition-all duration-300 ease-out
                             disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
-                            flex items-center justify-center gap-2
-                            border-2 border-white/20"
+                            flex items-center justify-center gap-2"
                           disabled={!panel.logs?.[0]?.id || encouragementSent[`${panel.subject}-0`] || panel.logs?.[0]?.hasParentEncouragement}
                         >
                           {/* シマー効果 */}
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent
                             translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000 ease-in-out" />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                          <Sparkles className="h-4 w-4 relative z-10 group-hover:rotate-12 group-hover:scale-110 transition-all duration-300" />
+                          <Sparkles className="h-4 w-4 relative z-10 group-hover:rotate-12 group-hover:scale-110 transition-all duration-300 fill-violet-500" />
                           <span className="relative z-10 tracking-wide">AI応援メッセージ</span>
                         </Button>
                         {/* 応援済み表示 - エレガントなデザイン */}
@@ -852,7 +990,7 @@ const ParentTodayMissionCard = ({
                         <Button
                           onClick={() => toggleExpandLog(index)}
                           variant="outline"
-                          className="w-full py-2 px-3 rounded-lg text-xs font-medium"
+                          className="w-full py-2 px-3 rounded-lg text-xs"
                         >
                           {expandedLogs.has(index) ? "閉じる" : "詳細を見る"}
                         </Button>
@@ -1031,7 +1169,7 @@ const ParentTodayMissionCard = ({
                   <Button
                     onClick={() => setShowAIDialog(false)}
                     variant="outline"
-                    className="flex-1 py-3.5 text-sm font-bold rounded-xl
+                    className="flex-1 py-3.5 text-sm rounded-xl
                       border-2 border-slate-300 hover:border-slate-400 hover:bg-slate-50
                       transition-all duration-200 shadow-sm hover:shadow-md"
                     disabled={isSendingMessage}
@@ -1041,7 +1179,7 @@ const ParentTodayMissionCard = ({
                   <Button
                     onClick={handleSendAIMessage}
                     disabled={!selectedMessage.trim() || isSendingMessage}
-                    className="group relative flex-1 py-3.5 text-sm font-bold rounded-xl overflow-hidden
+                    className="group relative flex-1 py-3.5 text-sm rounded-xl overflow-hidden
                       bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-600
                       hover:from-violet-600 hover:via-purple-600 hover:to-fuchsia-700
                       text-white shadow-xl hover:shadow-2xl
@@ -1405,7 +1543,7 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
 
     return {
       recordTime: formatDate(msg.sent_at),
-      from: senderProfile?.display_name || "応援者",
+      from: senderProfile?.nickname || "応援者",
       avatar: senderProfile?.avatar_id || (msg.sender_role === "parent" ? "parent1" : "coach"),
       message: baseMessage,
       senderRole: msg.sender_role || "unknown",
@@ -1552,6 +1690,11 @@ function ParentDashboardInner({
   const [todayStatusMessage, setTodayStatusMessage] = useState(
     initialData && !isError(initialData.todayStatus) ? initialData.todayStatus.message : ""
   )
+  const [todayStatusMessageCreatedAt, setTodayStatusMessageCreatedAt] = useState<string | null>(
+    initialData && !isError(initialData.todayStatus) ? initialData.todayStatus.createdAt || null : null
+  )
+  const [isStatusMessageExpanded, setIsStatusMessageExpanded] = useState(true)
+  const [isHydrated, setIsHydrated] = useState(false)
   const [studyStreak, setStudyStreak] = useState(
     initialData && !isError(initialData.streak) ? initialData.streak.streak : 0
   )
@@ -1620,6 +1763,22 @@ function ParentDashboardInner({
 
   // 初期データはサーバーから渡されているため、fetchParentDataは不要
 
+  // マウント後に localStorage から状態を復元
+  useEffect(() => {
+    setIsHydrated(true)
+    const saved = localStorage.getItem('parentStatusMessageExpanded')
+    if (saved !== null) {
+      setIsStatusMessageExpanded(saved === 'true')
+    }
+  }, [])
+
+  // 開閉状態をlocalStorageに保存（hydration 後のみ）
+  useEffect(() => {
+    if (isHydrated) {
+      localStorage.setItem('parentStatusMessageExpanded', String(isStatusMessageExpanded))
+    }
+  }, [isStatusMessageExpanded, isHydrated])
+
   // Fetch child-specific data when selected child changes
   useEffect(() => {
     console.log("🔍 [CLIENT] useEffect triggered - selectedChildId:", selectedChildId)
@@ -1681,7 +1840,7 @@ function ParentDashboardInner({
 
         // Fetch data in parallel (skip AI generation if using cache)
         const fetchPromises = [
-          shouldRegenerateAI ? getTodayStatusMessageAI(selectedChildId) : Promise.resolve({ message: cachedMessage }),
+          shouldRegenerateAI ? getTodayStatusMessageAI(selectedChildId) : Promise.resolve({ message: cachedMessage, createdAt: new Date().toISOString() }),
           getStudentStreak(selectedChildId),
           getStudentTodayMissionData(selectedChildId),
           getStudentWeeklyProgress(selectedChildId),
@@ -1701,7 +1860,7 @@ function ParentDashboardInner({
           messagesResult,
           reflectionResult,
         ] = await Promise.all(fetchPromises) as [
-          { message: string } | { error: string },
+          { message: string; createdAt?: string } | { error: string },
           { streak: number } | { error: string },
           { todayProgress: any[] } | { error: string },
           { progress: any[]; sessionNumber: number | null } | { error: string },
@@ -1713,6 +1872,7 @@ function ParentDashboardInner({
 
         if (!isError(statusMsg)) {
           setTodayStatusMessage((statusMsg as { message: string }).message)
+          setTodayStatusMessageCreatedAt((statusMsg as { message: string; createdAt?: string }).createdAt || null)
 
           // Update cache if we regenerated the message
           if (shouldRegenerateAI) {
@@ -1873,7 +2033,7 @@ function ParentDashboardInner({
             {/* スマホでの表示順序 */}
             <div className="lg:hidden space-y-8">
               <Card
-                className="bg-gradient-to-br border shadow-xl backdrop-blur-sm transition-all duration-300"
+                className="bg-gradient-to-br border shadow-xl backdrop-blur-sm transition-all duration-300 group cursor-pointer"
                 style={
                   isThemeActive(themeColor)
                     ? {
@@ -1902,62 +2062,79 @@ function ParentDashboardInner({
                       }}
                     />
                   )}
-                  <CardTitle className="text-xl font-bold flex items-center gap-4">
+                  <div
+                    className="flex items-center justify-between cursor-pointer"
+                    onClick={() => setIsStatusMessageExpanded(!isStatusMessageExpanded)}
+                  >
                     <div className="flex items-center gap-3">
                       <Avatar
-                        className="h-16 w-16 shadow-xl transition-all duration-300"
+                        className="h-14 w-14 shadow-lg transition-all duration-300 group-hover:scale-105"
                         style={
                           isThemeActive(themeColor)
                             ? {
                                 backgroundColor: hexWithAlpha(themeColor, 20),
-                                border: `4px solid ${hexWithAlpha(themeColor, 70)}`,
-                                boxShadow: `0 4px 12px ${hexWithAlpha(themeColor, 30)}`,
+                                border: `3px solid ${hexWithAlpha(themeColor, 60)}`,
+                                boxShadow: `0 4px 12px ${hexWithAlpha(themeColor, 25)}`,
                               }
                             : {}
                         }
                       >
                         <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
-                        <AvatarFallback className="font-bold text-lg" style={{ backgroundColor: hexWithAlpha(themeColor, 20) || '#e0f2fe' }}>AI</AvatarFallback>
+                        <AvatarFallback className="font-bold text-base" style={{ backgroundColor: hexWithAlpha(themeColor, 20) || '#e0f2fe' }}>AI</AvatarFallback>
                       </Avatar>
-                      <span className="font-bold text-xl" style={{ color: isThemeActive(themeColor) ? themeColor : '#164e63' }}>
-                        今日の様子
-                      </span>
+                      <div>
+                        <CardTitle className="text-lg font-bold mb-1" style={{ color: isThemeActive(themeColor) ? themeColor : '#164e63' }}>
+                          今日の様子
+                        </CardTitle>
+                        {!isStatusMessageExpanded && (
+                          <p className="text-xs text-gray-500">タップして表示</p>
+                        )}
+                      </div>
                     </div>
-                    <div
-                      className="p-2 rounded-full shadow-sm transition-all duration-300"
-                      style={{ backgroundColor: hexWithAlpha(themeColor, 15) || '#e0f2fe' }}
+                    <button
+                      className="p-2.5 rounded-full transition-all duration-300 hover:scale-110"
+                      style={{
+                        backgroundColor: isThemeActive(themeColor)
+                          ? hexWithAlpha(themeColor, 15)
+                          : '#e0f2fe',
+                      }}
+                      aria-label={isStatusMessageExpanded ? "メッセージを閉じる" : "メッセージを開く"}
                     >
-                      <MessageCircle className="h-6 w-6" style={{ color: isThemeActive(themeColor) ? themeColor : '#0891b2' }} />
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div
-                    className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border shadow-lg transition-all duration-300"
-                    style={
-                      isThemeActive(themeColor)
-                        ? { borderColor: hexWithAlpha(themeColor, 20) }
-                        : {}
-                    }
-                  >
-                    <div className="flex items-start gap-3 mb-4">
-                      <Badge
-                        className="text-white border-0 px-3 py-1 flex items-center gap-1"
-                        style={
-                          isThemeActive(themeColor)
-                            ? { background: `linear-gradient(to right, ${themeColor}, ${hexWithAlpha(themeColor, 80)})` }
-                            : { background: 'linear-gradient(to right, #3b82f6, #8b5cf6)' }
-                        }
-                      >
-                        <Sparkles className="h-3 w-3" />
-                        AI生成
-                      </Badge>
-                    </div>
-                    <p className="text-lg leading-relaxed text-slate-700 font-medium">
-                      {todayStatusMessage || `${selectedChildName}さんの今日の様子を見守りましょう`}
-                    </p>
+                      {isStatusMessageExpanded ? (
+                        <ChevronUp
+                          className="h-6 w-6 transition-colors"
+                          style={{ color: isThemeActive(themeColor) ? themeColor : '#0891b2' }}
+                        />
+                      ) : (
+                        <ChevronDown
+                          className="h-6 w-6 transition-colors"
+                          style={{ color: isThemeActive(themeColor) ? themeColor : '#0891b2' }}
+                        />
+                      )}
+                    </button>
                   </div>
-                </CardContent>
+                </CardHeader>
+                {isStatusMessageExpanded && (
+                  <CardContent className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
+                    <div
+                      className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border shadow-lg transition-all duration-300 relative"
+                      style={
+                        isThemeActive(themeColor)
+                          ? { borderColor: hexWithAlpha(themeColor, 20) }
+                          : {}
+                      }
+                    >
+                      <p className="text-lg leading-relaxed text-slate-700 font-medium mb-6">
+                        {todayStatusMessage || `${selectedChildName}さんの今日の様子を見守りましょう`}
+                      </p>
+                      {todayStatusMessageCreatedAt && (
+                        <div className="text-right">
+                          <span className="text-xs text-gray-400">作成: {formatDateTime(todayStatusMessageCreatedAt)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                )}
               </Card>
 
               <ParentTodayMissionCard
@@ -1977,7 +2154,7 @@ function ParentDashboardInner({
               {/* 左列（メイン - 2/3の幅） */}
               <div className="lg:col-span-2 space-y-8">
                 <Card
-                  className="bg-gradient-to-br border shadow-xl backdrop-blur-sm transition-all duration-300"
+                  className="bg-gradient-to-br border shadow-xl backdrop-blur-sm transition-all duration-300 group cursor-pointer"
                   style={
                     isThemeActive(themeColor)
                       ? {
@@ -2006,62 +2183,71 @@ function ParentDashboardInner({
                         }}
                       />
                     )}
-                    <CardTitle className="text-xl font-bold flex items-center gap-4">
-                      <div className="flex items-center gap-3">
-                        <Avatar
-                          className="h-16 w-16 shadow-xl transition-all duration-300"
-                          style={
-                            isThemeActive(themeColor)
-                              ? {
-                                  backgroundColor: hexWithAlpha(themeColor, 20),
-                                  border: `4px solid ${hexWithAlpha(themeColor, 70)}`,
-                                  boxShadow: `0 4px 12px ${hexWithAlpha(themeColor, 30)}`,
-                                }
-                              : {}
-                          }
-                        >
-                          <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
-                          <AvatarFallback className="font-bold text-lg" style={{ backgroundColor: hexWithAlpha(themeColor, 20) || '#e0f2fe' }}>AI</AvatarFallback>
-                        </Avatar>
-                        <span className="font-bold text-xl" style={{ color: isThemeActive(themeColor) ? themeColor : '#164e63' }}>
-                          今日の様子
-                        </span>
-                      </div>
-                      <div
-                        className="p-2 rounded-full shadow-sm transition-all duration-300"
-                        style={{ backgroundColor: hexWithAlpha(themeColor, 15) || '#e0f2fe' }}
-                      >
-                        <MessageCircle className="h-6 w-6" style={{ color: isThemeActive(themeColor) ? themeColor : '#0891b2' }} />
-                      </div>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
                     <div
-                      className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border shadow-2xl transition-all duration-300"
-                      style={
-                        isThemeActive(themeColor)
-                          ? { borderColor: hexWithAlpha(themeColor, 20) }
-                          : {}
-                      }
+                      className="flex items-center justify-between cursor-pointer"
+                      onClick={() => setIsStatusMessageExpanded(!isStatusMessageExpanded)}
                     >
-                      <div className="flex items-start gap-3 mb-4">
-                        <Badge
-                          className="text-white border-0 px-3 py-1 flex items-center gap-1"
-                          style={
-                            isThemeActive(themeColor)
-                              ? { background: `linear-gradient(to right, ${themeColor}, ${hexWithAlpha(themeColor, 80)})` }
-                              : { background: 'linear-gradient(to right, #3b82f6, #8b5cf6)' }
-                          }
-                        >
-                          <Sparkles className="h-3 w-3" />
-                          AI生成
-                        </Badge>
-                      </div>
-                      <p className="text-lg leading-relaxed text-slate-700 font-medium">
-                        {todayStatusMessage || `${selectedChildName}さんの今日の様子を見守りましょう`}
-                      </p>
+                      <CardTitle className="text-xl font-bold flex items-center gap-4">
+                        <div className="flex items-center gap-3">
+                          <Avatar
+                            className="h-16 w-16 shadow-xl transition-all duration-300"
+                            style={
+                              isThemeActive(themeColor)
+                                ? {
+                                    backgroundColor: hexWithAlpha(themeColor, 20),
+                                    border: `4px solid ${hexWithAlpha(themeColor, 70)}`,
+                                    boxShadow: `0 4px 12px ${hexWithAlpha(themeColor, 30)}`,
+                                  }
+                                : {}
+                            }
+                          >
+                            <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
+                            <AvatarFallback className="font-bold text-lg" style={{ backgroundColor: hexWithAlpha(themeColor, 20) || '#e0f2fe' }}>AI</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <span className="font-bold text-xl" style={{ color: isThemeActive(themeColor) ? themeColor : '#164e63' }}>
+                              今日の様子
+                            </span>
+                            {!isStatusMessageExpanded && (
+                              <p className="text-xs text-gray-500 font-normal mt-1">クリックして表示</p>
+                            )}
+                          </div>
+                        </div>
+                      </CardTitle>
+                      <button
+                        className="p-2 rounded-full shadow-sm transition-all duration-300 hover:scale-110"
+                        style={{ backgroundColor: hexWithAlpha(themeColor, 15) || '#e0f2fe' }}
+                        aria-label={isStatusMessageExpanded ? "メッセージを閉じる" : "メッセージを開く"}
+                      >
+                        {isStatusMessageExpanded ? (
+                          <ChevronUp className="h-6 w-6" style={{ color: isThemeActive(themeColor) ? themeColor : '#0891b2' }} />
+                        ) : (
+                          <ChevronDown className="h-6 w-6" style={{ color: isThemeActive(themeColor) ? themeColor : '#0891b2' }} />
+                        )}
+                      </button>
                     </div>
-                  </CardContent>
+                  </CardHeader>
+                  {isStatusMessageExpanded && (
+                    <CardContent className="space-y-6">
+                      <div
+                        className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 border shadow-2xl transition-all duration-300"
+                        style={
+                          isThemeActive(themeColor)
+                            ? { borderColor: hexWithAlpha(themeColor, 20) }
+                            : {}
+                        }
+                      >
+                        <p className="text-lg leading-relaxed text-slate-700 font-medium">
+                          {todayStatusMessage || `${selectedChildName}さんの今日の様子を見守りましょう`}
+                        </p>
+                        {todayStatusMessageCreatedAt && (
+                          <div className="text-right">
+                            <span className="text-xs text-gray-400">作成: {formatDateTime(todayStatusMessageCreatedAt)}</span>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  )}
                 </Card>
 
                 <ParentTodayMissionCard

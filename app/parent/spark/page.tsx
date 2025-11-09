@@ -11,15 +11,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   Heart,
   Send,
-  MessageCircle,
   BookOpen,
   Clock,
   Calendar,
   ChevronDown,
   ChevronUp,
-  ThumbsUp,
   Sparkles,
-  Flame,
   Filter,
 } from "lucide-react"
 import ParentBottomNavigation from "@/components/parent-bottom-navigation"
@@ -128,44 +125,24 @@ const children = [
 ]
 
 const quickSupportIcons = [
-  { icon: ThumbsUp, label: "いいね！", color: "text-blue-500" },
-  { icon: Sparkles, label: "すごい！", color: "text-yellow-500" },
-  { icon: Flame, label: "がんばれ！", color: "text-orange-500" },
+  { type: "heart", label: "がんばったね", emoji: null, icon: Heart },
+  { type: "star", label: "すごい！", emoji: "⭐", icon: null },
+  { type: "thumbsup", label: "よくできました", emoji: "👍", icon: null },
 ]
 
-const generateAIMessages = (record: (typeof sparkRecords)[0]) => {
-  const goodSubjects = record.subjects.filter((s) => s.understanding === "バッチリ理解" || s.understanding === "できた")
-  const needsWork = record.subjects.filter(
-    (s) => s.understanding === "ちょっと不安" || s.understanding === "むずかしかった",
-  )
-
-  const messages = []
-
-  if (goodSubjects.length > 0) {
-    messages.push(`${goodSubjects.map((s) => s.name).join("と")}、よく理解できていて素晴らしいね！この調子で頑張ろう！`)
-  }
-
-  if (record.reflection) {
-    messages.push("今日も振り返りをしっかり書いてくれてありがとう。自分の学習を見つめ直すのは大切だね。")
-  }
-
-  if (needsWork.length > 0) {
-    messages.push(`${needsWork.map((s) => s.name).join("と")}は少し難しかったみたいだね。一緒に復習してみよう！`)
-  } else {
-    messages.push("毎日コツコツ勉強を続けているのが本当に偉いです。継続は力なり！")
-  }
-
-  return messages.slice(0, 3)
-}
 
 function ParentSparkPageInner() {
   const [selectedChild, setSelectedChild] = useState("child1")
-  const [customMessage, setCustomMessage] = useState("")
   const [isSending, setIsSending] = useState(false)
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
   const [filterSupport, setFilterSupport] = useState<string>("all")
   const [filterSubject, setFilterSubject] = useState<string>("all")
   const [sortBy, setSortBy] = useState<string>("date-desc")
+  const [showAIDialog, setShowAIDialog] = useState(false)
+  const [currentRecordId, setCurrentRecordId] = useState<string | null>(null)
+  const [aiMessages, setAiMessages] = useState<string[]>([])
+  const [selectedMessage, setSelectedMessage] = useState<string>("")
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false)
 
   const getAvatarSrc = (avatarId: string) => {
     const avatarMap: { [key: string]: string } = {
@@ -196,14 +173,49 @@ function ParentSparkPageInner() {
     }, 500)
   }
 
-  const handleSendMessage = async (message: string, recordId: string) => {
-    setIsSending(true)
+  const handleOpenAIDialog = async (recordId: string) => {
+    setCurrentRecordId(recordId)
+    setShowAIDialog(true)
+    setIsGeneratingAI(true)
+    setAiMessages([])
+    setSelectedMessage("")
+
     const record = sparkRecords.find((r) => r.id === recordId)
 
+    // モックのAIメッセージ生成
     setTimeout(() => {
-      console.log(`Sent message: ${message} to ${record?.childName}`)
+      const messages = []
+      const goodSubjects = record?.subjects.filter((s) => s.understanding === "バッチリ理解" || s.understanding === "できた") || []
+
+      if (goodSubjects.length > 0) {
+        messages.push(`${goodSubjects.map((s) => s.name).join("と")}、よく理解できていて素晴らしいね！この調子で頑張ろう！`)
+      }
+
+      if (record?.reflection) {
+        messages.push("今日も振り返りをしっかり書いてくれてありがとう。自分の学習を見つめ直すのは大切だね。")
+      }
+
+      messages.push("毎日コツコツ勉強を続けているのが本当に偉いです。継続は力なり！")
+
+      setAiMessages(messages.slice(0, 3))
+      setSelectedMessage(messages[0] || "")
+      setIsGeneratingAI(false)
+    }, 1500)
+  }
+
+  const handleSendMessage = async () => {
+    if (!currentRecordId || !selectedMessage.trim()) {
+      return
+    }
+
+    setIsSending(true)
+    const record = sparkRecords.find((r) => r.id === currentRecordId)
+
+    setTimeout(() => {
+      console.log(`Sent message: ${selectedMessage} to ${record?.childName}`)
       alert("応援メッセージを送信しました！")
-      setCustomMessage("")
+      setShowAIDialog(false)
+      setSelectedMessage("")
       setIsSending(false)
     }, 800)
   }
@@ -458,74 +470,56 @@ function ParentSparkPageInner() {
                             <Heart className="h-4 w-4 text-pink-600" />
                             クイック応援
                           </div>
-                          <div className="flex gap-2">
+                          <div className="space-y-2.5">
                             {quickSupportIcons.map((item, index) => {
                               const Icon = item.icon
+                              const isHeart = item.type === "heart"
+                              const isStar = item.type === "star"
+                              const isThumbsUp = item.type === "thumbsup"
+
                               return (
                                 <Button
                                   key={index}
                                   onClick={() => handleQuickSupport(item.label, record.id)}
                                   disabled={isSending}
-                                  variant="outline"
-                                  className="flex-1 h-auto py-3 hover:bg-pink-50 hover:border-pink-300 transition-all duration-200"
+                                  className={`group relative w-full py-3 px-4 rounded-xl text-sm overflow-hidden
+                                    ${isHeart ? "bg-gradient-to-br from-rose-50 via-pink-50 to-rose-100 hover:from-rose-100 hover:via-pink-100 hover:to-rose-200 text-rose-700 border border-rose-200/50" : ""}
+                                    ${isStar ? "bg-gradient-to-br from-amber-50 via-yellow-50 to-amber-100 hover:from-amber-100 hover:via-yellow-100 hover:to-amber-200 text-amber-700 border border-amber-200/50" : ""}
+                                    ${isThumbsUp ? "bg-gradient-to-br from-sky-50 via-blue-50 to-sky-100 hover:from-sky-100 hover:via-blue-100 hover:to-sky-200 text-sky-700 border border-sky-200/50" : ""}
+                                    shadow-sm hover:shadow-md
+                                    transform hover:scale-[1.02] active:scale-[0.98]
+                                    transition-all duration-300 ease-out
+                                    disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
+                                    flex items-center justify-center gap-2`}
                                 >
-                                  <div className="flex flex-col items-center gap-1">
-                                    <Icon className={`h-6 w-6 ${item.color}`} />
-                                    <span className="text-xs">{item.label}</span>
-                                  </div>
+                                  {Icon && <Icon className={`h-4 w-4 group-hover:scale-110 transition-transform duration-300 ${isHeart ? "fill-rose-500" : ""}`} />}
+                                  {item.emoji && <span className="text-lg group-hover:scale-110 transition-transform duration-300">{item.emoji}</span>}
+                                  <span>{item.label}</span>
                                 </Button>
                               )
                             })}
                           </div>
                         </div>
 
-                        <div className="space-y-3">
-                          <div className="text-sm font-medium flex items-center gap-2">
-                            <MessageCircle className="h-4 w-4 text-pink-600" />
-                            AI応援メッセージ
-                          </div>
-                          <div className="space-y-2">
-                            {generateAIMessages(record).map((message, index) => (
-                              <Button
-                                key={index}
-                                onClick={() => handleSendMessage(message, record.id)}
-                                disabled={isSending}
-                                variant="outline"
-                                className="w-full h-auto p-3 text-left justify-start hover:bg-pink-50 hover:border-pink-300 transition-all duration-200"
-                              >
-                                <div className="flex items-start gap-2">
-                                  <Send className="h-4 w-4 text-accent mt-1 flex-shrink-0" />
-                                  <span className="text-sm leading-relaxed">{message}</span>
-                                </div>
-                              </Button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {!record.hasSupport && (
-                          <div className="space-y-3">
-                            <div className="text-sm font-medium">カスタムメッセージ</div>
-                            <Textarea
-                              placeholder="お子さんへの応援メッセージを自由に書いてください..."
-                              value={customMessage}
-                              onChange={(e) => setCustomMessage(e.target.value)}
-                              className="min-h-[80px] text-base"
-                              maxLength={200}
-                            />
-                            <div className="flex justify-between items-center">
-                              <span className="text-xs text-muted-foreground">{customMessage.length}/200文字</span>
-                              <Button
-                                onClick={() => handleSendMessage(customMessage, record.id)}
-                                disabled={!customMessage.trim() || isSending}
-                                size="sm"
-                                className="bg-pink-500 hover:bg-pink-600 text-white"
-                              >
-                                <Send className="h-4 w-4 mr-2" />
-                                送信
-                              </Button>
-                            </div>
-                          </div>
-                        )}
+                        {/* AI応援ボタン - ホーム機能と同じデザイン */}
+                        <Button
+                          onClick={() => handleOpenAIDialog(record.id)}
+                          disabled={isSending}
+                          className="group relative w-full py-3.5 px-4 rounded-xl text-sm overflow-hidden
+                            bg-gradient-to-br from-violet-50 via-purple-50 to-violet-100
+                            hover:from-violet-100 hover:via-purple-100 hover:to-violet-200
+                            text-violet-700 border border-violet-200/50 shadow-sm hover:shadow-md
+                            transform hover:scale-[1.02] active:scale-[0.98]
+                            transition-all duration-300 ease-out
+                            disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
+                            flex items-center justify-center gap-2"
+                        >
+                          {/* シマー効果 */}
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent
+                            translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000 ease-in-out" />
+                          <Sparkles className="h-4 w-4 relative z-10 group-hover:rotate-12 group-hover:scale-110 transition-all duration-300 fill-violet-500" />
+                          <span className="relative z-10 tracking-wide">AI応援メッセージ</span>
+                        </Button>
                       </>
                     )}
 
@@ -542,6 +536,154 @@ function ParentSparkPageInner() {
         )}
       </div>
         </div>
+
+        {/* AI応援メッセージダイアログ - ホーム機能と同じプレミアムデザイン */}
+        {showAIDialog && (
+          <div className="fixed inset-0 bg-gradient-to-br from-black/60 via-purple-900/30 to-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50 animate-in fade-in duration-200" onClick={() => !isGeneratingAI && !isSending && setShowAIDialog(false)}>
+            <div className="bg-gradient-to-br from-white via-purple-50/30 to-white rounded-3xl p-6 sm:p-8 max-w-2xl w-full max-h-[90vh] sm:max-h-[80vh] overflow-y-auto shadow-2xl border-2 border-purple-100/50 animate-in slide-in-from-bottom-4 duration-300" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-fuchsia-600 rounded-xl blur-md opacity-50 animate-pulse"></div>
+                    <div className="relative bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-600 p-2.5 rounded-xl shadow-lg">
+                      <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                    </div>
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 bg-clip-text text-transparent">
+                    <span className="hidden xs:inline">AI応援メッセージ</span>
+                    <span className="xs:hidden">AI応援</span>
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setShowAIDialog(false)}
+                  disabled={isGeneratingAI || isSending}
+                  className="group relative w-10 h-10 rounded-full hover:bg-slate-100 transition-all duration-200 disabled:opacity-50 flex items-center justify-center"
+                >
+                  <span className="text-slate-400 group-hover:text-slate-600 text-2xl font-light transition-colors">✕</span>
+                </button>
+              </div>
+
+              {isGeneratingAI ? (
+                <div className="py-16 text-center">
+                  <div className="relative inline-block mb-6">
+                    <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-fuchsia-600 rounded-full blur-xl opacity-30 animate-pulse"></div>
+                    <div className="relative animate-spin inline-block w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full"></div>
+                  </div>
+                  <p className="text-lg font-semibold bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
+                    AI応援メッセージを生成中...
+                  </p>
+                  <p className="text-sm text-slate-500 mt-2">心を込めて考えています</p>
+                </div>
+              ) : (
+                <div className="space-y-4 sm:space-y-5">
+                  <div className="bg-gradient-to-r from-purple-50 via-violet-50 to-purple-50 rounded-2xl p-4 border border-purple-100">
+                    <p className="text-sm text-slate-700 leading-relaxed">
+                      <span className="font-semibold text-purple-700">✨ 3つの応援メッセージ</span>から選んでください。<br />
+                      <span className="text-xs text-slate-600">メッセージは自由に編集できます。</span>
+                    </p>
+                  </div>
+
+                  {/* 3つのメッセージ選択肢 - プレミアムデザイン */}
+                  <div className="space-y-3 sm:space-y-4">
+                    {aiMessages.map((message, index) => (
+                      <div key={index} className="relative group">
+                        <input
+                          type="radio"
+                          id={`message-${index}`}
+                          name="ai-message"
+                          checked={selectedMessage === message}
+                          onChange={() => setSelectedMessage(message)}
+                          className="sr-only"
+                        />
+                        <label
+                          htmlFor={`message-${index}`}
+                          className={`block p-4 sm:p-5 rounded-2xl border-2 cursor-pointer transition-all duration-300 ${
+                            selectedMessage === message
+                              ? "border-purple-400 bg-gradient-to-br from-purple-50 via-violet-50 to-fuchsia-50 shadow-lg scale-[1.02]"
+                              : "border-slate-200 bg-white hover:border-purple-200 hover:shadow-md"
+                          }`}
+                        >
+                          <div className="flex items-start gap-3 sm:gap-4">
+                            <div className={`flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
+                              selectedMessage === message
+                                ? "border-purple-500 bg-gradient-to-br from-violet-500 to-fuchsia-600 shadow-lg scale-110"
+                                : "border-slate-300 group-hover:border-purple-300"
+                            }`}>
+                              {selectedMessage === message && (
+                                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className={`text-xs font-bold px-2.5 py-1 rounded-full transition-all duration-300 ${
+                                  selectedMessage === message
+                                    ? "bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white shadow-md"
+                                    : "bg-purple-100 text-purple-700"
+                                }`}>
+                                  {index === 0 ? "💪 励まし型" : index === 1 ? "🤝 共感型" : "🌟 次への期待型"}
+                                </span>
+                              </div>
+                              <p className="text-sm sm:text-base text-slate-700 leading-relaxed break-words">{message}</p>
+                            </div>
+                          </div>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* メッセージ編集エリア - エレガントデザイン */}
+                  <div className="mt-6 sm:mt-8 bg-gradient-to-br from-slate-50 to-purple-50/30 rounded-2xl p-4 sm:p-5 border border-purple-100/50">
+                    <label className="block text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                      <Send className="h-4 w-4 text-purple-600" />
+                      メッセージを編集（任意）
+                    </label>
+                    <textarea
+                      value={selectedMessage}
+                      onChange={(e) => setSelectedMessage(e.target.value)}
+                      placeholder="選択したメッセージを編集できます..."
+                      className="w-full p-4 rounded-xl border-2 border-slate-200 focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all duration-200 text-sm sm:text-base resize-none"
+                      rows={4}
+                      maxLength={200}
+                    />
+                    <div className="flex justify-between items-center mt-3">
+                      <span className="text-xs text-slate-500">{selectedMessage.length}/200文字</span>
+                    </div>
+                  </div>
+
+                  {/* 送信ボタン - プレミアムデザイン */}
+                  <div className="flex gap-3 mt-6 sm:mt-8">
+                    <Button
+                      onClick={() => setShowAIDialog(false)}
+                      disabled={isSending}
+                      className="flex-1 py-3 px-6 rounded-xl border-2 border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-semibold transition-all duration-200 disabled:opacity-50"
+                    >
+                      キャンセル
+                    </Button>
+                    <Button
+                      onClick={handleSendMessage}
+                      disabled={!selectedMessage.trim() || isSending}
+                      className="flex-1 py-3 px-6 rounded-xl bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-600 hover:from-violet-600 hover:via-purple-600 hover:to-fuchsia-700 text-white font-bold shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+                    >
+                      {isSending ? (
+                        <>
+                          <div className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                          送信中...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4" />
+                          送信する
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <ParentBottomNavigation />
       </div>

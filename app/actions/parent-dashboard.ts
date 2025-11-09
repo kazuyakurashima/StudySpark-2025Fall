@@ -340,7 +340,7 @@ export async function getTodayStatusMessage(studentId: number) {
       message = `${displayName}のペースで、今日も学習を進めていきましょう。`
     }
 
-    return { message }
+    return { message, createdAt: new Date().toISOString() }
   } catch (error) {
     console.error("Get today status message error:", error)
     return { error: "予期しないエラーが発生しました" }
@@ -572,13 +572,13 @@ export async function getTodayStatusMessageAI(studentId: number) {
       .limit(1)
       .maybeSingle()
 
-    // Format context for AI (pass all recent logs, not just today)
+    // Format context for AI (pass only today's logs)
     const context: import("@/lib/openai/daily-status").DailyStatusContext = {
       studentName: displayName,
       grade: student.grade,
       course: student.course,
       todayLogs:
-        recentLogs?.map((log) => {
+        todayLogs?.map((log) => {
           const subject = Array.isArray(log.subjects) ? log.subjects[0] : log.subjects
           const content = Array.isArray(log.study_content_types)
             ? log.study_content_types[0]
@@ -622,7 +622,7 @@ export async function getTodayStatusMessageAI(studentId: number) {
       return getTodayStatusMessage(studentId)
     }
 
-    return { message: result.message }
+    return { message: result.message, createdAt: new Date().toISOString() }
   } catch (error) {
     console.error("Get today status message AI error:", error)
     // Fallback to template version
@@ -818,11 +818,12 @@ export async function getStudentTodayMissionData(studentId: number) {
       logs: data.logs,
     }))
 
-    console.log("🔍 [SERVER] Today mission - Student ID:", studentId)
-    console.log("🔍 [SERVER] Today mission - Date filter (today/yesterday):", todayDateStr, "/", yesterdayDateStr)
-    console.log("🔍 [SERVER] Today mission - Logs count:", todayLogs?.length)
-    console.log("🔍 [SERVER] Today mission - First log:", todayLogs?.[0])
-    console.log("🔍 [SERVER] Today mission - Progress:", JSON.stringify(todayProgress, null, 2))
+    console.log("🔍 [PARENT SERVER] Today mission - Student ID:", studentId)
+    console.log("🔍 [PARENT SERVER] Today mission - Date filter (today/yesterday):", todayDateStr, "/", yesterdayDateStr)
+    console.log("🔍 [PARENT SERVER] Today mission - Logs count:", todayLogs?.length)
+    console.log("🔍 [PARENT SERVER] Today mission - First log:", todayLogs?.[0])
+    console.log("🔍 [PARENT SERVER] Today mission - Progress:", JSON.stringify(todayProgress, null, 2))
+    console.log("🔍 [PARENT SERVER] Today mission - Subject map:", JSON.stringify(subjectMap, null, 2))
 
     return { todayProgress }
   } catch (error) {
@@ -910,29 +911,66 @@ export async function getStudentWeeklyProgress(studentId: number) {
     console.log("🔍 [SERVER] Weekly progress - Current session:", JSON.stringify(currentSession, null, 2))
     console.log("🔍 [SERVER] Weekly progress - Session error:", sessionError)
 
-    if (sessionError || !currentSession) {
-      console.error("No current session found:", sessionError)
-      return { progress: [], sessionNumber: null }
-    }
+    let logs
+    let logsError
+    let sessionNumber = null
+    let useFallback = false
 
-    // Get all logs for this student in this session
-    const { data: logs, error: logsError } = await supabase
-      .from("study_logs")
-      .select(
+    if (sessionError || !currentSession) {
+      console.warn("⚠️ [SERVER] No current session found, using fallback (last 7 days):", sessionError)
+      useFallback = true
+
+      // フォールバック: 直近7日間のログから集計
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+      const sevenDaysAgoStr = formatter.format(sevenDaysAgo)
+
+      const result = await supabase
+        .from("study_logs")
+        .select(
+          `
+          id,
+          correct_count,
+          total_problems,
+          subject_id,
+          study_content_type_id,
+          logged_at,
+          study_date,
+          subjects (name, color_code),
+          study_content_types (id, content_name)
         `
-        id,
-        correct_count,
-        total_problems,
-        subject_id,
-        study_content_type_id,
-        logged_at,
-        subjects (name, color_code),
-        study_content_types (id, content_name)
-      `
-      )
-      .eq("student_id", studentId)
-      .eq("session_id", currentSession.id)
-      .order("logged_at", { ascending: false })
+        )
+        .eq("student_id", studentId)
+        .gte("study_date", sevenDaysAgoStr)
+        .lte("study_date", todayStr)
+        .order("logged_at", { ascending: false })
+
+      logs = result.data
+      logsError = result.error
+      sessionNumber = null
+    } else {
+      // 通常: セッションベースで取得
+      const result = await supabase
+        .from("study_logs")
+        .select(
+          `
+          id,
+          correct_count,
+          total_problems,
+          subject_id,
+          study_content_type_id,
+          logged_at,
+          subjects (name, color_code),
+          study_content_types (id, content_name)
+        `
+        )
+        .eq("student_id", studentId)
+        .eq("session_id", currentSession.id)
+        .order("logged_at", { ascending: false })
+
+      logs = result.data
+      logsError = result.error
+      sessionNumber = currentSession.session_number
+    }
 
     console.log("🔍 [SERVER] Weekly progress - Logs count:", logs?.length)
     console.log("🔍 [SERVER] Weekly progress - Logs error:", logsError)
@@ -944,27 +982,32 @@ export async function getStudentWeeklyProgress(studentId: number) {
 
     if (!logs || logs.length === 0) {
       console.log("🔍 [SERVER] Weekly progress - No logs found, returning empty array")
-      return { progress: [], sessionNumber: currentSession.session_number }
+      return { progress: [], sessionNumber }
     }
 
-    // Get problem counts for this session (with content name for mapping)
-    const { data: problemCounts, error: problemCountsError } = await supabase
-      .from("problem_counts")
-      .select(`
-        study_content_type_id,
-        total_problems,
-        study_content_types!inner (
-          content_name,
-          subjects!inner (
-            id
+    // Get problem counts for this session (スキップ if フォールバック)
+    let problemCounts = null
+    if (!useFallback && currentSession) {
+      const result = await supabase
+        .from("problem_counts")
+        .select(`
+          study_content_type_id,
+          total_problems,
+          study_content_types!inner (
+            content_name,
+            subjects!inner (
+              id
+            )
           )
-        )
-      `)
-      .eq("session_id", currentSession.id)
+        `)
+        .eq("session_id", currentSession.id)
 
-    if (problemCountsError) {
-      console.error("Get problem counts error:", problemCountsError)
-      return { error: "問題数の取得に失敗しました" }
+      if (result.error) {
+        console.error("Get problem counts error:", result.error)
+        // フォールバック時と同様に problem_counts なしで続行
+      } else {
+        problemCounts = result.data
+      }
     }
 
     // Create a map of subject_id + content_name -> total_problems
@@ -1300,7 +1343,7 @@ export async function getStudentRecentMessages(studentId: number, limit: number 
     const senderIds = [...new Set(messages.map((msg: any) => msg.sender_id))]
     const { data: senderProfiles, error: senderError } = await supabase
       .from("profiles")
-      .select("id, display_name, avatar_id")
+      .select("id, display_name, avatar_id, nickname")
       .in("id", senderIds)
 
     if (senderError) {

@@ -13,7 +13,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import ParentBottomNavigation from "@/components/parent-bottom-navigation"
 import { Calendar, Flag, Target, PartyPopper, Eye, Users } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   getParentChildren,
 } from "@/app/actions/parent"
@@ -21,13 +20,12 @@ import {
   getAvailableTestsForStudent,
   getAllTestGoalsForStudent,
 } from "@/app/actions/goal"
-import { UserProfileProvider } from "@/lib/hooks/use-user-profile"
+import { UserProfileProvider, useUserProfile } from "@/lib/hooks/use-user-profile"
 
 interface Child {
   id: string
   full_name: string
   display_name: string
-  avatar_id: string | null
   grade: number
 }
 
@@ -64,22 +62,6 @@ const courses = [
   { id: "B", name: "Bコース", description: "有名校" },
   { id: "A", name: "Aコース", description: "標準校" },
 ]
-
-const getAvatarSrc = (avatarId?: string | null) => {
-  if (avatarId && avatarId.startsWith("http")) {
-    return avatarId
-  }
-
-  const avatarMap: { [key: string]: string } = {
-    student1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student1-xZFJU5uXJO4DEfUbq1jbTMQUXReyM0.png",
-    student2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student2-mZ9Q9oVm43IQoRyxSYytVFYgp3JS1V.png",
-    student3: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student3-teUpOKnopXNhE2vGFtvz9RWtC7O6kv.png",
-    student4: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student4-pKazGXekCT1H5kzHBqmfOrM1968hML.png",
-    student5: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student5-kehwNSIKsgkTL6EkAPO2evB3qJWnRM.png",
-    student6: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student6-dJrMk7uUxYSRMp5tMJ3t4KYDOEIuNl.png",
-  }
-  return avatarMap[avatarId || ""] || avatarMap["student1"]
-}
 
 function ParentGoalNaviPageInner() {
   const { setSelectedChildId: setProviderChildId } = useUserProfile()
@@ -234,35 +216,6 @@ function ParentGoalNaviPageInner() {
         />
 
       <div className="max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-        {/* 子ども切り替えタブ */}
-        {children.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto pb-2 mb-6">
-            {children.map((child) => {
-              const childName = child.display_name
-              const childAvatar = child.avatar_id || "student1"
-              const isActive = selectedChildId === child.id
-
-              return (
-                <button
-                  key={child.id}
-                  onClick={() => setSelectedChildId(child.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 whitespace-nowrap ${
-                    isActive
-                      ? "bg-primary text-primary-foreground shadow-lg scale-105"
-                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                  }`}
-                >
-                  <Avatar className="h-8 w-8 border-2 border-white">
-                    <AvatarImage src={getAvatarSrc(childAvatar)} alt={childName} />
-                    <AvatarFallback>{childName.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <span>{childName}</span>
-                </button>
-              )
-            })}
-          </div>
-        )}
-
         {/* タブコンテンツ */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "input" | "result" | "test")}>
           <TabsList className="grid w-full grid-cols-3">

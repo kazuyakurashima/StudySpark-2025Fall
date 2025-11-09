@@ -709,17 +709,32 @@ export async function getRecentEncouragementMessages() {
       success: true as const,
       messages: messages.map((msg) => ({
         ...msg,
-        sender_profile: { display_name: "不明", avatar_id: null },
+        sender_profile: { display_name: "応援者", avatar_id: null, nickname: "応援者" },
       })),
     }
   }
 
-  // 送信者情報をマージ
+  // デバッグログ（開発環境のみ）
+  if (process.env.NODE_ENV === "development") {
+    console.log("🔍 [getRecentEncouragementMessages] Sender profiles count:", senderProfiles?.length || 0)
+  }
+
+  // 送信者情報をマージ（段階的フォールバック: nickname → display_name → "応援者"）
   const messagesWithSender = messages.map((msg) => {
     const senderProfile = senderProfiles?.find((profile: any) => profile.id === msg.sender_id)
+
+    // 段階的フォールバック: nickname が存在すればそれを使用、なければ display_name、それもなければ "応援者"
+    const profileWithFallback = senderProfile
+      ? {
+          ...senderProfile,
+          nickname: senderProfile.nickname ?? senderProfile.display_name ?? "応援者",
+          display_name: senderProfile.display_name ?? senderProfile.nickname ?? "応援者",
+        }
+      : { display_name: "応援者", avatar_id: null, nickname: "応援者" }
+
     return {
       ...msg,
-      sender_profile: senderProfile || { display_name: "不明", avatar_id: null },
+      sender_profile: profileWithFallback,
     }
   })
 
@@ -842,17 +857,27 @@ export async function getAllEncouragementMessages(filters?: {
       success: true as const,
       messages: filteredMessages.map((msg) => ({
         ...msg,
-        sender_profile: { display_name: "不明", avatar_id: null },
+        sender_profile: { display_name: "応援者", avatar_id: null, nickname: "応援者" },
       })),
     }
   }
 
-  // 送信者情報をマージ
+  // 送信者情報をマージ（段階的フォールバック: nickname → display_name → "応援者"）
   const messagesWithSender = filteredMessages.map((msg) => {
     const senderProfile = senderProfiles?.find((profile: any) => profile.id === msg.sender_id)
+
+    // 段階的フォールバック: nickname が存在すればそれを使用、なければ display_name、それもなければ "応援者"
+    const profileWithFallback = senderProfile
+      ? {
+          ...senderProfile,
+          nickname: senderProfile.nickname ?? senderProfile.display_name ?? "応援者",
+          display_name: senderProfile.display_name ?? senderProfile.nickname ?? "応援者",
+        }
+      : { display_name: "応援者", avatar_id: null, nickname: "応援者" }
+
     return {
       ...msg,
-      sender_profile: senderProfile || { display_name: "不明", avatar_id: null },
+      sender_profile: profileWithFallback,
     }
   })
 
