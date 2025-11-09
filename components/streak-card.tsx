@@ -12,10 +12,12 @@ interface StreakCardProps {
   todayStudied: boolean
   streakState: "active" | "grace" | "warning" | "reset"
   themeColor?: string
+  viewMode?: "student" | "parent"
+  studentName?: string
 }
 
 /**
- * 時間帯別メッセージを生成
+ * 時間帯別メッセージを生成（生徒用）
  */
 function getTimeBasedMessage(hour: number, streakState: string, todayStudied: boolean): string {
   // 6:00-21:59 通常時間帯
@@ -55,6 +57,78 @@ function getTimeBasedMessage(hour: number, streakState: string, todayStudied: bo
 }
 
 /**
+ * 時間帯別メッセージを生成（保護者用）
+ */
+function getParentTimeBasedMessage(hour: number, streakState: string, todayStudied: boolean, studentName: string): string {
+  const name = studentName || "お子さん"
+
+  // 6:00-21:59 通常時間帯
+  if (hour >= 6 && hour < 22) {
+    if (streakState === "active" && todayStudied) {
+      return "今日の記録: 完了 ✨"
+    } else if (streakState === "grace") {
+      return "今日はまだ記録がありません（継続可能）"
+    } else if (streakState === "reset") {
+      return "新しいスタートです。温かく見守りましょう"
+    }
+  }
+
+  // 22:00-23:59 夜遅め（健康配慮）
+  if (hour >= 22 && hour < 24) {
+    if (streakState === "active" && todayStudied) {
+      return "今日も頑張りました。ゆっくり休ませてあげてください"
+    } else if (streakState === "grace") {
+      return "今日はまだ記録がありません。無理のない範囲でサポートを"
+    } else if (streakState === "reset") {
+      return "また明日から一緒に頑張りましょう"
+    }
+  }
+
+  // 0:00-5:59 深夜〜早朝（健康配慮強め）
+  if (hour >= 0 && hour < 6) {
+    if (streakState === "active" && todayStudied) {
+      return "深夜まで頑張っています。休息を促してあげてください"
+    } else if (streakState === "grace") {
+      return "深夜です。記録より休息を優先させてあげてください"
+    } else if (streakState === "reset") {
+      return "まずは休息を。明日から温かくサポートしましょう"
+    }
+  }
+
+  return `${name}の学習を見守りましょう`
+}
+
+/**
+ * 保護者向けヒントメッセージを生成
+ */
+function getParentHintMessage(streak: number, streakState: string): string | null {
+  // リセット状態ではヒントを表示しない
+  if (streakState === "reset") {
+    return null
+  }
+
+  // 連続日数に応じたヒント
+  if (streak === 3 && streakState === "active") {
+    return "3日継続！さりげなく褒めてあげましょう"
+  } else if (streak === 7 && streakState === "active") {
+    return "1週間達成！頑張りを認めてあげましょう"
+  } else if (streak === 14 && streakState === "active") {
+    return "2週間継続中！すごい成長ですね"
+  } else if (streak === 30 && streakState === "active") {
+    return "1ヶ月達成！習慣化できています"
+  } else if (streak >= 7 && streak % 7 === 0 && streakState === "active") {
+    return `${streak / 7}週間継続中！素晴らしい習慣ですね`
+  }
+
+  // グレース期間のヒント
+  if (streakState === "grace") {
+    return "プレッシャーを与えず、さりげなく確認してみましょう"
+  }
+
+  return null
+}
+
+/**
  * 連続学習日数カード（グレースピリオド & セルフコンパッション対応）
  */
 export function StreakCard({
@@ -63,14 +137,21 @@ export function StreakCard({
   lastStudyDate,
   todayStudied,
   streakState,
-  themeColor = "default"
+  themeColor = "default",
+  viewMode = "student",
+  studentName
 }: StreakCardProps) {
   // 現在の時刻を取得（JST）
   const now = new Date()
   const jstHour = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Tokyo" })).getHours()
 
-  // 時間帯別メッセージ
-  const timeMessage = getTimeBasedMessage(jstHour, streakState, todayStudied)
+  // 時間帯別メッセージ（モード別）
+  const timeMessage = viewMode === "parent"
+    ? getParentTimeBasedMessage(jstHour, streakState, todayStudied, studentName || "お子さん")
+    : getTimeBasedMessage(jstHour, streakState, todayStudied)
+
+  // 保護者向けヒント
+  const parentHint = viewMode === "parent" ? getParentHintMessage(streak, streakState) : null
 
   // 状態別のスタイル設定
   const getStateStyles = () => {
@@ -158,7 +239,9 @@ export function StreakCard({
             >
               <Flame className={`h-6 w-6 ${styles.animation}`} style={{ color: styles.iconColor }} />
             </div>
-            <span className="text-slate-800">連続学習</span>
+            <span className="text-slate-800">
+              {viewMode === "parent" && studentName ? `${studentName}さんの連続学習` : "連続学習"}
+            </span>
           </CardTitle>
           {maxStreak > 0 && (
             <Badge
@@ -240,7 +323,7 @@ export function StreakCard({
           </div>
 
           {/* グレースピリオド追加説明 */}
-          {streakState === "grace" && (
+          {streakState === "grace" && viewMode === "student" && (
             <div className="mt-3 text-sm text-slate-600 leading-relaxed bg-yellow-50/50 p-3 rounded-lg border border-yellow-200/50">
               <span className="font-medium">記録すると </span>
               <span className="font-bold" style={{ color: styles.streakColor }}>
@@ -251,7 +334,7 @@ export function StreakCard({
           )}
 
           {/* リセット時のセルフコンパッション */}
-          {streakState === "reset" && maxStreak > 0 && (
+          {streakState === "reset" && maxStreak > 0 && viewMode === "student" && (
             <div className="mt-3 text-sm text-slate-600 leading-relaxed bg-purple-50/50 p-3 rounded-lg border border-purple-200/50">
               <div className="flex items-center gap-2 mb-1">
                 <Trophy className="h-4 w-4 text-purple-600" />
@@ -264,7 +347,59 @@ export function StreakCard({
               </p>
             </div>
           )}
+
+          {/* 保護者向けヒント */}
+          {viewMode === "parent" && parentHint && (
+            <div className="mt-3 text-sm leading-relaxed bg-blue-50/50 p-3 rounded-lg border border-blue-200/50">
+              <div className="flex items-start gap-2">
+                <span className="text-blue-600 text-lg mt-0.5">💬</span>
+                <div className="flex-1">
+                  <span className="font-semibold text-blue-800 block mb-1">保護者へのヒント</span>
+                  <span className="text-slate-700">{parentHint}</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* 保護者向け：リセット後の説明 */}
+        {viewMode === "parent" && streakState === "reset" && maxStreak > 0 && (
+          <div className="p-4 rounded-xl border-2 bg-purple-50/50" style={{ borderColor: "rgba(196, 181, 253, 0.4)" }}>
+            <div className="flex items-center gap-2 mb-2">
+              <Trophy className="h-4 w-4 text-purple-600" />
+              <span className="font-semibold text-purple-800">これまでの最高記録</span>
+            </div>
+            <div className="mb-2">
+              <span className="font-bold text-2xl text-purple-700">{maxStreak}</span>
+              <span className="text-purple-600 ml-1">日連続</span>
+            </div>
+            <div className="text-sm leading-relaxed bg-white/60 p-3 rounded-lg border border-purple-200/50">
+              <div className="flex items-start gap-2">
+                <span className="text-purple-600 text-lg mt-0.5">💬</span>
+                <div className="flex-1">
+                  <span className="font-semibold text-purple-800 block mb-1">保護者へのヒント</span>
+                  <span className="text-slate-700">記録が途切れたことを責めず、これまでの頑張りを認める言葉をかけましょう。「また一緒に頑張ろう」と前向きな声かけを。</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 保護者向け：グレース期間の説明 */}
+        {viewMode === "parent" && streakState === "grace" && (
+          <div className="p-4 rounded-xl border-2 bg-yellow-50/50" style={{ borderColor: "rgba(252, 211, 77, 0.4)", borderStyle: "dashed" }}>
+            <div className="text-sm leading-relaxed">
+              <div className="font-semibold text-amber-800 mb-2">今日記録すると継続できます</div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="font-medium text-slate-700">記録すると</span>
+                <span className="font-bold text-xl" style={{ color: styles.streakColor }}>
+                  {streak + 1}日連続
+                </span>
+                <span className="font-medium text-slate-700">に！</span>
+              </div>
+            </div>
+          </div>
+        )}
       </CardContent>
 
       <style jsx>{`

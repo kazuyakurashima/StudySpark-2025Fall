@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -51,6 +51,7 @@ function ReflectPageInner() {
   const [pastSessions, setPastSessions] = useState<any[]>([])
   const [showHistory, setShowHistory] = useState(false)
   const [isCompletedThisWeek, setIsCompletedThisWeek] = useState(false)
+  const reflectChatRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     loadStudentInfo()
@@ -153,6 +154,24 @@ function ReflectPageInner() {
       alert(result.error || "セッション開始に失敗しました")
     }
   }
+
+  // リフレクトチャット表示時にチャットカードの位置へスクロール
+  useEffect(() => {
+    if (isStarted && sessionId && reflectChatRef.current) {
+      // DOMレンダリング完了を待ってからスクロール
+      setTimeout(() => {
+        // UserProfileHeaderの高さ（約60px）+ PageHeaderの高さ（約100px）+ 余白を考慮
+        const headerOffset = 180
+        const elementPosition = reflectChatRef.current!.getBoundingClientRect().top
+        const offsetPosition = elementPosition + window.pageYOffset - headerOffset
+
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: "smooth"
+        })
+      }, 100)
+    }
+  }, [isStarted, sessionId])
 
   const handleComplete = (generatedSummary: string) => {
     setSummary(generatedSummary)
@@ -270,16 +289,18 @@ function ReflectPageInner() {
         )}
 
         {isAvailable && isStarted && sessionId && weekTypeInfo && weekData && (
-          <ReflectChat
-            studentName={studentName}
-            sessionId={sessionId}
-            weekType={weekType!}
-            thisWeekAccuracy={weekData.thisWeekAccuracy}
-            lastWeekAccuracy={weekData.lastWeekAccuracy}
-            accuracyDiff={weekData.accuracyDiff}
-            upcomingTest={weekData.upcomingTest}
-            onComplete={handleComplete}
-          />
+          <div ref={reflectChatRef}>
+            <ReflectChat
+              studentName={studentName}
+              sessionId={sessionId}
+              weekType={weekType!}
+              thisWeekAccuracy={weekData.thisWeekAccuracy}
+              lastWeekAccuracy={weekData.lastWeekAccuracy}
+              accuracyDiff={weekData.accuracyDiff}
+              upcomingTest={weekData.upcomingTest}
+              onComplete={handleComplete}
+            />
+          </div>
         )}
 
         {isAvailable && isCompletedThisWeek && summary && (

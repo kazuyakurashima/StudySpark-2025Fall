@@ -42,10 +42,16 @@ export function ReflectChat({
   const [userInput, setUserInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [turnNumber, setTurnNumber] = useState(1)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    // チャットコンテナ内部のみをスクロール（ページ全体はスクロールしない）
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior: "smooth"
+      })
+    }
   }
 
   useEffect(() => {
@@ -206,7 +212,7 @@ export function ReflectChat({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="bg-muted/30 rounded-lg p-4 max-h-96 overflow-y-auto space-y-3">
+        <div ref={messagesContainerRef} className="bg-muted/30 rounded-lg p-4 max-h-96 overflow-y-auto space-y-3">
           {messages.map((message) => (
             <div
               key={message.id}
@@ -248,7 +254,6 @@ export function ReflectChat({
               </div>
             </div>
           )}
-          <div ref={messagesEndRef} />
         </div>
 
         {turnNumber <= MAX_TURNS && !isLoading && (

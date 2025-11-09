@@ -15,6 +15,7 @@ import { WeeklySubjectProgressCard } from "@/components/weekly-subject-progress-
 import { UserProfileProvider, useUserProfile } from "@/lib/hooks/use-user-profile"
 import { hexWithAlpha, isThemeActive } from "@/lib/utils/theme-color"
 import { isError } from "@/lib/types/profile"
+import { StreakCard } from "@/components/streak-card"
 
 const getGreetingMessage = (userName: string, lastLoginInfo: { lastLoginDays: number | null, lastLoginHours: number, isFirstTime: boolean } | null) => {
   if (!lastLoginInfo || lastLoginInfo.isFirstTime || lastLoginInfo.lastLoginDays === 0) {
@@ -323,13 +324,17 @@ const ParentTodayMissionCard = ({
   studentName,
   selectedChildId,
   isReflectCompleted,
-  onMessagesUpdate
+  onMessagesUpdate,
+  encouragementStatus,
+  setEncouragementStatus
 }: {
   todayProgress: Array<{subject: string, accuracy: number, correctCount: number, totalProblems: number, logs: any[]}>,
   studentName: string,
   selectedChildId: number | null,
   isReflectCompleted: boolean,
-  onMessagesUpdate: (messages: any[]) => void
+  onMessagesUpdate: (messages: any[]) => void,
+  encouragementStatus: { [childId: number]: boolean },
+  setEncouragementStatus: (status: { [childId: number]: boolean }) => void
 }) => {
   const [expandedLogs, setExpandedLogs] = useState<Set<number>>(new Set())
   const [encouragementSent, setEncouragementSent] = useState<{ [key: string]: boolean }>({})
@@ -470,18 +475,22 @@ const ParentTodayMissionCard = ({
       let needsAction = false
       let isCompleted = false
 
-      // 新要件: 正答率80%以上は未入力でも完了扱い
-      if (data.accuracy >= 80) {
-        status = `進捗率${data.accuracy}%`
-        isCompleted = true
-        needsAction = false
-      } else if (data.inputCount > 0) {
-        // 入力済みだが80%未満
-        status = `進捗率${data.accuracy}%`
-        isCompleted = true
-        needsAction = false
+      // 完了判定: 入力あり＋正答率80%以上
+      if (data.inputCount > 0) {
+        // 入力あり
+        if (data.accuracy >= 80) {
+          // 入力あり＋正答率80%以上 → 完了
+          status = `進捗率${data.accuracy}%`
+          isCompleted = true
+          needsAction = false
+        } else {
+          // 入力あり＋正答率80%未満 → 入力済みだが要改善
+          status = `進捗率${data.accuracy}%`
+          isCompleted = false
+          needsAction = true
+        }
       } else {
-        // 未入力かつ80%未満
+        // 入力なし → 未入力
         status = "未入力"
         needsAction = true
         isCompleted = false
@@ -504,20 +513,26 @@ const ParentTodayMissionCard = ({
     // 全て完了した場合の判定
     const allCompleted = completedCount === panels.length
 
+    // 保護者向け：入力数を取得
+    const inputCount = panels.filter((p) => p.inputCount > 0).length
+
+    // 保護者向けミッション状況メッセージ（温かく、プレッシャーを与えない）
     let statusMessage = ""
-    if (allCompleted) {
-      statusMessage = mode === "input" ? `${studentName}さん、全て入力完了です！素晴らしいです！` : `${studentName}さん、全て復習完了です！今日もよく頑張りました！`
-    } else if (actionNeededCount === 1) {
-      const remainingSubject = panels.find((p) => p.needsAction)?.subject
-      statusMessage =
-        mode === "input"
-          ? `あと${remainingSubject}だけ！`
-          : `あと${remainingSubject}の復習だけ！`
+    if (completedCount === panels.length) {
+      // 全科目完了（3/3）
+      statusMessage = "✨ 今日のミッション達成！素晴らしい頑張りです"
+    } else if (completedCount === panels.length - 1) {
+      // 2科目完了（2/3）
+      statusMessage = "💪 2科目達成！順調に進んでいます"
+    } else if (completedCount === 1) {
+      // 1科目完了（1/3）
+      statusMessage = "📚 1科目達成！マイペースに頑張っています"
+    } else if (inputCount > 0) {
+      // 入力はあるが正答率が低い場合
+      statusMessage = "挑戦中！難しい問題にも取り組んでいます"
     } else {
-      statusMessage =
-        mode === "input"
-          ? `あと${actionNeededCount}科目で達成！`
-          : `あと${actionNeededCount}科目復習で達成！`
+      // 未完了（0/3）
+      statusMessage = "今日はこれから。温かく見守りましょう"
     }
 
     return {
@@ -525,7 +540,11 @@ const ParentTodayMissionCard = ({
       subjects,
       panels,
       statusMessage,
-      completionStatus: `${completedCount}/${panels.length}入力完了`,
+      completionStatus: {
+        inputCount,
+        completedCount,
+        totalCount: panels.length,
+      },
       allCompleted,
     }
   }
@@ -562,7 +581,7 @@ const ParentTodayMissionCard = ({
   }
 
   const getModeTitle = () => {
-    return "今日のミッション！"
+    return "今日のミッション"
   }
 
   const handleQuickEncouragement = async (subject: string, logIndex: number, studyLogId: string | undefined, type: "heart" | "star" | "thumbsup") => {
@@ -691,14 +710,19 @@ const ParentTodayMissionCard = ({
     <Card className="bg-gradient-to-br from-primary/8 to-accent/8 border-primary/30 shadow-xl">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-xl font-bold flex items-center gap-3">
-            <Home className="h-7 w-7 text-primary" />
-            <span className="text-slate-800">{getModeTitle()}</span>
+          <CardTitle className="text-xl font-bold text-slate-800">
+            {getModeTitle()}
           </CardTitle>
           {missionData.completionStatus && (
-            <Badge className="bg-primary text-primary-foreground border-primary text-base px-4 py-2 shadow-md">
-              {missionData.completionStatus}
-            </Badge>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="font-semibold text-slate-700">
+                📝 <span className="text-blue-600">{missionData.completionStatus.inputCount}/{missionData.completionStatus.totalCount}</span> 記録
+              </span>
+              <span className="text-slate-300">•</span>
+              <span className="font-semibold text-slate-700">
+                ✨ <span className="text-emerald-600">{missionData.completionStatus.completedCount}/{missionData.completionStatus.totalCount}</span> 達成
+              </span>
+            </div>
           )}
         </div>
       </CardHeader>
@@ -904,6 +928,18 @@ const ParentTodayMissionCard = ({
                       >
                         未完了
                       </Button>
+                    ) : (encouragementSent[`${panel.subject}-0`] || panel.logs?.[0]?.hasParentEncouragement) ? (
+                      /* 応援済みの場合はバッジのみ表示 */
+                      <div className="py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-50 via-green-50 to-teal-50 border border-emerald-200/50 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 shadow-md">
+                            <span className="text-white text-sm font-bold">✓</span>
+                          </div>
+                          <span className="text-sm font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                            応援メッセージ送信済み
+                          </span>
+                        </div>
+                      </div>
                     ) : (
                       <div className="space-y-2">
                         {/* クイック応援ボタン（3種類） - Soft Gradation Style */}
@@ -916,9 +952,7 @@ const ParentTodayMissionCard = ({
                               text-rose-700 border border-rose-200/50 shadow-sm hover:shadow-md
                               transform hover:scale-[1.02] active:scale-[0.98]
                               transition-all duration-300 ease-out
-                              disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
                               flex items-center justify-center gap-2"
-                            disabled={encouragementSent[`${panel.subject}-0`] || panel.logs?.[0]?.hasParentEncouragement || !panel.logs?.[0]?.id}
                           >
                             <Heart className="h-4 w-4 group-hover:scale-110 transition-transform duration-300 fill-rose-500" />
                             <span>がんばったね</span>
@@ -931,9 +965,7 @@ const ParentTodayMissionCard = ({
                               text-amber-700 border border-amber-200/50 shadow-sm hover:shadow-md
                               transform hover:scale-[1.02] active:scale-[0.98]
                               transition-all duration-300 ease-out
-                              disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
                               flex items-center justify-center gap-2"
-                            disabled={encouragementSent[`${panel.subject}-0`] || panel.logs?.[0]?.hasParentEncouragement || !panel.logs?.[0]?.id}
                           >
                             <span className="text-lg group-hover:scale-110 transition-transform duration-300">⭐</span>
                             <span>すごい！</span>
@@ -946,9 +978,7 @@ const ParentTodayMissionCard = ({
                               text-sky-700 border border-sky-200/50 shadow-sm hover:shadow-md
                               transform hover:scale-[1.02] active:scale-[0.98]
                               transition-all duration-300 ease-out
-                              disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
                               flex items-center justify-center gap-2"
-                            disabled={encouragementSent[`${panel.subject}-0`] || panel.logs?.[0]?.hasParentEncouragement || !panel.logs?.[0]?.id}
                           >
                             <span className="text-lg group-hover:scale-110 transition-transform duration-300">👍</span>
                             <span>よくできました</span>
@@ -963,9 +993,7 @@ const ParentTodayMissionCard = ({
                             text-violet-700 border border-violet-200/50 shadow-sm hover:shadow-md
                             transform hover:scale-[1.02] active:scale-[0.98]
                             transition-all duration-300 ease-out
-                            disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
                             flex items-center justify-center gap-2"
-                          disabled={!panel.logs?.[0]?.id || encouragementSent[`${panel.subject}-0`] || panel.logs?.[0]?.hasParentEncouragement}
                         >
                           {/* シマー効果 */}
                           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent
@@ -973,20 +1001,6 @@ const ParentTodayMissionCard = ({
                           <Sparkles className="h-4 w-4 relative z-10 group-hover:rotate-12 group-hover:scale-110 transition-all duration-300 fill-violet-500" />
                           <span className="relative z-10 tracking-wide">AI応援メッセージ</span>
                         </Button>
-                        {/* 応援済み表示 - エレガントなデザイン */}
-                        {(encouragementSent[`${panel.subject}-0`] || panel.logs?.[0]?.hasParentEncouragement) && (
-                          <div className="flex items-center justify-center gap-2 py-2 px-4 rounded-xl
-                            bg-gradient-to-r from-emerald-50 via-green-50 to-teal-50
-                            border border-emerald-200/50 shadow-sm">
-                            <div className="flex items-center justify-center w-5 h-5 rounded-full
-                              bg-gradient-to-br from-emerald-400 to-teal-500 shadow-md">
-                              <span className="text-white text-xs font-bold">✓</span>
-                            </div>
-                            <span className="text-sm font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                              応援済み
-                            </span>
-                          </div>
-                        )}
                         <Button
                           onClick={() => toggleExpandLog(index)}
                           variant="outline"
@@ -1680,13 +1694,10 @@ function ParentDashboardInner({
   initialSelectedChild,
   initialData,
 }: ParentDashboardInnerProps) {
-  const { profile } = useUserProfile()
+  const { profile, selectedChild, setSelectedChildId } = useUserProfile()
   const [userName, setUserName] = useState(parentProfile.displayName)
   const [selectedAvatar, setSelectedAvatar] = useState(parentProfile.avatarId)
   const [children, setChildren] = useState<any[]>(initialChildren)
-  const [selectedChildId, setSelectedChildId] = useState<number | null>(initialSelectedChild?.id || null)
-  const [selectedChildName, setSelectedChildName] = useState(initialSelectedChild?.nickname || "")
-  const [selectedChildAvatar, setSelectedChildAvatar] = useState(initialSelectedChild?.avatar_id || "")
   const [todayStatusMessage, setTodayStatusMessage] = useState(
     initialData && !isError(initialData.todayStatus) ? initialData.todayStatus.message : ""
   )
@@ -1697,6 +1708,18 @@ function ParentDashboardInner({
   const [isHydrated, setIsHydrated] = useState(false)
   const [studyStreak, setStudyStreak] = useState(
     initialData && !isError(initialData.streak) ? initialData.streak.streak : 0
+  )
+  const [maxStreak, setMaxStreak] = useState(
+    initialData && !isError(initialData.streak) ? initialData.streak.maxStreak : 0
+  )
+  const [lastStudyDate, setLastStudyDate] = useState<string | null>(
+    initialData && !isError(initialData.streak) ? initialData.streak.lastStudyDate : null
+  )
+  const [todayStudied, setTodayStudied] = useState(
+    initialData && !isError(initialData.streak) ? initialData.streak.todayStudied : false
+  )
+  const [streakState, setStreakState] = useState<"active" | "grace" | "warning" | "reset">(
+    initialData && !isError(initialData.streak) ? initialData.streak.state : "reset"
   )
   const [recentLogs, setRecentLogs] = useState<any[]>(
     initialData && !isError(initialData.recentLogs) ? initialData.recentLogs.logs : []
@@ -1781,6 +1804,7 @@ function ParentDashboardInner({
 
   // Fetch child-specific data when selected child changes
   useEffect(() => {
+    const selectedChildId = selectedChild?.id
     console.log("🔍 [CLIENT] useEffect triggered - selectedChildId:", selectedChildId)
 
     if (!selectedChildId) {
@@ -1896,7 +1920,12 @@ function ParentDashboardInner({
         }
 
         if (!isError(streakResult)) {
-          setStudyStreak((streakResult as { streak: number }).streak)
+          const streak = streakResult as { streak: number; maxStreak: number; lastStudyDate: string | null; todayStudied: boolean; state: "active" | "grace" | "warning" | "reset" }
+          setStudyStreak(streak.streak)
+          setMaxStreak(streak.maxStreak)
+          setLastStudyDate(streak.lastStudyDate)
+          setTodayStudied(streak.todayStudied)
+          setStreakState(streak.state)
         } else {
           console.error("❌ [CLIENT] Streak error:", (streakResult as { error: string }).error)
         }
@@ -1959,7 +1988,7 @@ function ParentDashboardInner({
     }
 
     fetchChildData()
-  }, [selectedChildId])
+  }, [selectedChild?.id, selectedChild])
 
   // 全ての子供の今日の応援状況をチェック
   useEffect(() => {
@@ -1988,10 +2017,8 @@ function ParentDashboardInner({
 
   const greetingMessage = getGreetingMessage(userName, lastLoginInfo)
 
-  const handleChildSelect = (childId: number, childName: string, childAvatar: string) => {
+  const handleChildSelect = (childId: number) => {
     setSelectedChildId(childId)
-    setSelectedChildName(childName)
-    setSelectedChildAvatar(childAvatar)
     setIsLoading(true)
   }
 
@@ -2015,17 +2042,6 @@ function ParentDashboardInner({
           title="ホーム"
           subtitle={greetingMessage}
           variant="parent"
-          actions={
-            <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm px-3 py-2 rounded-lg border border-border/30 shadow-sm">
-              <div className="flex items-center gap-2 text-primary">
-                <div className="p-1.5 bg-primary/10 rounded-full">
-                  <Flame className="h-5 w-5" />
-                </div>
-                <span className="font-bold text-2xl">{studyStreak}</span>
-              </div>
-              <span className="text-xs text-muted-foreground font-semibold">連続学習日数</span>
-            </div>
-          }
         />
 
         <div className="max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
@@ -2125,7 +2141,7 @@ function ParentDashboardInner({
                       }
                     >
                       <p className="text-lg leading-relaxed text-slate-700 font-medium mb-6">
-                        {todayStatusMessage || `${selectedChildName}さんの今日の様子を見守りましょう`}
+                        {todayStatusMessage || `${selectedChild?.nickname || "お子さん"}さんの今日の様子を見守りましょう`}
                       </p>
                       {todayStatusMessageCreatedAt && (
                         <div className="text-right">
@@ -2139,10 +2155,22 @@ function ParentDashboardInner({
 
               <ParentTodayMissionCard
                 todayProgress={todayProgress}
-                studentName={selectedChildName}
-                selectedChildId={selectedChildId}
+                studentName={selectedChild?.nickname || "お子さん"}
+                selectedChildId={selectedChild?.id || null}
                 isReflectCompleted={isReflectCompleted}
                 onMessagesUpdate={setRecentMessages}
+                encouragementStatus={encouragementStatus}
+                setEncouragementStatus={setEncouragementStatus}
+              />
+              <StreakCard
+                streak={studyStreak}
+                maxStreak={maxStreak}
+                lastStudyDate={lastStudyDate}
+                todayStudied={todayStudied}
+                streakState={streakState}
+                themeColor={themeColor}
+                viewMode="parent"
+                studentName={selectedChild?.nickname || "お子さん"}
               />
               <LearningHistoryCalendar calendarData={calendarData} />
               <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} sessionNumber={sessionNumber} />
@@ -2238,7 +2266,7 @@ function ParentDashboardInner({
                         }
                       >
                         <p className="text-lg leading-relaxed text-slate-700 font-medium">
-                          {todayStatusMessage || `${selectedChildName}さんの今日の様子を見守りましょう`}
+                          {todayStatusMessage || `${selectedChild?.nickname || "お子さん"}さんの今日の様子を見守りましょう`}
                         </p>
                         {todayStatusMessageCreatedAt && (
                           <div className="text-right">
@@ -2252,10 +2280,12 @@ function ParentDashboardInner({
 
                 <ParentTodayMissionCard
                 todayProgress={todayProgress}
-                studentName={selectedChildName}
-                selectedChildId={selectedChildId}
+                studentName={selectedChild?.nickname || "お子さん"}
+                selectedChildId={selectedChild?.id || null}
                 isReflectCompleted={isReflectCompleted}
                 onMessagesUpdate={setRecentMessages}
+                encouragementStatus={encouragementStatus}
+                setEncouragementStatus={setEncouragementStatus}
               />
                 <RecentEncouragementCard messages={recentMessages} />
                 <RecentLearningHistoryCard logs={recentLogs} />
@@ -2263,6 +2293,16 @@ function ParentDashboardInner({
 
               {/* 右列（サブ - 1/3の幅） */}
               <div className="lg:col-span-1 space-y-8">
+                <StreakCard
+                  streak={studyStreak}
+                  maxStreak={maxStreak}
+                  lastStudyDate={lastStudyDate}
+                  todayStudied={todayStudied}
+                  streakState={streakState}
+                  themeColor={themeColor}
+                  viewMode="parent"
+                  studentName={selectedChild?.nickname || "お子さん"}
+                />
                 <LearningHistoryCalendar calendarData={calendarData} />
                 <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} sessionNumber={sessionNumber} />
               </div>
