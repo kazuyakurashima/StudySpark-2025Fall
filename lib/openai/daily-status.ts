@@ -13,6 +13,7 @@ export interface DailyStatusContext {
     total: number
     accuracy: number
     time: string
+    date: string  // YYYY-MM-DD format - added for cache key
   }[]
   studyStreak: number
   weeklyTrend: "improving" | "stable" | "declining" | "none"
@@ -28,9 +29,13 @@ export interface DailyStatusContext {
  * キャッシュキーを生成
  */
 function generateCacheKey(context: DailyStatusContext, promptVersion: string = "v1.0"): string {
+  // 今日の日付を取得（最初のログから、なければ現在日付）
+  const studyDate = context.todayLogs.length > 0 ? context.todayLogs[0].date : new Date().toISOString().split('T')[0]
+
   const keyData = {
     grade: context.grade,
     course: context.course,
+    studyDate, // CRITICAL: 日付を含めることで、異なる日のデータが同じキャッシュを使わないようにする
     // 今日の学習記録数を5件刻みで丸める
     todayLogCount: Math.floor(context.todayLogs.length / 5) * 5,
     // 平均正答率を10%刻みで丸める
@@ -218,7 +223,7 @@ export async function generateDailyStatusMessage(
   context: DailyStatusContext
 ): Promise<{ success: true; message: string } | { success: false; error: string }> {
   try {
-    const promptVersion = "v1.2" // Updated: 科目別集計を使用
+    const promptVersion = "v1.3" // Updated: キャッシュキーにstudyDateを追加（日付別キャッシュ）
     const cacheKey = generateCacheKey(context, promptVersion)
 
     // キャッシュチェック
