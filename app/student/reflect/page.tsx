@@ -250,6 +250,33 @@ function ReflectPageInner() {
           </div>
         )}
 
+        {/* 4つのタブ表示 */}
+        <Tabs defaultValue="achievement" className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="achievement">達成マップ</TabsTrigger>
+            <TabsTrigger value="history">学習履歴</TabsTrigger>
+            <TabsTrigger value="encouragement">応援履歴</TabsTrigger>
+            <TabsTrigger value="coaching">コーチング履歴</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="achievement" className="mt-6">
+            <AchievementMap studentGrade={studentGrade} studentCourse={studentCourse} />
+          </TabsContent>
+
+          <TabsContent value="history" className="mt-6">
+            <StudyHistory />
+          </TabsContent>
+
+          <TabsContent value="encouragement" className="mt-6">
+            <EncouragementHistory />
+          </TabsContent>
+
+          <TabsContent value="coaching" className="mt-6">
+            <CoachingHistory />
+          </TabsContent>
+        </Tabs>
+
+        {/* 振り返り完了カード（タブの下に配置） */}
         {isAvailable && isCompletedThisWeek && summary && (
           <Card className="card-elevated bg-gradient-to-br from-emerald-50 to-blue-50 border-0 shadow-2xl">
             <CardContent className="p-8 text-center">
@@ -278,32 +305,6 @@ function ReflectPageInner() {
             </CardContent>
           </Card>
         )}
-
-        {/* 4つのタブ表示 */}
-        <Tabs defaultValue="achievement" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="achievement">達成マップ</TabsTrigger>
-            <TabsTrigger value="history">学習履歴</TabsTrigger>
-            <TabsTrigger value="encouragement">応援履歴</TabsTrigger>
-            <TabsTrigger value="coaching">コーチング履歴</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="achievement" className="mt-6">
-            <AchievementMap studentGrade={studentGrade} studentCourse={studentCourse} />
-          </TabsContent>
-
-          <TabsContent value="history" className="mt-6">
-            <StudyHistory />
-          </TabsContent>
-
-          <TabsContent value="encouragement" className="mt-6">
-            <EncouragementHistory />
-          </TabsContent>
-
-          <TabsContent value="coaching" className="mt-6">
-            <CoachingHistory />
-          </TabsContent>
-        </Tabs>
 
         {/* AIコーチカードと週タイプカード（タブの下に配置） */}
         {isAvailable && !isStarted && !summary && !isCompletedThisWeek && weekTypeInfo && weekData && (
