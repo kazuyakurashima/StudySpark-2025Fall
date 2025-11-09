@@ -235,59 +235,6 @@ function ReflectPageInner() {
         />
 
         <div className="max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
-        {isAvailable && !isStarted && !summary && !isCompletedThisWeek && weekTypeInfo && weekData && (
-          <>
-            <Card className="card-elevated ai-coach-gradient border-0 shadow-2xl premium-glow">
-              <CardContent className="p-6 text-center">
-                <Avatar className="h-20 w-20 mx-auto mb-4 border-4 border-white shadow-2xl">
-                  <AvatarImage src={AVATAR_AI_COACH} alt="AIコーチ" />
-                  <AvatarFallback className="bg-white text-primary font-bold text-2xl">AI</AvatarFallback>
-                </Avatar>
-                <h2 className="text-xl font-bold text-white mb-2">AIコーチと振り返りを始めよう</h2>
-                <p className="text-white/90 mb-6">
-                  {studentName}さん、今週の頑張りを一緒に振り返ろう！<br />
-                  AIコーチと3〜6往復の対話で、気づきと成長を見つけていくよ。
-                </p>
-                <Button
-                  onClick={handleStartReflect}
-                  size="lg"
-                  className="bg-white text-primary hover:bg-white/90"
-                >
-                  <Sparkles className="h-5 w-5 mr-2" />
-                  振り返りを始める
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card className={`card-elevated ${weekTypeInfo.bg} border-0 shadow-2xl`}>
-              <CardContent className="p-6">
-                <div className="flex items-start gap-4">
-                  <div className={`p-3 rounded-full ${weekTypeInfo.bg} ${weekTypeInfo.color}`}>
-                    <weekTypeInfo.Icon className="h-8 w-8" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="text-lg font-bold">{weekTypeInfo.label}</h3>
-                      <Badge variant="outline" className={weekTypeInfo.color}>
-                        正答率 {weekData.thisWeekAccuracy}%
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-slate-600 mb-2 font-medium">
-                      {weekTypeInfo.description}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {weekType === "growth" && `先週より${weekData.accuracyDiff}%アップ！素晴らしい成長だよ✨`}
-                      {weekType === "stable" && "先週と同じペースで安定した学習ができているね。"}
-                      {weekType === "challenge" && `今週は挑戦の週だったね。難しい問題に取り組んだからこその結果だよ。`}
-                      {weekType === "special" && weekData.upcomingTest && `来週は${weekData.upcomingTest.test_types.name}があるね。準備はどう？`}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </>
-        )}
-
         {isAvailable && isStarted && sessionId && weekTypeInfo && weekData && (
           <div ref={reflectChatRef}>
             <ReflectChat
@@ -357,6 +304,60 @@ function ReflectPageInner() {
             <CoachingHistory />
           </TabsContent>
         </Tabs>
+
+        {/* AIコーチカードと週タイプカード（タブの下に配置） */}
+        {isAvailable && !isStarted && !summary && !isCompletedThisWeek && weekTypeInfo && weekData && (
+          <>
+            <Card className="card-elevated ai-coach-gradient border-0 shadow-2xl premium-glow">
+              <CardContent className="p-6 text-center">
+                <Avatar className="h-20 w-20 mx-auto mb-4 border-4 border-white shadow-2xl">
+                  <AvatarImage src={AVATAR_AI_COACH} alt="AIコーチ" />
+                  <AvatarFallback className="bg-white text-primary font-bold text-2xl">AI</AvatarFallback>
+                </Avatar>
+                <h2 className="text-xl font-bold text-white mb-2">AIコーチと振り返りを始めよう</h2>
+                <p className="text-white/90 mb-6">
+                  {studentName}さん、今週の頑張りを一緒に振り返ろう！<br />
+                  AIコーチと3〜6往復の対話で、気づきと成長を見つけていくよ。
+                </p>
+                <Button
+                  onClick={handleStartReflect}
+                  size="lg"
+                  className="bg-white text-primary hover:bg-white/90"
+                >
+                  <Sparkles className="h-5 w-5 mr-2" />
+                  振り返りを始める
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className={`card-elevated ${weekTypeInfo.bg} border-0 shadow-2xl`}>
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className={`p-3 rounded-full ${weekTypeInfo.bg} ${weekTypeInfo.color}`}>
+                    <weekTypeInfo.Icon className="h-8 w-8" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="text-lg font-bold">{weekTypeInfo.label}</h3>
+                      <Badge variant="outline" className={weekTypeInfo.color}>
+                        正答率 {weekData.thisWeekAccuracy}%
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-slate-600 mb-2 font-medium">
+                      {weekTypeInfo.description}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {weekType === "growth" && `先週より${weekData.accuracyDiff}%アップ！素晴らしい成長だよ✨`}
+                      {weekType === "stable" && "先週と同じペースで安定した学習ができているね。"}
+                      {weekType === "challenge" && `今週は挑戦の週だったね。難しい問題に取り組んだからこその結果だよ。`}
+                      {weekType === "special" && weekData.upcomingTest && `来週は${weekData.upcomingTest.test_types.name}があるね。準備はどう？`}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
 
         {!isAvailable && (
           <Card className="card-elevated">
