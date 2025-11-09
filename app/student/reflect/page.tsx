@@ -237,6 +237,28 @@ function ReflectPageInner() {
         <div className="max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
         {isAvailable && !isStarted && !summary && !isCompletedThisWeek && weekTypeInfo && weekData && (
           <>
+            <Card className="card-elevated ai-coach-gradient border-0 shadow-2xl premium-glow">
+              <CardContent className="p-6 text-center">
+                <Avatar className="h-20 w-20 mx-auto mb-4 border-4 border-white shadow-2xl">
+                  <AvatarImage src={AVATAR_AI_COACH} alt="AIコーチ" />
+                  <AvatarFallback className="bg-white text-primary font-bold text-2xl">AI</AvatarFallback>
+                </Avatar>
+                <h2 className="text-xl font-bold text-white mb-2">AIコーチと振り返りを始めよう</h2>
+                <p className="text-white/90 mb-6">
+                  {studentName}さん、今週の頑張りを一緒に振り返ろう！<br />
+                  AIコーチと3〜6往復の対話で、気づきと成長を見つけていくよ。
+                </p>
+                <Button
+                  onClick={handleStartReflect}
+                  size="lg"
+                  className="bg-white text-primary hover:bg-white/90"
+                >
+                  <Sparkles className="h-5 w-5 mr-2" />
+                  振り返りを始める
+                </Button>
+              </CardContent>
+            </Card>
+
             <Card className={`card-elevated ${weekTypeInfo.bg} border-0 shadow-2xl`}>
               <CardContent className="p-6">
                 <div className="flex items-start gap-4">
@@ -261,28 +283,6 @@ function ReflectPageInner() {
                     </p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card className="card-elevated ai-coach-gradient border-0 shadow-2xl premium-glow">
-              <CardContent className="p-6 text-center">
-                <Avatar className="h-20 w-20 mx-auto mb-4 border-4 border-white shadow-2xl">
-                  <AvatarImage src={AVATAR_AI_COACH} alt="AIコーチ" />
-                  <AvatarFallback className="bg-white text-primary font-bold text-2xl">AI</AvatarFallback>
-                </Avatar>
-                <h2 className="text-xl font-bold text-white mb-2">AIコーチと振り返りを始めよう</h2>
-                <p className="text-white/90 mb-6">
-                  {studentName}さん、今週の頑張りを一緒に振り返ろう！<br />
-                  AIコーチと3〜6往復の対話で、気づきと成長を見つけていくよ。
-                </p>
-                <Button
-                  onClick={handleStartReflect}
-                  size="lg"
-                  className="bg-white text-primary hover:bg-white/90"
-                >
-                  <Sparkles className="h-5 w-5 mr-2" />
-                  振り返りを始める
-                </Button>
               </CardContent>
             </Card>
           </>
