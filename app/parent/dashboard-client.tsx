@@ -1750,6 +1750,28 @@ function ParentDashboardInner({
 
   // Cache for AI-generated status message (persisted in localStorage)
   const [encouragementStatus, setEncouragementStatus] = useState<{ [childId: number]: boolean }>({})
+
+  // 子供ごとのデータキャッシュ（メモリ内）
+  const [childDataCache, setChildDataCache] = useState<{
+    [childId: number]: {
+      todayStatusMessage: string
+      todayStatusMessageCreatedAt: string | null
+      studyStreak: number
+      maxStreak: number
+      lastStudyDate: string | null
+      todayStudied: boolean
+      streakState: "active" | "grace" | "warning" | "reset"
+      todayProgress: any[]
+      calendarData: any
+      weeklyProgress: any[]
+      sessionNumber: number | null
+      recentLogs: any[]
+      recentMessages: any[]
+      isReflectCompleted: boolean
+      cachedAt: number // タイムスタンプ
+    }
+  }>({})
+
   const [aiMessageCache, setAiMessageCache] = useState<{
     studentId: number
     date: string
@@ -1813,7 +1835,34 @@ function ParentDashboardInner({
       return
     }
 
+    // メモリキャッシュをチェック（5分以内のデータは再利用）
+    const cachedData = childDataCache[selectedChildId]
+    const now = Date.now()
+    const CACHE_DURATION = 5 * 60 * 1000 // 5分
+
+    if (cachedData && (now - cachedData.cachedAt < CACHE_DURATION)) {
+      console.log("✅ [CLIENT] Using cached data for child:", selectedChildId)
+      // キャッシュから即座に復元
+      setTodayStatusMessage(cachedData.todayStatusMessage)
+      setTodayStatusMessageCreatedAt(cachedData.todayStatusMessageCreatedAt)
+      setStudyStreak(cachedData.studyStreak)
+      setMaxStreak(cachedData.maxStreak)
+      setLastStudyDate(cachedData.lastStudyDate)
+      setTodayStudied(cachedData.todayStudied)
+      setStreakState(cachedData.streakState)
+      setTodayProgress(cachedData.todayProgress)
+      setCalendarData(cachedData.calendarData)
+      setWeeklyProgress(cachedData.weeklyProgress)
+      setSessionNumber(cachedData.sessionNumber)
+      setRecentLogs(cachedData.recentLogs)
+      setRecentMessages(cachedData.recentMessages)
+      setIsReflectCompleted(cachedData.isReflectCompleted)
+      setIsLoading(false)
+      return
+    }
+
     console.log("🔍 [CLIENT] Fetching data for child:", selectedChildId)
+    setIsLoading(true)
 
     const fetchChildData = async () => {
       try {
@@ -1978,6 +2027,31 @@ function ParentDashboardInner({
           setIsReflectCompleted(false)
         }
 
+        // 全データをメモリキャッシュに保存
+        const newCacheData = {
+          todayStatusMessage: !isError(statusMsg) ? (statusMsg as { message: string }).message : "",
+          todayStatusMessageCreatedAt: !isError(statusMsg) ? (statusMsg as { message: string; createdAt?: string }).createdAt || null : null,
+          studyStreak: !isError(streakResult) ? (streakResult as any).streak : 0,
+          maxStreak: !isError(streakResult) ? (streakResult as any).maxStreak : 0,
+          lastStudyDate: !isError(streakResult) ? (streakResult as any).lastStudyDate : null,
+          todayStudied: !isError(streakResult) ? (streakResult as any).todayStudied : false,
+          streakState: !isError(streakResult) ? (streakResult as any).state : "reset" as const,
+          todayProgress: !isError(todayMission) ? (todayMission as { todayProgress: any[] }).todayProgress : [],
+          calendarData: !isError(calendar) ? (calendar as { calendarData: any }).calendarData : {},
+          weeklyProgress: !isError(weeklySubject) ? (weeklySubject as { progress: any[] }).progress : [],
+          sessionNumber: !isError(weeklySubject) ? (weeklySubject as { sessionNumber: number | null }).sessionNumber : null,
+          recentLogs: !isError(logsResult) ? (logsResult as { logs: any[] }).logs : [],
+          recentMessages: !isError(messagesResult) ? (messagesResult as { messages: any[] }).messages : [],
+          isReflectCompleted: !isError(reflectionResult) ? (reflectionResult as { completed: boolean }).completed : false,
+          cachedAt: Date.now(),
+        }
+
+        setChildDataCache(prev => ({
+          ...prev,
+          [selectedChildId]: newCacheData
+        }))
+
+        console.log("💾 [CLIENT] Cached data for child:", selectedChildId)
         console.log("🔍 [CLIENT] All child data fetched successfully")
       } catch (error) {
         console.error("Failed to fetch child data:", error)
@@ -1988,7 +2062,8 @@ function ParentDashboardInner({
     }
 
     fetchChildData()
-  }, [selectedChild?.id, selectedChild])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedChild?.id])
 
   // 全ての子供の今日の応援状況をチェック
   useEffect(() => {
