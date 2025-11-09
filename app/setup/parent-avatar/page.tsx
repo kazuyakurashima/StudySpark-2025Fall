@@ -4,6 +4,8 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Image from "next/image"
+import { updateParentAvatarAndComplete } from "@/app/actions/profile"
+import { useRouter } from "next/navigation"
 
 const parentAvatars = [
   {
@@ -39,14 +41,28 @@ const parentAvatars = [
 ]
 
 export default function ParentAvatarSelectionPage() {
+  const router = useRouter()
   const [selectedAvatar, setSelectedAvatar] = useState<string>("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleContinue = () => {
-    if (selectedAvatar) {
-      // Store selected avatar in localStorage for demo
-      localStorage.setItem("selectedParentAvatar", selectedAvatar)
-      window.location.href = "/parent"
+  const handleContinue = async () => {
+    if (!selectedAvatar) return
+
+    setIsLoading(true)
+    setError(null)
+
+    // データベースに保存（setup_completedもtrueにする）
+    const result = await updateParentAvatarAndComplete(selectedAvatar)
+
+    if (result?.error) {
+      setError(result.error)
+      setIsLoading(false)
+      return
     }
+
+    // 保存成功したらダッシュボードへ
+    router.push("/parent")
   }
 
   return (
@@ -73,6 +89,13 @@ export default function ParentAvatarSelectionPage() {
             <CardTitle className="text-center">お好みのアバターをお選びください</CardTitle>
           </CardHeader>
           <CardContent>
+            {/* エラーメッセージ */}
+            {error && (
+              <div className="mb-4 p-3 bg-destructive/10 text-destructive text-sm rounded-md">
+                {error}
+              </div>
+            )}
+
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
               {parentAvatars.map((avatar) => (
                 <button
@@ -97,8 +120,12 @@ export default function ParentAvatarSelectionPage() {
               ))}
             </div>
 
-            <Button onClick={handleContinue} disabled={!selectedAvatar} className="w-full h-12 text-lg font-medium">
-              次へ進む
+            <Button
+              onClick={handleContinue}
+              disabled={!selectedAvatar || isLoading}
+              className="w-full h-12 text-lg font-medium"
+            >
+              {isLoading ? "保存中..." : "次へ進む"}
             </Button>
           </CardContent>
         </Card>

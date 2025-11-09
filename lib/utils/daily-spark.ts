@@ -139,8 +139,7 @@ async function checkStudentMissionComplete(studentId: number, date: string): Pro
       `
       )
       .eq("student_id", studentId)
-      .gte("logged_at", `${date}T00:00:00+09:00`)
-      .lt("logged_at", `${date}T23:59:59+09:00`)
+      .eq("study_date", date)
 
     if (error) {
       console.error("[checkStudentMissionComplete] Error:", error)
@@ -180,6 +179,7 @@ async function checkParentEncouragementSent(
     const supabase = await createClient()
 
     // 今日の応援メッセージをチェック
+    // sent_atはtimestamp型なので、日付範囲で絞り込む
     const { data: messages, error } = await supabase
       .from("encouragement_messages")
       .select("id")

@@ -28,6 +28,35 @@ export async function updateAvatar(avatar: string) {
 }
 
 /**
+ * 保護者のアバター選択とセットアップ完了
+ */
+export async function updateParentAvatarAndComplete(avatar: string) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: "認証されていません" }
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      avatar_id: avatar,
+      setup_completed: true
+    })
+    .eq("id", user.id)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  return { success: true }
+}
+
+/**
  * プロフィール情報を更新（名前・学年）
  */
 export async function updateProfile(data: {
