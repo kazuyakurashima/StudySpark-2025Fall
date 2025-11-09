@@ -34,7 +34,7 @@ export async function getStudentDashboardData() {
     // Get student profile
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("display_name, avatar_id")
+      .select("display_name, avatar_id, nickname")
       .eq("id", user.id)
       .single()
 
@@ -503,7 +503,8 @@ async function getUpcomingTestForCoach(studentId: string) {
 }
 
 /**
- * 連続学習日数を計算
+ * 連続学習日数を計算（グレースピリオド対応版）
+ * DBの students テーブルから最新のstreak情報を取得
  */
 export async function getStudyStreak() {
   try {
@@ -517,63 +518,62 @@ export async function getStudyStreak() {
       return { error: "認証エラー" }
     }
 
-    const { data: student } = await supabase.from("students").select("id").eq("user_id", user.id).single()
+    const { data: student, error: studentError } = await supabase
+      .from("students")
+      .select("id, last_study_date, current_streak, max_streak")
+      .eq("user_id", user.id)
+      .single()
 
-    if (!student) {
+    if (studentError || !student) {
       return { error: "生徒情報が見つかりません" }
     }
 
-    // Get all study logs ordered by study_date descending
-    const { data: logs, error: logsError } = await supabase
-      .from("study_logs")
-      .select("study_date")
-      .eq("student_id", student.id)
-      .order("study_date", { ascending: false })
-
-    if (logsError) {
-      if (isMissingTable(logsError, "public.study_logs")) {
-        return { streak: 0 }
-      }
-      return { error: "学習ログの取得に失敗しました" }
-    }
-
-    if (!logs || logs.length === 0) {
-      return { streak: 0 }
-    }
-
-    // Calculate streak using JST dates
-    const { getTodayJST, getYesterdayJST, getDateJST } = await import("@/lib/utils/date-jst")
-    let streak = 0
+    // JST基準で今日と昨日の日付を取得
+    const { getTodayJST, getYesterdayJST } = await import("@/lib/utils/date-jst")
     const todayStr = getTodayJST()
     const yesterdayStr = getYesterdayJST()
 
-    const uniqueDates = new Set<string>()
-    logs.forEach((log) => {
-      uniqueDates.add(log.study_date)
-    })
+    const lastStudyDate = student.last_study_date
+    const currentStreak = student.current_streak || 0
+    const maxStreak = student.max_streak || 0
 
-    const sortedDates = Array.from(uniqueDates).sort().reverse()
+    // 今日の学習記録があるかチェック
+    const { data: todayLogs } = await supabase
+      .from("study_logs")
+      .select("id")
+      .eq("student_id", student.id)
+      .eq("study_date", todayStr)
+      .limit(1)
 
-    // Check if there's a log today or yesterday
-    if (!sortedDates.includes(todayStr) && !sortedDates.includes(yesterdayStr)) {
-      return { streak: 0 }
+    const todayStudied = (todayLogs && todayLogs.length > 0) || false
+
+    // Streak状態の判定
+    let streakState: "active" | "grace" | "warning" | "reset"
+    let displayStreak = currentStreak
+
+    if (!lastStudyDate) {
+      // 初回（学習記録なし）
+      streakState = "reset"
+      displayStreak = 0
+    } else if (lastStudyDate === todayStr) {
+      // 今日既に記録済み → アクティブ
+      streakState = "active"
+    } else if (lastStudyDate === yesterdayStr) {
+      // 昨日まで継続中、今日未記録 → グレースピリオド
+      streakState = "grace"
+    } else {
+      // 2日以上空いた → リセット状態
+      streakState = "reset"
+      displayStreak = 0
     }
 
-    // Count consecutive days
-    const currentDateStr = sortedDates.includes(todayStr) ? todayStr : yesterdayStr
-    let dayOffset = 0
-
-    for (const dateStr of sortedDates) {
-      const expectedDate = getDateJST(dayOffset)
-      if (dateStr === expectedDate) {
-        streak++
-        dayOffset--
-      } else {
-        break
-      }
+    return {
+      streak: displayStreak,
+      maxStreak,
+      lastStudyDate,
+      todayStudied,
+      streakState,
     }
-
-    return { streak }
   } catch (error) {
     console.error("Get study streak error:", error)
     return { error: "予期しないエラーが発生しました" }

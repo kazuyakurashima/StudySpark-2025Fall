@@ -13,6 +13,7 @@ import { PageHeader } from "@/components/common/page-header"
 import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, ChevronLeft, ChevronRight, Bot, Sparkles, ChevronDown, ChevronUp } from "lucide-react"
 import { UserProfileProvider, useUserProfile } from "@/lib/hooks/use-user-profile"
 import { hexWithAlpha, isThemeActive } from "@/lib/utils/theme-color"
+import { StreakCard } from "@/components/streak-card"
 
 interface DashboardData {
   userName: string
@@ -20,6 +21,10 @@ interface DashboardData {
   aiCoachMessage: string
   aiCoachMessageCreatedAt: string | null
   studyStreak: number
+  maxStreak: number
+  lastStudyDate: string | null
+  todayStudied: boolean
+  streakState: "active" | "grace" | "warning" | "reset"
   recentLogs: any[]
   recentMessages: any[]
   lastLoginInfo: {
@@ -762,9 +767,6 @@ const TodayMissionCard = ({ todayProgress, yesterdayProgress, reflectionComplete
                     {panel.type === "reflect" ? panel.name : panel.subject}
                   </h3>
                   {panel.description && <p className="text-sm text-slate-600 mt-1">{panel.description}</p>}
-                  {panel.correctRate && (
-                    <p className="text-sm text-slate-600 mt-1">現在の正答率: {panel.correctRate}%</p>
-                  )}
                 </div>
                 <div className="flex items-center gap-3">
                   <Badge className={`border ${getStatusBadgeColor(panel.status, panel.needsAction || false)}`}>
@@ -1231,7 +1233,7 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
 
     return {
       recordTime: formatDate(msg.sent_at),
-      from: senderProfile?.display_name || "応援者",
+      from: senderProfile?.nickname || "応援者",
       avatar: avatarUrl,
       message: baseMessage,
       senderRole: msg.sender_role || "unknown",
@@ -1387,6 +1389,10 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
     aiCoachMessage,
     aiCoachMessageCreatedAt,
     studyStreak,
+    maxStreak,
+    lastStudyDate,
+    todayStudied,
+    streakState,
     recentLogs,
     lastLoginInfo,
     todayProgress,
@@ -1453,23 +1459,6 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
           title="ホーム"
           subtitle={greetingMessage}
           variant="student"
-          actions={
-            <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm px-3 py-2 rounded-lg border border-border/30 shadow-sm">
-              <div
-                className={`flex items-center gap-2 ${!isThemeActive(themeColor) ? "text-primary" : ""}`}
-                style={isThemeActive(themeColor) ? { color: themeColor } : {}}
-              >
-                <div
-                  className={!isThemeActive(themeColor) ? "p-1.5 bg-primary/10 rounded-full" : "p-1.5 rounded-full"}
-                  style={isThemeActive(themeColor) ? { backgroundColor: hexWithAlpha(themeColor, 10) } : {}}
-                >
-                  <Flame className="h-5 w-5" />
-                </div>
-                <span className="font-bold text-2xl">{studyStreak}</span>
-              </div>
-              <span className="text-xs text-muted-foreground font-semibold">連続学習日数</span>
-            </div>
-          }
         />
 
         <div className="max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
@@ -1582,6 +1571,14 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
             </Card>
 
             <TodayMissionCard todayProgress={todayProgress} yesterdayProgress={initialData.yesterdayProgress} reflectionCompleted={reflectionCompleted} weeklyProgress={weeklyProgress} />
+            <StreakCard
+              streak={studyStreak}
+              maxStreak={maxStreak}
+              lastStudyDate={lastStudyDate}
+              todayStudied={todayStudied}
+              streakState={streakState}
+              themeColor={themeColor}
+            />
             <LearningHistoryCalendar calendarData={calendarData} />
             <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} sessionNumber={sessionNumber} />
             <RecentEncouragementCard messages={messages} />
@@ -1703,6 +1700,14 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
 
             {/* 右列（サブ - 1/3の幅） */}
             <div className="lg:col-span-1 space-y-8">
+              <StreakCard
+                streak={studyStreak}
+                maxStreak={maxStreak}
+                lastStudyDate={lastStudyDate}
+                todayStudied={todayStudied}
+                streakState={streakState}
+                themeColor={themeColor}
+              />
               <LearningHistoryCalendar calendarData={calendarData} />
               <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} sessionNumber={sessionNumber} />
             </div>

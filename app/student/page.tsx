@@ -58,11 +58,15 @@ export default async function StudentDashboard() {
 
   // Prepare data for client component
   const initialData = {
-    userName: dashboardData?.profile?.display_name || "学習者",
+    userName: dashboardData?.profile?.nickname || "学習者",
     selectedAvatar: dashboardData?.profile?.avatar_id || "student1",
     aiCoachMessage: coachMsg?.message || "今日も一緒に頑張ろう！",
     aiCoachMessageCreatedAt: coachMsg?.createdAt || null,
     studyStreak: typeof streakResult?.streak === "number" ? streakResult.streak : 0,
+    maxStreak: typeof streakResult?.maxStreak === "number" ? streakResult.maxStreak : 0,
+    lastStudyDate: streakResult?.lastStudyDate || null,
+    todayStudied: streakResult?.todayStudied || false,
+    streakState: streakResult?.streakState || "reset",
     recentLogs: Array.isArray(logsResult?.logs) ? logsResult.logs : [],
     recentMessages: messagesResult?.success && Array.isArray(messagesResult?.messages) ? messagesResult.messages : [],
     lastLoginInfo: loginInfo?.error ? null : loginInfo,
