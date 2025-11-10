@@ -35,7 +35,19 @@ export async function getStudyLogsForEncouragement(
       study_sessions(session_number, grade),
       subjects(name),
       study_content_types(content_name),
-      encouragement_messages(id, message, sender_role, created_at)
+      encouragement_messages(
+        id,
+        message,
+        sender_role,
+        sent_at,
+        sender_profile:profiles!encouragement_messages_sender_id_fkey(
+          id,
+          display_name,
+          nickname,
+          avatar_id,
+          role
+        )
+      )
     `)
     .eq("student_id", studentId)
 
