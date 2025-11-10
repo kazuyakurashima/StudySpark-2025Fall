@@ -22,7 +22,7 @@ import { UserProfileProvider, useUserProfile } from "@/lib/hooks/use-user-profil
 
 function ParentEncouragementPageInner() {
   const { profile, children, setSelectedChildId: setProviderChildId } = useUserProfile()
-  const [selectedChild, setSelectedChild] = useState("student1")
+  const [selectedChild, setSelectedChild] = useState<string | null>(null)
   const [studyLogs, setStudyLogs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
@@ -66,36 +66,51 @@ function ParentEncouragementPageInner() {
 
   // 最初の子供が読み込まれたらProviderにも設定
   useEffect(() => {
-    if (children && children.length > 0 && selectedChild === "student1") {
+    if (children && children.length > 0 && !selectedChild) {
       const firstChildId = parseInt(children[0].id, 10)
+      console.log('[応援機能] 最初の子供を設定:', children[0].id, firstChildId)
       setSelectedChild(children[0].id)
       setProviderChildId(firstChildId)
     }
   }, [children, selectedChild, setProviderChildId])
 
   useEffect(() => {
-    loadStudyLogs()
+    if (selectedChild) {
+      loadStudyLogs()
+    }
   }, [selectedChild, filters])
 
   const loadStudyLogs = async () => {
+    if (!selectedChild) {
+      console.log('[応援機能] selectedChildがnullのためスキップ')
+      return
+    }
     setLoading(true)
+    console.log('[応援機能] 学習記録を取得中...', { selectedChild, filters })
     const result = await getStudyLogsForEncouragement(selectedChild, filters)
+
+    console.log('[応援機能] 取得結果:', result)
 
     if (result.success) {
       let logs = result.logs
+      console.log('[応援機能] ログ数:', logs.length)
 
       // 1ヶ月フィルターで5件未満の場合、全期間に自動変更
       if (filters.period === "1month" && logs.length < 5) {
+        console.log('[応援機能] 1ヶ月で5件未満のため全期間で再取得')
         const allResult = await getStudyLogsForEncouragement(selectedChild, {
           ...filters,
           period: "all",
         })
         if (allResult.success) {
           logs = allResult.logs
+          console.log('[応援機能] 全期間ログ数:', logs.length)
         }
       }
 
       setStudyLogs(logs)
+    } else {
+      console.error('[応援機能] エラー:', result.error)
     }
     setLoading(false)
   }
