@@ -58,9 +58,15 @@ export function EncouragementHistory() {
     setExpandedIds(newExpanded)
   }
 
-  const getAvatarUrl = (avatar: string | null) => {
-    if (!avatar) return "/avatars/default.png"
-    if (avatar.startsWith("http")) return avatar
+  const getAvatarUrl = (avatar: string | null | undefined) => {
+    if (!avatar) {
+      // avatar_id が未設定の場合、保護者デフォルトアバターを使用
+      return "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent1-HbhESuJlC27LuGOGupullRXyEUzFLy.png"
+    }
+
+    if (avatar.startsWith("http")) {
+      return avatar
+    }
 
     // 保護者アバター（parent1-6）のURL対応
     const parentAvatarMap: Record<string, string> = {

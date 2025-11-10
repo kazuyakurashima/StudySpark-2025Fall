@@ -559,6 +559,7 @@ export async function getEncouragementHistory(params?: {
   // 送信者のプロフィール情報を取得
   if (messages && messages.length > 0) {
     const senderIds = [...new Set(messages.map(m => m.sender_id))]
+
     const { data: profiles } = await supabase
       .from("profiles")
       .select("id, display_name, nickname, avatar_id, role")
