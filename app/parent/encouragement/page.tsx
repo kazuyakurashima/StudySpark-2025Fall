@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ParentBottomNavigation } from "@/components/parent-bottom-navigation"
 import { Heart, Star, ThumbsUp, Sparkles, ChevronDown, ChevronUp, Loader2, MessageSquare } from "lucide-react"
 import {
@@ -288,6 +289,73 @@ function ParentEncouragementPageInner() {
                 </CardHeader>
 
                 <CardContent className="space-y-4">
+                  {/* 応援済みメッセージ表示 - ホーム機能と同じフォーマット */}
+                  {hasEncouragement && log.encouragement_messages && log.encouragement_messages.length > 0 && (
+                    <div className="space-y-3">
+                      {log.encouragement_messages.map((msg: any, msgIndex: number) => {
+                        const getAvatarSrc = (avatarId: string | null | undefined) => {
+                          if (!avatarId) return null
+                          if (avatarId.startsWith("http")) return avatarId
+
+                          // 保護者アバター
+                          const parentAvatarMap: Record<string, string> = {
+                            "parent1": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent1-HbhESuJlC27LuGOGupullRXyEUzFLy.png",
+                            "parent2": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent2-zluk4uVJLfzP8dBe0I7v5fVGSn5QfU.png",
+                            "parent3": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent3-EzBDrjsFP5USAgnSPTXjcdNeq1bzSm.png",
+                            "parent4": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent4-YHYTNRnNQ7bRb6aAfTNEFMozjGRlZq.png",
+                            "parent5": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent5-dGCLocpgcZw4lXWRiPmTHkXURBXXoH.png",
+                            "parent6": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent6-gKoeUywhHoKWJ4BPEk69iW6idztaLl.png",
+                          }
+                          if (parentAvatarMap[avatarId]) return parentAvatarMap[avatarId]
+
+                          return `/avatars/${avatarId}.png`
+                        }
+
+                        const senderName = msg.sender_profile?.nickname || msg.sender_profile?.display_name || "送信者"
+                        const senderAvatar = msg.sender_profile?.avatar_id
+                        const sentAt = new Date(msg.sent_at).toLocaleString("ja-JP", {
+                          month: "numeric",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit"
+                        })
+
+                        return (
+                          <div
+                            key={msgIndex}
+                            className="bg-white/90 backdrop-blur-sm rounded-xl p-5 border border-pink-100 shadow-lg hover:shadow-xl transition-all duration-300"
+                          >
+                            <div className="flex items-start gap-4">
+                              <Avatar className="h-12 w-12 border-3 border-pink-200 flex-shrink-0 shadow-md">
+                                <AvatarImage src={getAvatarSrc(senderAvatar) || "/placeholder.svg"} alt={senderName} />
+                                <AvatarFallback className="bg-pink-100 text-pink-700 font-bold text-lg">
+                                  {senderName.charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 space-y-3">
+                                <div className="flex items-center gap-3 flex-wrap">
+                                  <span className="font-bold text-slate-800 text-lg">{senderName}</span>
+                                  <span className="text-sm text-slate-600 bg-slate-100 px-2 py-1 rounded-full">
+                                    {sentAt}
+                                  </span>
+                                  <div className="flex items-center gap-1">
+                                    <Heart className="h-4 w-4 text-pink-500" />
+                                    <span className="text-xs text-pink-600 font-medium">応援</span>
+                                  </div>
+                                </div>
+                                <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-4 rounded-xl border border-pink-100">
+                                  <p className="text-base leading-relaxed text-slate-700 font-medium">
+                                    {msg.message}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+
                   {/* クイック応援ボタン + AI応援ボタン - 常に表示 */}
                   {!hasEncouragement && (
                     <div className="space-y-2.5">
