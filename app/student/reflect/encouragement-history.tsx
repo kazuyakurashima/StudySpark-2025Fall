@@ -61,6 +61,22 @@ export function EncouragementHistory() {
   const getAvatarUrl = (avatar: string | null) => {
     if (!avatar) return "/avatars/default.png"
     if (avatar.startsWith("http")) return avatar
+
+    // 保護者アバター（parent1-6）のURL対応
+    const parentAvatarMap: Record<string, string> = {
+      "parent1": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent1-HbhESuJlC27LuGOGupullRXyEUzFLy.png",
+      "parent2": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent2-zluk4uVJLfzP8dBe0I7v5fVGSn5QfU.png",
+      "parent3": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent3-EzBDrjsFP5USAgnSPTXjcdNeq1bzSm.png",
+      "parent4": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent4-YHYTNRnNQ7bRb6aAfTNEFMozjGRlZq.png",
+      "parent5": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent5-dGCLocpgcZw4lXWRiPmTHkXURBXXoH.png",
+      "parent6": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent6-gKoeUywhHoKWJ4BPEk69iW6idztaLl.png",
+    }
+
+    if (parentAvatarMap[avatar]) {
+      return parentAvatarMap[avatar]
+    }
+
+    // 生徒アバター（従来通り）
     return `/avatars/${avatar}.png`
   }
 
