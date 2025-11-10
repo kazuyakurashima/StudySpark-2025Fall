@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ParentBottomNavigation } from "@/components/parent-bottom-navigation"
-import { Heart, Star, ThumbsUp, Sparkles, ChevronDown, ChevronUp, Loader2 } from "lucide-react"
+import { Heart, Star, ThumbsUp, Sparkles, ChevronDown, ChevronUp, Loader2, MessageSquare } from "lucide-react"
 import {
   getStudyLogsForEncouragement,
   sendQuickEncouragement,
@@ -288,7 +288,7 @@ function ParentEncouragementPageInner() {
                 </CardHeader>
 
                 <CardContent className="space-y-4">
-                  {/* クイック応援ボタン - ホーム機能と統一されたデザイン */}
+                  {/* クイック応援ボタン + AI応援ボタン - 常に表示 */}
                   {!hasEncouragement && (
                     <div className="space-y-2.5">
                       <Button
@@ -329,6 +329,23 @@ function ParentEncouragementPageInner() {
                       >
                         <span className="text-lg group-hover:scale-110 transition-transform duration-300">👍</span>
                         <span>よくできました</span>
+                      </Button>
+                      {/* AI応援ボタン - デフォルト表示 */}
+                      <Button
+                        onClick={() => handleOpenAIDialog(log.id)}
+                        className="group relative w-full py-3.5 px-4 rounded-xl text-sm overflow-hidden
+                          bg-gradient-to-br from-violet-50 via-purple-50 to-violet-100
+                          hover:from-violet-100 hover:via-purple-100 hover:to-violet-200
+                          text-violet-700 border border-violet-200/50 shadow-sm hover:shadow-md
+                          transform hover:scale-[1.02] active:scale-[0.98]
+                          transition-all duration-300 ease-out
+                          flex items-center justify-center gap-2"
+                      >
+                        {/* シマー効果 */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent
+                          translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000 ease-in-out" />
+                        <Sparkles className="h-4 w-4 relative z-10 group-hover:rotate-12 group-hover:scale-110 transition-all duration-300 fill-violet-500" />
+                        <span className="relative z-10 tracking-wide">AI応援メッセージ</span>
                       </Button>
                     </div>
                   )}
@@ -373,26 +390,6 @@ function ParentEncouragementPageInner() {
                           <span className="text-slate-600">今日の振り返り:</span>
                           <p className="mt-1 p-3 bg-slate-50 rounded-lg">{log.reflection_text}</p>
                         </div>
-                      )}
-
-                      {/* AI応援ボタン - ホーム機能と統一されたデザイン */}
-                      {!hasEncouragement && (
-                        <Button
-                          onClick={() => handleOpenAIDialog(log.id)}
-                          className="group relative w-full py-3.5 px-4 rounded-xl text-sm overflow-hidden
-                            bg-gradient-to-br from-violet-50 via-purple-50 to-violet-100
-                            hover:from-violet-100 hover:via-purple-100 hover:to-violet-200
-                            text-violet-700 border border-violet-200/50 shadow-sm hover:shadow-md
-                            transform hover:scale-[1.02] active:scale-[0.98]
-                            transition-all duration-300 ease-out
-                            flex items-center justify-center gap-2"
-                        >
-                          {/* シマー効果 */}
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent
-                            translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000 ease-in-out" />
-                          <Sparkles className="h-4 w-4 relative z-10 group-hover:rotate-12 group-hover:scale-110 transition-all duration-300 fill-violet-500" />
-                          <span className="relative z-10 tracking-wide">AI応援メッセージ</span>
-                        </Button>
                       )}
                     </div>
                   )}
