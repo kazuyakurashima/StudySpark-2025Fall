@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { PageHeader } from "@/components/common/page-header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,7 +12,6 @@ import ParentBottomNavigation from "@/components/parent-bottom-navigation"
 import { AchievementMap } from "@/app/student/reflect/achievement-map"
 import { StudyHistory } from "@/app/student/reflect/study-history"
 import { EncouragementHistory } from "@/app/student/reflect/encouragement-history"
-import { CoachingHistory } from "@/app/student/reflect/coaching-history"
 import {
   getParentChildren,
   getChildReflections,
@@ -28,7 +28,7 @@ import {
   Lock,
   MessageCircle,
 } from "lucide-react"
-import { UserProfileProvider, useUserProfile } from "@/lib/hooks/use-user-profile"
+import { useUserProfile } from "@/lib/hooks/use-user-profile"
 
 interface Child {
   id: string
@@ -49,36 +49,69 @@ interface Reflection {
   created_at: string
 }
 
-function ParentReflectPageInner() {
-  const { profile, setSelectedChildId: setProviderChildId } = useUserProfile()
+export default function ParentReflectPage() {
+  const searchParams = useSearchParams()
+  const { profile, setSelectedChildId: setProviderChildId, selectedChildId: providerSelectedChildId } = useUserProfile()
+
+  // URLパラメータから初期タブを取得
+  const tabParam = searchParams.get("tab")
+  const initialTab = (tabParam && ["map", "history", "encouragement", "coaching"].includes(tabParam))
+    ? (tabParam as "map" | "history" | "encouragement" | "coaching")
+    : "map"
+
+  // URLパラメータから child ID を取得
+  const childParam = searchParams.get("child")
+
   const [children, setChildren] = useState<Child[]>([])
   const [selectedChildId, setSelectedChildId] = useState<string>("")
   const [selectedChild, setSelectedChild] = useState<Child | null>(null)
   const [reflections, setReflections] = useState<Reflection[]>([])
   const [selectedReflection, setSelectedReflection] = useState<Reflection | null>(null)
   const [messages, setMessages] = useState<any[]>([])
-  const [activeTab, setActiveTab] = useState<"map" | "history" | "encouragement" | "coaching">("map")
+  const [activeTab, setActiveTab] = useState<"map" | "history" | "encouragement" | "coaching">(initialTab)
   const [loading, setLoading] = useState(true)
   const [encouragementStatus, setEncouragementStatus] = useState<{ [childId: number]: boolean }>({})
 
-  // 子ども一覧を読み込み
+  // 子ども一覧を読み込み（初回のみ）
   useEffect(() => {
     const loadChildren = async () => {
       const { children, error } = await getParentChildren()
       if (children && !error) {
         setChildren(children)
-        if (children.length > 0) {
-          setSelectedChildId(children[0].id)
-          setSelectedChild(children[0])
-          // Provider の selectedChild も更新
-          setProviderChildId(parseInt(children[0].id, 10))
-        }
       }
       setLoading(false)
     }
 
     loadChildren()
-  }, [setProviderChildId])
+  }, [])
+
+  // URL パラメータの child ID をプロバイダーに反映（初回のみ）
+  useEffect(() => {
+    if (childParam && children.length > 0) {
+      const childId = parseInt(childParam, 10)
+      const child = children.find(c => parseInt(c.id) === childId)
+      if (child) {
+        setProviderChildId(childId)
+      }
+    }
+  }, [childParam, children, setProviderChildId])
+
+  // プロバイダーの selectedChildId が確定したら、選択中の子どもを設定
+  useEffect(() => {
+    if (children.length === 0) return
+
+    if (providerSelectedChildId !== null) {
+      // プロバイダーから取得したIDで子どもを選択
+      const child = children.find(c => parseInt(c.id) === providerSelectedChildId)
+      if (child) {
+        setSelectedChildId(child.id)
+        setSelectedChild(child)
+      }
+    } else {
+      // プロバイダーにまだ値がない場合は待機（何もしない）
+      // UserProfileProvider の初期化が完了すれば providerSelectedChildId が設定される
+    }
+  }, [providerSelectedChildId, children])
 
   // 選択された子どものデータを読み込み
   useEffect(() => {
@@ -151,7 +184,7 @@ function ParentReflectPageInner() {
         <div className="container max-w-4xl mx-auto px-4 py-6">
           <div className="text-center py-20">読み込み中...</div>
         </div>
-        <ParentBottomNavigation />
+        <ParentBottomNavigation selectedChildId={providerSelectedChildId} />
       </div>
     )
   }
@@ -165,7 +198,7 @@ function ParentReflectPageInner() {
             <p className="text-gray-600">お子様の情報がありません</p>
           </div>
         </div>
-        <ParentBottomNavigation />
+        <ParentBottomNavigation selectedChildId={providerSelectedChildId} />
       </div>
     )
   }
@@ -211,17 +244,28 @@ function ParentReflectPageInner() {
 
           {/* 達成マップタブ */}
           <TabsContent value="map" className="space-y-4">
-            {selectedChildId && <AchievementMap studentId={selectedChildId} />}
+            {selectedChild && (
+              <AchievementMap
+                studentGrade={selectedChild.grade}
+                studentCourse="B"
+                viewerRole="parent"
+                studentId={selectedChildId}
+              />
+            )}
           </TabsContent>
 
           {/* 学習履歴タブ */}
           <TabsContent value="history" className="space-y-4">
-            {selectedChildId && <StudyHistory studentId={selectedChildId} />}
+            {selectedChildId && (
+              <StudyHistory viewerRole="parent" studentId={selectedChildId} />
+            )}
           </TabsContent>
 
           {/* 応援履歴タブ */}
           <TabsContent value="encouragement" className="space-y-4">
-            {selectedChildId && <EncouragementHistory studentId={selectedChildId} />}
+            {selectedChildId && (
+              <EncouragementHistory viewerRole="parent" studentId={selectedChildId} />
+            )}
           </TabsContent>
 
           {/* コーチング履歴タブ */}
@@ -305,19 +349,8 @@ function ParentReflectPageInner() {
         </Tabs>
       </div>
 
-        <ParentBottomNavigation />
+        <ParentBottomNavigation selectedChildId={providerSelectedChildId} />
       </div>
     </>
-  )
-}
-
-/**
- * 保護者振り返り閲覧ページ（Context Provider付き）
- */
-export default function ParentReflectPage() {
-  return (
-    <UserProfileProvider>
-      <ParentReflectPageInner />
-    </UserProfileProvider>
   )
 }

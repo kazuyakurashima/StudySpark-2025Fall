@@ -21,7 +21,7 @@ import {
 } from "lucide-react"
 import ParentBottomNavigation from "@/components/parent-bottom-navigation"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { UserProfileProvider } from "@/lib/hooks/use-user-profile"
+// UserProfileProvider は親レイアウトで提供されている
 
 const sparkRecords = [
   {
@@ -131,7 +131,7 @@ const quickSupportIcons = [
 ]
 
 
-function ParentSparkPageInner() {
+export default function ParentSparkPage() {
   const [selectedChild, setSelectedChild] = useState("child1")
   const [isSending, setIsSending] = useState(false)
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
@@ -685,19 +685,8 @@ function ParentSparkPageInner() {
           </div>
         )}
 
-        <ParentBottomNavigation />
+        <ParentBottomNavigation selectedChildId={null} />
       </div>
     </>
-  )
-}
-
-/**
- * 保護者応援ページ（Context Provider付き）
- */
-export default function ParentSparkPage() {
-  return (
-    <UserProfileProvider>
-      <ParentSparkPageInner />
-    </UserProfileProvider>
   )
 }

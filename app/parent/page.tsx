@@ -76,41 +76,8 @@ export default async function ParentDashboardPage() {
     )
   }
 
-  // デフォルトで最初の子どもを選択
-  const selectedChild = children[0]
-
-  // 選択された子どものデータを並列取得（Service Role使用はサーバー側に限定）
-  const [
-    todayStatus,
-    streak,
-    todayMission,
-    weeklyProgress,
-    calendarData,
-    recentLogs,
-    recentMessages,
-    reflectionStatus,
-  ] = await Promise.all([
-    getTodayStatusMessageAI(selectedChild.id),
-    getStudentStreak(selectedChild.id),
-    getStudentTodayMissionData(selectedChild.id),
-    getStudentWeeklyProgress(selectedChild.id),
-    getStudentCalendarData(selectedChild.id),
-    getStudentRecentLogs(selectedChild.id, 50),
-    getStudentRecentMessages(selectedChild.id, 3),
-    checkStudentWeeklyReflection(selectedChild.id),
-  ])
-
-  const initialData: ParentDashboardData = {
-    todayStatus,
-    streak,
-    todayMission,
-    weeklyProgress,
-    calendarData,
-    recentLogs,
-    recentMessages,
-    reflectionStatus,
-  }
-
+  // 初期データはクライアント側で子ども選択後に読み込むため、サーバー側では null を渡す
+  // これにより、localStorageに保存された選択状態を優先できる
   return (
     <ParentDashboardClient
       parentProfile={{
@@ -119,8 +86,8 @@ export default async function ParentDashboardPage() {
         themeColor: profile.theme_color || "default",
       }}
       children={children}
-      selectedChild={selectedChild}
-      initialData={initialData}
+      selectedChild={null}
+      initialData={null}
     />
   )
 }

@@ -1311,7 +1311,7 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => (window.location.href = "/student/encouragement")}
+              onClick={() => (window.location.href = "/student/reflect?tab=encouragement")}
               className="border-pink-300 text-pink-700 hover:bg-pink-100"
             >
               全て見る

@@ -11,9 +11,18 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { getEncouragementHistory } from "@/app/actions/reflect"
+import { getChildEncouragementHistory } from "@/app/actions/parent"
 import { Heart, ChevronDown, ChevronUp } from "lucide-react"
 
-export function EncouragementHistory() {
+interface EncouragementHistoryProps {
+  viewerRole?: "student" | "parent"
+  studentId?: string
+}
+
+export function EncouragementHistory({
+  viewerRole = "student",
+  studentId
+}: EncouragementHistoryProps = {}) {
   const [messages, setMessages] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [subjectFilter, setSubjectFilter] = useState("all")
@@ -24,19 +33,47 @@ export function EncouragementHistory() {
 
   useEffect(() => {
     loadHistory()
-  }, [subjectFilter, periodFilter, sortBy, displayMode])
+  }, [subjectFilter, periodFilter, sortBy, displayMode, viewerRole, studentId])
 
   const loadHistory = async () => {
     setLoading(true)
-    const result = await getEncouragementHistory({
-      subjectFilter,
-      periodFilter,
-      sortBy,
-      displayMode,
-    })
+
+    console.log("[DEBUG EncouragementHistory] Loading with:", { viewerRole, studentId, subjectFilter, periodFilter, sortBy, displayMode })
+
+    // viewerRoleに応じて適切なAPIを呼び出す
+    const result = viewerRole === "parent" && studentId
+      ? await getChildEncouragementHistory(studentId, {
+          subjectFilter,
+          periodFilter,
+          sortBy,
+          displayMode,
+        })
+      : await getEncouragementHistory({
+          subjectFilter,
+          periodFilter,
+          sortBy,
+          displayMode,
+        })
+
+    console.log("[DEBUG EncouragementHistory] API result:", { error: result.error, messagesCount: result.messages?.length })
 
     if (!result.error) {
-      setMessages(result.messages || [])
+      // 親APIの場合、フィールド名を正規化
+      const normalizedMessages = (result.messages || []).map((msg: any) => ({
+        ...msg,
+        message: msg.message || msg.message_text,
+        sender_role: msg.sender_role || msg.sender_profile?.role,
+        sender_profile: msg.sender_profile ? {
+          ...msg.sender_profile,
+          display_name: msg.sender_profile.display_name || msg.sender_profile.full_name || msg.sender_profile.nickname,
+          avatar_id: msg.sender_profile.avatar_id || msg.sender_profile.avatar,
+          nickname: msg.sender_profile.nickname || msg.sender_profile.display_name || msg.sender_profile.full_name,
+        } : undefined,
+      }))
+      setMessages(normalizedMessages)
+    } else {
+      // エラー時は空にリセット
+      setMessages([])
     }
     setLoading(false)
   }

@@ -12,7 +12,7 @@ import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { PageHeader } from "@/components/common/page-header"
 import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, Sparkles, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from "lucide-react"
 import { WeeklySubjectProgressCard } from "@/components/weekly-subject-progress-card"
-import { UserProfileProvider, useUserProfile } from "@/lib/hooks/use-user-profile"
+import { useUserProfile } from "@/lib/hooks/use-user-profile"
 import { hexWithAlpha, isThemeActive } from "@/lib/utils/theme-color"
 import { isError } from "@/lib/types/profile"
 import { StreakCard } from "@/components/streak-card"
@@ -766,7 +766,10 @@ const ParentTodayMissionCard = ({
                     </div>
                     <div className="flex items-center gap-3">
                       <Button
-                        onClick={() => window.location.href = "/parent/reflect"}
+                        onClick={() => {
+                          const childParam = selectedChild?.id ? `?child=${selectedChild.id}` : ""
+                          window.location.href = `/parent/reflect${childParam}`
+                        }}
                         className="bg-primary hover:bg-primary/90 text-white"
                       >
                         見守る
@@ -1462,7 +1465,7 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
   )
 }
 
-const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
+const RecentEncouragementCard = ({ messages, selectedChildId }: { messages: any[], selectedChildId: number | null }) => {
   const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set())
 
   const toggleCard = (index: number) => {
@@ -1568,15 +1571,28 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
   return (
     <Card className="bg-gradient-to-br from-pink-50 via-rose-50 to-red-50 border-pink-200/60 shadow-xl backdrop-blur-sm">
       <CardHeader className="pb-4 bg-gradient-to-r from-pink-500/10 to-rose-500/10 rounded-t-lg">
-        <CardTitle className="text-xl font-bold flex items-center gap-3">
-          <div className="p-2 bg-pink-100 rounded-full shadow-sm">
-            <Heart className="h-6 w-6 text-pink-600" />
-          </div>
-          <div>
-            <span className="text-slate-800">直近の応援履歴</span>
-            <p className="text-sm font-normal text-slate-600 mt-1">昨日0:00〜今日23:59の保護者・指導者からの応援</p>
-          </div>
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-xl font-bold flex items-center gap-3">
+            <div className="p-2 bg-pink-100 rounded-full shadow-sm">
+              <Heart className="h-6 w-6 text-pink-600" />
+            </div>
+            <div>
+              <span className="text-slate-800">直近の応援履歴</span>
+              <p className="text-sm font-normal text-slate-600 mt-1">昨日0:00〜今日23:59の保護者・指導者からの応援</p>
+            </div>
+          </CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const childParam = selectedChildId ? `&child=${selectedChildId}` : ""
+              window.location.href = `/parent/reflect?tab=encouragement${childParam}`
+            }}
+            className="border-pink-300 text-pink-700 hover:bg-pink-100"
+          >
+            全て見る
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4 p-6">
         {encouragementMessages.length === 0 ? (
@@ -1694,7 +1710,7 @@ function ParentDashboardInner({
   initialSelectedChild,
   initialData,
 }: ParentDashboardInnerProps) {
-  const { profile, selectedChild, setSelectedChildId } = useUserProfile()
+  const { profile, selectedChild, setSelectedChildId, loading: profileLoading, children: profileChildren } = useUserProfile()
   const [userName, setUserName] = useState(parentProfile.displayName)
   const [selectedAvatar, setSelectedAvatar] = useState(parentProfile.avatarId)
   const [children, setChildren] = useState<any[]>(initialChildren)
@@ -1824,10 +1840,23 @@ function ParentDashboardInner({
     }
   }, [isStatusMessageExpanded, isHydrated])
 
+  // Update children list when profileChildren is loaded
+  useEffect(() => {
+    if (!profileLoading && profileChildren.length > 0) {
+      console.log("🔍 [CLIENT] Updating children list from profile:", profileChildren)
+      setChildren(profileChildren)
+    }
+  }, [profileLoading, profileChildren])
+
   // Fetch child-specific data when selected child changes
   useEffect(() => {
     const selectedChildId = selectedChild?.id
-    console.log("🔍 [CLIENT] useEffect triggered - selectedChildId:", selectedChildId)
+    console.log("🔍 [CLIENT] useEffect triggered - selectedChildId:", selectedChildId, "profileLoading:", profileLoading)
+
+    if (profileLoading) {
+      console.log("🔍 [CLIENT] Profile still loading, waiting...")
+      return
+    }
 
     if (!selectedChildId) {
       console.log("🔍 [CLIENT] No child selected, setting loading to false")
@@ -2063,7 +2092,7 @@ function ParentDashboardInner({
 
     fetchChildData()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedChild?.id])
+  }, [selectedChild?.id, profileLoading])
 
   // 全ての子供の今日の応援状況をチェック
   useEffect(() => {
@@ -2249,7 +2278,7 @@ function ParentDashboardInner({
               />
               <LearningHistoryCalendar calendarData={calendarData} />
               <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} sessionNumber={sessionNumber} />
-              <RecentEncouragementCard messages={recentMessages} />
+              <RecentEncouragementCard messages={recentMessages} selectedChildId={selectedChild?.id || null} />
               <RecentLearningHistoryCard logs={recentLogs} />
             </div>
 
@@ -2362,7 +2391,7 @@ function ParentDashboardInner({
                 encouragementStatus={encouragementStatus}
                 setEncouragementStatus={setEncouragementStatus}
               />
-                <RecentEncouragementCard messages={recentMessages} />
+                <RecentEncouragementCard messages={recentMessages} selectedChildId={selectedChild?.id || null} />
                 <RecentLearningHistoryCard logs={recentLogs} />
               </div>
 
@@ -2386,7 +2415,7 @@ function ParentDashboardInner({
         </div>
       </div>
 
-      <ParentBottomNavigation />
+      <ParentBottomNavigation selectedChildId={selectedChild?.id || null} />
     </>
   )
 }
@@ -2412,17 +2441,13 @@ export default function ParentDashboardClient({
   selectedChild: initialSelectedChild,
   initialData,
 }: ParentDashboardClientProps) {
+  // UserProfileProvider は app/parent/layout.tsx で提供されている
   return (
-    <UserProfileProvider
-      initialChildren={children}
-      initialSelectedChildId={initialSelectedChild?.id}
-    >
-      <ParentDashboardInner
-        parentProfile={parentProfile}
-        children={children}
-        initialSelectedChild={initialSelectedChild}
-        initialData={initialData}
-      />
-    </UserProfileProvider>
+    <ParentDashboardInner
+      parentProfile={parentProfile}
+      children={children}
+      initialSelectedChild={initialSelectedChild}
+      initialData={initialData}
+    />
   )
 }

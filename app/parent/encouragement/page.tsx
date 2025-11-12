@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { PageHeader } from "@/components/common/page-header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,22 +19,29 @@ import {
   sendCustomEncouragement,
 } from "@/app/actions/encouragement"
 import type { QuickEncouragementType } from "@/lib/openai/prompts"
-import { UserProfileProvider, useUserProfile } from "@/lib/hooks/use-user-profile"
+import { useUserProfile } from "@/lib/hooks/use-user-profile"
 
-function ParentEncouragementPageInner() {
-  const { profile, children, setSelectedChildId: setProviderChildId } = useUserProfile()
+export default function ParentEncouragementPage() {
+  const searchParams = useSearchParams()
+  const { profile, children, setSelectedChildId: setProviderChildId, selectedChildId: providerSelectedChildId } = useUserProfile()
+
+  // URLパラメータから child ID を取得
+  const childParam = searchParams.get("child")
+
   const [selectedChild, setSelectedChild] = useState<string | null>(null)
   const [studyLogs, setStudyLogs] = useState<any[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
   const [encouragementStatus, setEncouragementStatus] = useState<{ [childId: number]: boolean }>({})
 
-  // フィルター・ソート状態
+  // フィルター・ソート状態（期間と正答率を削除）
   const [filters, setFilters] = useState({
     hasEncouragement: "not_sent" as "all" | "sent" | "not_sent",
     subject: "all" as string,
-    period: "1month" as "1week" | "1month" | "all",
-    sortBy: "date" as "date" | "session" | "accuracy",
+    sortBy: "date" as "date" | "session",
     sortOrder: "desc" as "asc" | "desc",
   })
 
@@ -64,55 +72,82 @@ function ParentEncouragementPageInner() {
     checkEncouragementStatus()
   }, [children, profile?.id])
 
-  // 最初の子供が読み込まれたらProviderにも設定
+  // URL パラメータの child ID をプロバイダーに反映（初回のみ）
   useEffect(() => {
-    if (children && children.length > 0 && !selectedChild) {
+    if (childParam && children && children.length > 0) {
+      const childId = parseInt(childParam, 10)
+      const child = children.find(c => parseInt(c.id) === childId)
+      if (child) {
+        setProviderChildId(childId)
+      }
+    }
+  }, [childParam, children, setProviderChildId])
+
+  // プロバイダーの selectedChildId が確定したら、選択中の子どもを設定
+  useEffect(() => {
+    if (!children || children.length === 0) return
+
+    if (providerSelectedChildId !== null) {
+      // プロバイダーから取得したIDで子どもを選択
+      const child = children.find(c => parseInt(c.id) === providerSelectedChildId)
+      if (child) {
+        console.log('[応援機能] プロバイダーから子どもを選択:', child.full_name, child.id)
+        setSelectedChild(child.id)
+      }
+    } else if (!selectedChild) {
+      // プロバイダーにまだ値がない場合で、selectedChildもない場合は最初の子どもを設定
       const firstChildId = parseInt(children[0].id, 10)
-      console.log('[応援機能] 最初の子供を設定:', children[0].id, firstChildId)
+      console.log('[応援機能] デフォルトで最初の子供を設定:', children[0].full_name, children[0].id, firstChildId)
       setSelectedChild(children[0].id)
       setProviderChildId(firstChildId)
     }
-  }, [children, selectedChild, setProviderChildId])
+  }, [providerSelectedChildId, children, selectedChild, setProviderChildId])
 
   useEffect(() => {
     if (selectedChild) {
-      loadStudyLogs()
+      loadStudyLogs(true)
     }
   }, [selectedChild, filters])
 
-  const loadStudyLogs = async () => {
+  const loadStudyLogs = async (reset = true) => {
     if (!selectedChild) {
       console.log('[応援機能] selectedChildがnullのためスキップ')
       return
     }
-    setLoading(true)
-    console.log('[応援機能] 学習記録を取得中...', { selectedChild, filters })
-    const result = await getStudyLogsForEncouragement(selectedChild, filters)
+
+    if (reset) {
+      setLoading(true)
+    } else {
+      setLoadingMore(true)
+    }
+
+    const offset = reset ? 0 : studyLogs.length
+    console.log('[応援機能] 学習記録を取得中...', { selectedChild, filters, offset, reset })
+
+    const result = await getStudyLogsForEncouragement(selectedChild, {
+      ...filters,
+      limit: 10,
+      offset,
+    })
 
     console.log('[応援機能] 取得結果:', result)
 
     if (result.success) {
-      let logs = result.logs
-      console.log('[応援機能] ログ数:', logs.length)
+      console.log('[応援機能] ログ数:', result.logs.length, '総数:', result.totalCount)
 
-      // 1ヶ月フィルターで5件未満の場合、全期間に自動変更
-      if (filters.period === "1month" && logs.length < 5) {
-        console.log('[応援機能] 1ヶ月で5件未満のため全期間で再取得')
-        const allResult = await getStudyLogsForEncouragement(selectedChild, {
-          ...filters,
-          period: "all",
-        })
-        if (allResult.success) {
-          logs = allResult.logs
-          console.log('[応援機能] 全期間ログ数:', logs.length)
-        }
+      if (reset) {
+        setStudyLogs(result.logs)
+      } else {
+        setStudyLogs(prev => [...prev, ...result.logs])
       }
-
-      setStudyLogs(logs)
+      setTotalCount(result.totalCount)
+      setHasMore(result.hasMore)
     } else {
       console.error('[応援機能] エラー:', result.error)
     }
+
     setLoading(false)
+    setLoadingMore(false)
   }
 
   const toggleCard = (logId: string) => {
@@ -126,17 +161,19 @@ function ParentEncouragementPageInner() {
   }
 
   const handleQuickEncouragement = async (studyLogId: string, quickType: QuickEncouragementType) => {
+    if (!selectedChild) return
     const result = await sendQuickEncouragement(selectedChild, studyLogId, quickType)
     if (result.success) {
       // 即座にハートバッジを更新
       setEncouragementStatus(prev => ({ ...prev, [Number(selectedChild)]: true }))
-      await loadStudyLogs()
+      await loadStudyLogs(true)
     } else {
       alert(result.error)
     }
   }
 
   const handleOpenAIDialog = async (studyLogId: string) => {
+    if (!selectedChild) return
     setAiDialogOpen(studyLogId)
     setAiLoading(true)
     setAiMessages([])
@@ -160,14 +197,14 @@ function ParentEncouragementPageInner() {
   }
 
   const handleSendAIMessage = async () => {
-    if (!aiDialogOpen || !editingMessage) return
+    if (!aiDialogOpen || !editingMessage || !selectedChild) return
 
     const result = await sendCustomEncouragement(selectedChild, aiDialogOpen, editingMessage, "ai")
     if (result.success) {
       // 即座にハートバッジを更新
       setEncouragementStatus(prev => ({ ...prev, [Number(selectedChild)]: true }))
       setAiDialogOpen(null)
-      await loadStudyLogs()
+      await loadStudyLogs(true)
     } else {
       alert(result.error)
     }
@@ -188,69 +225,64 @@ function ParentEncouragementPageInner() {
         {/* フィルター・ソート */}
         <Card className="bg-white/95 backdrop-blur-sm shadow-md border">
           <CardContent className="p-4 sm:p-6">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <Select
-            value={filters.hasEncouragement}
-            onValueChange={(value: any) => setFilters({ ...filters, hasEncouragement: value })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="not_sent">未応援</SelectItem>
-              <SelectItem value="sent">応援済み</SelectItem>
-              <SelectItem value="all">全表示</SelectItem>
-            </SelectContent>
-          </Select>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Select
+                value={filters.hasEncouragement}
+                onValueChange={(value: any) => setFilters({ ...filters, hasEncouragement: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="not_sent">未応援</SelectItem>
+                  <SelectItem value="sent">応援済み</SelectItem>
+                  <SelectItem value="all">全表示</SelectItem>
+                </SelectContent>
+              </Select>
 
-          <Select value={filters.subject} onValueChange={(value) => setFilters({ ...filters, subject: value })}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">全科目</SelectItem>
-              <SelectItem value="算数">算数</SelectItem>
-              <SelectItem value="国語">国語</SelectItem>
-              <SelectItem value="理科">理科</SelectItem>
-              <SelectItem value="社会">社会</SelectItem>
-            </SelectContent>
-          </Select>
+              <Select value={filters.subject} onValueChange={(value) => setFilters({ ...filters, subject: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全科目</SelectItem>
+                  <SelectItem value="算数">算数</SelectItem>
+                  <SelectItem value="国語">国語</SelectItem>
+                  <SelectItem value="理科">理科</SelectItem>
+                  <SelectItem value="社会">社会</SelectItem>
+                </SelectContent>
+              </Select>
 
-          <Select value={filters.period} onValueChange={(value: any) => setFilters({ ...filters, period: value })}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="1week">1週間</SelectItem>
-              <SelectItem value="1month">1ヶ月</SelectItem>
-              <SelectItem value="all">全て</SelectItem>
-            </SelectContent>
-          </Select>
+              <Select value={filters.sortBy} onValueChange={(value: any) => setFilters({ ...filters, sortBy: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="date">記録日時</SelectItem>
+                  <SelectItem value="session">学習回</SelectItem>
+                </SelectContent>
+              </Select>
 
-          <Select value={filters.sortBy} onValueChange={(value: any) => setFilters({ ...filters, sortBy: value })}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="date">記録日時</SelectItem>
-              <SelectItem value="session">学習回</SelectItem>
-              <SelectItem value="accuracy">正答率</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select
-            value={filters.sortOrder}
-            onValueChange={(value: any) => setFilters({ ...filters, sortOrder: value })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="desc">降順</SelectItem>
-              <SelectItem value="asc">昇順</SelectItem>
-            </SelectContent>
-          </Select>
+              <Select
+                value={filters.sortOrder}
+                onValueChange={(value: any) => setFilters({ ...filters, sortOrder: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">降順</SelectItem>
+                  <SelectItem value="asc">昇順</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+
+            {/* 総件数表示 */}
+            {totalCount > 0 && (
+              <div className="text-xs text-slate-600 mt-3">
+                全{totalCount}件中 {studyLogs.length}件を表示
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -267,7 +299,8 @@ function ParentEncouragementPageInner() {
             </CardContent>
           </Card>
         ) : (
-          studyLogs.map((log) => {
+          <>
+          {studyLogs.map((log) => {
             const isExpanded = expandedCards.has(log.id)
             const accuracy = log.total_problems > 0 ? Math.round((log.correct_count / log.total_problems) * 100) : 0
             const hasEncouragement =
@@ -479,7 +512,32 @@ function ParentEncouragementPageInner() {
                 </CardContent>
               </Card>
             )
-          })
+          })}
+
+          {/* さらに表示ボタン */}
+          {hasMore && (
+            <div className="flex justify-center pt-4">
+              <Button
+                onClick={() => loadStudyLogs(false)}
+                disabled={loadingMore}
+                variant="outline"
+                className="w-full max-w-md py-3"
+              >
+                {loadingMore ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    読み込み中...
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="h-4 w-4 mr-2" />
+                    さらに表示（次の10件）
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+          </>
         )}
         </div>
 
@@ -623,19 +681,8 @@ function ParentEncouragementPageInner() {
       )}
       </div>
 
-      <ParentBottomNavigation activeTab="encouragement" />
+      <ParentBottomNavigation activeTab="encouragement" selectedChildId={providerSelectedChildId} />
     </div>
     </>
-  )
-}
-
-/**
- * 保護者応援履歴ページ（Context Provider付き）
- */
-export default function ParentEncouragementPage() {
-  return (
-    <UserProfileProvider>
-      <ParentEncouragementPageInner />
-    </UserProfileProvider>
   )
 }

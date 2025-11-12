@@ -436,12 +436,36 @@ export async function getChildStudyHistory(
       total_problems,
       reflection_text,
       logged_at,
+      session_id,
       subjects (id, name, color_code),
       study_content_types (id, content_name),
       study_sessions (id, session_number, start_date, end_date)
     `)
     .eq("student_id", studentId)
 
+  // 科目フィルタ
+  if (params?.subjectFilter && params.subjectFilter !== "all") {
+    const subjectMap: Record<string, string> = {
+      math: "算数",
+      japanese: "国語",
+      science: "理科",
+      social: "社会",
+    }
+    const subjectName = subjectMap[params.subjectFilter]
+    if (subjectName) {
+      const { data: subjectData } = await supabase
+        .from("subjects")
+        .select("id")
+        .eq("name", subjectName)
+        .single()
+
+      if (subjectData) {
+        query = query.eq("subject_id", subjectData.id)
+      }
+    }
+  }
+
+  // 期間フィルタ
   if (params?.periodFilter === "1week") {
     const oneWeekAgo = new Date()
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
@@ -452,7 +476,15 @@ export async function getChildStudyHistory(
     query = query.gte("study_date", formatDateToJST(oneMonthAgo))
   }
 
-  query = query.order("logged_at", { ascending: false })
+  // ソート順
+  if (params?.sortBy === "session") {
+    query = query.order("session_id", { ascending: false })
+  } else if (params?.sortBy === "accuracy") {
+    // 正答率は取得後にソート
+    query = query.order("logged_at", { ascending: false })
+  } else {
+    query = query.order("logged_at", { ascending: false })
+  }
 
   const { data: logs, error: queryError } = await query
 
@@ -460,7 +492,18 @@ export async function getChildStudyHistory(
     return { error: queryError.message }
   }
 
-  return { logs: logs || [] }
+  let processedLogs = logs || []
+
+  // 正答率でソートする場合
+  if (params?.sortBy === "accuracy" && processedLogs.length > 0) {
+    processedLogs = [...processedLogs].sort((a, b) => {
+      const accA = a.total_problems > 0 ? (a.correct_count / a.total_problems) * 100 : 0
+      const accB = b.total_problems > 0 ? (b.correct_count / b.total_problems) * 100 : 0
+      return accB - accA
+    })
+  }
+
+  return { logs: processedLogs }
 }
 
 /**
@@ -469,31 +512,35 @@ export async function getChildStudyHistory(
 export async function getChildEncouragementHistory(
   studentId: string,
   params?: {
+    subjectFilter?: string
     periodFilter?: string
+    sortBy?: string
+    displayMode?: string
   }
 ) {
+  console.log("[DEBUG getChildEncouragementHistory] Called with:", { studentId, params })
+
   const { error, supabase } = await verifyParentChildRelation(studentId)
 
   if (error || !supabase) {
+    console.log("[DEBUG getChildEncouragementHistory] Verification error:", error)
     return { error: error || "認証エラー" }
   }
+
+  console.log("[DEBUG getChildEncouragementHistory] Verification successful")
 
   let query = supabase
     .from("encouragement_messages")
     .select(`
       id,
-      message_text,
+      message,
       sent_at,
-      is_read,
+      read_at,
       created_at,
       sender_id,
-      sender_profile:user_profiles!encouragement_messages_sender_id_fkey (
-        full_name,
-        nickname,
-        avatar,
-        role
-      ),
-      study_logs (
+      sender_role,
+      related_study_log_id,
+      study_logs:related_study_log_id (
         id,
         logged_at,
         study_date,
@@ -506,8 +553,9 @@ export async function getChildEncouragementHistory(
         study_sessions (session_number, start_date, end_date)
       )
     `)
-    .eq("recipient_id", studentId)
+    .eq("student_id", parseInt(studentId))
 
+  // 期間フィルタ
   if (params?.periodFilter === "1week") {
     const oneWeekAgo = new Date()
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
@@ -518,15 +566,96 @@ export async function getChildEncouragementHistory(
     query = query.gte("sent_at", oneMonthAgo.toISOString())
   }
 
+  // ソート順
   query = query.order("sent_at", { ascending: false })
 
   const { data: messages, error: queryError } = await query
 
+  console.log("[DEBUG getChildEncouragementHistory] Query result:", { messagesCount: messages?.length, error: queryError })
+
   if (queryError) {
+    console.log("[DEBUG getChildEncouragementHistory] Query error:", queryError.message)
     return { error: queryError.message }
   }
 
-  return { messages: messages || [] }
+  let processedMessages = messages || []
+  console.log("[DEBUG getChildEncouragementHistory] Processing messages:", processedMessages.length)
+
+  // 送信者のプロフィール情報を取得（RPC経由で安全に取得）
+  if (processedMessages.length > 0) {
+    const senderIds = [...new Set(processedMessages.map(m => m.sender_id).filter(Boolean))]
+
+    if (senderIds.length > 0) {
+      const { data: senderProfiles, error: senderError } = await supabase.rpc("get_sender_profiles", {
+        sender_ids: senderIds,
+      })
+
+      console.log("[DEBUG getChildEncouragementHistory] Sender profiles:", { profilesCount: senderProfiles?.length, error: senderError })
+
+      if (!senderError && senderProfiles) {
+        // メッセージに送信者プロフィールを追加
+        processedMessages = processedMessages.map(msg => {
+          const senderProfile = senderProfiles.find((profile: any) => profile.id === msg.sender_id)
+          const profileWithFallback = senderProfile
+            ? {
+                ...senderProfile,
+                nickname: senderProfile.nickname ?? senderProfile.display_name ?? "応援者",
+                display_name: senderProfile.display_name ?? senderProfile.nickname ?? "応援者",
+                avatar_id: senderProfile.avatar_id ?? senderProfile.avatar,
+              }
+            : { display_name: "応援者", avatar_id: null, nickname: "応援者" }
+
+          return {
+            ...msg,
+            sender_profile: profileWithFallback,
+          }
+        })
+      } else {
+        // フォールバック: 送信者情報なしで返す
+        processedMessages = processedMessages.map(msg => ({
+          ...msg,
+          sender_profile: { display_name: "応援者", avatar_id: null, nickname: "応援者" },
+        }))
+      }
+    }
+  }
+
+  // 科目フィルタ（取得後に適用）
+  if (params?.subjectFilter && params.subjectFilter !== "all") {
+    const subjectMap: Record<string, string> = {
+      math: "算数",
+      japanese: "国語",
+      science: "理科",
+      social: "社会",
+    }
+    const subjectName = subjectMap[params.subjectFilter]
+    if (subjectName) {
+      processedMessages = processedMessages.filter((msg: any) => {
+        const studyLog = Array.isArray(msg.study_logs) ? msg.study_logs[0] : msg.study_logs
+        return studyLog?.subjects?.name === subjectName
+      })
+    }
+  }
+
+  // ソート処理（学習回順または正答率順）
+  if (params?.sortBy === "session") {
+    processedMessages = [...processedMessages].sort((a: any, b: any) => {
+      const sessionA = (Array.isArray(a.study_logs) ? a.study_logs[0] : a.study_logs)?.study_sessions?.session_number || 0
+      const sessionB = (Array.isArray(b.study_logs) ? b.study_logs[0] : b.study_logs)?.study_sessions?.session_number || 0
+      return sessionB - sessionA
+    })
+  } else if (params?.sortBy === "accuracy") {
+    processedMessages = [...processedMessages].sort((a: any, b: any) => {
+      const logA = Array.isArray(a.study_logs) ? a.study_logs[0] : a.study_logs
+      const logB = Array.isArray(b.study_logs) ? b.study_logs[0] : b.study_logs
+      const accA = logA?.total_problems > 0 ? (logA.correct_count / logA.total_problems) * 100 : 0
+      const accB = logB?.total_problems > 0 ? (logB.correct_count / logB.total_problems) * 100 : 0
+      return accB - accA
+    })
+  }
+
+  console.log("[DEBUG getChildEncouragementHistory] Returning messages:", processedMessages.length)
+  return { messages: processedMessages }
 }
 
 /**

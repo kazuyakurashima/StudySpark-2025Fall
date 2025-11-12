@@ -42,7 +42,19 @@ export function ReflectChat({
   const [userInput, setUserInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [turnNumber, setTurnNumber] = useState(1)
+  const [isCompleted, setIsCompleted] = useState(false)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
+
+  // クロージングメッセージを検出
+  const isClosingMessage = (content: string): boolean => {
+    const closingPatterns = [
+      /振り返りはこれで完了/,
+      /また.*土曜日.*一緒に振り返ろう/,
+      /また来週も.*楽しみにしてる/,
+      /決めた行動を忘れずに.*来週も/,
+    ]
+    return closingPatterns.some(pattern => pattern.test(content))
+  }
 
   const scrollToBottom = () => {
     // チャットコンテナ内部のみをスクロール（ページ全体はスクロールしない）
@@ -191,6 +203,39 @@ export function ReflectChat({
           await saveCoachingMessage(sessionId, "assistant", data.message, nextTurn)
 
           setTurnNumber(nextTurn)
+
+          // クロージングメッセージを検出したらセッション完了
+          if (isClosingMessage(data.message)) {
+            setIsCompleted(true)
+
+            // サマリー生成
+            const summaryResponse = await fetch("/api/reflect/summary", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                studentName,
+                weekType,
+                thisWeekAccuracy,
+                lastWeekAccuracy,
+                accuracyDiff,
+                upcomingTest,
+                conversationHistory: [...updatedMessages, aiMessage].map(m => ({ role: m.role, content: m.content })),
+                turnNumber: nextTurn,
+              }),
+            })
+
+            const summaryData = await summaryResponse.json()
+
+            if (summaryData.summary) {
+              // セッション完了
+              await completeCoachingSession(sessionId, summaryData.summary, nextTurn)
+
+              // 完了コールバック
+              setTimeout(() => {
+                onComplete(summaryData.summary)
+              }, 2000)
+            }
+          }
         } else if (data.error) {
           alert("エラーが発生しました: " + data.error)
         }
@@ -256,23 +301,28 @@ export function ReflectChat({
           )}
         </div>
 
-        {turnNumber <= MAX_TURNS && !isLoading && (
+        {!isCompleted && turnNumber <= MAX_TURNS && (
           <div className="flex gap-2">
             <Textarea
               value={userInput}
               onChange={(e) => setUserInput(e.target.value)}
               placeholder="あなたの気持ちを教えてね...（Enterで改行、送信ボタンで送信）"
               className="flex-1 min-h-[60px] resize-none"
-              disabled={isLoading}
+              disabled={isLoading || isCompleted}
             />
             <Button
               onClick={sendMessage}
-              disabled={!userInput.trim() || isLoading}
+              disabled={!userInput.trim() || isLoading || isCompleted}
               size="icon"
               className="h-[60px] w-[60px]"
             >
               <Send className="h-4 w-4" />
             </Button>
+          </div>
+        )}
+        {isCompleted && (
+          <div className="text-center text-sm text-muted-foreground py-4">
+            振り返りが完了しました。お疲れさまでした！✨
           </div>
         )}
       </CardContent>

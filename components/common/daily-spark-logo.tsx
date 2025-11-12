@@ -54,7 +54,9 @@ export function DailySparkLogo({ studentId, parentUserId }: DailySparkLogoProps)
   }
 
   // 光るエフェクトの場合はインラインスタイルで確実に表示
-  const isGlowing = level === "child" || level === "parent" || level === "both"
+  // 生徒画面: "child"で光る
+  // 保護者画面: "both"（子供のミッション達成 AND 保護者の応援完了）でのみ光る
+  const isGlowing = parentUserId ? level === "both" : level === "child"
 
   if (isGlowing) {
     return (

@@ -650,6 +650,7 @@ export async function getAllTestResults() {
  * 保護者用: 特定の生徒の利用可能なテスト一覧を取得
  */
 export async function getAvailableTestsForStudent(studentId: string) {
+  console.log('🔍 [getAvailableTestsForStudent] studentId:', studentId)
   const supabase = await createClient()
 
   // 生徒情報取得
@@ -659,7 +660,10 @@ export async function getAvailableTestsForStudent(studentId: string) {
     .eq("id", studentId)
     .single()
 
+  console.log('🔍 [getAvailableTestsForStudent] student:', student, 'error:', studentError)
+
   if (studentError || !student) {
+    console.log('🔍 [getAvailableTestsForStudent] 生徒情報エラー')
     return { error: "生徒情報が見つかりません" }
   }
 
@@ -685,6 +689,8 @@ export async function getAvailableTestsForStudent(studentId: string) {
     .gte("goal_setting_end_date", formatDateToJST(tokyoNow))
     .order("test_date", { ascending: true })
 
+  console.log('🔍 [getAvailableTestsForStudent] tests count:', tests?.length, 'error:', testsError)
+
   if (testsError) {
     return { error: testsError.message }
   }
@@ -695,13 +701,82 @@ export async function getAvailableTestsForStudent(studentId: string) {
     return tokyoNow >= startDate && tokyoNow <= endDate
   })
 
+  console.log('🔍 [getAvailableTestsForStudent] availableTests count:', availableTests.length)
+
   return { tests: availableTests }
+}
+
+/**
+ * 保護者用: 特定の生徒の全テスト結果を取得
+ */
+export async function getAllTestResultsForStudent(studentId: string) {
+  console.log('🔍 [getAllTestResultsForStudent] studentId:', studentId)
+  const supabase = await createClient()
+
+  // 生徒情報取得
+  const { data: student, error: studentError } = await supabase
+    .from("students")
+    .select("id, grade")
+    .eq("id", studentId)
+    .single()
+
+  console.log('🔍 [getAllTestResultsForStudent] student:', student, 'error:', studentError)
+
+  if (studentError || !student) {
+    console.log('🔍 [getAllTestResultsForStudent] 生徒情報エラー')
+    return { error: "生徒情報が見つかりません" }
+  }
+
+  // 結果を取得（テスト日程・目標も含む）
+  const { data: results, error: resultsError } = await supabase
+    .from("test_results")
+    .select(`
+      *,
+      test_schedules!inner (
+        id,
+        test_date,
+        test_types!inner (
+          id,
+          name,
+          grade
+        )
+      )
+    `)
+    .eq("student_id", student.id)
+    .eq("test_schedules.test_types.grade", student.grade)
+    .order("result_entered_at", { ascending: false })
+
+  console.log('🔍 [getAllTestResultsForStudent] results:', results?.length, 'error:', resultsError)
+
+  if (resultsError) {
+    return { error: resultsError.message }
+  }
+
+  // 各結果に対応する目標も取得
+  const resultsWithGoals = await Promise.all(
+    (results || []).map(async (result: any) => {
+      const { data: goal } = await supabase
+        .from("test_goals")
+        .select("*")
+        .eq("student_id", student.id)
+        .eq("test_schedule_id", result.test_schedules.id)
+        .maybeSingle()
+
+      return {
+        ...result,
+        goal: goal || null,
+      }
+    })
+  )
+
+  return { results: resultsWithGoals }
 }
 
 /**
  * 保護者用: 特定の生徒の全テスト目標を取得
  */
 export async function getAllTestGoalsForStudent(studentId: string) {
+  console.log('🔍 [getAllTestGoalsForStudent] studentId:', studentId)
   const supabase = await createClient()
 
   const { data: goals, error: goalsError } = await supabase
@@ -724,11 +799,20 @@ export async function getAllTestGoalsForStudent(studentId: string) {
       )
     `)
     .eq("student_id", studentId)
-    .order("test_schedules.test_date", { ascending: false })
+    .order("created_at", { ascending: false })
+
+  console.log('🔍 [getAllTestGoalsForStudent] goals:', goals?.length, 'error:', goalsError)
 
   if (goalsError) {
     return { error: goalsError.message }
   }
 
-  return { goals: goals || [] }
+  // クライアント側でtest_dateでソート
+  const sortedGoals = (goals || []).sort((a: any, b: any) => {
+    const dateA = new Date(a.test_schedules.test_date).getTime()
+    const dateB = new Date(b.test_schedules.test_date).getTime()
+    return dateB - dateA // 降順（新しい順）
+  })
+
+  return { goals: sortedGoals }
 }

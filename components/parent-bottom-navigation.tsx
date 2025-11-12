@@ -31,7 +31,7 @@ const tabs = [
   },
 ]
 
-export function ParentBottomNavigation({ activeTab }: { activeTab?: string } = {}) {
+export function ParentBottomNavigation({ activeTab, selectedChildId }: { activeTab?: string, selectedChildId?: number | null } = {}) {
   const pathname = usePathname()
 
   return (
@@ -40,11 +40,13 @@ export function ParentBottomNavigation({ activeTab }: { activeTab?: string } = {
         {tabs.map((tab) => {
           const Icon = tab.icon
           const isActive = activeTab ? activeTab === tab.id : pathname === tab.href
+          // 子どもIDをクエリパラメータとして追加
+          const href = selectedChildId ? `${tab.href}?child=${selectedChildId}` : tab.href
 
           return (
             <Link
               key={tab.id}
-              href={tab.href}
+              href={href}
               className={`flex flex-col items-center justify-center gap-1 transition-colors ${
                 isActive ? "text-blue-700 bg-blue-50" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
               }`}

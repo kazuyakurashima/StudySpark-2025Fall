@@ -14,6 +14,7 @@ interface UserProfileContextType {
   // 保護者用：子供リストと選択状態
   children: ChildProfile[]
   selectedChild: ChildProfile | null
+  selectedChildId: number | null
   setSelectedChildId: (childId: number) => void
 }
 
@@ -40,7 +41,36 @@ export function UserProfileProvider({
 
   // 保護者用：子供リストと選択状態
   const [childrenList, setChildrenList] = useState<ChildProfile[]>(initialChildren || [])
-  const [selectedChildId, setSelectedChildIdState] = useState<number | null>(initialSelectedChildId || null)
+
+  // localStorageを優先、なければinitialSelectedChildId、最後にnull
+  // ただし、childrenListに存在しない場合は無効とする
+  const getInitialSelectedChildId = (): number | null => {
+    const availableIds = (initialChildren || []).map(c => c.id)
+
+    if (typeof window !== "undefined") {
+      const savedChildId = localStorage.getItem("selectedChildId")
+      if (savedChildId) {
+        const parsedId = parseInt(savedChildId)
+        // localStorageのIDが有効かチェック
+        if (availableIds.includes(parsedId)) {
+          return parsedId
+        }
+        // 無効な場合はlocalStorageをクリア
+        console.log('[useUserProfile] Invalid savedChildId in localStorage, clearing:', parsedId)
+        localStorage.removeItem("selectedChildId")
+      }
+    }
+
+    // initialSelectedChildIdが有効かチェック
+    if (initialSelectedChildId && availableIds.includes(initialSelectedChildId)) {
+      return initialSelectedChildId
+    }
+
+    // どちらも無効な場合はnull（後でchildrenListから選択）
+    return null
+  }
+
+  const [selectedChildId, setSelectedChildIdState] = useState<number | null>(getInitialSelectedChildId())
 
   // プロフィール取得
   const fetchProfile = useCallback(async () => {
@@ -57,17 +87,44 @@ export function UserProfileProvider({
 
       // 保護者の場合、子供リストを取得（初期データがない場合のみ）
       if (result.profile?.role === "parent" && !initialChildren) {
+        console.log('[useUserProfile] Fetching parent children...')
         const childrenResult = await getParentChildren()
+        console.log('[useUserProfile] getParentChildren result:', childrenResult)
         if (!childrenResult.error && childrenResult.children.length > 0) {
+          console.log('[useUserProfile] Setting children list:', childrenResult.children)
           setChildrenList(childrenResult.children)
-          // 最初の子供をデフォルトで選択（localStorage から復元も可能）
-          const savedChildId = typeof window !== "undefined"
-            ? localStorage.getItem("selectedChildId")
-            : null
-          const defaultChildId = savedChildId
-            ? parseInt(savedChildId)
-            : childrenResult.children[0].id
-          setSelectedChildIdState(defaultChildId)
+
+          // 有効な子供IDを選択（localStorage → 最初の子供）
+          const availableIds = childrenResult.children.map(c => c.id)
+          let validChildId: number | null = null
+
+          // localStorageから復元を試みる
+          if (typeof window !== "undefined") {
+            const savedChildId = localStorage.getItem("selectedChildId")
+            if (savedChildId) {
+              const parsedId = parseInt(savedChildId)
+              if (availableIds.includes(parsedId)) {
+                validChildId = parsedId
+                console.log('[useUserProfile] Restored valid child ID from localStorage:', validChildId)
+              } else {
+                console.log('[useUserProfile] Saved child ID not in current children list, ignoring:', parsedId)
+              }
+            }
+          }
+
+          // localStorageが無効または存在しない場合は最初の子供を選択
+          if (!validChildId) {
+            validChildId = childrenResult.children[0].id
+            console.log('[useUserProfile] Selecting first child as default:', validChildId)
+          }
+
+          setSelectedChildIdState(validChildId)
+          // localStorageも更新
+          if (typeof window !== "undefined") {
+            localStorage.setItem("selectedChildId", validChildId.toString())
+          }
+        } else {
+          console.error('[useUserProfile] Failed to load children:', childrenResult.error)
         }
       }
     }
@@ -126,6 +183,7 @@ export function UserProfileProvider({
         refresh,
         children: childrenList,
         selectedChild,
+        selectedChildId,
         setSelectedChildId,
       }}
     >

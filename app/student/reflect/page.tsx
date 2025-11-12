@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useRef } from "react"
+import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -37,6 +38,7 @@ import { UserProfileProvider } from "@/lib/hooks/use-user-profile"
 const AVATAR_AI_COACH = "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png"
 
 function ReflectPageInner() {
+  const searchParams = useSearchParams()
   const [studentName, setStudentName] = useState("")
   const [studentGrade, setStudentGrade] = useState(5)
   const [studentCourse, setStudentCourse] = useState("A")
@@ -51,7 +53,18 @@ function ReflectPageInner() {
   const [pastSessions, setPastSessions] = useState<any[]>([])
   const [showHistory, setShowHistory] = useState(false)
   const [isCompletedThisWeek, setIsCompletedThisWeek] = useState(false)
+  const [coachingHistoryRefresh, setCoachingHistoryRefresh] = useState(0)
   const reflectChatRef = useRef<HTMLDivElement>(null)
+
+  // URLクエリパラメータからタブを取得（デフォルトは "achievement"）
+  const [activeTab, setActiveTab] = useState<string>("achievement")
+
+  useEffect(() => {
+    const tab = searchParams.get("tab")
+    if (tab && ["achievement", "history", "encouragement", "coaching"].includes(tab)) {
+      setActiveTab(tab)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     loadStudentInfo()
@@ -178,6 +191,8 @@ function ReflectPageInner() {
     setIsStarted(false)
     setIsCompletedThisWeek(true)
     loadPastSessions()
+    // Trigger CoachingHistory component to refresh
+    setCoachingHistoryRefresh(prev => prev + 1)
   }
 
   const getWeekTypeInfo = () => {
@@ -251,7 +266,7 @@ function ReflectPageInner() {
         )}
 
         {/* 4つのタブ表示 */}
-        <Tabs defaultValue="achievement" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="achievement">達成マップ</TabsTrigger>
             <TabsTrigger value="history">学習履歴</TabsTrigger>
@@ -272,6 +287,38 @@ function ReflectPageInner() {
           </TabsContent>
 
           <TabsContent value="coaching" className="mt-6">
+            {/* 振り返り完了カード（コーチング履歴タブ内、上部に配置） */}
+            {isAvailable && isCompletedThisWeek && summary && (
+              <Card className="card-elevated bg-gradient-to-br from-emerald-50 to-blue-50 border-0 mb-4">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <Sparkles className="h-8 w-8 text-primary flex-shrink-0" />
+                    <div className="flex-1">
+                      <h3 className="text-lg font-bold text-primary mb-1">今週の振り返り完了！</h3>
+                      <p className="text-sm text-muted-foreground mb-2">今週の振り返りまとめ</p>
+                      <p className="text-sm leading-relaxed bg-white rounded p-3">{summary}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {isAvailable && isCompletedThisWeek && !summary && (
+              <Card className="card-elevated bg-gradient-to-br from-emerald-50 to-blue-50 border-0 mb-4">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <Sparkles className="h-8 w-8 text-primary flex-shrink-0" />
+                    <div className="flex-1">
+                      <h3 className="text-lg font-bold text-primary mb-1">今週の振り返り完了！</h3>
+                      <p className="text-sm text-muted-foreground">
+                        今週の振り返りはもう完了しているよ。また来週も一緒に頑張ろうね！✨
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* 週タイプカード（コーチング履歴タブ内） */}
             {isAvailable && !isStarted && !summary && !isCompletedThisWeek && weekTypeInfo && weekData && (
               <Card className={`card-elevated ${weekTypeInfo.bg} border-0 shadow-2xl mb-6`}>
@@ -327,39 +374,9 @@ function ReflectPageInner() {
               </Card>
             )}
 
-            <CoachingHistory />
+            <CoachingHistory refreshTrigger={coachingHistoryRefresh} />
           </TabsContent>
         </Tabs>
-
-        {/* 振り返り完了カード（タブの下に配置） */}
-        {isAvailable && isCompletedThisWeek && summary && (
-          <Card className="card-elevated bg-gradient-to-br from-emerald-50 to-blue-50 border-0 shadow-2xl">
-            <CardContent className="p-8 text-center">
-              <Sparkles className="h-16 w-16 text-primary mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-primary mb-4">今週の振り返り完了！</h2>
-              <div className="bg-white rounded-lg p-6 mb-6">
-                <h3 className="text-sm font-semibold text-muted-foreground mb-2">今週の振り返りまとめ</h3>
-                <p className="text-lg leading-relaxed">{summary}</p>
-              </div>
-              <p className="text-muted-foreground">
-                また来週も一緒に頑張ろうね！✨
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {isAvailable && isCompletedThisWeek && !summary && (
-          <Card className="card-elevated bg-gradient-to-br from-emerald-50 to-blue-50 border-0 shadow-2xl">
-            <CardContent className="p-8 text-center">
-              <Sparkles className="h-16 w-16 text-primary mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-primary mb-4">今週の振り返り完了！</h2>
-              <p className="text-muted-foreground">
-                今週の振り返りはもう完了しているよ。<br />
-                また来週も一緒に頑張ろうね！✨
-              </p>
-            </CardContent>
-          </Card>
-        )}
 
         {!isAvailable && (
           <Card className="card-elevated">

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { PageHeader } from "@/components/common/page-header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,8 +20,9 @@ import {
 import {
   getAvailableTestsForStudent,
   getAllTestGoalsForStudent,
+  getAllTestResultsForStudent,
 } from "@/app/actions/goal"
-import { UserProfileProvider, useUserProfile } from "@/lib/hooks/use-user-profile"
+import { useUserProfile } from "@/lib/hooks/use-user-profile"
 
 interface Child {
   id: string
@@ -63,19 +65,25 @@ const courses = [
   { id: "A", name: "Aコース", description: "標準校" },
 ]
 
-function ParentGoalNaviPageInner() {
-  const { setSelectedChildId: setProviderChildId } = useUserProfile()
+export default function ParentGoalNaviPage() {
+  const searchParams = useSearchParams()
+  const { setSelectedChildId: setProviderChildId, selectedChildId: providerSelectedChildId } = useUserProfile()
+
+  // URLパラメータから child ID を取得
+  const childParam = searchParams.get("child")
+
   const [children, setChildren] = useState<Child[]>([])
   const [selectedChildId, setSelectedChildId] = useState<string>("")
   const [selectedChild, setSelectedChild] = useState<Child | null>(null)
   const [availableTests, setAvailableTests] = useState<TestSchedule[]>([])
   const [testGoals, setTestGoals] = useState<TestGoal[]>([])
+  const [testResults, setTestResults] = useState<any[]>([])
   const [selectedGoal, setSelectedGoal] = useState<TestGoal | null>(null)
-  const [activeTab, setActiveTab] = useState<"input" | "result" | "test">("input")
+  const [activeTab, setActiveTab] = useState<"input" | "result" | "test">("test")
   const [loading, setLoading] = useState(true)
   const [encouragementStatus, setEncouragementStatus] = useState<{ [childId: number]: boolean }>({})
 
-  // 子ども一覧を読み込み
+  // 子ども一覧を読み込み（選択は別のuseEffectで処理）
   useEffect(() => {
     const loadChildren = async () => {
       console.log("🔍 [CLIENT] Loading children...")
@@ -92,12 +100,7 @@ function ParentGoalNaviPageInner() {
         if (result.children) {
           console.log("🔍 [CLIENT] Setting children:", result.children)
           setChildren(result.children)
-          if (result.children.length > 0) {
-            setSelectedChildId(result.children[0].id)
-            setSelectedChild(result.children[0])
-            // Provider の selectedChild も更新
-            setProviderChildId(parseInt(result.children[0].id, 10))
-          }
+          // 子どもの選択は別のuseEffectで処理（URLパラメータ or プロバイダー or デフォルト）
         }
       } catch (error) {
         console.error("🔍 [CLIENT] Exception loading children:", error)
@@ -107,7 +110,40 @@ function ParentGoalNaviPageInner() {
     }
 
     loadChildren()
-  }, [setProviderChildId])
+  }, [])
+
+  // URL パラメータの child ID をプロバイダーに反映（初回のみ）
+  useEffect(() => {
+    if (childParam && children.length > 0) {
+      const childId = parseInt(childParam, 10)
+      const child = children.find(c => parseInt(c.id) === childId)
+      if (child) {
+        setProviderChildId(childId)
+      }
+    }
+  }, [childParam, children, setProviderChildId])
+
+  // プロバイダーの selectedChildId が確定したら、選択中の子どもを設定
+  // プロバイダーに値がない場合は、最初の子どもを選択
+  useEffect(() => {
+    if (children.length === 0) return
+
+    if (providerSelectedChildId !== null) {
+      // プロバイダーから取得したIDで子どもを選択
+      const child = children.find(c => parseInt(c.id) === providerSelectedChildId)
+      if (child) {
+        console.log('🔍 [ゴールナビ] プロバイダーから子どもを選択:', child.full_name, child.id)
+        setSelectedChildId(child.id)
+        setSelectedChild(child)
+      }
+    } else if (!selectedChildId && children.length > 0) {
+      // プロバイダーに値がなく、まだ選択されていない場合は最初の子どもを選択
+      console.log('🔍 [ゴールナビ] デフォルトで最初の子どもを選択:', children[0].full_name, children[0].id)
+      setSelectedChildId(children[0].id)
+      setSelectedChild(children[0])
+      setProviderChildId(parseInt(children[0].id, 10))
+    }
+  }, [providerSelectedChildId, children, selectedChildId, setProviderChildId])
 
   // 全ての子供の今日の応援状況をチェック
   useEffect(() => {
@@ -144,27 +180,39 @@ function ParentGoalNaviPageInner() {
   // 選択された子どものデータを読み込み
   useEffect(() => {
     const loadChildData = async () => {
-      if (!selectedChildId) return
-
-      const child = children.find((c) => c.id === selectedChildId)
-      if (child) {
-        setSelectedChild(child)
+      if (!selectedChildId) {
+        console.log('🔍 [ゴールナビ] selectedChildIdがnullのためデータ読み込みスキップ')
+        return
       }
+
+      console.log('🔍 [ゴールナビ] 子どものテストデータを読み込み中:', selectedChildId)
 
       // studentIdを使って生徒のデータを取得
-      const { tests } = await getAvailableTestsForStudent(selectedChildId)
-      if (tests) {
-        setAvailableTests(tests)
+      const [testsData, goalsData, resultsData] = await Promise.all([
+        getAvailableTestsForStudent(selectedChildId),
+        getAllTestGoalsForStudent(selectedChildId),
+        getAllTestResultsForStudent(selectedChildId)
+      ])
+
+      console.log('🔍 [ゴールナビ] 利用可能なテスト:', testsData.tests?.length || 0)
+      console.log('🔍 [ゴールナビ] 設定済みの目標:', goalsData.goals?.length || 0)
+      console.log('🔍 [ゴールナビ] 入力済みの結果:', resultsData.results?.length || 0)
+
+      if (testsData.tests) {
+        setAvailableTests(testsData.tests)
       }
 
-      const { goals } = await getAllTestGoalsForStudent(selectedChildId)
-      if (goals) {
-        setTestGoals(goals)
+      if (goalsData.goals) {
+        setTestGoals(goalsData.goals)
+      }
+
+      if (resultsData.results) {
+        setTestResults(resultsData.results)
       }
     }
 
     loadChildData()
-  }, [selectedChildId, children])
+  }, [selectedChildId])
 
   const getCourseName = (courseId: string) => {
     return courses.find((c) => c.id === courseId)?.name || courseId
@@ -185,7 +233,7 @@ function ParentGoalNaviPageInner() {
         <div className="container max-w-4xl mx-auto px-4 py-6">
           <div className="text-center py-20">読み込み中...</div>
         </div>
-        <ParentBottomNavigation />
+        <ParentBottomNavigation selectedChildId={providerSelectedChildId} />
       </div>
     )
   }
@@ -199,7 +247,7 @@ function ParentGoalNaviPageInner() {
             <p className="text-gray-600">お子様の情報がありません</p>
           </div>
         </div>
-        <ParentBottomNavigation />
+        <ParentBottomNavigation selectedChildId={providerSelectedChildId} />
       </div>
     )
   }
@@ -299,74 +347,127 @@ function ParentGoalNaviPageInner() {
 
           {/* 目標と結果の履歴タブ */}
           <TabsContent value="test" className="space-y-4 mt-6">
-            {testGoals.length === 0 ? (
+            {testGoals.length === 0 && testResults.length === 0 ? (
               <Card className="card-elevated">
                 <CardContent className="py-10 text-center text-muted-foreground">
-                  まだ目標が設定されていません。<br />
-                  先に「目標入力」タブで目標を設定してください。
+                  まだ目標・結果が登録されていません。
                 </CardContent>
               </Card>
             ) : (
               <div className="space-y-4">
-                {testGoals.map((goal) => (
-                  <Card key={goal.id} className="card-elevated">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Calendar className="h-5 w-5 text-primary" />
-                        {goal.test_schedules.test_types.name}
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        {formatDate(goal.test_schedules.test_date)}
-                      </p>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {/* 目標表示 */}
-                      <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Flag className="h-4 w-4 text-blue-600" />
-                          <span className="font-semibold text-sm">目標</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3 mb-3">
-                          <div className="text-center p-3 bg-white rounded-lg">
-                            <div className="text-xs text-gray-600 mb-1">目標コース</div>
-                            <div className="font-bold text-lg text-blue-600">
-                              {getCourseName(goal.target_course)}
+                {/* 目標と結果を統合して表示 */}
+                {(() => {
+                  // test_schedule_id でグループ化
+                  const scheduleMap = new Map()
+
+                  // 目標を追加
+                  testGoals.forEach(goal => {
+                    scheduleMap.set(goal.test_schedule_id, {
+                      scheduleId: goal.test_schedule_id,
+                      testName: goal.test_schedules.test_types.name,
+                      testDate: goal.test_schedules.test_date,
+                      goal: goal,
+                      result: null
+                    })
+                  })
+
+                  // 結果を追加
+                  testResults.forEach(result => {
+                    if (scheduleMap.has(result.test_schedule_id)) {
+                      scheduleMap.get(result.test_schedule_id).result = result
+                    } else {
+                      scheduleMap.set(result.test_schedule_id, {
+                        scheduleId: result.test_schedule_id,
+                        testName: result.test_schedules.test_types.name,
+                        testDate: result.test_schedules.test_date,
+                        goal: result.goal || null,
+                        result: result
+                      })
+                    }
+                  })
+
+                  // 日付順にソート
+                  const sortedItems = Array.from(scheduleMap.values()).sort((a, b) =>
+                    new Date(b.testDate).getTime() - new Date(a.testDate).getTime()
+                  )
+
+                  return sortedItems.map((item) => (
+                    <Card key={item.scheduleId} className="card-elevated">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Calendar className="h-5 w-5 text-primary" />
+                          {item.testName}
+                        </CardTitle>
+                        <p className="text-sm text-muted-foreground">
+                          {formatDate(item.testDate)}
+                        </p>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {/* 目標表示 */}
+                        {item.goal && (
+                          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Flag className="h-4 w-4 text-blue-600" />
+                              <span className="font-semibold text-sm">目標</span>
                             </div>
-                          </div>
-                          <div className="text-center p-3 bg-white rounded-lg">
-                            <div className="text-xs text-gray-600 mb-1">目標の組</div>
-                            <div className="font-bold text-lg text-blue-600">{goal.target_class}組</div>
-                          </div>
-                        </div>
-                        {goal.goal_thoughts && (
-                          <div className="mt-3 pt-3 border-t border-blue-200">
-                            <div className="text-xs text-gray-600 mb-2">今回の思い</div>
-                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{goal.goal_thoughts}</p>
+                            <div className="grid grid-cols-2 gap-3 mb-3">
+                              <div className="text-center p-3 bg-white rounded-lg">
+                                <div className="text-xs text-gray-600 mb-1">目標コース</div>
+                                <div className="font-bold text-lg text-blue-600">
+                                  {getCourseName(item.goal.target_course)}
+                                </div>
+                              </div>
+                              <div className="text-center p-3 bg-white rounded-lg">
+                                <div className="text-xs text-gray-600 mb-1">目標の組</div>
+                                <div className="font-bold text-lg text-blue-600">{item.goal.target_class}組</div>
+                              </div>
+                            </div>
+                            {item.goal.goal_thoughts && (
+                              <div className="mt-3 pt-3 border-t border-blue-200">
+                                <div className="text-xs text-gray-600 mb-2">今回の思い</div>
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap">{item.goal.goal_thoughts}</p>
+                              </div>
+                            )}
                           </div>
                         )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+
+                        {/* 結果表示 */}
+                        {item.result ? (
+                          <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Target className="h-4 w-4 text-green-600" />
+                              <span className="font-semibold text-sm">結果</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="text-center p-3 bg-white rounded-lg">
+                                <div className="text-xs text-gray-600 mb-1">結果コース</div>
+                                <div className="font-bold text-lg text-green-600">
+                                  {getCourseName(item.result.result_course)}
+                                </div>
+                              </div>
+                              <div className="text-center p-3 bg-white rounded-lg">
+                                <div className="text-xs text-gray-600 mb-1">結果の組</div>
+                                <div className="font-bold text-lg text-green-600">{item.result.result_class}組</div>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 text-center text-muted-foreground">
+                            結果はまだ入力されていません
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))
+                })()}
               </div>
             )}
           </TabsContent>
         </Tabs>
       </div>
 
-        <ParentBottomNavigation />
+        <ParentBottomNavigation selectedChildId={providerSelectedChildId} />
       </div>
     </>
-  )
-}
-
-/**
- * 保護者ゴール閲覧ページ（Context Provider付き）
- */
-export default function ParentGoalNaviPage() {
-  return (
-    <UserProfileProvider>
-      <ParentGoalNaviPageInner />
-    </UserProfileProvider>
   )
 }

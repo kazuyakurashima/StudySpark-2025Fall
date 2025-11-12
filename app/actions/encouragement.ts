@@ -5,62 +5,23 @@ import { generateEncouragementMessages, type EncouragementContext } from "@/lib/
 import { QUICK_ENCOURAGEMENT_TEMPLATES, type QuickEncouragementType } from "@/lib/openai/prompts"
 
 /**
- * 学習記録一覧を取得（応援機能用）
+ * 学習記録一覧を取得（応援機能用）- RPC版
  */
 export async function getStudyLogsForEncouragement(
   studentId: string,
   filters?: {
     hasEncouragement?: "all" | "sent" | "not_sent"
     subject?: string | "all"
-    period?: "1week" | "1month" | "all"
-    sortBy?: "date" | "session" | "accuracy"
+    sortBy?: "date" | "session"
     sortOrder?: "asc" | "desc"
+    limit?: number
+    offset?: number
   }
 ) {
   const supabase = await createClient()
 
-  let query = supabase
-    .from("study_logs")
-    .select(`
-      id,
-      student_id,
-      study_date,
-      session_id,
-      subject_id,
-      study_content_type_id,
-      total_problems,
-      correct_count,
-      reflection_text,
-      created_at,
-      study_sessions(session_number, grade),
-      subjects(name),
-      study_content_types(content_name),
-      encouragement_messages(
-        id,
-        message,
-        sender_role,
-        sent_at,
-        sender_profile:profiles!encouragement_messages_sender_id_fkey(
-          id,
-          display_name,
-          nickname,
-          avatar_id,
-          role
-        )
-      )
-    `)
-    .eq("student_id", studentId)
-
-  // 期間フィルター（JST基準）
-  if (filters?.period === "1week") {
-    const { getDaysAgoJST } = await import("@/lib/utils/date-jst")
-    query = query.gte("study_date", getDaysAgoJST(7))
-  } else if (filters?.period === "1month") {
-    const { getDaysAgoJST } = await import("@/lib/utils/date-jst")
-    query = query.gte("study_date", getDaysAgoJST(30))
-  }
-
-  // 科目フィルター
+  // 科目名からIDを取得
+  let subjectId: number | null = null
   if (filters?.subject && filters.subject !== "all") {
     const { data: subjectData } = await supabase
       .from("subjects")
@@ -69,45 +30,103 @@ export async function getStudyLogsForEncouragement(
       .single()
 
     if (subjectData) {
-      query = query.eq("subject_id", subjectData.id)
+      subjectId = subjectData.id
     }
   }
 
-  // ソート
-  const sortBy = filters?.sortBy || "date"
-  const sortOrder = filters?.sortOrder || "desc"
+  // RPC関数を呼び出し
+  const { data: rpcData, error: rpcError } = await supabase.rpc("get_study_logs_for_encouragement", {
+    p_student_id: parseInt(studentId),
+    p_has_encouragement: filters?.hasEncouragement || "all",
+    p_subject_id: subjectId,
+    p_sort_by: filters?.sortBy || "date",
+    p_sort_order: filters?.sortOrder || "desc",
+    p_limit: filters?.limit || 10,
+    p_offset: filters?.offset || 0,
+  })
 
-  if (sortBy === "date") {
-    query = query.order("study_date", { ascending: sortOrder === "asc" })
-  } else if (sortBy === "session") {
-    query = query.order("session_id", { ascending: sortOrder === "asc" })
+  if (rpcError) {
+    console.error("Error fetching study logs via RPC:", rpcError)
+    return { success: false as const, error: rpcError.message }
   }
 
-  const { data, error } = await query
+  const logs = rpcData || []
 
-  if (error) {
-    console.error("Error fetching study logs:", error)
-    return { success: false as const, error: error.message }
-  }
+  // 総件数とhasMoreを計算
+  const totalCount = logs.length > 0 ? logs[0].total_count : 0
+  const hasMore = logs.length === (filters?.limit || 10)
 
-  // 正答率でソート（クライアント側）
-  let logs = data || []
-  if (sortBy === "accuracy") {
-    logs = logs.sort((a, b) => {
-      const accA = a.total_problems > 0 ? (a.correct_count / a.total_problems) * 100 : 0
-      const accB = b.total_problems > 0 ? (b.correct_count / b.total_problems) * 100 : 0
-      return sortOrder === "asc" ? accA - accB : accB - accA
+  // 各学習記録の応援メッセージを取得
+  const logsWithMessages = await Promise.all(
+    logs.map(async (log: any) => {
+      // この学習記録に紐づく応援メッセージを取得
+      const { data: messages, error: messagesError } = await supabase
+        .from("encouragement_messages")
+        .select("id, message, sender_role, sent_at, sender_id")
+        .eq("related_study_log_id", log.id)
+        .order("sent_at", { ascending: false })
+
+      if (messagesError) {
+        console.error("Error fetching messages for log:", log.id, messagesError)
+        return {
+          ...log,
+          encouragement_messages: [],
+        }
+      }
+
+      // 送信者プロフィールを取得
+      const senderIds = (messages || []).map((msg: any) => msg.sender_id).filter(Boolean)
+      let messagesWithProfiles = messages || []
+
+      if (senderIds.length > 0) {
+        const uniqueSenderIds = Array.from(new Set(senderIds))
+        const { data: senderProfiles, error: senderError } = await supabase.rpc("get_sender_profiles", {
+          sender_ids: uniqueSenderIds,
+        })
+
+        if (!senderError && senderProfiles) {
+          messagesWithProfiles = messages.map((msg: any) => {
+            const senderProfile = senderProfiles.find((profile: any) => profile.id === msg.sender_id)
+            const profileWithFallback = senderProfile
+              ? {
+                  ...senderProfile,
+                  nickname: senderProfile.nickname ?? senderProfile.display_name ?? "応援者",
+                  display_name: senderProfile.display_name ?? senderProfile.nickname ?? "応援者",
+                }
+              : { display_name: "応援者", avatar_id: null, nickname: "応援者" }
+
+            return {
+              ...msg,
+              sender_profile: profileWithFallback,
+            }
+          })
+        }
+      }
+
+      return {
+        ...log,
+        // RPC結果のキー名をアプリ側の期待形式に変換
+        study_sessions: {
+          session_number: log.session_number,
+          grade: log.session_grade,
+        },
+        subjects: {
+          name: log.subject_name,
+        },
+        study_content_types: {
+          content_name: log.content_name,
+        },
+        encouragement_messages: messagesWithProfiles,
+      }
     })
-  }
+  )
 
-  // 応援有無フィルター
-  if (filters?.hasEncouragement === "sent") {
-    logs = logs.filter((log) => Array.isArray(log.encouragement_messages) && log.encouragement_messages.length > 0)
-  } else if (filters?.hasEncouragement === "not_sent") {
-    logs = logs.filter((log) => !Array.isArray(log.encouragement_messages) || log.encouragement_messages.length === 0)
+  return {
+    success: true as const,
+    logs: logsWithMessages,
+    totalCount,
+    hasMore,
   }
-
-  return { success: true as const, logs }
 }
 
 /**
@@ -755,6 +774,8 @@ export async function getRecentEncouragementMessages() {
 
 /**
  * 生徒の全応援メッセージを取得（応援詳細画面用）
+ * @deprecated このAPIは廃止されました。代わりに getEncouragementHistory を使用してください。
+ * /student/encouragement ページは /student/reflect?tab=encouragement に統合されました。
  */
 export async function getAllEncouragementMessages(filters?: {
   senderRole?: "parent" | "coach" | "all"

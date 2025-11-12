@@ -11,9 +11,15 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { getStudyHistory } from "@/app/actions/reflect"
+import { getChildStudyHistory } from "@/app/actions/parent"
 import { BookOpen, TrendingUp, TrendingDown, Minus } from "lucide-react"
 
-export function StudyHistory() {
+interface StudyHistoryProps {
+  viewerRole?: "student" | "parent"
+  studentId?: string
+}
+
+export function StudyHistory({ viewerRole = "student", studentId }: StudyHistoryProps = {}) {
   const [logs, setLogs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [subjectFilter, setSubjectFilter] = useState("all")
@@ -22,15 +28,23 @@ export function StudyHistory() {
 
   useEffect(() => {
     loadHistory()
-  }, [subjectFilter, periodFilter, sortBy])
+  }, [subjectFilter, periodFilter, sortBy, viewerRole, studentId])
 
   const loadHistory = async () => {
     setLoading(true)
-    const result = await getStudyHistory({
-      subjectFilter,
-      periodFilter,
-      sortBy,
-    })
+
+    // viewerRoleに応じて適切なAPIを呼び出す
+    const result = viewerRole === "parent" && studentId
+      ? await getChildStudyHistory(studentId, {
+          subjectFilter,
+          periodFilter,
+          sortBy,
+        })
+      : await getStudyHistory({
+          subjectFilter,
+          periodFilter,
+          sortBy,
+        })
 
     if (!result.error && result.logs) {
       let processedLogs = result.logs

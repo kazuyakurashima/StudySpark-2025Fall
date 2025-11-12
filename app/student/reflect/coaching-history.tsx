@@ -3,6 +3,12 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import {
   Select,
   SelectContent,
@@ -11,16 +17,30 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { getCoachingHistory } from "@/app/actions/reflect"
-import { Bot, Heart, TrendingUp, Target, Lightbulb, Zap } from "lucide-react"
+import { Bot, Heart, ChevronDown, ChevronUp } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useUserProfile } from "@/lib/hooks/use-user-profile"
+import { getAvatarById } from "@/lib/constants/avatars"
 
-export function CoachingHistory() {
+const AVATAR_AI_COACH =
+  "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png"
+
+interface CoachingHistoryProps {
+  refreshTrigger?: number
+}
+
+export function CoachingHistory({ refreshTrigger }: CoachingHistoryProps) {
   const [sessions, setSessions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [periodFilter, setPeriodFilter] = useState("1month")
+  const [openSessions, setOpenSessions] = useState<Set<string>>(new Set())
+  const { profile } = useUserProfile()
+  const studentAvatarSrc = profile ? getAvatarById(profile.avatar_id)?.src : undefined
+  const studentInitial = profile?.nickname?.slice(0, 2) || "You"
 
   useEffect(() => {
     loadHistory()
-  }, [periodFilter])
+  }, [periodFilter, refreshTrigger])
 
   const loadHistory = async () => {
     setLoading(true)
@@ -49,27 +69,16 @@ export function CoachingHistory() {
     return labels[weekType] || { label: "週次振り返り", color: "bg-gray-100 text-gray-800" }
   }
 
-  // GROWモデルのサマリーを抽出（簡易版）
-  const extractGROWSummary = (messages: any[]) => {
-    if (!messages || messages.length === 0) return null
-
-    // メッセージから各セクションを抽出（実際のAI対話に基づいて調整が必要）
-    const summary = {
-      goal: "",
-      reality: "",
-      options: "",
-      will: "",
-    }
-
-    // ターン数に基づいて推測（簡易版）
-    const userMessages = messages.filter((m) => m.role === "user")
-
-    if (userMessages.length >= 1) summary.goal = userMessages[0].content
-    if (userMessages.length >= 2) summary.reality = userMessages[1].content
-    if (userMessages.length >= 3) summary.options = userMessages[2].content
-    if (userMessages.length >= 4) summary.will = userMessages[3].content
-
-    return summary
+  const toggleSessionOpen = (sessionId: string) => {
+    setOpenSessions((prev) => {
+      const newSet = new Set(prev)
+      if (newSet.has(sessionId)) {
+        newSet.delete(sessionId)
+      } else {
+        newSet.add(sessionId)
+      }
+      return newSet
+    })
   }
 
   return (
@@ -109,7 +118,7 @@ export function CoachingHistory() {
           <div className="space-y-6">
             {sessions.map((session) => {
               const weekTypeInfo = getWeekTypeLabel(session.week_type)
-              const growSummary = extractGROWSummary(session.coaching_messages)
+              const isOpen = openSessions.has(session.id)
 
               return (
                 <div
@@ -142,62 +151,62 @@ export function CoachingHistory() {
                     </div>
                   )}
 
-                  {/* GROWモデルサマリー */}
-                  {growSummary && (
-                    <div className="space-y-3">
-                      <p className="text-sm font-semibold text-muted-foreground">
-                        コーチングサマリー（GROWモデル）
-                      </p>
-                      <div className="grid gap-3">
-                        {growSummary.goal && (
-                          <div className="flex gap-3 p-3 bg-white rounded-md">
-                            <Target className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                            <div className="flex-1">
-                              <p className="text-xs font-semibold text-green-600 mb-1">
-                                Goal（目標）
-                              </p>
-                              <p className="text-sm">{growSummary.goal}</p>
+                  {/* 対話の詳細（折りたたみ式） */}
+                  {session.coaching_messages && session.coaching_messages.length > 0 && (
+                    <Collapsible open={isOpen} onOpenChange={() => toggleSessionOpen(session.id)}>
+                      <CollapsibleTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full flex items-center justify-between mb-2"
+                        >
+                          <span className="text-sm font-medium">対話の詳細を見る</span>
+                          {isOpen ? (
+                            <ChevronUp className="h-4 w-4" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="space-y-3 mt-3">
+                        {session.coaching_messages.map((message: any, index: number) => {
+                          const isAssistant = message.role === "assistant"
+                          return (
+                            <div
+                              key={message.id || index}
+                              className={`p-3 rounded-md ${
+                                isAssistant
+                                  ? "bg-white border border-blue-200"
+                                  : "bg-blue-50 border border-blue-300"
+                              }`}
+                            >
+                              <div className="flex items-center gap-3 mb-2">
+                                <Avatar
+                                  className={`h-8 w-8 border ${
+                                    isAssistant ? "border-blue-200" : "border-blue-300"
+                                  }`}
+                                >
+                                  <AvatarImage
+                                    src={isAssistant ? AVATAR_AI_COACH : studentAvatarSrc}
+                                    alt={isAssistant ? "AIコーチ" : profile?.nickname || "あなた"}
+                                  />
+                                  <AvatarFallback>
+                                    {isAssistant ? (
+                                      <Bot className="h-4 w-4" />
+                                    ) : (
+                                      studentInitial
+                                    )}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <p className="text-xs font-semibold text-muted-foreground">
+                                  {isAssistant ? "AIコーチ" : "あなた"}
+                                </p>
+                              </div>
+                              <p className="text-sm whitespace-pre-line">{message.content}</p>
                             </div>
-                          </div>
-                        )}
-
-                        {growSummary.reality && (
-                          <div className="flex gap-3 p-3 bg-white rounded-md">
-                            <TrendingUp className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                            <div className="flex-1">
-                              <p className="text-xs font-semibold text-blue-600 mb-1">
-                                Reality（現状）
-                              </p>
-                              <p className="text-sm">{growSummary.reality}</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {growSummary.options && (
-                          <div className="flex gap-3 p-3 bg-white rounded-md">
-                            <Lightbulb className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
-                            <div className="flex-1">
-                              <p className="text-xs font-semibold text-orange-600 mb-1">
-                                Options（選択肢）
-                              </p>
-                              <p className="text-sm">{growSummary.options}</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {growSummary.will && (
-                          <div className="flex gap-3 p-3 bg-white rounded-md">
-                            <Zap className="h-5 w-5 text-purple-600 flex-shrink-0 mt-0.5" />
-                            <div className="flex-1">
-                              <p className="text-xs font-semibold text-purple-600 mb-1">
-                                Will（意思）
-                              </p>
-                              <p className="text-sm">{growSummary.will}</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                          )
+                        })}
+                      </CollapsibleContent>
+                    </Collapsible>
                   )}
 
                   {/* 応援メッセージ（あれば表示） */}

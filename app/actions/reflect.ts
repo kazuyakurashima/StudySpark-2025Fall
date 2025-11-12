@@ -556,20 +556,41 @@ export async function getEncouragementHistory(params?: {
     return { error: error.message }
   }
 
-  // 送信者のプロフィール情報を取得
+  // 送信者のプロフィール情報を取得（RPC経由で安全に取得）
   if (messages && messages.length > 0) {
     const senderIds = [...new Set(messages.map(m => m.sender_id))]
 
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, display_name, nickname, avatar_id, role")
-      .in("id", senderIds)
+    const { data: senderProfiles, error: senderError } = await supabase.rpc("get_sender_profiles", {
+      sender_ids: senderIds,
+    })
 
-    // メッセージに送信者プロフィールを追加
-    const messagesWithProfiles = messages.map(msg => ({
-      ...msg,
-      sender_profile: profiles?.find(p => p.id === msg.sender_id)
-    }))
+    if (senderError) {
+      console.error("Error fetching sender profiles:", senderError)
+      // フォールバック: 送信者情報なしで返す
+      return {
+        messages: messages.map((msg) => ({
+          ...msg,
+          sender_profile: { display_name: "応援者", avatar_id: null, nickname: "応援者" },
+        })),
+      }
+    }
+
+    // メッセージに送信者プロフィールを追加（段階的フォールバック）
+    const messagesWithProfiles = messages.map(msg => {
+      const senderProfile = senderProfiles?.find((profile: any) => profile.id === msg.sender_id)
+      const profileWithFallback = senderProfile
+        ? {
+            ...senderProfile,
+            nickname: senderProfile.nickname ?? senderProfile.display_name ?? "応援者",
+            display_name: senderProfile.display_name ?? senderProfile.nickname ?? "応援者",
+          }
+        : { display_name: "応援者", avatar_id: null, nickname: "応援者" }
+
+      return {
+        ...msg,
+        sender_profile: profileWithFallback,
+      }
+    })
 
     return { messages: messagesWithProfiles }
   }
@@ -657,7 +678,7 @@ export async function getCoachingHistory(params?: {
             role
           )
         `)
-        .eq("recipient_id", student.id)
+        .eq("student_id", student.id)
         .gte("sent_at", session.week_start_date)
         .lte("sent_at", session.week_end_date)
         .order("sent_at", { ascending: true })

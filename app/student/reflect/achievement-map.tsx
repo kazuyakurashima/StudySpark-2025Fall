@@ -4,14 +4,22 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getAchievementMapData } from "@/app/actions/reflect"
+import { getChildAchievementMapData } from "@/app/actions/parent"
 import { TrendingUp } from "lucide-react"
 
 interface AchievementMapProps {
   studentGrade: number
-  studentCourse: string
+  studentCourse?: string
+  viewerRole?: "student" | "parent"
+  studentId?: string
 }
 
-export function AchievementMap({ studentGrade, studentCourse }: AchievementMapProps) {
+export function AchievementMap({
+  studentGrade,
+  studentCourse = "B",
+  viewerRole = "student",
+  studentId
+}: AchievementMapProps) {
   const [selectedSubject, setSelectedSubject] = useState("all")
   const [mapData, setMapData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -26,11 +34,16 @@ export function AchievementMap({ studentGrade, studentCourse }: AchievementMapPr
 
   useEffect(() => {
     loadMapData()
-  }, [selectedSubject])
+  }, [selectedSubject, viewerRole, studentId])
 
   const loadMapData = async () => {
     setLoading(true)
-    const result = await getAchievementMapData()
+
+    // viewerRoleに応じて適切なAPIを呼び出す
+    const result = viewerRole === "parent" && studentId
+      ? await getChildAchievementMapData(studentId)
+      : await getAchievementMapData()
+
     if (!result.error && result.logs) {
       // 全科目が選択された場合は全てのデータを使用
       if (selectedSubject === "all") {
