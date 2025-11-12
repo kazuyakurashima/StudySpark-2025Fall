@@ -91,6 +91,7 @@ npx supabase migration list --db-url "$PRODUCTION_DB_URL"
 ○ 20251110000001_fix_theme_color_constraint.sql (pending)
 ○ 20251110000002_add_student_view_encouragement_sender_profiles.sql (pending)
 ○ 20251111000001_add_get_study_logs_for_encouragement_rpc.sql (pending)
+○ 20251112000001_mark_existing_users_setup_completed.sql (pending)
 ```
 
 #### 1-3. マイグレーションの適用（migration up を使用）
@@ -109,6 +110,7 @@ Applying migration 20251109000001_add_streak_tracking.sql...
 Applying migration 20251110000001_fix_theme_color_constraint.sql...
 Applying migration 20251110000002_add_student_view_encouragement_sender_profiles.sql...
 Applying migration 20251111000001_add_get_study_logs_for_encouragement_rpc.sql...
+Applying migration 20251112000001_mark_existing_users_setup_completed.sql...
 ✅ All migrations applied successfully
 ```
 
@@ -145,6 +147,25 @@ last_study_date   | date      | YES         | NULL
 current_streak    | integer   | YES         | 0
 max_streak        | integer   | YES         | 0
 ```
+
+#### 2-1-2. setup_completed フラグの確認
+
+```sql
+-- 既存ユーザーの setup_completed が更新されたか確認
+SELECT
+  role,
+  COUNT(*) as total_users,
+  COUNT(CASE WHEN setup_completed THEN 1 END) as setup_completed_users,
+  COUNT(CASE WHEN avatar_id IS NOT NULL THEN 1 END) as users_with_avatar
+FROM profiles
+WHERE role IN ('student', 'parent')
+GROUP BY role
+ORDER BY role;
+```
+
+**期待される結果:**
+- アバター設定済みユーザーの `setup_completed` が `true` になっている
+- `setup_completed_users` と `users_with_avatar` の数が一致している
 
 #### 2-2. RPC関数の確認
 
@@ -289,6 +310,12 @@ npx vercel --prod
 メールアドレス: toshin.hitachi+test002@gmail.com
 パスワード: Testdemo2025
 ```
+
+**確認ポイント（新機能）:**
+- [ ] **既存ユーザーのセットアップスキップ**
+  - 既存の登録済みユーザー（デモアカウント、テストユーザー）でログイン
+  - セットアップ画面をスキップして、ダッシュボードに直接遷移する
+  - 生徒は `/student`、保護者は `/parent` に遷移する
 
 #### 5-2. 主要機能のチェックリスト
 
@@ -614,6 +641,7 @@ ALTER TABLE students
 | 日付 | 変更内容 | 担当者 |
 |------|---------|--------|
 | 2025-11-12 | 初版作成（改訂版） | Claude |
+| 2025-11-12 | マイグレーション 20251112000001 追加（既存ユーザーのsetup_completed更新） | Claude |
 
 ---
 
