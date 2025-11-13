@@ -144,10 +144,9 @@ async function updateDenormalizedColumn(
   const supabase = createServiceClient()
 
   const tableMap: Record<string, string> = {
-    ai_coach_message: "ai_coach_messages",
+    coaching_message: "coaching_messages",
     encouragement_message: "encouragement_messages",
-    daily_status: "daily_statuses",
-    reflection: "reflections",
+    weekly_analysis: "weekly_analysis",
   }
 
   const tableName = tableMap[entityType]

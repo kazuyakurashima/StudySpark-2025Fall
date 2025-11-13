@@ -6,10 +6,9 @@
  * エンティティタイプ（どのAI機能か）
  */
 export const ENTITY_TYPES = {
-  AI_COACH_MESSAGE: "ai_coach_message",
-  ENCOURAGEMENT_MESSAGE: "encouragement_message",
-  DAILY_STATUS: "daily_status",
-  REFLECTION: "reflection",
+  COACHING_MESSAGE: "coaching_message", // 週次振り返りコーチングメッセージ
+  ENCOURAGEMENT_MESSAGE: "encouragement_message", // 応援メッセージ
+  WEEKLY_ANALYSIS: "weekly_analysis", // 週次分析（指導者向け）
 } as const
 
 export type EntityType = (typeof ENTITY_TYPES)[keyof typeof ENTITY_TYPES]

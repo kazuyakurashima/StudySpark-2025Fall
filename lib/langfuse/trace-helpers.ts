@@ -8,7 +8,7 @@ import { ENTITY_TYPES, TAGS } from "./constants"
 import type { EntityType, Tag } from "./constants"
 
 /**
- * AIコーチメッセージのトレース作成
+ * コーチングメッセージのトレース作成（週次振り返り）
  *
  * @param messageId - メッセージID
  * @param userId - ユーザーID
@@ -17,7 +17,7 @@ import type { EntityType, Tag } from "./constants"
  * @param cacheHit - キャッシュヒットしたか
  * @returns トレースID
  */
-export async function createCoachMessageTrace(
+export async function createCoachingMessageTrace(
   messageId: string,
   userId: string,
   input: string,
@@ -27,7 +27,7 @@ export async function createCoachMessageTrace(
   const traceId = uuidv4()
 
   return await saveTrace({
-    entityType: ENTITY_TYPES.AI_COACH_MESSAGE,
+    entityType: ENTITY_TYPES.COACHING_MESSAGE,
     entityId: messageId,
     traceId,
     userId,
@@ -73,55 +73,23 @@ export async function createEncouragementTrace(
 }
 
 /**
- * 今日の様子のトレース作成
+ * 週次分析のトレース作成（指導者向け）
  *
- * @param statusId - ステータスID
- * @param userId - ユーザーID（保護者）
+ * @param analysisId - 分析ID
+ * @param userId - ユーザーID（指導者）
  * @param studentId - 生徒ID
  * @param input - プロンプト
  * @param output - AI応答
+ * @param weekType - 週のタイプ
  * @returns トレースID
  */
-export async function createDailyStatusTrace(
-  statusId: string,
+export async function createWeeklyAnalysisTrace(
+  analysisId: string,
   userId: string,
   studentId: string,
   input: string,
-  output: string
-): Promise<string | null> {
-  const traceId = uuidv4()
-
-  return await saveTrace({
-    entityType: ENTITY_TYPES.DAILY_STATUS,
-    entityId: statusId,
-    traceId,
-    userId,
-    input,
-    output,
-    metadata: {
-      student_id: studentId,
-    },
-  })
-}
-
-/**
- * 振り返りのトレース作成
- *
- * @param reflectionId - 振り返りID
- * @param userId - ユーザーID（生徒）
- * @param input - プロンプト
- * @param output - AI応答
- * @param weekType - 週のタイプ
- * @param turnNumber - ターン数
- * @returns トレースID
- */
-export async function createReflectionTrace(
-  reflectionId: string,
-  userId: string,
-  input: string,
   output: string,
-  weekType?: "growth" | "stable" | "challenge" | "special",
-  turnNumber?: number
+  weekType?: "growth" | "stable" | "challenge" | "special"
 ): Promise<string | null> {
   const traceId = uuidv4()
 
@@ -137,15 +105,15 @@ export async function createReflectionTrace(
   }
 
   return await saveTrace({
-    entityType: ENTITY_TYPES.REFLECTION,
-    entityId: reflectionId,
+    entityType: ENTITY_TYPES.WEEKLY_ANALYSIS,
+    entityId: analysisId,
     traceId,
     userId,
     input,
     output,
     metadata: {
+      student_id: studentId,
       week_type: weekType || null,
-      turn_number: turnNumber || null,
     },
     tags: tags.length > 0 ? tags : undefined,
   })
