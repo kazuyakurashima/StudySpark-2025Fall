@@ -2,6 +2,7 @@
  * バッチ処理ヘルパー関数
  */
 
+import { randomUUID } from "node:crypto"
 import { getLangfuseClient } from "./client"
 import { createServiceClient } from "@/lib/supabase/service-client"
 import { getPendingScores, updateScoreStatus } from "./score-helpers"
@@ -142,7 +143,7 @@ function createBatchRunResult(
   startedAt: string
 ): BatchRunResult {
   return {
-    id: crypto.randomUUID(),
+    id: randomUUID(),
     batch_name: batchName,
     scores_created: scoresCreated,
     scores_sent: scoresSent,
