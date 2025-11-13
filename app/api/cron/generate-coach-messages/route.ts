@@ -120,14 +120,34 @@ export async function GET(request: Request) {
           throw new Error(result.error)
         }
 
-        // キャッシュ保存
+        // Langfuseトレース作成用にプロンプトを構築
+        const promptSummary = `Student: ${context.studentName}, Course: ${context.course}, Streak: ${context.studyStreak} days`
+
+        // entity_idを発行
+        const { randomUUID } = await import("node:crypto")
+        const entityId = randomUUID()
+
+        // Langfuseトレース保存
+        const { createDailyCoachMessageTrace } = await import("@/lib/langfuse/trace-helpers")
+        const traceId = await createDailyCoachMessageTrace(
+          entityId,
+          student.user_id,
+          studentId,
+          promptSummary,
+          result.message,
+          false // 新規生成なのでcacheHit=false
+        )
+
+        // キャッシュ保存（entity_id と langfuse_trace_id を含む）
         await supabase.from("ai_cache").insert({
+          entity_id: entityId,
           cache_key: cacheKey,
           cache_type: "coach_message",
           cached_content: JSON.stringify(result.message),
+          langfuse_trace_id: traceId,
         })
 
-        console.log(`[Coach Message Cron] ✅ Generated for student ${studentId}`)
+        console.log(`[Coach Message Cron] ✅ Generated for student ${studentId} (trace: ${traceId})`)
         successCount++
       } catch (error) {
         console.error(`[Coach Message Cron] ❌ Failed for student ${student.id}:`, error)

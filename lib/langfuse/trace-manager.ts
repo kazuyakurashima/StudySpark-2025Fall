@@ -147,6 +147,8 @@ async function updateDenormalizedColumn(
     coaching_message: "coaching_messages",
     encouragement_message: "encouragement_messages",
     weekly_analysis: "weekly_analysis",
+    daily_coach_message: "ai_cache",
+    daily_status: "ai_cache",
   }
 
   const tableName = tableMap[entityType]
@@ -154,10 +156,13 @@ async function updateDenormalizedColumn(
     throw new Error(`Unknown entity type for denormalization: ${entityType}`)
   }
 
+  // ai_cacheの場合はentity_idで検索、それ以外はidで検索
+  const idColumn = tableName === "ai_cache" ? "entity_id" : "id"
+
   const { error } = await supabase
     .from(tableName)
     .update({ langfuse_trace_id: traceId })
-    .eq("id", entityId)
+    .eq(idColumn, entityId)
 
   if (error) {
     throw new Error(`Failed to update denormalized column: ${error.message}`)

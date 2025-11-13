@@ -622,6 +622,38 @@ export async function getTodayStatusMessageAI(studentId: number) {
       return getTodayStatusMessage(studentId)
     }
 
+    // Langfuseトレース作成用にプロンプトを構築
+    const promptSummary = `Parent view (realtime): ${displayName}, Grade: ${student.grade}, Today logs: ${context.todayLogs.length}`
+
+    // entity_idを発行
+    const { randomUUID } = await import("node:crypto")
+    const entityId = randomUUID()
+
+    // Langfuseトレース保存
+    const { createDailyStatusTrace } = await import("@/lib/langfuse/trace-helpers")
+    const traceId = await createDailyStatusTrace(
+      entityId,
+      user.id,
+      String(studentId),
+      promptSummary,
+      result.message,
+      false // 新規生成なのでcacheHit=false
+    )
+
+    // キャッシュ保存（オプション - 当日分のキャッシュキーで保存）
+    const cacheKey = `daily_status_${studentId}_${todayDateStr}`
+    await supabase.from("ai_cache").upsert({
+      entity_id: entityId,
+      cache_key: cacheKey,
+      cache_type: "daily_status",
+      cached_content: JSON.stringify(result.message),
+      langfuse_trace_id: traceId,
+    }, {
+      onConflict: "cache_key",
+    })
+
+    console.log(`[Parent Status] AI generated and cached (realtime): ${cacheKey} (trace: ${traceId})`)
+
     return { message: result.message, createdAt: new Date().toISOString() }
   } catch (error) {
     console.error("Get today status message AI error:", error)

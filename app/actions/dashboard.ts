@@ -165,16 +165,36 @@ export async function getAICoachMessage() {
       return { message: getTemplateMessage(displayName) }
     }
 
-    // キャッシュ保存
+    // Langfuseトレース作成用にプロンプトを構築
+    const promptSummary = `Student: ${displayName}, Course: ${student.course}, Streak: ${context.studyStreak} days`
+
+    // entity_idを発行
+    const { randomUUID } = await import("node:crypto")
+    const entityId = randomUUID()
+
+    // Langfuseトレース保存
+    const { createDailyCoachMessageTrace } = await import("@/lib/langfuse/trace-helpers")
+    const traceId = await createDailyCoachMessageTrace(
+      entityId,
+      userId,
+      student.id,
+      promptSummary,
+      result.message,
+      false // 新規生成なのでcacheHit=false
+    )
+
+    // キャッシュ保存（entity_id と langfuse_trace_id を含む）
     const now = getNowJST().toISOString()
     await supabase.from("ai_cache").insert({
+      entity_id: entityId,
       cache_key: cacheKey,
       cache_type: "coach_message",
       cached_content: JSON.stringify(result.message),
+      langfuse_trace_id: traceId,
       created_at: now,
     })
 
-    console.log(`[Coach Message] AI generated and cached: ${cacheKey}`)
+    console.log(`[Coach Message] AI generated and cached: ${cacheKey} (trace: ${traceId})`)
     return { message: result.message, createdAt: now }
   } catch (error) {
     console.error("Get AI coach message error:", error)

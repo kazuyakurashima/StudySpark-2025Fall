@@ -120,6 +120,80 @@ export async function createWeeklyAnalysisTrace(
 }
 
 /**
+ * 毎日のAIコーチメッセージのトレース作成
+ *
+ * @param entityId - エンティティID（ai_cacheのentity_id）
+ * @param userId - ユーザーID（生徒）
+ * @param studentId - 生徒ID
+ * @param input - プロンプト
+ * @param output - AI応答
+ * @param cacheHit - キャッシュヒットしたか
+ * @returns トレースID
+ */
+export async function createDailyCoachMessageTrace(
+  entityId: string,
+  userId: string,
+  studentId: string,
+  input: string,
+  output: string,
+  cacheHit: boolean = false
+): Promise<string | null> {
+  const traceId = uuidv4()
+
+  return await saveTrace({
+    entityType: ENTITY_TYPES.DAILY_COACH_MESSAGE,
+    entityId,
+    traceId,
+    userId,
+    input,
+    output,
+    metadata: {
+      student_id: studentId,
+      cache_hit: cacheHit,
+      cache_type: "coach_message",
+    },
+    tags: [cacheHit ? TAGS.CACHE_HIT : TAGS.CACHE_MISS],
+  })
+}
+
+/**
+ * 保護者の今日の様子のトレース作成
+ *
+ * @param entityId - エンティティID（ai_cacheのentity_id）
+ * @param userId - ユーザーID（保護者）
+ * @param studentId - 生徒ID
+ * @param input - プロンプト
+ * @param output - AI応答
+ * @param cacheHit - キャッシュヒットしたか
+ * @returns トレースID
+ */
+export async function createDailyStatusTrace(
+  entityId: string,
+  userId: string,
+  studentId: string,
+  input: string,
+  output: string,
+  cacheHit: boolean = false
+): Promise<string | null> {
+  const traceId = uuidv4()
+
+  return await saveTrace({
+    entityType: ENTITY_TYPES.DAILY_STATUS,
+    entityId,
+    traceId,
+    userId,
+    input,
+    output,
+    metadata: {
+      student_id: studentId,
+      cache_hit: cacheHit,
+      cache_type: "daily_status",
+    },
+    tags: [cacheHit ? TAGS.CACHE_HIT : TAGS.CACHE_MISS],
+  })
+}
+
+/**
  * 汎用トレース作成
  *
  * @param entityType - エンティティタイプ

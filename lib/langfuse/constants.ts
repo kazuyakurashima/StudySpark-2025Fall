@@ -9,6 +9,8 @@ export const ENTITY_TYPES = {
   COACHING_MESSAGE: "coaching_message", // 週次振り返りコーチングメッセージ
   ENCOURAGEMENT_MESSAGE: "encouragement_message", // 応援メッセージ
   WEEKLY_ANALYSIS: "weekly_analysis", // 週次分析（指導者向け）
+  DAILY_COACH_MESSAGE: "daily_coach_message", // 毎日のAIコーチメッセージ
+  DAILY_STATUS: "daily_status", // 保護者の今日の様子
 } as const
 
 export type EntityType = (typeof ENTITY_TYPES)[keyof typeof ENTITY_TYPES]
