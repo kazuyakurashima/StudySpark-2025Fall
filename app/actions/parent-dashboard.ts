@@ -405,7 +405,13 @@ export async function getTodayLogCount(studentId: number) {
 }
 
 /**
- * 今日の様子メッセージ取得（AI生成版）
+ * 今日の様子メッセージ取得（AI生成版・キャッシュファースト）
+ *
+ * ロジック:
+ * 1. 今日のキャッシュをチェック → 存在すれば即返却
+ * 2. 今日の学習ログをチェック → 存在すれば新規生成
+ * 3. 昨日のキャッシュをチェック → 存在すれば「昨日の様子です」付きで返却
+ * 4. フォールバック → テンプレートメッセージ
  */
 export async function getTodayStatusMessageAI(studentId: number) {
   try {
@@ -428,9 +434,6 @@ export async function getTodayStatusMessageAI(studentId: number) {
       console.error("🔍 [SERVER] No parent found in getTodayStatusMessageAI")
       return { error: "保護者情報が見つかりません" }
     }
-
-    // RLSポリシーにより、保護者は自分の子供のデータのみアクセス可能
-    // createAdminClient() は不要
 
     const { data: relation } = await supabase
       .from("parent_child_relations")
@@ -462,7 +465,89 @@ export async function getTodayStatusMessageAI(studentId: number) {
 
     const displayName = profile?.display_name || "お子さん"
 
-    // Get today's and recent logs (last 3 days) using study_date (JST-based date)
+    // 日付の準備
+    const { getTodayJST, getDateJST } = await import("@/lib/utils/date-jst")
+    const todayStr = getTodayJST()
+    const yesterdayStr = getDateJST(-1)
+
+    // === STEP 1: 今日のキャッシュをチェック ===
+    const todayCacheKey = `daily_status_today_${studentId}_${todayStr}`
+    const { data: todayCache } = await supabase
+      .from("ai_cache")
+      .select("cached_content, entity_id, created_at")
+      .eq("cache_key", todayCacheKey)
+      .single()
+
+    if (todayCache) {
+      console.log(`[Parent Status] Cache hit for today: ${todayCacheKey}`)
+      const cachedData = JSON.parse(todayCache.cached_content)
+      return {
+        message: cachedData.message || cachedData,
+        createdAt: todayCache.created_at,
+        isFromCache: true,
+      }
+    }
+
+    // === STEP 2: 今日の学習ログをチェック ===
+    const { data: todayLogs } = await supabase
+      .from("study_logs")
+      .select("id")
+      .eq("student_id", studentId)
+      .eq("study_date", todayStr)
+      .limit(1)
+
+    if (todayLogs && todayLogs.length > 0) {
+      console.log(`[Parent Status] Today's logs found, generating new message`)
+      // 今日のログがあるので新規生成
+      return await generateTodayStatusMessage(supabase, user.id, student, profile, todayStr, displayName)
+    }
+
+    // === STEP 3: 昨日のキャッシュをチェック ===
+    const yesterdayCacheKey = `daily_status_yesterday_${studentId}_${yesterdayStr}`
+    const { data: yesterdayCache } = await supabase
+      .from("ai_cache")
+      .select("cached_content, entity_id, created_at")
+      .eq("cache_key", yesterdayCacheKey)
+      .single()
+
+    if (yesterdayCache) {
+      console.log(`[Parent Status] Cache hit for yesterday: ${yesterdayCacheKey}`)
+      const cachedData = JSON.parse(yesterdayCache.cached_content)
+      const message = cachedData.message || cachedData
+      const prefix = cachedData.metadata?.prefix_message || "昨日の様子です"
+
+      return {
+        message: `${prefix}\n\n${message}`,
+        createdAt: yesterdayCache.created_at,
+        isFromCache: true,
+        isYesterday: true,
+      }
+    }
+
+    // === STEP 4: フォールバック ===
+    console.log(`[Parent Status] No cache found, falling back to template`)
+    return getTodayStatusMessage(studentId)
+  } catch (error) {
+    console.error("Get today status message AI error:", error)
+    return getTodayStatusMessage(studentId)
+  }
+}
+
+/**
+ * 今日のメッセージを新規生成（内部ヘルパー関数）
+ */
+async function generateTodayStatusMessage(
+  supabase: any,
+  userId: string,
+  student: any,
+  profile: any,
+  todayStr: string,
+  displayName: string
+) {
+  try {
+    const studentId = student.id
+
+    // Get today's and recent logs for context
     const now = new Date()
     const formatter = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Asia/Tokyo',
@@ -470,15 +555,9 @@ export async function getTodayStatusMessageAI(studentId: number) {
       month: '2-digit',
       day: '2-digit'
     })
-    const todayDateStr = formatter.format(now) // YYYY-MM-DD in JST
+    const todayDateStr = formatter.format(now)
 
-    // Calculate 3 days ago for trend analysis
-    const threeDaysAgo = new Date(now)
-    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
-    const threeDaysAgoStr = formatter.format(threeDaysAgo)
-
-    // Get recent logs (last 3 days) for context and trend analysis
-    const { data: recentLogs } = await supabase
+    const { data: todayLogs } = await supabase
       .from("study_logs")
       .select(
         `
@@ -491,24 +570,17 @@ export async function getTodayStatusMessageAI(studentId: number) {
       `
       )
       .eq("student_id", studentId)
-      .gte("study_date", threeDaysAgoStr)
-      .lte("study_date", todayDateStr)
-      .order("study_date", { ascending: false })
+      .eq("study_date", todayDateStr)
       .order("logged_at", { ascending: true })
-
-    // Separate today's logs from recent logs
-    const todayLogs = recentLogs?.filter(log => log.study_date === todayDateStr) || []
 
     // Get study streak
     const { streak } = await getStudentStreak(studentId)
 
-    // Get weekly trend (study_dateを使用)
-    // 過去7日間（今日を含まない）
+    // Get weekly trend
     const oneWeekAgo = new Date(now)
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
     const oneWeekAgoDateStr = formatter.format(oneWeekAgo)
 
-    // 過去8〜14日間
     const twoWeeksAgo = new Date(now)
     twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
     const twoWeeksAgoDateStr = formatter.format(twoWeeksAgo)
@@ -556,8 +628,6 @@ export async function getTodayStatusMessageAI(studentId: number) {
       .maybeSingle()
 
     // Get upcoming test
-    const { getTodayJST } = await import("@/lib/utils/date-jst")
-    const todayStr = getTodayJST()
     const { data: upcomingTest } = await supabase
       .from("test_schedules")
       .select(
@@ -572,7 +642,7 @@ export async function getTodayStatusMessageAI(studentId: number) {
       .limit(1)
       .maybeSingle()
 
-    // Format context for AI (pass only today's logs)
+    // Format context for AI
     const context: import("@/lib/openai/daily-status").DailyStatusContext = {
       studentName: displayName,
       grade: student.grade,
@@ -591,7 +661,7 @@ export async function getTodayStatusMessageAI(studentId: number) {
             total: log.total_problems,
             accuracy: log.total_problems > 0 ? Math.round((log.correct_count / log.total_problems) * 100) : 0,
             time: `${logDate.getHours()}:${String(logDate.getMinutes()).padStart(2, "0")}`,
-            date: log.study_date,  // YYYY-MM-DD format
+            date: log.study_date,
           }
         }) || [],
       studyStreak: streak || 0,
@@ -617,48 +687,56 @@ export async function getTodayStatusMessageAI(studentId: number) {
     const result = await generateDailyStatusMessage(context)
 
     if (!result.success) {
-      console.error("AI generation failed, falling back to template")
-      // Fallback to template version
-      return getTodayStatusMessage(studentId)
+      throw new Error(result.error || "AI generation failed")
     }
 
-    // Langfuseトレース作成用にプロンプトを構築
+    // Langfuseトレース作成
     const promptSummary = `Parent view (realtime): ${displayName}, Grade: ${student.grade}, Today logs: ${context.todayLogs.length}`
 
-    // entity_idを発行
     const { randomUUID } = await import("node:crypto")
     const entityId = randomUUID()
 
-    // Langfuseトレース保存
+    // メッセージにメタデータを付与
+    const messageWithMetadata = {
+      message: result.message,
+      metadata: {
+        is_yesterday: false,
+        target_date: todayStr,
+        generation_trigger: "realtime",
+      },
+    }
+
     const { createDailyStatusTrace } = await import("@/lib/langfuse/trace-helpers")
     const traceId = await createDailyStatusTrace(
       entityId,
-      user.id,
+      userId,
       String(studentId),
       promptSummary,
       result.message,
-      false // 新規生成なのでcacheHit=false
+      false,
+      {
+        is_yesterday: false,
+        target_date: todayStr,
+        generation_trigger: "realtime",
+      }
     )
 
-    // キャッシュ保存（オプション - 当日分のキャッシュキーで保存）
-    const cacheKey = `daily_status_${studentId}_${todayDateStr}`
-    await supabase.from("ai_cache").upsert({
+    // キャッシュ保存
+    const todayCacheKey = `daily_status_today_${studentId}_${todayStr}`
+    await supabase.from("ai_cache").insert({
       entity_id: entityId,
-      cache_key: cacheKey,
+      cache_key: todayCacheKey,
       cache_type: "daily_status",
-      cached_content: JSON.stringify(result.message),
+      cached_content: JSON.stringify(messageWithMetadata),
       langfuse_trace_id: traceId,
-    }, {
-      onConflict: "cache_key",
     })
 
-    console.log(`[Parent Status] AI generated and cached (realtime): ${cacheKey} (trace: ${traceId})`)
+    console.log(`[Parent Status] ✅ Generated and cached (realtime): ${todayCacheKey} (trace: ${traceId})`)
 
     return { message: result.message, createdAt: new Date().toISOString() }
   } catch (error) {
-    console.error("Get today status message AI error:", error)
-    // Fallback to template version
-    return getTodayStatusMessage(studentId)
+    console.error("[Parent Status] Generation failed:", error)
+    throw error
   }
 }
 

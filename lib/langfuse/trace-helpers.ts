@@ -165,6 +165,7 @@ export async function createDailyCoachMessageTrace(
  * @param input - プロンプト
  * @param output - AI応答
  * @param cacheHit - キャッシュヒットしたか
+ * @param additionalMetadata - 追加メタデータ（is_yesterday, target_date, generation_triggerなど）
  * @returns トレースID
  */
 export async function createDailyStatusTrace(
@@ -173,7 +174,8 @@ export async function createDailyStatusTrace(
   studentId: string,
   input: string,
   output: string,
-  cacheHit: boolean = false
+  cacheHit: boolean = false,
+  additionalMetadata?: Record<string, any>
 ): Promise<string | null> {
   const traceId = uuidv4()
 
@@ -188,6 +190,7 @@ export async function createDailyStatusTrace(
       student_id: studentId,
       cache_hit: cacheHit,
       cache_type: "daily_status",
+      ...additionalMetadata,
     },
     tags: [cacheHit ? TAGS.CACHE_HIT : TAGS.CACHE_MISS],
   })

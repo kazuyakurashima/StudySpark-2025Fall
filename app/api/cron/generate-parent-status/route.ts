@@ -13,8 +13,9 @@ export const dynamic = 'force-dynamic'
 /**
  * 保護者向け「今日の様子」メッセージバックグラウンド生成
  *
- * Vercel Cronで毎日午後9時（JST）に実行
- * 全アクティブ保護者の当日分メッセージを生成してキャッシュに保存
+ * Vercel Cronで毎日午前3時（JST）に実行
+ * 全アクティブ保護者の前日分メッセージを生成してキャッシュに保存
+ * メッセージは is_yesterday メタデータ付きで保存され、表示時に「昨日の様子です」が付与される
  */
 export async function GET(request: Request) {
   // CRON_SECRET認証
@@ -72,8 +73,8 @@ export async function GET(request: Request) {
 
     console.log(`[Parent Status Cron] Found ${parents.length} active parents`)
 
-    // 当日の日付（キャッシュキー用）
-    const todayStr = getTodayJST()
+    // 前日の日付（キャッシュキー用）
+    const yesterdayStr = getDateJST(-1)
 
     let successCount = 0
     let failureCount = 0
@@ -89,7 +90,7 @@ export async function GET(request: Request) {
 
         try {
           const studentId = student.id
-          const cacheKey = `daily_status_${studentId}_${todayStr}`
+          const cacheKey = `daily_status_yesterday_${studentId}_${yesterdayStr}`
 
           // 既にキャッシュ存在チェック
           const { data: existing } = await supabase
@@ -104,8 +105,8 @@ export async function GET(request: Request) {
             continue
           }
 
-          // 今日の学習ログを取得
-          const { data: todayLogs } = await supabase
+          // 昨日の学習ログを取得
+          const { data: yesterdayLogs } = await supabase
             .from("study_logs")
             .select(`
               correct_count,
@@ -115,11 +116,11 @@ export async function GET(request: Request) {
               study_content_types (content_name)
             `)
             .eq("student_id", studentId)
-            .eq("study_date", todayStr)
+            .eq("study_date", yesterdayStr)
             .order("created_at", { ascending: false })
 
           // 週次トレンドを計算
-          const weeklyTrend = await calculateWeeklyTrend(studentId, todayStr)
+          const weeklyTrend = await calculateWeeklyTrend(studentId, yesterdayStr)
 
           // 連続学習日数を取得
           const streak = await getStudyStreakForStudent(studentId)
@@ -134,21 +135,21 @@ export async function GET(request: Request) {
             .single()
 
           // 近日のテストを取得
-          const upcomingTest = await getUpcomingTest(studentId, todayStr)
+          const upcomingTest = await getUpcomingTest(studentId, yesterdayStr)
 
           // コンテキスト構築
           const context: DailyStatusContext = {
             studentName: student.profiles?.display_name || "さん",
             grade: student.grade,
             course: student.course,
-            todayLogs: (todayLogs || []).map((log: any) => ({
+            todayLogs: (yesterdayLogs || []).map((log: any) => ({
               subject: log.subjects?.name || "不明",
               content: log.study_content_types?.content_name || "",
               correct: log.correct_count || 0,
               total: log.total_problems || 0,
               accuracy: log.total_problems > 0 ? Math.round((log.correct_count / log.total_problems) * 100) : 0,
               time: new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" }),
-              date: log.study_date || todayStr,
+              date: log.study_date || yesterdayStr,
             })),
             studyStreak: streak,
             weeklyTrend,
@@ -164,13 +165,24 @@ export async function GET(request: Request) {
           }
 
           // Langfuseトレース作成用にプロンプトを構築
-          const promptSummary = `Parent view: ${context.studentName}, Grade: ${context.grade}, Today logs: ${context.todayLogs.length}`
+          const promptSummary = `Parent view: ${context.studentName}, Grade: ${context.grade}, Yesterday logs: ${context.todayLogs.length}`
 
           // entity_idを発行
           const { randomUUID } = await import("node:crypto")
           const entityId = randomUUID()
 
-          // Langfuseトレース保存
+          // メッセージにメタデータを付与
+          const messageWithMetadata = {
+            message: result.message,
+            metadata: {
+              is_yesterday: true,
+              target_date: yesterdayStr,
+              generation_trigger: "cron",
+              prefix_message: "昨日の様子です",
+            },
+          }
+
+          // Langfuseトレース保存（純粋なメッセージのみ）
           const { createDailyStatusTrace } = await import("@/lib/langfuse/trace-helpers")
           const traceId = await createDailyStatusTrace(
             entityId,
@@ -178,15 +190,20 @@ export async function GET(request: Request) {
             studentId,
             promptSummary,
             result.message,
-            false // 新規生成なのでcacheHit=false
+            false, // 新規生成なのでcacheHit=false
+            {
+              is_yesterday: true,
+              target_date: yesterdayStr,
+              generation_trigger: "cron",
+            }
           )
 
-          // キャッシュ保存
+          // キャッシュ保存（メタデータ付き）
           await supabase.from("ai_cache").insert({
             entity_id: entityId,
             cache_key: cacheKey,
             cache_type: "daily_status",
-            cached_content: JSON.stringify(result.message),
+            cached_content: JSON.stringify(messageWithMetadata),
             langfuse_trace_id: traceId,
           })
 
@@ -211,7 +228,7 @@ export async function GET(request: Request) {
       failureCount,
       errors: errors.length > 0 ? errors : undefined,
       generatedAt: getNowJSTISO(),
-      targetDate: todayStr,
+      targetDate: yesterdayStr,
     }
 
     console.log(`[Parent Status Cron] Completed: ${successCount} succeeded, ${failureCount} failed`)
