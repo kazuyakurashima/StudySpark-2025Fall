@@ -38,6 +38,7 @@ export async function GET(request: Request) {
         user_id,
         parent_students (
           student_id,
+          user_id,
           grade,
           course,
           full_name
