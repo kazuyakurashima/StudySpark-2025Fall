@@ -224,9 +224,8 @@ export async function GET(request: Request) {
           )
 
           // キャッシュ保存（メタデータ付き + student_id for RLS）
-          // Note: langfuse_trace_id is omitted as the column doesn't exist in production yet
+          // Note: entity_id and langfuse_trace_id are omitted as these columns don't exist in production yet
           const { error: cacheError } = await supabase.from("ai_cache").insert({
-            entity_id: entityId,
             cache_key: cacheKey,
             cache_type: "daily_status",
             cached_content: JSON.stringify(messageWithMetadata),
