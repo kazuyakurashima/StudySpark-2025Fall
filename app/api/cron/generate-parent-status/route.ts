@@ -45,6 +45,8 @@ export async function GET(request: Request) {
         )
       `)
 
+    console.log(`[Parent Status Cron] Raw query returned ${allParents?.length || 0} parents`)
+
     if (parentsError) {
       throw new Error(`Failed to fetch parents: ${parentsError.message}`)
     }
