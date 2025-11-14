@@ -225,13 +225,17 @@ export async function GET(request: Request) {
 
           // キャッシュ保存（メタデータ付き + student_id for RLS）
           // Note: langfuse_trace_id is omitted as the column doesn't exist in production yet
-          await supabase.from("ai_cache").insert({
+          const { error: cacheError } = await supabase.from("ai_cache").insert({
             entity_id: entityId,
             cache_key: cacheKey,
             cache_type: "daily_status",
             cached_content: JSON.stringify(messageWithMetadata),
             student_id: studentId,
           })
+
+          if (cacheError) {
+            throw new Error(`Failed to save cache: ${cacheError.message}`)
+          }
 
           console.log(`[Parent Status Cron] ✅ Generated for student ${studentId} (trace: ${traceId})`)
           successCount++
