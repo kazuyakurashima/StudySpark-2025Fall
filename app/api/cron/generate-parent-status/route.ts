@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+import { createServiceClient } from "@/lib/supabase/service-client"
 import { generateDailyStatusMessage } from "@/lib/openai/daily-status"
 import type { DailyStatusContext } from "@/lib/openai/daily-status"
 import {
@@ -28,37 +28,62 @@ export async function GET(request: Request) {
   console.log("[Parent Status Cron] Starting background generation...")
 
   try {
-    const supabase = await createClient()
+    const supabase = createServiceClient()
 
-    // アクティブな保護者とその子どもを取得（7日以内にログインした保護者）
-    const cutoffDateStr = getDaysAgoJST(7)
-
-    const { data: parents, error: parentsError } = await supabase
+    // 全保護者とその子どもを取得
+    const { data: allParents, error: parentsError } = await supabase
       .from("parents")
       .select(`
         id,
         user_id,
-        profiles!inner (
-          display_name,
-          last_login_at
-        ),
-        parent_students!inner (
-          student:students!inner (
-            id,
-            user_id,
-            grade,
-            course,
-            profiles!inner (
-              display_name
-            )
-          )
+        parent_students (
+          student_id,
+          grade,
+          course,
+          full_name
         )
       `)
-      .gte("profiles.last_login_at", `${cutoffDateStr}T00:00:00+09:00`)
 
     if (parentsError) {
       throw new Error(`Failed to fetch parents: ${parentsError.message}`)
     }
+
+    // 各保護者のprofilesを個別に取得
+    const parents = await Promise.all(
+      (allParents || []).map(async (parent) => {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("display_name")
+          .eq("id", parent.user_id)
+          .single()
+
+        const parentStudents = await Promise.all(
+          ((parent as any).parent_students || []).map(async (ps: any) => {
+            const { data: studentProfile } = await supabase
+              .from("profiles")
+              .select("display_name")
+              .eq("id", ps.user_id)
+              .maybeSingle()
+
+            return {
+              student: {
+                id: ps.student_id,
+                user_id: ps.user_id,
+                grade: ps.grade,
+                course: ps.course,
+                profiles: studentProfile
+              }
+            }
+          })
+        )
+
+        return {
+          ...parent,
+          profiles: profile,
+          parent_students: parentStudents
+        }
+      })
+    )
 
     if (!parents || parents.length === 0) {
       console.log("[Parent Status Cron] No active parents found")
@@ -198,13 +223,14 @@ export async function GET(request: Request) {
             }
           )
 
-          // キャッシュ保存（メタデータ付き）
+          // キャッシュ保存（メタデータ付き + student_id for RLS）
           await supabase.from("ai_cache").insert({
             entity_id: entityId,
             cache_key: cacheKey,
             cache_type: "daily_status",
             cached_content: JSON.stringify(messageWithMetadata),
             langfuse_trace_id: traceId,
+            student_id: studentId,
           })
 
           console.log(`[Parent Status Cron] ✅ Generated for student ${studentId} (trace: ${traceId})`)
@@ -254,7 +280,7 @@ async function calculateWeeklyTrend(
   studentId: string,
   todayStr: string
 ): Promise<"improving" | "stable" | "declining" | "none"> {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   // 過去2週間のデータを取得
   const twoWeeksAgo = getDateJST(-14)
@@ -304,7 +330,7 @@ function calculateAverageAccuracy(logs: any[]): number {
  * 連続学習日数を計算（特定の生徒）
  */
 async function getStudyStreakForStudent(studentId: string): Promise<number> {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   const { data: logs } = await supabase
     .from("study_logs")
@@ -346,7 +372,7 @@ async function getStudyStreakForStudent(studentId: string): Promise<number> {
  * 近日のテスト情報取得
  */
 async function getUpcomingTest(studentId: string, todayStr: string) {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   const { data: test } = await supabase
     .from("test_goals")

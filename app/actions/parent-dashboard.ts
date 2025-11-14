@@ -504,11 +504,14 @@ export async function getTodayStatusMessageAI(studentId: number) {
 
     // === STEP 3: 昨日のキャッシュをチェック ===
     const yesterdayCacheKey = `daily_status_yesterday_${studentId}_${yesterdayStr}`
-    const { data: yesterdayCache } = await supabase
+    console.log(`[Parent Status] Checking yesterday cache: ${yesterdayCacheKey}`)
+    const { data: yesterdayCache, error: yesterdayCacheError } = await supabase
       .from("ai_cache")
       .select("cached_content, entity_id, created_at")
       .eq("cache_key", yesterdayCacheKey)
       .single()
+
+    console.log(`[Parent Status] Yesterday cache result:`, { found: !!yesterdayCache, error: yesterdayCacheError?.message })
 
     if (yesterdayCache) {
       console.log(`[Parent Status] Cache hit for yesterday: ${yesterdayCacheKey}`)
@@ -721,7 +724,7 @@ async function generateTodayStatusMessage(
       }
     )
 
-    // キャッシュ保存
+    // キャッシュ保存（student_id for RLS）
     const todayCacheKey = `daily_status_today_${studentId}_${todayStr}`
     await supabase.from("ai_cache").insert({
       entity_id: entityId,
@@ -729,6 +732,7 @@ async function generateTodayStatusMessage(
       cache_type: "daily_status",
       cached_content: JSON.stringify(messageWithMetadata),
       langfuse_trace_id: traceId,
+      student_id: studentId,
     })
 
     console.log(`[Parent Status] ✅ Generated and cached (realtime): ${todayCacheKey} (trace: ${traceId})`)
