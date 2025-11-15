@@ -24,38 +24,33 @@ StudySparkは、中学受験を目指す小学5〜6年生のための学習支�
 
 ## 🎯 プロジェクト進捗
 
-**最終更新:** 2025年10月8日 04:15
+**最終更新:** 2025年11月14日
 
-> 🎉 **本日の成果:**
-> - **保護者ダッシュボード クリティカルバグ修正 (5件完了)**
->   - selectedChild未定義エラー、AI応援パース修正
->   - タスク進捗ドキュメント整合性確保
->   - TODO コメント整理（Phase 1完了判定是正）
-> - **P0-9完了**: ログイン動作確認テスト（全ロール確認済み）
-> - **P0進捗**: 80% → 81% (52/64タスク完了)
+> 🎉 **最新の成果 (Phase 1 Day 6 + 本番デプロイ完了):**
+> - **Langfuse統合完了** - AI生成の可観測性とトレーシング実装
+> - **日次AI機能実装** - 保護者向け「今日の様子」メッセージ自動生成
+> - **Vercel Cron Job実装** - 毎日18時に自動メッセージ生成
+> - **本番環境に17家族データ投入** - 19学生のテストデータ完備
+> - **全マイグレーション適用完了** - 本番環境とローカル環境の完全同期
 
-### 全体進捗: 72% (137/189タスク完了)
+### 本番環境ステータス
 
-| フェーズ | 説明 | 進捗率 | 状態 |
-|---------|------|--------|------|
-| **P0** | 基盤整備 | 81% (52/64) | 🔄 進行中 |
-| **P1** | 学習記録機能 | 100% (29/29) | ✅ 完了 |
-| **P2** | 応援機能 | 97% (28/29) | ✅ 実質完了 |
-| **P3** | 目標管理・週次振り返り | 100% (26/26) | ✅ 完了 |
-| **P3+** | 追加機能強化 | 100% (2/2) | ✅ 完了 |
-| **P4** | 指導者分析機能 | 0% (0/18) | ⏳ 未着手 |
-| **P5** | 監査・運用機能 | 0% (0/21) | ⏳ 未着手 |
-
-**詳細なタスク管理:** [docs/tasks/TASK_MANAGEMENT.md](docs/tasks/TASK_MANAGEMENT.md)
+| 項目 | 状態 |
+|------|------|
+| **デプロイ環境** | ✅ Vercel (https://www.studyspark.jp) |
+| **データベース** | ✅ Supabase本番環境 |
+| **Cron Job** | ✅ 17保護者×19学生対応完了 |
+| **AI統合** | ✅ OpenAI GPT-4o-mini + Langfuse |
+| **テストデータ** | ✅ 17家族、512件の学習ログ |
 
 ### ロール別完成度
 
-| ロール | 完成度 | 実用性 | 状態 |
-|--------|--------|--------|------|
-| **生徒** | **90%** | ★★★★★ | ✅ 即使用可能 |
-| **保護者** | **90%** | ★★★★★ | ✅ 即使用可能 |
-| **指導者** | **5%** | ★☆☆☆☆ | ❌ ほぼ未実装 |
-| **管理者** | **0%** | ☆☆☆☆☆ | ❌ 未実装 |
+| ロール | 完成度 | 実用性 | 本番稼働 | 状態 |
+|--------|--------|--------|----------|------|
+| **生徒** | **95%** | ★★★★★ | ✅ | 即使用可能 |
+| **保護者** | **95%** | ★★★★★ | ✅ | 即使用可能 |
+| **指導者** | **10%** | ★☆☆☆☆ | ⚠️ | 応援機能のみ |
+| **管理者** | **0%** | ☆☆☆☆☆ | ❌ | 未実装 |
 
 
 ---
@@ -72,8 +67,9 @@ StudySparkは、中学受験を目指す小学5〜6年生のための学習支�
 - **Supabase** (PostgreSQL, Auth, Realtime)
 - **Supabase RLS** (Row Level Security)
 
-### AI
-- **OpenAI GPT-5-mini** (AIコーチング)
+### AI・可観測性
+- **OpenAI GPT-4o-mini** (AIコーチング)
+- **Langfuse** (LLM可観測性・トレーシング)
 
 ### UI/UX
 - **Radix UI** (アクセシブルなUIコンポーネント)
@@ -109,7 +105,10 @@ StudySpark-2025Fall/
 │   │   └── parent.ts         # 保護者用
 │   └── api/                  # API Routes
 │       ├── goal/             # 目標API
-│       └── reflect/          # 振り返りAPI
+│       ├── reflect/          # 振り返りAPI
+│       └── cron/             # Cron Jobs (Vercel)
+│           ├── generate-coach-messages/  # 生徒向けコーチメッセージ
+│           └── generate-parent-status/   # 保護者向け今日の様子
 ├── lib/                      # ライブラリ
 │   ├── supabase/             # Supabaseクライアント
 │   └── openai/               # OpenAI統合
@@ -135,11 +134,13 @@ StudySpark-2025Fall/
 │       ├── TASK_MANAGEMENT.md # 全体進捗とタスク一覧
 │       └── ROLE-COMPLETION-STATUS.md # ロール別完成度
 └── scripts/                  # スクリプト
-    ├── create-test-users.ts  # テストユーザー作成
-    └── test/                 # テストスクリプト
-        ├── test-reflect-flow.ts
-        ├── test-goal-navigation.ts
-        └── test-parent-screens.ts
+    ├── seed-2families-data.ts         # 2家族テストデータ投入
+    ├── seed-15families-production.ts  # 15家族本番データ投入
+    ├── verify-production-parents.ts   # 本番保護者データ確認
+    ├── verify-production-schema.ts    # 本番スキーマ検証
+    ├── verify-migrations-applied.ts   # マイグレーション適用確認
+    ├── check-daily-status-cache.ts    # daily_statusキャッシュ確認
+    └── test-parent-query.ts           # parent_studentsクエリテスト
 ```
 
 ---
@@ -204,33 +205,38 @@ npm run dev
 
 ## 🧪 テスト
 
-### テストユーザー
+### テストユーザー（本番環境）
 
-作成されたテストユーザーでログイン可能です:
+本番環境 (https://www.studyspark.jp) で以下のアカウントでログイン可能です:
 
-#### 生徒
-- **ログインID:** `student5a` / **パスワード:** `password123`
-- **ログインID:** `student6a` / **パスワード:** `password123`
+#### 保護者（17家族）
+- **メール:** `toshin.hitachi+test001@gmail.com` / **パスワード:** `Testdemo2025`
+- **メール:** `toshin.hitachi+test002@gmail.com` / **パスワード:** `Testdemo2025`
+- **メール:** `toshin.hitachi+test010@gmail.com` ～ `test024@gmail.com` / **パスワード:** `pass8814` または `pass2025`
 
-#### 保護者
-- **メール:** `parent1@example.com` / **パスワード:** `password123`
+#### 生徒（19名）
+- **ログインID:** `hana6` / **パスワード:** `demo2025`（青空花・小6・Bコース）
+- **ログインID:** `akira5` / **パスワード:** `demo2025`（星野明・小5・Bコース）
+- **ログインID:** `hikaru6` / **パスワード:** `demo2025`（星野光・小6・Aコース）
+- **ログインID:** `mao5` / **パスワード:** `pass2025`（小川真央・小5・Bコース）
+- その他15名（ログインID: `ことのか5`, `いち5`, `はるき5`, `ななこ5`, `ともき5`, `しゅうへい5`, `たくみ6`, `たいよう6`, `としたか6`, `みやこ6`, `しょうや6`, `まなと6`, `ともえ6`, `みすず6`, `そうま6`）
 
-#### 指導者
-- **メール:** `coach1@example.com` / **パスワード:** `password123`
-
-### 自動テスト実行
+### 本番環境検証スクリプト
 
 ```bash
-# リフレクトフローテスト
-NEXT_PUBLIC_SUPABASE_URL="http://127.0.0.1:54321" \
-SUPABASE_SERVICE_ROLE_KEY="<key>" \
-npx tsx scripts/test/test-reflect-flow.ts
+# 本番環境の保護者データ確認
+env NEXT_PUBLIC_SUPABASE_URL='https://zlipaeanhcslhintxpej.supabase.co' \
+SUPABASE_SERVICE_ROLE_KEY='<your-service-role-key>' \
+npx tsx scripts/verify-production-parents.ts
 
-# ゴールナビテスト
-npx tsx scripts/test/test-goal-navigation.ts
+# 本番環境のスキーマ検証
+npx tsx scripts/verify-production-schema.ts
 
-# 保護者画面テスト
-npx tsx scripts/test/test-parent-screens.ts
+# マイグレーション適用確認
+npx tsx scripts/verify-migrations-applied.ts
+
+# daily_statusキャッシュ確認
+npx tsx scripts/check-daily-status-cache.ts
 ```
 
 ---
@@ -279,7 +285,14 @@ npx tsx scripts/test/test-parent-screens.ts
 - LINEライクなチャットUI
 - 4タブ構成（達成マップ/学習履歴/応援履歴/コーチング履歴）
 
-### 保護者機能（70%完成）
+### 保護者機能（95%完成）
+
+#### ✅ ダッシュボード (95%)
+- **「今日の様子」メッセージ** - Cronジョブで毎日18時自動生成
+- AIによる学習状況分析と保護者向けメッセージ
+- 子ども選択タブ
+- 学習カレンダー表示
+- 応援メッセージ履歴
 
 #### ✅ 応援機能 (95%)
 - クイック応援（3種類のアイコン）
@@ -287,15 +300,13 @@ npx tsx scripts/test/test-parent-screens.ts
 - カスタムメッセージ送信
 - フィルター・ソート機能
 
-#### ⚠️ ゴールナビ閲覧 (75%)
+#### ✅ ゴールナビ閲覧 (95%)
 - 子どもの目標閲覧（読み取り専用）
 - 子ども切り替えタブ
-- **修正必要:** Server Actionsのparent_child_relations対応
 
-#### ⚠️ リフレクト閲覧 (75%)
+#### ✅ リフレクト閲覧 (95%)
 - 子どもの振り返り閲覧（AIコーチング除外）
 - 4タブ構成
-- **修正必要:** Server Actionsのparent_child_relations対応
 
 ### 指導者機能（5%完成）
 
@@ -341,6 +352,9 @@ npx tsx scripts/test/test-parent-screens.ts
 - **coaching_sessions** - コーチングセッション
 - **coaching_messages** - コーチングメッセージ
 - **encouragement_messages** - 応援メッセージ
+- **ai_cache** - AIメッセージキャッシュ
+- **langfuse_traces** - Langfuseトレーシング
+- **parent_students** (VIEW) - 保護者-生徒関係ビュー
 
 ### RLS (Row Level Security)
 
@@ -348,14 +362,29 @@ npx tsx scripts/test/test-parent-screens.ts
 
 ---
 
-## 🐛 既知の問題
+## 🎯 最新機能
 
-### 保護者機能
-⚠️ **Server Actionsの修正が必要**
+### Vercel Cron Jobs（自動化タスク）
 
-`/app/actions/parent.ts` の全関数が `students.parent_id` を想定していますが、実際のDBスキーマは `parent_child_relations` テーブルを使用しています。
+毎日18時（JST）に以下のCronジョブが自動実行されます：
 
-**対応方法:** [ROLE-COMPLETION-STATUS.md](./docs/tasks/ROLE-COMPLETION-STATUS.md#-修正が必要な箇所) を参照
+1. **生徒向けコーチメッセージ生成** (`/api/cron/generate-coach-messages`)
+   - 全生徒に対して個別最適化されたAIコーチメッセージを生成
+   - 学習履歴、トレンド、連続学習日数などを分析
+
+2. **保護者向け「今日の様子」メッセージ生成** (`/api/cron/generate-parent-status`)
+   - 全保護者に対して子どもの学習状況をAIで分析
+   - 昨日の学習ログ、週次トレンド、振り返りコメントを統合
+   - **17保護者×19学生対応完了**
+
+### Langfuse統合
+
+すべてのAI生成（目標設定、振り返り、応援、日次メッセージ）でLangfuseトレーシングを実装：
+
+- プロンプト・レスポンスの記録
+- トークン使用量の追跡
+- パフォーマンス分析
+- キャッシュヒット率の可視化
 
 ---
 
@@ -394,4 +423,4 @@ npx tsx scripts/test/test-parent-screens.ts
 
 **Built with ❤️ by StudySpark Team**
 
-**最終更新:** 2025年10月8日 10:00
+**最終更新:** 2025年11月14日
