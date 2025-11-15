@@ -78,10 +78,10 @@ export async function getAICoachMessage() {
       return { error: "認証エラー" }
     }
 
-    // 生徒情報取得
+    // 生徒情報取得（display_nameも取得）
     const { data: student } = await supabase
       .from("students")
-      .select("id, user_id, grade, course")
+      .select("id, user_id, grade, course, display_name")
       .eq("user_id", user.id)
       .single()
 
@@ -89,14 +89,7 @@ export async function getAICoachMessage() {
       return { error: "生徒情報が見つかりません" }
     }
 
-    // プロフィール取得
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("display_name")
-      .eq("id", user.id)
-      .single()
-
-    const displayName = profile?.display_name || "さん"
+    const displayName = student.display_name || "さん"
 
     // キャッシュキー生成（日付ベース - JST基準）
     const { getTodayJST, getNowJST } = await import("@/lib/utils/date-jst")
@@ -199,14 +192,21 @@ export async function getAICoachMessage() {
   } catch (error) {
     console.error("Get AI coach message error:", error)
 
-    // エラー時フォールバック
-    const { data: profile } = await (await createClient())
-      .from("profiles")
-      .select("display_name")
-      .eq("id", (await (await createClient()).auth.getUser()).data.user?.id || "")
-      .single()
+    // エラー時フォールバック（生徒のdisplay_nameを取得）
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
-    return { message: getTemplateMessage(profile?.display_name || "さん") }
+    if (user) {
+      const { data: student } = await supabase
+        .from("students")
+        .select("display_name")
+        .eq("user_id", user.id)
+        .single()
+
+      return { message: getTemplateMessage(student?.display_name || "さん") }
+    }
+
+    return { message: getTemplateMessage("さん") }
   }
 }
 
