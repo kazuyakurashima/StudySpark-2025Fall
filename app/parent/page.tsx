@@ -101,17 +101,14 @@ export default async function ParentDashboardPage() {
   ])
 
   const initialData: ParentDashboardData = {
-    todayStatusMessage: 'message' in statusMsg ? statusMsg.message : '',
-    todayStatusMessageCreatedAt: 'createdAt' in statusMsg ? statusMsg.createdAt || null : null,
-    studyStreak: 'streak' in streakResult ? streakResult.streak : 0,
-    todayProgress: 'todayProgress' in todayMission ? todayMission.todayProgress : [],
-    weeklyProgress: 'progress' in weeklySubject ? weeklySubject.progress : [],
-    sessionNumber: 'sessionNumber' in weeklySubject ? weeklySubject.sessionNumber : null,
-    calendarData: 'calendarData' in calendar ? calendar.calendarData : {},
-    recentLogs: 'logs' in logsResult ? logsResult.logs : [],
-    recentMessages: 'messages' in messagesResult ? messagesResult.messages : [],
-    isReflectCompleted: 'completed' in reflectionResult ? reflectionResult.completed : false,
-    cachedAt: Date.now()
+    todayStatus: statusMsg,
+    streak: streakResult,
+    todayMission: todayMission,
+    weeklyProgress: weeklySubject,
+    calendarData: calendar,
+    recentLogs: logsResult,
+    recentMessages: messagesResult,
+    reflectionStatus: reflectionResult
   }
 
   return (
