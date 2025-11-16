@@ -78,10 +78,10 @@ export async function getAICoachMessage() {
       return { error: "認証エラー" }
     }
 
-    // 生徒情報取得（display_nameも取得）
+    // 生徒情報とプロフィール情報を取得
     const { data: student } = await supabase
       .from("students")
-      .select("id, user_id, grade, course, display_name")
+      .select("id, user_id, grade, course, furigana")
       .eq("user_id", user.id)
       .single()
 
@@ -89,7 +89,15 @@ export async function getAICoachMessage() {
       return { error: "生徒情報が見つかりません" }
     }
 
-    const displayName = student.display_name || "さん"
+    // プロフィールからdisplay_nameを取得
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("display_name, nickname")
+      .eq("id", user.id)
+      .single()
+
+    // 優先順位: profiles.display_name → profiles.nickname → students.furigana → "さん"
+    const displayName = profile?.display_name || profile?.nickname || student.furigana || "さん"
 
     // キャッシュキー生成（日付ベース - JST基準）
     const { getTodayJST, getNowJST } = await import("@/lib/utils/date-jst")
@@ -169,7 +177,7 @@ export async function getAICoachMessage() {
     const { createDailyCoachMessageTrace } = await import("@/lib/langfuse/trace-helpers")
     const traceId = await createDailyCoachMessageTrace(
       entityId,
-      userId,
+      user.id,
       student.id,
       promptSummary,
       result.message,
