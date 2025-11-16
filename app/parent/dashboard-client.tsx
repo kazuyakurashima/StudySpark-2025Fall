@@ -1814,21 +1814,66 @@ function ParentDashboardInner({
   useEffect(() => {
     if (initialData && initialSelectedChild) {
       console.log("✅ [CLIENT] Using initial server data for child:", initialSelectedChild.id)
-      setTodayStatusMessage(initialData.todayStatusMessage)
-      setTodayStatusMessageCreatedAt(initialData.todayStatusMessageCreatedAt)
-      setStudyStreak(initialData.studyStreak)
-      setTodayProgress(initialData.todayProgress)
-      setWeeklyProgress(initialData.weeklyProgress)
-      setSessionNumber(initialData.sessionNumber)
-      setCalendarData(initialData.calendarData)
-      setRecentLogs(initialData.recentLogs)
-      setRecentMessages(initialData.recentMessages)
-      setIsReflectCompleted(initialData.isReflectCompleted)
 
-      // キャッシュに保存
+      // discriminated union を適切に処理
+      if (!isError(initialData.todayStatus)) {
+        setTodayStatusMessage(initialData.todayStatus.message)
+        setTodayStatusMessageCreatedAt(initialData.todayStatus.createdAt || null)
+      }
+
+      if (!isError(initialData.streak)) {
+        setStudyStreak(initialData.streak.streak)
+        setMaxStreak(initialData.streak.maxStreak)
+        setLastStudyDate(initialData.streak.lastStudyDate)
+        setTodayStudied(initialData.streak.todayStudied)
+        setStreakState(initialData.streak.streakState)
+      }
+
+      if (!isError(initialData.todayMission)) {
+        setTodayProgress(initialData.todayMission.todayProgress)
+      }
+
+      if (!isError(initialData.weeklyProgress)) {
+        setWeeklyProgress(initialData.weeklyProgress.progress)
+        setSessionNumber(initialData.weeklyProgress.sessionNumber)
+      }
+
+      if (!isError(initialData.calendarData)) {
+        setCalendarData(initialData.calendarData.calendarData)
+      }
+
+      if (!isError(initialData.recentLogs)) {
+        setRecentLogs(initialData.recentLogs.logs)
+      }
+
+      if (!isError(initialData.recentMessages)) {
+        setRecentMessages(initialData.recentMessages.messages)
+      }
+
+      if (!isError(initialData.reflectionStatus)) {
+        setIsReflectCompleted(initialData.reflectionStatus.completed)
+      }
+
+      // キャッシュに保存（フラット化した形式で）
       setChildDataCache(prev => ({
         ...prev,
-        [initialSelectedChild.id]: initialData
+        [initialSelectedChild.id]: {
+          todayStatusMessage: !isError(initialData.todayStatus) ? initialData.todayStatus.message : "",
+          todayStatusMessageCreatedAt: !isError(initialData.todayStatus) ? initialData.todayStatus.createdAt || null : null,
+          studyStreak: !isError(initialData.streak) ? initialData.streak.streak : 0,
+          maxStreak: !isError(initialData.streak) ? initialData.streak.maxStreak : 0,
+          lastStudyDate: !isError(initialData.streak) ? initialData.streak.lastStudyDate : null,
+          todayStudied: !isError(initialData.streak) ? initialData.streak.todayStudied : false,
+          streakState: !isError(initialData.streak) ? initialData.streak.streakState : "reset",
+          todayProgress: !isError(initialData.todayMission) ? initialData.todayMission.todayProgress : [],
+          calendarData: !isError(initialData.calendarData) ? initialData.calendarData.calendarData : {},
+          weeklyProgress: !isError(initialData.weeklyProgress) ? initialData.weeklyProgress.progress : [],
+          sessionNumber: !isError(initialData.weeklyProgress) ? initialData.weeklyProgress.sessionNumber : null,
+          recentLogs: !isError(initialData.recentLogs) ? initialData.recentLogs.logs : [],
+          recentMessages: !isError(initialData.recentMessages) ? initialData.recentMessages.messages : [],
+          isReflectCompleted: !isError(initialData.reflectionStatus) ? initialData.reflectionStatus.completed : false,
+          cachedAt: Date.now()
+        }
       }))
 
       setIsLoading(false)
