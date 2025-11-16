@@ -127,76 +127,22 @@ export async function getAICoachMessage() {
       return { message, createdAt: cached.created_at }
     }
 
-    // キャッシュミス - AI生成
-    console.log(`[Coach Message] Cache MISS: ${cacheKey}, generating...`)
+    // キャッシュミス - テンプレートを即返却 & AI生成はバックグラウンドで実行
+    console.log(`[Coach Message] Cache MISS: ${cacheKey}, returning template and generating AI in background`)
 
-    // データ収集
-    const [willData, logsData, streakData, testData, missionData, weeklyData] = await Promise.all([
-      getLatestWillAndGoalForCoach(student.id),
-      getRecentStudyLogsForCoach(student.id, 3),
-      getStudyStreak(),
-      getUpcomingTestForCoach(student.id),
-      getTodayMissionForCoach(student.id),
-      getWeeklyCumulativeProgress(student.id),
-    ])
+    // 🚀 改善: テンプレートメッセージを即座に返却（3-5秒の待機を回避）
+    const templateMessage = getTemplateMessage(displayName)
 
-    // AI生成（動的インポート）
-    const { generateCoachMessage } = await import("@/lib/openai/coach-message")
-    type CoachMessageContext = Awaited<ReturnType<typeof import("@/lib/openai/coach-message")>>["CoachMessageContext"]
+    // バックグラウンドでAI生成（await せずに非同期実行）
+    generateAndCacheCoachMessage(supabase, user.id, student, displayName, cacheKey)
+      .then(() => console.log(`[Coach Message] Background AI generation completed for ${displayName}`))
+      .catch((err) => console.error(`[Coach Message] Background AI generation failed:`, err))
 
-    const context: any = {
-      studentId: student.id,
-      studentName: displayName,
-      grade: student.grade,
-      course: student.course,
-      latestWill: willData?.will,
-      latestGoal: willData?.goal,
-      recentLogs: logsData || [],
-      weeklyProgress: weeklyData?.progress,
-      upcomingTest: testData || undefined,
-      studyStreak: typeof streakData?.streak === "number" ? streakData.streak : 0,
-      todayMission: missionData || undefined,
+    return {
+      message: templateMessage,
+      createdAt: getNowJST().toISOString(),
+      isTemplate: true
     }
-
-    const result = await generateCoachMessage(context)
-
-    if (!result.success) {
-      // AI生成失敗 → フォールバック（テンプレート）
-      console.warn(`[Coach Message] AI generation failed: ${result.error}`)
-      return { message: getTemplateMessage(displayName) }
-    }
-
-    // Langfuseトレース作成用にプロンプトを構築
-    const promptSummary = `Student: ${displayName}, Course: ${student.course}, Streak: ${context.studyStreak} days`
-
-    // entity_idを発行
-    const { randomUUID } = await import("node:crypto")
-    const entityId = randomUUID()
-
-    // Langfuseトレース保存
-    const { createDailyCoachMessageTrace } = await import("@/lib/langfuse/trace-helpers")
-    const traceId = await createDailyCoachMessageTrace(
-      entityId,
-      user.id,
-      student.id,
-      promptSummary,
-      result.message,
-      false // 新規生成なのでcacheHit=false
-    )
-
-    // キャッシュ保存（entity_id と langfuse_trace_id を含む）
-    const now = getNowJST().toISOString()
-    await supabase.from("ai_cache").insert({
-      entity_id: entityId,
-      cache_key: cacheKey,
-      cache_type: "coach_message",
-      cached_content: JSON.stringify(result.message),
-      langfuse_trace_id: traceId,
-      created_at: now,
-    })
-
-    console.log(`[Coach Message] AI generated and cached: ${cacheKey} (trace: ${traceId})`)
-    return { message: result.message, createdAt: now }
   } catch (error) {
     console.error("Get AI coach message error:", error)
 
@@ -230,6 +176,88 @@ function getTemplateMessage(displayName: string): string {
     return `おかえり、${displayName}！今日も学習を続けよう！`
   } else {
     return `今日もお疲れさま、${displayName}！明日も一緒に頑張ろう！`
+  }
+}
+
+/**
+ * AI生成とキャッシュ保存（内部ヘルパー関数）
+ */
+async function generateAndCacheCoachMessage(
+  supabase: any,
+  userId: string,
+  student: any,
+  displayName: string,
+  cacheKey: string
+) {
+  try {
+    // データ収集
+    const [willData, logsData, streakData, testData, missionData, weeklyData] = await Promise.all([
+      getLatestWillAndGoalForCoach(student.id),
+      getRecentStudyLogsForCoach(student.id, 3),
+      getStudyStreak(),
+      getUpcomingTestForCoach(student.id),
+      getTodayMissionForCoach(student.id),
+      getWeeklyCumulativeProgress(student.id),
+    ])
+
+    // AI生成（動的インポート）
+    const { generateCoachMessage } = await import("@/lib/openai/coach-message")
+
+    const context: any = {
+      studentId: student.id,
+      studentName: displayName,
+      grade: student.grade,
+      course: student.course,
+      latestWill: willData?.will,
+      latestGoal: willData?.goal,
+      recentLogs: logsData || [],
+      weeklyProgress: weeklyData?.progress,
+      upcomingTest: testData || undefined,
+      studyStreak: typeof streakData?.streak === "number" ? streakData.streak : 0,
+      todayMission: missionData || undefined,
+    }
+
+    const result = await generateCoachMessage(context)
+
+    if (!result.success) {
+      console.warn(`[Coach Message] Background AI generation failed: ${result.error}`)
+      return
+    }
+
+    // Langfuseトレース作成用にプロンプトを構築
+    const promptSummary = `Student: ${displayName}, Course: ${student.course}, Streak: ${context.studyStreak} days`
+
+    // entity_idを発行
+    const { randomUUID } = await import("node:crypto")
+    const entityId = randomUUID()
+
+    // Langfuseトレース保存
+    const { createDailyCoachMessageTrace } = await import("@/lib/langfuse/trace-helpers")
+    const traceId = await createDailyCoachMessageTrace(
+      entityId,
+      userId,
+      student.id,
+      promptSummary,
+      result.message,
+      false // 新規生成なのでcacheHit=false
+    )
+
+    // キャッシュ保存（entity_id と langfuse_trace_id を含む）
+    const { getNowJST } = await import("@/lib/utils/date-jst")
+    const now = getNowJST().toISOString()
+    await supabase.from("ai_cache").insert({
+      entity_id: entityId,
+      cache_key: cacheKey,
+      cache_type: "coach_message",
+      cached_content: JSON.stringify(result.message),
+      langfuse_trace_id: traceId,
+      created_at: now,
+    })
+
+    console.log(`[Coach Message] ✅ Background AI generated and cached: ${cacheKey} (trace: ${traceId})`)
+  } catch (error) {
+    console.error("[Coach Message] Background generation failed:", error)
+    throw error
   }
 }
 
