@@ -76,8 +76,44 @@ export default async function ParentDashboardPage() {
     )
   }
 
-  // 初期データはクライアント側で子ども選択後に読み込むため、サーバー側では null を渡す
-  // これにより、localStorageに保存された選択状態を優先できる
+  // 🚀 改善: 最初の子どものデータをサーバー側で並列取得（1-2秒短縮）
+  const firstChild = children[0]
+  const firstChildId = firstChild.id
+
+  const [
+    statusMsg,
+    streakResult,
+    todayMission,
+    weeklySubject,
+    calendar,
+    logsResult,
+    messagesResult,
+    reflectionResult
+  ] = await Promise.all([
+    getTodayStatusMessageAI(firstChildId),
+    getStudentStreak(firstChildId),
+    getStudentTodayMissionData(firstChildId),
+    getStudentWeeklyProgress(firstChildId),
+    getStudentCalendarData(firstChildId),
+    getStudentRecentLogs(firstChildId, 50),
+    getStudentRecentMessages(firstChildId, 3),
+    checkStudentWeeklyReflection(firstChildId)
+  ])
+
+  const initialData: ParentDashboardData = {
+    todayStatusMessage: 'message' in statusMsg ? statusMsg.message : '',
+    todayStatusMessageCreatedAt: 'createdAt' in statusMsg ? statusMsg.createdAt || null : null,
+    studyStreak: 'streak' in streakResult ? streakResult.streak : 0,
+    todayProgress: 'todayProgress' in todayMission ? todayMission.todayProgress : [],
+    weeklyProgress: 'progress' in weeklySubject ? weeklySubject.progress : [],
+    sessionNumber: 'sessionNumber' in weeklySubject ? weeklySubject.sessionNumber : null,
+    calendarData: 'calendarData' in calendar ? calendar.calendarData : {},
+    recentLogs: 'logs' in logsResult ? logsResult.logs : [],
+    recentMessages: 'messages' in messagesResult ? messagesResult.messages : [],
+    isReflectCompleted: 'completed' in reflectionResult ? reflectionResult.completed : false,
+    cachedAt: Date.now()
+  }
+
   return (
     <ParentDashboardClient
       parentProfile={{
@@ -86,8 +122,8 @@ export default async function ParentDashboardPage() {
         themeColor: profile.theme_color || "default",
       }}
       children={children}
-      selectedChild={null}
-      initialData={null}
+      selectedChild={firstChild}
+      initialData={initialData}
     />
   )
 }

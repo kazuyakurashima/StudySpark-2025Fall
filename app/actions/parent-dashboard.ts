@@ -497,9 +497,21 @@ export async function getTodayStatusMessageAI(studentId: number) {
       .limit(1)
 
     if (todayLogs && todayLogs.length > 0) {
-      console.log(`[Parent Status] Today's logs found, generating new message`)
-      // 今日のログがあるので新規生成
-      return await generateTodayStatusMessage(supabase, user.id, student, profile, todayStr, displayName)
+      console.log(`[Parent Status] Today's logs found, returning template immediately and generating AI in background`)
+
+      // 🚀 改善: テンプレートメッセージを即座に返却（10-15秒の待機を回避）
+      const templateResult = await getTodayStatusMessage(studentId)
+
+      // バックグラウンドでAI生成（await せずに非同期実行）
+      generateTodayStatusMessage(supabase, user.id, student, profile, todayStr, displayName)
+        .then(() => console.log(`[Parent Status] Background AI generation completed for ${displayName}`))
+        .catch((err) => console.error(`[Parent Status] Background AI generation failed:`, err))
+
+      return {
+        ...templateResult,
+        isTemplate: true,
+        note: 'AI生成は次回のアクセス時に反映されます'
+      }
     }
 
     // === STEP 3: 昨日のキャッシュをチェック ===

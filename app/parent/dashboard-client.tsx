@@ -1788,37 +1788,7 @@ function ParentDashboardInner({
     }
   }>({})
 
-  const [aiMessageCache, setAiMessageCache] = useState<{
-    studentId: number
-    date: string
-    logCount: number
-    message: string
-  } | null>(() => {
-    // Load cache from localStorage on mount
-    if (typeof window !== "undefined") {
-      try {
-        const cached = localStorage.getItem("parentAiMessageCache")
-        if (cached) {
-          const parsed = JSON.parse(cached)
-          // Validate that it's for today
-          const todayStr = new Date().toLocaleDateString("ja-JP")
-          if (parsed.date === todayStr) {
-            console.log("✅ [CLIENT] Using cached AI message from localStorage")
-            return parsed
-          } else {
-            // Clear stale cache
-            console.log("🗑️ [CLIENT] Clearing stale AI message cache")
-            localStorage.removeItem("parentAiMessageCache")
-          }
-        }
-      } catch (error) {
-        console.error("Failed to load AI message cache:", error)
-        // Clear corrupted cache
-        localStorage.removeItem("parentAiMessageCache")
-      }
-    }
-    return null
-  })
+  // 🚀 改善: aiMessageCache を削除（サーバー側で ai_cache テーブルで管理）
 
   // ページがフォーカスされたときの再読み込みは、子ども切り替え時のuseEffectで処理される
 
@@ -1839,6 +1809,31 @@ function ParentDashboardInner({
       localStorage.setItem('parentStatusMessageExpanded', String(isStatusMessageExpanded))
     }
   }, [isStatusMessageExpanded, isHydrated])
+
+  // 🚀 改善: 初期データをサーバーから受け取った場合は即座に表示
+  useEffect(() => {
+    if (initialData && initialSelectedChild) {
+      console.log("✅ [CLIENT] Using initial server data for child:", initialSelectedChild.id)
+      setTodayStatusMessage(initialData.todayStatusMessage)
+      setTodayStatusMessageCreatedAt(initialData.todayStatusMessageCreatedAt)
+      setStudyStreak(initialData.studyStreak)
+      setTodayProgress(initialData.todayProgress)
+      setWeeklyProgress(initialData.weeklyProgress)
+      setSessionNumber(initialData.sessionNumber)
+      setCalendarData(initialData.calendarData)
+      setRecentLogs(initialData.recentLogs)
+      setRecentMessages(initialData.recentMessages)
+      setIsReflectCompleted(initialData.isReflectCompleted)
+
+      // キャッシュに保存
+      setChildDataCache(prev => ({
+        ...prev,
+        [initialSelectedChild.id]: initialData
+      }))
+
+      setIsLoading(false)
+    }
+  }, []) // 初回マウント時のみ実行
 
   // Update children list when profileChildren is loaded
   useEffect(() => {
@@ -1897,7 +1892,6 @@ function ParentDashboardInner({
       try {
         const {
           getTodayStatusMessageAI,
-          getTodayLogCount,
           getStudentStreak,
           getStudentTodayMissionData,
           getStudentWeeklyProgress,
@@ -1907,42 +1901,12 @@ function ParentDashboardInner({
           checkStudentWeeklyReflection,
         } = await import("@/app/actions/parent-dashboard")
 
-        // Get current date string for cache comparison
-        const todayStr = new Date().toLocaleDateString("ja-JP")
+        // 🚀 改善: getTodayLogCountを削除し、サーバー側のキャッシュ管理に一本化
+        // サーバー側の getTodayStatusMessageAI がキャッシュを自動管理
 
-        // Check if we can use cached AI message
-        const logCountResult = await getTodayLogCount(selectedChildId)
-        const currentLogCount = logCountResult.count || 0
-
-        let shouldRegenerateAI = true
-        let cachedMessage = ""
-
-        if (aiMessageCache) {
-          const isSameStudent = aiMessageCache.studentId === selectedChildId
-          const isSameDay = aiMessageCache.date === todayStr
-          const isSameLogCount = aiMessageCache.logCount === currentLogCount
-
-          if (isSameStudent && isSameDay && isSameLogCount) {
-            // Use cached message
-            shouldRegenerateAI = false
-            cachedMessage = aiMessageCache.message
-            console.log("✅ Using cached AI message (no data changes)")
-          } else {
-            console.log("🔄 Cache invalid:", {
-              sameStudent: isSameStudent,
-              sameDay: isSameDay,
-              sameLogCount: isSameLogCount,
-              oldCount: aiMessageCache.logCount,
-              newCount: currentLogCount,
-            })
-          }
-        } else {
-          console.log("🆕 No cache available, generating new AI message")
-        }
-
-        // Fetch data in parallel (skip AI generation if using cache)
+        // Fetch data in parallel
         const fetchPromises = [
-          shouldRegenerateAI ? getTodayStatusMessageAI(selectedChildId) : Promise.resolve({ message: cachedMessage, createdAt: new Date().toISOString() }),
+          getTodayStatusMessageAI(selectedChildId),
           getStudentStreak(selectedChildId),
           getStudentTodayMissionData(selectedChildId),
           getStudentWeeklyProgress(selectedChildId),
@@ -1975,24 +1939,6 @@ function ParentDashboardInner({
         if (!isError(statusMsg)) {
           setTodayStatusMessage((statusMsg as { message: string }).message)
           setTodayStatusMessageCreatedAt((statusMsg as { message: string; createdAt?: string }).createdAt || null)
-
-          // Update cache if we regenerated the message
-          if (shouldRegenerateAI) {
-            const newCache = {
-              studentId: selectedChildId,
-              date: todayStr,
-              logCount: currentLogCount,
-              message: (statusMsg as { message: string }).message,
-            }
-            setAiMessageCache(newCache)
-            // Save to localStorage for persistence across page reloads
-            try {
-              localStorage.setItem("parentAiMessageCache", JSON.stringify(newCache))
-            } catch (error) {
-              console.error("Failed to save AI message cache:", error)
-            }
-            console.log("💾 AI message cached:", { studentId: selectedChildId, date: todayStr, logCount: currentLogCount })
-          }
         } else {
           console.error("❌ [CLIENT] Status message error:", (statusMsg as { error: string }).error)
         }
