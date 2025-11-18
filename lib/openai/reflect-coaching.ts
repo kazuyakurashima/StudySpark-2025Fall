@@ -250,8 +250,10 @@ function getReflectUserPrompt(context: ReflectContext): string {
     return getClosingPrompt(context)
   }
 
-  // フォールバック（ターン6以降）
-  return `今日の振り返りはこれで完了だよ。決めた行動を忘れずに、来週も一歩ずつ進もうね！✨`
+  // フォールバック（ターン6以降）- 🆕 メタタグ追加（バックアップ措置）
+  return `今日の振り返りはこれで完了だよ。決めた行動を忘れずに、来週も一歩ずつ進もうね！✨
+
+[META:SESSION_CAN_END]`
 }
 
 /**
@@ -484,7 +486,7 @@ function needsFollowUp(lastMessage: { role: string; content: string } | undefine
   const isVague = content.length < 10
 
   // 🆕 時間的曖昧性の検出
-  const hasVagueTiming = /やれる時|できる時|余裕|暇|空いた時|ある時/.test(content)
+  const hasVagueTiming = /やれる時|できる時|やりたくなったら|気が向いたら|余裕|暇|空いた時|ある時/.test(content)
 
   // 🆕 困惑シグナルの検出（スケジュール立案が困難な状態）
   const hasHesitation = /うーん|難しい|わからない|思いつかない|無理|厳しい/.test(content)
@@ -504,15 +506,15 @@ function hasCompletedGROW(conversationHistory: { role: string; content: string }
   // 最後の回答に具体性があるか（SMARTの簡易チェック）
   const lastResponse = userResponses[userResponses.length - 1]?.content || ""
 
-  // 🔧 曖昧な時間表現を先に弾く（「やれる時」などの誤検知防止）
-  const hasVagueTiming = /やれる時|できる時|余裕|暇|空いた時|ある時/.test(lastResponse)
+  // 🔧 曖昧な時間表現を先に弾く（「やれる時」「やりたくなったら」などの誤検知防止）
+  const hasVagueTiming = /やれる時|できる時|やりたくなったら|気が向いたら|余裕|暇|空いた時|ある時/.test(lastResponse)
   if (hasVagueTiming) return false
 
-  // 🔧 具体的なタイミング表現のみを検出（細分化して精度向上）
+  // 🔧 具体的なタイミング表現のみを検出（細分化して精度向上、全角数字対応）
   const hasSufficientLength = lastResponse.length >= 15
   const hasSpecificDay = /月曜|火曜|水曜|木曜|金曜|土曜|日曜|毎日|毎朝|毎晩|毎週/.test(lastResponse)
-  const hasSpecificTime = /\d+時|\d+分|午前|午後|朝|昼|夜|放課後|寝る前/.test(lastResponse)
-  const hasSpecificFrequency = /\d+回|\d+問/.test(lastResponse)
+  const hasSpecificTime = /[0-9０-９]+時|[0-9０-９]+分|午前|午後|朝|昼|夜|放課後|寝る前/.test(lastResponse)
+  const hasSpecificFrequency = /[0-9０-９]+回|[0-9０-９]+問|[0-9０-９]+時間/.test(lastResponse)
 
   const hasSpecificity = hasSufficientLength &&
                          (hasSpecificDay || hasSpecificTime || hasSpecificFrequency)
