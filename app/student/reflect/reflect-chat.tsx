@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Bot, Send, Sparkles } from "lucide-react"
+import { Bot, Send, Sparkles, CheckCircle } from "lucide-react"
 import { saveCoachingMessage, completeCoachingSession } from "@/app/actions/reflect"
+import { useRouter } from "next/navigation"
 
 interface Message {
   id: number
@@ -38,14 +39,32 @@ export function ReflectChat({
   upcomingTest,
   onComplete,
 }: ReflectChatProps) {
+  const router = useRouter()
   const [messages, setMessages] = useState<Message[]>([])
   const [userInput, setUserInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [turnNumber, setTurnNumber] = useState(1)
   const [isCompleted, setIsCompleted] = useState(false)
+  const [isSessionEnded, setIsSessionEnded] = useState(false)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
 
-  // クロージングメッセージを検出
+  // 🆕 メタタグを除去してクリーンなメッセージを返す
+  const removeMetadata = (content: string): string => {
+    return content.replace(/\[META:.*?\]/g, "").trim()
+  }
+
+  // 🆕 メタタグベースの終了判定（優先）
+  const canEndSession = useMemo(() => {
+    if (messages.length === 0 || isCompleted || isSessionEnded) return false
+
+    const lastAIMessage = messages
+      .filter(m => m.role === "assistant")
+      .pop()?.content || ""
+
+    return lastAIMessage.includes("[META:SESSION_CAN_END]")
+  }, [messages, isCompleted, isSessionEnded])
+
+  // クロージングメッセージを検出（既存ロジック、フォールバック用に保持）
   const isClosingMessage = (content: string): boolean => {
     const closingPatterns = [
       /振り返りはこれで完了/,
@@ -112,6 +131,62 @@ export function ReflectChat({
     } catch (error) {
       console.error("初回メッセージ取得エラー:", error)
       alert("エラーが発生しました")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // 🆕 セッション終了ハンドラー
+  const handleEndSession = async () => {
+    try {
+      setIsLoading(true)
+
+      // メタタグを除去したクリーンな履歴を渡す
+      const cleanMessages = messages.map(m => ({
+        role: m.role,
+        content: removeMetadata(m.content),
+      }))
+
+      // サマリー生成
+      const summaryResponse = await fetch("/api/reflect/summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentName,
+          weekType,
+          thisWeekAccuracy,
+          lastWeekAccuracy,
+          accuracyDiff,
+          upcomingTest,
+          conversationHistory: cleanMessages,
+          turnNumber,
+        }),
+      })
+
+      const summaryData = await summaryResponse.json()
+
+      if (summaryData.summary) {
+        // セッション完了
+        await completeCoachingSession(sessionId, summaryData.summary, turnNumber)
+
+        // 完了メッセージを追加
+        setMessages(prev => [...prev, {
+          id: Date.now(),
+          role: "assistant",
+          content: "今週の振り返りが完了しました！✨\n\nお疲れ様でした。",
+        }])
+
+        setIsSessionEnded(true)
+        setIsCompleted(true)
+
+        // 完了コールバック
+        onComplete(summaryData.summary)
+      } else if (summaryData.error) {
+        alert("エラーが発生しました: " + summaryData.error)
+      }
+    } catch (error) {
+      console.error("セッション終了エラー:", error)
+      alert("終了処理に失敗しました")
     } finally {
       setIsLoading(false)
     }
@@ -280,7 +355,7 @@ export function ReflectChat({
                       : "bg-background border border-border"
                   }`}
                 >
-                  <p className="text-sm whitespace-pre-line">{message.content}</p>
+                  <p className="text-sm whitespace-pre-line">{removeMetadata(message.content)}</p>
                 </div>
               </div>
             </div>
@@ -301,26 +376,61 @@ export function ReflectChat({
           )}
         </div>
 
-        {!isCompleted && turnNumber <= MAX_TURNS && (
-          <div className="flex gap-2">
-            <Textarea
-              value={userInput}
-              onChange={(e) => setUserInput(e.target.value)}
-              placeholder="あなたの気持ちを教えてね...（Enterで改行、送信ボタンで送信）"
-              className="flex-1 min-h-[60px] resize-none"
-              disabled={isLoading || isCompleted}
-            />
-            <Button
-              onClick={sendMessage}
-              disabled={!userInput.trim() || isLoading || isCompleted}
-              size="icon"
-              className="h-[60px] w-[60px]"
-            >
-              <Send className="h-4 w-4" />
+        {!isCompleted && !isSessionEnded && turnNumber <= MAX_TURNS && (
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <Textarea
+                value={userInput}
+                onChange={(e) => setUserInput(e.target.value)}
+                placeholder="あなたの気持ちを教えてね...（Enterで改行、送信ボタンで送信）"
+                className="flex-1 min-h-[60px] resize-none"
+                disabled={isLoading || isCompleted}
+              />
+              <Button
+                onClick={sendMessage}
+                disabled={!userInput.trim() || isLoading || isCompleted}
+                size="icon"
+                className="h-[60px] w-[60px]"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* 🆕 終了ボタン */}
+            {canEndSession && (
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  onClick={handleEndSession}
+                  disabled={isLoading}
+                  className="gap-2"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  この内容で完了する
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 🆕 完了画面 */}
+        {isSessionEnded && (
+          <div className="text-center space-y-4 py-6">
+            <CheckCircle className="w-12 h-12 text-green-500 mx-auto" />
+            <div>
+              <p className="font-medium text-lg mb-2">振り返りが完了しました！</p>
+              <p className="text-sm text-muted-foreground">
+                お疲れ様でした。来週も頑張りましょう！
+              </p>
+            </div>
+            <Button onClick={() => router.push("/student")}>
+              ダッシュボードに戻る
             </Button>
           </div>
         )}
-        {isCompleted && (
+
+        {/* 既存の完了メッセージ（自動完了時） */}
+        {isCompleted && !isSessionEnded && (
           <div className="text-center text-sm text-muted-foreground py-4">
             振り返りが完了しました。お疲れさまでした！✨
           </div>
