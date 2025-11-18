@@ -389,9 +389,9 @@ function getTurn3Prompt(context: ReflectContext): string {
  * 深掘り質問（必要時のみ）
  */
 function getFollowUpPrompt(context: ReflectContext, questionNumber: 2 | 3): string {
-  const { studentName } = context
+  const { studentName, conversationHistory } = context
 
-  // 質問2の深掘り
+  // 質問2の深掘り（Goal段階）- 既存のまま
   if (questionNumber === 2) {
     return `${studentName}さんの気持ちはわかったよ。
 もう少し具体的に教えてくれると嬉しいな。
@@ -399,8 +399,30 @@ function getFollowUpPrompt(context: ReflectContext, questionNumber: 2 | 3): stri
 「どの科目の」「何を」増やしたい？`
   }
 
-  // 質問3の深掘り
+  // 質問3の深掘り（Will段階）
   if (questionNumber === 3) {
+    const lastAnswer = conversationHistory[conversationHistory.length - 1]?.content || ""
+
+    // 🆕 困惑または曖昧タイミングを検出したら「足場かけ＋選択肢提示」モードへ
+    const hasHesitation = /うーん|難しい|わからない|思いつかない/.test(lastAnswer)
+    const hasVagueTiming = /やれる時|できる時|余裕|暇|空いた時/.test(lastAnswer)
+
+    if (hasHesitation || hasVagueTiming) {
+      // 足場かけ: 具体的な選択肢を提示して自己決定を支援
+      return `${studentName}さん、正直に言ってくれてありがとう✨
+スケジュールを立てるのって難しいよね。
+
+だから、いくつかパターンを考えてみたよ。この中で「これならできそう」って思うものはある？
+
+**パターン1**: 月・水・金の夜、宿題が終わった後に少しずつ
+**パターン2**: 土日にまとめて取り組む
+**パターン3**: 毎朝学校に行く前に少しだけ
+
+どれが${studentName}さんに合いそう？
+それとも他にいいやり方がある？😊`
+    }
+
+    // 通常の深掘り（困惑なしの場合）
     return `いいね！${studentName}さんの意気込みが伝わってくるよ💪
 
 もう少し詳しく教えて。
@@ -433,7 +455,7 @@ function getClosingPrompt(context: ReflectContext): string {
     encouragement = `決めたことを忘れずに、来週も自分のペースで進んでいこう。`
   }
 
-  return `${studentName}さん、ありがとう！✨
+  return `${studentName}さん、今日の振り返りありがとう！✨
 ${actionSummary}
 
 今日話したのは、
@@ -442,7 +464,11 @@ ${actionSummary}
 ✅ 具体的な行動計画
 
 ${encouragement}
-また次の土曜日に一緒に振り返ろうね💪`
+
+もし途中で「これは無理そう」って思ったら、調整しても全然OK。
+大事なのは、自分に合ったやり方を見つけることだからね😊
+
+来週の土曜日に「やってみた感想」を聞かせてね。楽しみにしてるよ💪`
 }
 
 /**
@@ -455,7 +481,13 @@ function needsFollowUp(lastMessage: { role: string; content: string } | undefine
   const isAbstract = /頑張る|たくさん|よく|ちゃんと|しっかり|もっと|がんばる/i.test(content)
   const isVague = content.length < 10
 
-  return isAbstract || isVague
+  // 🆕 時間的曖昧性の検出
+  const hasVagueTiming = /やれる時|できる時|余裕|暇|空いた時|ある時/.test(content)
+
+  // 🆕 困惑シグナルの検出（スケジュール立案が困難な状態）
+  const hasHesitation = /うーん|難しい|わからない|思いつかない|無理|厳しい/.test(content)
+
+  return isAbstract || isVague || hasVagueTiming || hasHesitation
 }
 
 /**
@@ -469,7 +501,19 @@ function hasCompletedGROW(conversationHistory: { role: string; content: string }
 
   // 最後の回答に具体性があるか（SMARTの簡易チェック）
   const lastResponse = userResponses[userResponses.length - 1]?.content || ""
-  const hasSpecificity = lastResponse.length >= 15 && /曜日|時|分|回|日|毎/.test(lastResponse)
+
+  // 🔧 曖昧な時間表現を先に弾く（「やれる時」などの誤検知防止）
+  const hasVagueTiming = /やれる時|できる時|余裕|暇|空いた時|ある時/.test(lastResponse)
+  if (hasVagueTiming) return false
+
+  // 🔧 具体的なタイミング表現のみを検出（細分化して精度向上）
+  const hasSufficientLength = lastResponse.length >= 15
+  const hasSpecificDay = /月曜|火曜|水曜|木曜|金曜|土曜|日曜|毎日|毎朝|毎晩|毎週/.test(lastResponse)
+  const hasSpecificTime = /\d+時|\d+分|午前|午後|朝|昼|夜|放課後|寝る前/.test(lastResponse)
+  const hasSpecificFrequency = /\d+回|\d+問/.test(lastResponse)
+
+  const hasSpecificity = hasSufficientLength &&
+                         (hasSpecificDay || hasSpecificTime || hasSpecificFrequency)
 
   return hasSpecificity || userResponses.length >= 5 // 5往復したら強制完了
 }
