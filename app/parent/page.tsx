@@ -80,6 +80,10 @@ export default async function ParentDashboardPage() {
   const firstChild = children[0]
   const firstChildId = firstChild.id
 
+  // 🔍 パフォーマンス計測開始
+  const startTime = performance.now()
+  console.log("[Parent SSR] Starting parallel data fetch for child:", firstChildId)
+
   const [
     statusMsg,
     streakResult,
@@ -90,15 +94,18 @@ export default async function ParentDashboardPage() {
     messagesResult,
     reflectionResult
   ] = await Promise.all([
-    getTodayStatusMessageAI(firstChildId),
-    getStudentStreak(firstChildId),
-    getStudentTodayMissionData(firstChildId),
-    getStudentWeeklyProgress(firstChildId),
-    getStudentCalendarData(firstChildId),
-    getStudentRecentLogs(firstChildId, 50),
-    getStudentRecentMessages(firstChildId, 3),
-    checkStudentWeeklyReflection(firstChildId)
+    (async () => { const t = performance.now(); const r = await getTodayStatusMessageAI(firstChildId); console.log(`[SSR] getTodayStatusMessageAI: ${(performance.now() - t).toFixed(0)}ms`); return r })(),
+    (async () => { const t = performance.now(); const r = await getStudentStreak(firstChildId); console.log(`[SSR] getStudentStreak: ${(performance.now() - t).toFixed(0)}ms`); return r })(),
+    (async () => { const t = performance.now(); const r = await getStudentTodayMissionData(firstChildId); console.log(`[SSR] getStudentTodayMissionData: ${(performance.now() - t).toFixed(0)}ms`); return r })(),
+    (async () => { const t = performance.now(); const r = await getStudentWeeklyProgress(firstChildId); console.log(`[SSR] getStudentWeeklyProgress: ${(performance.now() - t).toFixed(0)}ms`); return r })(),
+    (async () => { const t = performance.now(); const r = await getStudentCalendarData(firstChildId); console.log(`[SSR] getStudentCalendarData: ${(performance.now() - t).toFixed(0)}ms`); return r })(),
+    (async () => { const t = performance.now(); const r = await getStudentRecentLogs(firstChildId, 50); console.log(`[SSR] getStudentRecentLogs: ${(performance.now() - t).toFixed(0)}ms`); return r })(),
+    (async () => { const t = performance.now(); const r = await getStudentRecentMessages(firstChildId, 3); console.log(`[SSR] getStudentRecentMessages: ${(performance.now() - t).toFixed(0)}ms`); return r })(),
+    (async () => { const t = performance.now(); const r = await checkStudentWeeklyReflection(firstChildId); console.log(`[SSR] checkStudentWeeklyReflection: ${(performance.now() - t).toFixed(0)}ms`); return r })(),
   ])
+
+  const totalTime = performance.now() - startTime
+  console.log(`[Parent SSR] ✅ Total parallel fetch completed in ${totalTime.toFixed(0)}ms`)
 
   const initialData: ParentDashboardData = {
     todayStatus: statusMsg,

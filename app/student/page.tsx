@@ -15,6 +15,10 @@ import {
 import { getRecentEncouragementMessages } from "@/app/actions/encouragement"
 
 export default async function StudentDashboard() {
+  // 🔍 パフォーマンス計測開始
+  const startTime = performance.now()
+  console.log("[Student SSR] Starting parallel data fetch...")
+
   // Fetch all data in parallel on the server
   const [
     dashboardData,
@@ -30,19 +34,22 @@ export default async function StudentDashboard() {
     reflectionStatus,
     liveUpdates
   ] = await Promise.all([
-    getStudentDashboardData(),
-    getAICoachMessage(),
-    getStudyStreak(),
-    getRecentStudyLogs(50),
-    getRecentEncouragementMessages(),
-    getLastLoginInfo(),
-    getTodayMissionData(),
-    getYesterdayMissionData(),
-    getLearningCalendarData(),
-    getWeeklySubjectProgress(),
-    getWeeklyReflectionStatus(),
-    getLiveUpdateData()
+    (async () => { const t = performance.now(); const r = await getStudentDashboardData(); console.log(`[SSR] getStudentDashboardData: ${(performance.now() - t).toFixed(0)}ms`); return r })(),
+    (async () => { const t = performance.now(); const r = await getAICoachMessage(); console.log(`[SSR] getAICoachMessage: ${(performance.now() - t).toFixed(0)}ms`); return r })(),
+    (async () => { const t = performance.now(); const r = await getStudyStreak(); console.log(`[SSR] getStudyStreak: ${(performance.now() - t).toFixed(0)}ms`); return r })(),
+    (async () => { const t = performance.now(); const r = await getRecentStudyLogs(50); console.log(`[SSR] getRecentStudyLogs: ${(performance.now() - t).toFixed(0)}ms`); return r })(),
+    (async () => { const t = performance.now(); const r = await getRecentEncouragementMessages(); console.log(`[SSR] getRecentEncouragementMessages: ${(performance.now() - t).toFixed(0)}ms`); return r })(),
+    (async () => { const t = performance.now(); const r = await getLastLoginInfo(); console.log(`[SSR] getLastLoginInfo: ${(performance.now() - t).toFixed(0)}ms`); return r })(),
+    (async () => { const t = performance.now(); const r = await getTodayMissionData(); console.log(`[SSR] getTodayMissionData: ${(performance.now() - t).toFixed(0)}ms`); return r })(),
+    (async () => { const t = performance.now(); const r = await getYesterdayMissionData(); console.log(`[SSR] getYesterdayMissionData: ${(performance.now() - t).toFixed(0)}ms`); return r })(),
+    (async () => { const t = performance.now(); const r = await getLearningCalendarData(); console.log(`[SSR] getLearningCalendarData: ${(performance.now() - t).toFixed(0)}ms`); return r })(),
+    (async () => { const t = performance.now(); const r = await getWeeklySubjectProgress(); console.log(`[SSR] getWeeklySubjectProgress: ${(performance.now() - t).toFixed(0)}ms`); return r })(),
+    (async () => { const t = performance.now(); const r = await getWeeklyReflectionStatus(); console.log(`[SSR] getWeeklyReflectionStatus: ${(performance.now() - t).toFixed(0)}ms`); return r })(),
+    (async () => { const t = performance.now(); const r = await getLiveUpdateData(); console.log(`[SSR] getLiveUpdateData: ${(performance.now() - t).toFixed(0)}ms`); return r })(),
   ])
+
+  const totalTime = performance.now() - startTime
+  console.log(`[Student SSR] ✅ Total parallel fetch completed in ${totalTime.toFixed(0)}ms`)
 
   // Handle error states
   if (dashboardData?.error) {
@@ -69,7 +76,7 @@ export default async function StudentDashboard() {
     streakState: streakResult?.streakState || "reset",
     recentLogs: Array.isArray(logsResult?.logs) ? logsResult.logs : [],
     recentMessages: messagesResult?.success && Array.isArray(messagesResult?.messages) ? messagesResult.messages : [],
-    lastLoginInfo: loginInfo?.error ? null : loginInfo,
+    lastLoginInfo: (loginInfo && 'lastLoginDays' in loginInfo) ? loginInfo : null,
     todayProgress: Array.isArray(todayMission?.todayProgress) ? todayMission.todayProgress : [],
     yesterdayProgress: Array.isArray(yesterdayMission?.yesterdayProgress) ? yesterdayMission.yesterdayProgress : [],
     calendarData: calendar?.calendarData || {},
