@@ -66,11 +66,32 @@ export async function generateReflectMessage(
     console.log("API Response:", JSON.stringify(response, null, 2))
     console.log("Token Usage:", JSON.stringify(response.usage, null, 2))
 
-    const message = response.choices[0]?.message?.content
+    let message = response.choices[0]?.message?.content
 
     if (!message) {
       console.error("❌ AI response content is empty")
       return { error: "AIからの応答が空でした" }
+    }
+
+    // 🆕 クロージングまたはフォールバック時にメタタグを付与
+    // A案: GROW完了判定（語彙拡張済み）
+    const hasCompletedGROWCheck = context.turnNumber >= 3 && hasCompletedGROW(context.conversationHistory)
+
+    // B案: 生成されたAIメッセージにクロージング表現が含まれるか（語尾変化を許容）
+    const hasClosingExpression = /素敵な一週間|良い一週間|楽しみにして|応援して|来週も|頑張ってね|それでは|では、/.test(message)
+    const isClosingTurn = context.turnNumber >= 5 && hasClosingExpression
+
+    const shouldAppendMeta = (
+      hasCompletedGROWCheck || // A案: GROW完了
+      isClosingTurn ||          // B案: クロージング表現検出
+      (context.turnNumber >= 6) // フォールバック
+    )
+
+    if (shouldAppendMeta) {
+      message = message.trimEnd() + "\n\n[META:SESSION_CAN_END]"
+      console.log("✅ Appended metadata tag for session end")
+      console.log(`  - GROW完了: ${hasCompletedGROWCheck}`)
+      console.log(`  - クロージング表現: ${isClosingTurn}`)
     }
 
     console.log("✅ Generated Message:", message)
@@ -250,10 +271,8 @@ function getReflectUserPrompt(context: ReflectContext): string {
     return getClosingPrompt(context)
   }
 
-  // フォールバック（ターン6以降）- 🆕 メタタグ追加（バックアップ措置）
-  return `今日の振り返りはこれで完了だよ。決めた行動を忘れずに、来週も一歩ずつ進もうね！✨
-
-[META:SESSION_CAN_END]`
+  // フォールバック（ターン6以降）
+  return `今日の振り返りはこれで完了だよ。決めた行動を忘れずに、来週も一歩ずつ進もうね！✨`
 }
 
 /**
@@ -470,9 +489,7 @@ ${encouragement}
 もし途中で「これは無理そう」って思ったら、調整しても全然OK。
 大事なのは、自分に合ったやり方を見つけることだからね😊
 
-来週の土曜日に「やってみた感想」を聞かせてね。楽しみにしてるよ💪
-
-[META:SESSION_CAN_END]`
+来週の土曜日に「やってみた感想」を聞かせてね。楽しみにしてるよ💪`
 }
 
 /**
@@ -511,13 +528,15 @@ function hasCompletedGROW(conversationHistory: { role: string; content: string }
   if (hasVagueTiming) return false
 
   // 🔧 具体的なタイミング表現のみを検出（細分化して精度向上、全角数字対応）
-  const hasSufficientLength = lastResponse.length >= 15
+  const hasSufficientLength = lastResponse.length >= 10  // 15 → 10 に緩和（短いが具体的な回答を許容）
   const hasSpecificDay = /月曜|火曜|水曜|木曜|金曜|土曜|日曜|毎日|毎朝|毎晩|毎週/.test(lastResponse)
   const hasSpecificTime = /[0-9０-９]+時|[0-9０-９]+分|午前|午後|朝|昼|夜|放課後|寝る前/.test(lastResponse)
   const hasSpecificFrequency = /[0-9０-９]+回|[0-9０-９]+問|[0-9０-９]+時間/.test(lastResponse)
+  // 🆕 具体的な場所・タイミング・文脈の検出
+  const hasSpecificContext = /授業後|トレーニング|図書館|家で|学校で|塾で|部活後|休み時間|朝の時間|夜の時間|学習室/.test(lastResponse)
 
   const hasSpecificity = hasSufficientLength &&
-                         (hasSpecificDay || hasSpecificTime || hasSpecificFrequency)
+                         (hasSpecificDay || hasSpecificTime || hasSpecificFrequency || hasSpecificContext)
 
   return hasSpecificity || userResponses.length >= 5 // 5往復したら強制完了
 }

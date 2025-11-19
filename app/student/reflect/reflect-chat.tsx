@@ -53,15 +53,41 @@ export function ReflectChat({
     return content.replace(/\[META:.*?\]/g, "").trim()
   }
 
-  // 🆕 メタタグベースの終了判定（優先）
+  // 🆕 AIメッセージに質問が含まれるか判定（厳格化版）
+  const hasQuestion = (content: string): boolean => {
+    // 1. 疑問符チェック（最優先）
+    if (/[？?]/.test(content)) return true
+
+    // 2. 質問文末パターン（文脈を考慮した厳格マッチ）
+    const questionPatterns = [
+      /教えて(くれる|ください|ね|ほしい)/,
+      /どう(思う|考える|だった|ですか)/,
+      /かな[？?。]?$/,  // 文末の「かな」のみ
+      /何を(する|やる|増やす|考えて)/,
+      /いつ(やる|する|取り組む)/,
+      /どこで(やる|する|取り組む)/,
+      /誰と(やる|する|取り組む)/,
+      /どれ(くらい|を|が)/,
+    ]
+
+    return questionPatterns.some(pattern => pattern.test(content))
+  }
+
+  // 🆕 終了ボタン表示判定：メタタグを優先（サーバー判断を信頼）
   const canEndSession = useMemo(() => {
     if (messages.length === 0 || isCompleted || isSessionEnded) return false
 
     const lastAIMessage = messages
       .filter(m => m.role === "assistant")
-      .pop()?.content || ""
+      .pop()
 
-    return lastAIMessage.includes("[META:SESSION_CAN_END]")
+    if (!lastAIMessage) return false
+
+    const hasMetadata = lastAIMessage.content.includes("[META:SESSION_CAN_END]")
+
+    // メタタグがあればサーバー側の判断を優先して終了可能と判定
+    // （質問検出はメタタグがない場合の安全弁として残す）
+    return hasMetadata
   }, [messages, isCompleted, isSessionEnded])
 
   // クロージングメッセージを検出（既存ロジック、フォールバック用に保持）
@@ -376,7 +402,52 @@ export function ReflectChat({
           )}
         </div>
 
-        {!isCompleted && !isSessionEnded && turnNumber <= MAX_TURNS && (
+        {/* 🆕 終了ボタン（質問がない場合）+ 折り畳み入力欄 */}
+        {canEndSession && !isSessionEnded && (
+          <div className="space-y-4 py-4">
+            {/* 終了ボタン（Primary action） */}
+            <div className="flex justify-center">
+              <Button
+                onClick={handleEndSession}
+                disabled={isLoading}
+                size="lg"
+                className="gap-2"
+              >
+                <CheckCircle className="h-5 w-5" />
+                この内容で完了する
+              </Button>
+            </div>
+
+            {/* 折り畳み: もっと話したい場合 */}
+            <details className="text-center">
+              <summary className="text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors inline-block">
+                もっと話したい場合はこちら
+              </summary>
+              <div className="mt-4 space-y-2">
+                <div className="flex gap-2">
+                  <Textarea
+                    value={userInput}
+                    onChange={(e) => setUserInput(e.target.value)}
+                    placeholder="続けて話したいことがあれば..."
+                    className="flex-1 min-h-[60px] resize-none"
+                    disabled={isLoading}
+                  />
+                  <Button
+                    onClick={sendMessage}
+                    disabled={!userInput.trim() || isLoading}
+                    size="icon"
+                    className="h-[60px] w-[60px]"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </details>
+          </div>
+        )}
+
+        {/* 入力欄（質問がある場合、または終了可能でない場合に表示） */}
+        {!isCompleted && !isSessionEnded && !canEndSession && turnNumber <= MAX_TURNS && (
           <div className="space-y-2">
             <div className="flex gap-2">
               <Textarea
@@ -395,21 +466,6 @@ export function ReflectChat({
                 <Send className="h-4 w-4" />
               </Button>
             </div>
-
-            {/* 🆕 終了ボタン */}
-            {canEndSession && (
-              <div className="flex justify-end">
-                <Button
-                  variant="outline"
-                  onClick={handleEndSession}
-                  disabled={isLoading}
-                  className="gap-2"
-                >
-                  <CheckCircle className="h-4 w-4" />
-                  この内容で完了する
-                </Button>
-              </div>
-            )}
           </div>
         )}
 
