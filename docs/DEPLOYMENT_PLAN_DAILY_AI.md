@@ -182,8 +182,8 @@ npx tsx scripts/seed-2families-data.ts
 ```
 
 **投入されるユーザー**:
-- 保護者: 星野一朗（toshin.hitachi+test002@gmail.com）
-- 保護者: 青空太郎（toshin.hitachi+test001@gmail.com）
+- 保護者: 星野一朗（demo-parent2@example.com）
+- 保護者: 青空太郎（demo-parent1@example.com）
 - 生徒: 星野明、星野光、青空花
 
 ---
@@ -193,8 +193,8 @@ npx tsx scripts/seed-2families-data.ts
 #### 3.1 デモユーザーでログインテスト
 
 1. **保護者ログイン**
-   - Email: `toshin.hitachi+test002@gmail.com`
-   - Password: `Testdemo2025`
+   - Email: `demo-parent2@example.com`
+   - Password: `<社内管理>`
 
 2. **表示確認**
    - [ ] 保護者名が「星野一朗」と正しく表示
@@ -203,7 +203,7 @@ npx tsx scripts/seed-2families-data.ts
 
 3. **生徒ログイン**
    - Login ID: `akira5`
-   - Password: `demo2025`
+   - Password: `<社内管理>`
    - [ ] 生徒名が「星野明」と表示
    - [ ] スパーク機能で学習記録入力可能
 

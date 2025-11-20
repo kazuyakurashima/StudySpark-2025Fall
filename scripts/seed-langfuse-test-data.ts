@@ -37,21 +37,21 @@ interface TestFamily {
 const testFamilies: TestFamily[] = [
   {
     parent: {
-      email: 'toshin.hitachi+test002@gmail.com',
-      password: 'Testdemo2025',
+      email: 'demo-parent2@example.com',
+      password: process.env.DEMO_PARENT_PASSWORD || 'Testdemo2025',
       displayName: '星野一朗'
     },
     students: [
       {
         loginId: 'hoshino_akira',
-        password: 'Testdemo2025',
+        password: process.env.DEMO_PARENT_PASSWORD || 'Testdemo2025',
         displayName: '星野明',
         grade: 6,
         course: 'C'
       },
       {
         loginId: 'hoshino_hikari',
-        password: 'Testdemo2025',
+        password: process.env.DEMO_PARENT_PASSWORD || 'Testdemo2025',
         displayName: '星野光',
         grade: 6,
         course: 'B'
@@ -60,14 +60,14 @@ const testFamilies: TestFamily[] = [
   },
   {
     parent: {
-      email: 'toshin.hitachi+test001@gmail.com',
-      password: 'Testdemo2025',
+      email: 'demo-parent1@example.com',
+      password: process.env.DEMO_PARENT_PASSWORD || 'Testdemo2025',
       displayName: '青空太郎'
     },
     students: [
       {
         loginId: 'aozora_hana',
-        password: 'Testdemo2025',
+        password: process.env.DEMO_PARENT_PASSWORD || 'Testdemo2025',
         displayName: '青空花',
         grade: 6,
         course: 'A'

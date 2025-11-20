@@ -222,9 +222,9 @@
 - [x] 初回ログインテスト
   - 検証: ✅ 生徒/保護者/指導者の全ログインフロー動作確認
   - テスト結果:
-    - 生徒ログイン: ✅ student5a / password123
-    - 保護者ログイン: ✅ parent1@example.com / password123
-    - 指導者ログイン: ✅ coach1@example.com / password123
+    - 生徒ログイン: ✅ student5a / <社内管理>
+    - 保護者ログイン: ✅ parent1@example.com / <社内管理>
+    - 指導者ログイン: ✅ coach1@example.com / <社内管理>
 
 - [x] パスワードリセット実装 (保護者・指導者)
   - 対応要件: `02-Requirements-Auth.md`
@@ -261,20 +261,20 @@
   - 対応要件: `02-Requirements-Auth.md`
   - 検証: ✅ 小5・小6各1名、ログインID作成確認
   - 作成ユーザー:
-    - student5a (田中太郎・小5) - password123
-    - student6a (鈴木花子・小6) - password123
+    - student5a (田中太郎・小5) - <社内管理>
+    - student6a (鈴木花子・小6) - <社内管理>
 
 - [x] 保護者アカウント作成 (子ども複数パターン含む)
   - 対応要件: `02-Requirements-Auth.md`
   - 検証: ✅ 保護者アカウント作成確認、app_metadata設定完了
   - 作成ユーザー:
-    - parent1@example.com (山田一郎) - password123
+    - parent1@example.com (山田一郎) - <社内管理>
 
 - [x] 指導者アカウント作成 (招待コード使用)
   - 対応要件: `02-Requirements-Auth.md`
   - 検証: ✅ 指導者アカウント作成確認
   - 作成ユーザー:
-    - coach1@example.com (佐藤先生) - password123
+    - coach1@example.com (佐藤先生) - <社内管理>
 
 - [ ] 管理者アカウント作成 (内部発行)
   - 対応要件: `02-Requirements-Auth.md`

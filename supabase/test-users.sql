@@ -104,7 +104,7 @@ INSERT INTO auth.users (
   '00000000-0000-0000-0000-000000000000',
   'authenticated',
   'authenticated',
-  'toshin.hitachi+test002@gmail.com',
+  'demo-parent2@example.com',
   '$2a$10$5K3c8XN9mGQZ4P8eJ7xGPOqYZH8fZ5tL9vZjN2mQaL8nE6dR3lH9m', -- Testdemo2025
   NOW(),
   NOW(),
@@ -121,7 +121,7 @@ INSERT INTO auth.users (
   '00000000-0000-0000-0000-000000000000',
   'authenticated',
   'authenticated',
-  'toshin.hitachi+test001@gmail.com',
+  'demo-parent1@example.com',
   '$2a$10$5K3c8XN9mGQZ4P8eJ7xGPOqYZH8fZ5tL9vZjN2mQaL8nE6dR3lH9m', -- Testdemo2025
   NOW(),
   NOW(),

@@ -35,8 +35,8 @@ DB リセット後など、localStorage に保存された子供IDが現在の�
    - 結果: `"999"` と表示されることを確認
 
 6. **保護者でログイン**
-   - メール: `toshin.hitachi+test002@gmail.com`
-   - パスワード: `Testdemo2025`
+   - メール: `demo-parent2@example.com`
+   - パスワード: `<社内管理>`
 
 7. **期待される動作**
    - Console に以下のようなログが表示される:

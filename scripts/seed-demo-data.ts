@@ -32,7 +32,7 @@ const demoData = {
   students: [
     {
       loginId: "akira5",
-      password: "demo2025",
+      password: process.env.DEMO_STUDENT_PASSWORD || "demo2025",
       fullName: "星野 明",
       nickname: "星野 明",
       grade: 5,
@@ -41,7 +41,7 @@ const demoData = {
     },
     {
       loginId: "hikaru6",
-      password: "demo2025",
+      password: process.env.DEMO_STUDENT_PASSWORD || "demo2025",
       fullName: "星野 光",
       nickname: "星野 光",
       grade: 6,
@@ -50,7 +50,7 @@ const demoData = {
     },
     {
       loginId: "hana6",
-      password: "demo2025",
+      password: process.env.DEMO_STUDENT_PASSWORD || "demo2025",
       fullName: "青空 花",
       nickname: "青空 花",
       grade: 6,
@@ -60,16 +60,16 @@ const demoData = {
   ],
   parents: [
     {
-      email: "toshin.hitachi+test002@gmail.com",
-      password: "Testdemo2025",
+      email: "demo-parent2@example.com",
+      password: process.env.DEMO_PARENT_PASSWORD || "Testdemo2025",
       fullName: "星野 一朗",
       nickname: "星野 一朗",
       avatarId: "parent1",
       children: ["akira5", "hikaru6"], // login_id
     },
     {
-      email: "toshin.hitachi+test001@gmail.com",
-      password: "Testdemo2025",
+      email: "demo-parent1@example.com",
+      password: process.env.DEMO_PARENT_PASSWORD || "Testdemo2025",
       fullName: "青空 太郎",
       nickname: "青空 太郎",
       avatarId: "parent2",

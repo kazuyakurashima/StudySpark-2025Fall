@@ -263,12 +263,12 @@ npx tsx scripts/test/test-encouragement-flow.ts
 **URL**: http://localhost:3001
 
 #### 生徒ダッシュボード確認
-1. `student5a` / `password123` でログイン
+1. `student5a` / `<社内管理>` でログイン
 2. 応援メッセージカードを確認
 3. 送信者名とアバターが正しく表示されているか確認
 
 #### 保護者ダッシュボード確認
-1. `parent1@example.com` / `password123` でログイン
+1. `parent1@example.com` / `<社内管理>` でログイン
 2. 生徒の応援メッセージ一覧を確認
 3. 送信者名とアバターが正しく表示されているか確認
 

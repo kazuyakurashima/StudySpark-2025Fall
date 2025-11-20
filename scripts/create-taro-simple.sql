@@ -24,7 +24,7 @@ INSERT INTO auth.users (
   'authenticated',
   'authenticated',
   'student1@internal.test',  -- Internal email, not used for login
-  crypt('password123', gen_salt('bf')),
+  crypt('password123', gen_salt('bf')) -- TODO: 本番では環境変数から取得,
   NOW(),
   NOW(),
   NOW(),

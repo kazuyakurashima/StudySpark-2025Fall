@@ -16,7 +16,7 @@ async function testParentRLS() {
   const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
   // Sign in as parent
-  const parentEmail = "toshin.hitachi+test002@gmail.com"
+  const parentEmail = "demo-parent2@example.com"
   const parentPassword = "Testdemo2025"
 
   console.log(`🔐 Signing in as parent: ${parentEmail}`)

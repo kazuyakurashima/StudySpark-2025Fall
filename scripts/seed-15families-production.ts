@@ -44,7 +44,7 @@ const testFamilies: TestFamily[] = [
   // 1. 小川雅昭
   {
     parent: {
-      email: 'toshin.hitachi+test010@gmail.com',
+      email: 'demo-parent10@example.com',
       password: 'pass8814',
       displayName: 'おがわ',
       familyNameKana: 'おがわ'
@@ -64,7 +64,7 @@ const testFamilies: TestFamily[] = [
   // 2. 佐川智世
   {
     parent: {
-      email: 'toshin.hitachi+test011@gmail.com',
+      email: 'demo-parent11@example.com',
       password: 'pass0003',
       displayName: 'さがわ',
       familyNameKana: 'さがわ'
@@ -84,7 +84,7 @@ const testFamilies: TestFamily[] = [
   // 3. 寺門祐介
   {
     parent: {
-      email: 'toshin.hitachi+test012@gmail.com',
+      email: 'demo-parent12@example.com',
       password: 'pass0000',
       displayName: 'てらかど',
       familyNameKana: 'てらかど'
@@ -104,7 +104,7 @@ const testFamilies: TestFamily[] = [
   // 4. 長山裕紀
   {
     parent: {
-      email: 'toshin.hitachi+test013@gmail.com',
+      email: 'demo-parent13@example.com',
       password: 'pass7340',
       displayName: 'ながやま',
       familyNameKana: 'ながやま'
@@ -124,7 +124,7 @@ const testFamilies: TestFamily[] = [
   // 5. 二本木英明
   {
     parent: {
-      email: 'toshin.hitachi+test014@gmail.com',
+      email: 'demo-parent14@example.com',
       password: 'pass5833',
       displayName: 'にほんぎ',
       familyNameKana: 'にほんぎ'
@@ -144,7 +144,7 @@ const testFamilies: TestFamily[] = [
   // 6. 林通子
   {
     parent: {
-      email: 'toshin.hitachi+test015@gmail.com',
+      email: 'demo-parent15@example.com',
       password: 'pass0163',
       displayName: 'はやし',
       familyNameKana: 'はやし'
@@ -164,7 +164,7 @@ const testFamilies: TestFamily[] = [
   // 7. 山口剛司
   {
     parent: {
-      email: 'toshin.hitachi+test016@gmail.com',
+      email: 'demo-parent16@example.com',
       password: 'pass6634',
       displayName: 'やまぐち',
       familyNameKana: 'やまぐち'
@@ -184,7 +184,7 @@ const testFamilies: TestFamily[] = [
   // 8. 石井のぞみ
   {
     parent: {
-      email: 'toshin.hitachi+test017@gmail.com',
+      email: 'demo-parent17@example.com',
       password: 'pass9913',
       displayName: 'いしい',
       familyNameKana: 'いしい'
@@ -204,7 +204,7 @@ const testFamilies: TestFamily[] = [
   // 9. 齋藤香里
   {
     parent: {
-      email: 'toshin.hitachi+test018@gmail.com',
+      email: 'demo-parent18@example.com',
       password: 'pass4497',
       displayName: 'さいとう',
       familyNameKana: 'さいとう'
@@ -224,7 +224,7 @@ const testFamilies: TestFamily[] = [
   // 10. 齋藤裕嗣
   {
     parent: {
-      email: 'toshin.hitachi+test019@gmail.com',
+      email: 'demo-parent19@example.com',
       password: 'pass5520',
       displayName: 'さいとう',
       familyNameKana: 'さいとう'
@@ -244,7 +244,7 @@ const testFamilies: TestFamily[] = [
   // 11. 笹島達也
   {
     parent: {
-      email: 'toshin.hitachi+test020@gmail.com',
+      email: 'demo-parent20@example.com',
       password: 'pass8369',
       displayName: 'ささじま',
       familyNameKana: 'ささじま'
@@ -264,7 +264,7 @@ const testFamilies: TestFamily[] = [
   // 12. 杉山靖（2人兄弟）
   {
     parent: {
-      email: 'toshin.hitachi+test021@gmail.com',
+      email: 'demo-parent21@example.com',
       password: 'pass8971',
       displayName: 'すぎやま',
       familyNameKana: 'すぎやま'
@@ -293,7 +293,7 @@ const testFamilies: TestFamily[] = [
   // 13. 深作美津子
   {
     parent: {
-      email: 'toshin.hitachi+test022@gmail.com',
+      email: 'demo-parent22@example.com',
       password: 'pass2320',
       displayName: 'ふかさく',
       familyNameKana: 'ふかさく'
@@ -313,7 +313,7 @@ const testFamilies: TestFamily[] = [
   // 14. 福地秀太郎
   {
     parent: {
-      email: 'toshin.hitachi+test023@gmail.com',
+      email: 'demo-parent23@example.com',
       password: 'pass7365',
       displayName: 'ふくち',
       familyNameKana: 'ふくち'
@@ -333,7 +333,7 @@ const testFamilies: TestFamily[] = [
   // 15. 松下麻香
   {
     parent: {
-      email: 'toshin.hitachi+test024@gmail.com',
+      email: 'demo-parent24@example.com',
       password: 'pass1212',
       displayName: 'まつした',
       familyNameKana: 'まつした'
@@ -585,7 +585,7 @@ async function main() {
 
     console.log('\n🔑 Sample login credentials:')
     console.log('\n保護者: おがわ (小川雅昭)')
-    console.log('  Email: toshin.hitachi+test010@gmail.com')
+    console.log('  Email: demo-parent10@example.com')
     console.log('  Password: pass8814')
     console.log('\n生徒: まお (小川真央) 小5')
     console.log('  Login ID: mao5')

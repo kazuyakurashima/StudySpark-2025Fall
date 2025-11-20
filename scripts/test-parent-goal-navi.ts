@@ -10,7 +10,7 @@ async function testParentGoalNavi() {
 
   // 1. 保護者のuser_idを取得
   const { data: parent1Auth } = await supabase.auth.admin.listUsers()
-  const parent1User = parent1Auth.users.find(u => u.email === "toshin.hitachi+test001@gmail.com")
+  const parent1User = parent1Auth.users.find(u => u.email === "demo-parent1@example.com")
 
   if (!parent1User) {
     console.log("❌ 保護者アカウントが見つかりません")

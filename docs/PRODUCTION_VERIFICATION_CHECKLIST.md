@@ -8,8 +8,8 @@
 
 ### 2. 保護者アカウント1（青空太郎）
 **ログイン情報:**
-- Email: `toshin.hitachi+test001@gmail.com`
-- Password: `Testdemo2025`
+- Email: `demo-parent1@example.com`
+- Password: `<社内管理>`
 
 **確認項目:**
 - [ ] ログイン成功
@@ -20,8 +20,8 @@
 
 ### 3. 保護者アカウント2（星野一朗）
 **ログイン情報:**
-- Email: `toshin.hitachi+test002@gmail.com`
-- Password: `Testdemo2025`
+- Email: `demo-parent2@example.com`
+- Password: `<社内管理>`
 
 **確認項目:**
 - [ ] ログイン成功
@@ -32,13 +32,13 @@
 
 ### 4. 生徒アカウント（参考）
 **生徒1:**
-- ID: `hana6` / PW: `demo2025`
+- ID: `hana6` / PW: `<社内管理>`
 
 **生徒2:**
-- ID: `hikaru6` / PW: `demo2025`
+- ID: `hikaru6` / PW: `<社内管理>`
 
 **生徒3:**
-- ID: `akira5` / PW: `demo2025`
+- ID: `akira5` / PW: `<社内管理>`
 
 ## 異常時の対処
 

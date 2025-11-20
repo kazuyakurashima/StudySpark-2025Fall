@@ -446,8 +446,8 @@ ORDER BY sort_order;
 ### 保護者アカウント1
 
 **ログイン情報**:
-- Email: `toshin.hitachi+test001@gmail.com`
-- Password: `Testdemo2025`
+- Email: `demo-parent1@example.com`
+- Password: `<社内管理>`
 
 **確認項目**:
 - [ ] ログイン成功
@@ -460,8 +460,8 @@ ORDER BY sort_order;
 ### 保護者アカウント2
 
 **ログイン情報**:
-- Email: `toshin.hitachi+test002@gmail.com`
-- Password: `Testdemo2025`
+- Email: `demo-parent2@example.com`
+- Password: `<社内管理>`
 
 **確認項目**:
 - [ ] ログイン成功

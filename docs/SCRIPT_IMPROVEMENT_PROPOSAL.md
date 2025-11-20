@@ -40,8 +40,8 @@ async function deleteExistingDemoUsers(supabase: any) {
     'hana6@studyspark.local',
     'hikaru6@studyspark.local',
     'akira5@studyspark.local',
-    'toshin.hitachi+test001@gmail.com',
-    'toshin.hitachi+test002@gmail.com'
+    'demo-parent1@example.com',
+    'demo-parent2@example.com'
   ]
 
   // 削除対象をフィルタリング

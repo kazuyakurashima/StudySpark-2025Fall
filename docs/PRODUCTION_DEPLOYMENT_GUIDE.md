@@ -302,13 +302,13 @@ npx vercel --prod
 **生徒アカウント:**
 ```
 ログインID: hikaru6
-パスワード: demo2025
+パスワード: <社内管理>
 ```
 
 **保護者アカウント:**
 ```
-メールアドレス: toshin.hitachi+test002@gmail.com
-パスワード: Testdemo2025
+メールアドレス: demo-parent2@example.com
+パスワード: <社内管理>
 ```
 
 **確認ポイント（新機能）:**

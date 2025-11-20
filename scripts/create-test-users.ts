@@ -34,7 +34,7 @@ const testUsers = {
   students: [
     {
       loginId: "student5a",
-      password: "password123",
+      password: process.env.DEMO_PASSWORD || "password123",
       name: "田中太郎",
       nameKana: "タナカタロウ",
       displayName: "たろう",
@@ -43,7 +43,7 @@ const testUsers = {
     },
     {
       loginId: "student6a",
-      password: "password123",
+      password: process.env.DEMO_PASSWORD || "password123",
       name: "鈴木花子",
       nameKana: "スズキハナコ",
       displayName: "はなこ",
@@ -54,7 +54,7 @@ const testUsers = {
   parents: [
     {
       email: "parent1@example.com",
-      password: "password123",
+      password: process.env.DEMO_PASSWORD || "password123",
       name: "山田一郎",
       nameKana: "ヤマダイチロウ",
       displayName: "山田",
@@ -63,7 +63,7 @@ const testUsers = {
   coaches: [
     {
       email: "coach1@example.com",
-      password: "password123",
+      password: process.env.DEMO_PASSWORD || "password123",
       name: "佐藤先生",
       nameKana: "サトウセンセイ",
       displayName: "佐藤先生",

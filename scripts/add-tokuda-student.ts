@@ -3,7 +3,7 @@
  *
  * 追加内容:
  * - 生徒: 德田創大 (soudai6)
- * - 保護者: 徳田憲樹 (toshin.hitachi+test025@gmail.com)
+ * - 保護者: 徳田憲樹 (demo-parent25@example.com)
  * - 親子関係
  */
 
@@ -38,7 +38,7 @@ async function main() {
     // 2. 保護者アカウントを確認/作成
     console.log('📧 保護者アカウント確認...')
 
-    const parentEmail = 'toshin.hitachi+test025@gmail.com'
+    const parentEmail = 'demo-parent25@example.com'
     const parentPassword = 'pass3816'
 
     // まず既存の保護者を確認

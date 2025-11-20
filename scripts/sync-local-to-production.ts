@@ -59,29 +59,29 @@ async function syncLocalToProduction() {
     // Update emails if needed
     console.log("🔄 メールアドレスを更新中...\n")
 
-    if (hoshino_parent && hoshino_auth?.email !== "toshin.hitachi+test001@gmail.com") {
+    if (hoshino_parent && hoshino_auth?.email !== "demo-parent1@example.com") {
       const { error } = await supabase.auth.admin.updateUserById(hoshino_parent.id, {
-        email: "toshin.hitachi+test001@gmail.com",
+        email: "demo-parent1@example.com",
       })
 
       if (error) {
         console.error(`❌ 星野一朗のメール更新エラー:`, error.message)
       } else {
-        console.log(`✅ 星野一朗: parent1@example.com → toshin.hitachi+test001@gmail.com`)
+        console.log(`✅ 星野一朗: parent1@example.com → demo-parent1@example.com`)
       }
     } else {
       console.log(`⏭️  星野一朗: 既に正しいメールアドレスです`)
     }
 
-    if (aozora_parent && aozora_auth?.email !== "toshin.hitachi+test002@gmail.com") {
+    if (aozora_parent && aozora_auth?.email !== "demo-parent2@example.com") {
       const { error } = await supabase.auth.admin.updateUserById(aozora_parent.id, {
-        email: "toshin.hitachi+test002@gmail.com",
+        email: "demo-parent2@example.com",
       })
 
       if (error) {
         console.error(`❌ 青空太郎のメール更新エラー:`, error.message)
       } else {
-        console.log(`✅ 青空太郎: ${aozora_auth?.email} → toshin.hitachi+test002@gmail.com`)
+        console.log(`✅ 青空太郎: ${aozora_auth?.email} → demo-parent2@example.com`)
       }
     } else {
       console.log(`⏭️  青空太郎: 既に正しいメールアドレスです`)

@@ -46,10 +46,10 @@ async function setupProductionRelationships() {
 
     // Find parents
     const hoshino_parent = users.find(
-      (p) => p.email === "toshin.hitachi+test001@gmail.com" && p.role === "parent"
+      (p) => p.email === "demo-parent1@example.com" && p.role === "parent"
     )
     const aozora_parent = users.find(
-      (p) => p.email === "toshin.hitachi+test002@gmail.com" && p.role === "parent"
+      (p) => p.email === "demo-parent2@example.com" && p.role === "parent"
     )
 
     // Find students

@@ -106,7 +106,7 @@ async function createDemoUsers() {
   const { data: authParent, error: authParentError } =
     await supabase.auth.admin.createUser({
       email: "demo-parent@example.com",
-      password: "demo2025",
+      password: process.env.DEMO_STUDENT_PASSWORD || "demo2025",
       email_confirm: true,
       user_metadata: {
         role: "parent",
@@ -163,7 +163,7 @@ async function createDemoUsers() {
   const { data: authStudent5, error: authStudent5Error } =
     await supabase.auth.admin.createUser({
       email: student5Email,
-      password: "demo2025",
+      password: process.env.DEMO_STUDENT_PASSWORD || "demo2025",
       email_confirm: true,
       user_metadata: {
         role: "student",
@@ -241,7 +241,7 @@ async function createDemoUsers() {
   const { data: authStudent6, error: authStudent6Error } =
     await supabase.auth.admin.createUser({
       email: student6Email,
-      password: "demo2025",
+      password: process.env.DEMO_STUDENT_PASSWORD || "demo2025",
       email_confirm: true,
       user_metadata: {
         role: "student",
@@ -325,9 +325,9 @@ async function createDemoUsers() {
 
   console.log("\n=== ✅ デモユーザー作成完了 ===")
   console.log("\n📋 ログイン情報:")
-  console.log("生徒（小5）: demo-student5 / demo2025")
-  console.log("生徒（小6）: demo-student6 / demo2025")
-  console.log("保護者: demo-parent@example.com / demo2025")
+  console.log("生徒（小5）: demo-student5 / <社内管理>")
+  console.log("生徒（小6）: demo-student6 / <社内管理>")
+  console.log("保護者: demo-parent@example.com / <社内管理>")
 }
 
 async function generateStudyLogs(studentId: string, grade: number) {
