@@ -10,15 +10,15 @@
 #### 生徒（3名）
 | ログインID | 氏名 | パスワード | 学年 | コース | student_id |
 |-----------|------|-----------|------|--------|-----------|
-| hana6 | 青空 花 | demo2025 | 小6 | B | 1 |
-| hikaru6 | 星野 光 | demo2025 | 小6 | B | 2 |
-| akira5 | 星野 明 | demo2025 | 小5 | B | 3 |
+| hana6 | 青空 花 | <社内管理> | 小6 | B | 1 |
+| hikaru6 | 星野 光 | <社内管理> | 小6 | B | 2 |
+| akira5 | 星野 明 | <社内管理> | 小5 | B | 3 |
 
 #### 保護者（2名）
 | メールアドレス | 氏名 | パスワード | parent_id |
 |--------------|------|-----------|-----------|
-| toshin.hitachi+test001@gmail.com | 青空 太郎 | Testdemo2025 | 1 |
-| toshin.hitachi+test002@gmail.com | 星野 一朗 | Testdemo2025 | 2 |
+| demo-parent1@example.com | 青空 太郎 | <社内管理> | 1 |
+| demo-parent2@example.com | 星野 一朗 | <社内管理> | 2 |
 
 ### 親子関係
 - 青空 太郎 (parent_id: 1) ⇔ 青空 花 (student_id: 1)

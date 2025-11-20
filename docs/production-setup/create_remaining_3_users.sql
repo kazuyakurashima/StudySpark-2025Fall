@@ -46,7 +46,7 @@ INSERT INTO auth.users (
 VALUES (
   gen_random_uuid(),
   '00000000-0000-0000-0000-000000000000',
-  'toshin.hitachi+test001@gmail.com',
+  'demo-parent1@example.com',
   crypt('Testdemo2025', gen_salt('bf')),
   NOW(),
   '{"role":"parent","full_name":"青空 太郎","email_verified":true}'::jsonb,
@@ -74,7 +74,7 @@ INSERT INTO auth.users (
 VALUES (
   gen_random_uuid(),
   '00000000-0000-0000-0000-000000000000',
-  'toshin.hitachi+test002@gmail.com',
+  'demo-parent2@example.com',
   crypt('Testdemo2025', gen_salt('bf')),
   NOW(),
   '{"role":"parent","full_name":"星野 一朗","email_verified":true}'::jsonb,

@@ -99,8 +99,8 @@ All notable changes to this project will be documented in this file.
 - **デモアカウント**
   - 星野家: 保護者（星野一朗）と生徒2名（明・光）
   - 青空家: 保護者（青空太郎）と生徒1名（花）
-  - デモ生徒のパスワード: `demo2025`
-  - デモ保護者のパスワード: `Testdemo2025`
+  - デモ生徒のパスワード: `<社内管理>`
+  - デモ保護者のパスワード: `<社内管理>`
 
 ### Changed
 

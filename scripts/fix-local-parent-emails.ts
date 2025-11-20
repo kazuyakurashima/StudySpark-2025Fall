@@ -36,18 +36,18 @@ async function fixLocalParentEmails() {
     const aozora_auth = authData.users.find((u) => u.id === aozora_parent?.id)
     const unknown_auth = authData.users.find((u) => u.id === unknown_parent?.id)
 
-    console.log(`星野一朗: ${hoshino_auth?.email || '未設定'} → toshin.hitachi+test001@gmail.com`)
-    console.log(`青空太郎: ${aozora_auth?.email || '未設定'} → toshin.hitachi+test002@gmail.com`)
+    console.log(`星野一朗: ${hoshino_auth?.email || '未設定'} → demo-parent1@example.com`)
+    console.log(`青空太郎: ${aozora_auth?.email || '未設定'} → demo-parent2@example.com`)
     if (unknown_auth) {
       console.log(`（未設定）: ${unknown_auth.email} → 削除`)
     }
     console.log("")
 
     // Update Hoshino
-    if (hoshino_parent && hoshino_auth?.email !== "toshin.hitachi+test001@gmail.com") {
+    if (hoshino_parent && hoshino_auth?.email !== "demo-parent1@example.com") {
       console.log("🔄 星野一朗のメールアドレスを更新中...")
       const { error } = await supabase.auth.admin.updateUserById(hoshino_parent.id, {
-        email: "toshin.hitachi+test001@gmail.com",
+        email: "demo-parent1@example.com",
       })
 
       if (error) {
@@ -60,10 +60,10 @@ async function fixLocalParentEmails() {
     }
 
     // Update Aozora
-    if (aozora_parent && aozora_auth?.email !== "toshin.hitachi+test002@gmail.com") {
+    if (aozora_parent && aozora_auth?.email !== "demo-parent2@example.com") {
       console.log("🔄 青空太郎のメールアドレスを更新中...")
       const { error } = await supabase.auth.admin.updateUserById(aozora_parent.id, {
-        email: "toshin.hitachi+test002@gmail.com",
+        email: "demo-parent2@example.com",
       })
 
       if (error) {

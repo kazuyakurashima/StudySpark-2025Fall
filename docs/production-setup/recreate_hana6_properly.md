@@ -25,7 +25,7 @@ SELECT COUNT(*) FROM auth.users WHERE email = 'hana6@studyspark.local';
 2. **"Add user"** ボタンをクリック
 3. **以下を入力：**
    - Email: `hana6@studyspark.local`
-   - Password: `demo2025`
+   - Password: `<社内管理>`
    - Auto Confirm User: ✅ チェック
    - User Metadata:
    ```json
@@ -103,7 +103,7 @@ WHERE s.login_id = 'hana6';
 
 https://study-spark-2025-fall.vercel.app で：
 - ID: `hana6`
-- パスワード: `demo2025`
+- パスワード: `<社内管理>`
 
 でログインを試してください。
 

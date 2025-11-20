@@ -18,7 +18,7 @@ async function main() {
   console.log('🔍 徳田アカウント検証...\n')
 
   try {
-    const parentEmail = 'toshin.hitachi+test025@gmail.com'
+    const parentEmail = 'demo-parent25@example.com'
     const studentLoginId = 'soudai6'
     const studentEmail = `${studentLoginId}@studyspark.internal`
 

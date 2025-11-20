@@ -10,7 +10,7 @@ async function fixDemoStudentLogins() {
     "93f9766f-4278-459b-a835-50f97a744360",
     {
       email: "demo-student5@studyspark.local",
-      password: "demo2025",
+      password: process.env.DEMO_STUDENT_PASSWORD || "demo2025",
     }
   )
 
@@ -25,7 +25,7 @@ async function fixDemoStudentLogins() {
     "e9270f1b-b5ad-484b-81be-7b2bc6a57cff",
     {
       email: "demo-student6@studyspark.local",
-      password: "demo2025",
+      password: process.env.DEMO_STUDENT_PASSWORD || "demo2025",
     }
   )
 
@@ -67,8 +67,8 @@ async function fixDemoStudentLogins() {
   }
 
   console.log("\nDone! You can now log in with:")
-  console.log("  demo-student5 / demo2025")
-  console.log("  demo-student6 / demo2025")
+  console.log("  demo-student5 / <社内管理>")
+  console.log("  demo-student6 / <社内管理>")
 }
 
 fixDemoStudentLogins()

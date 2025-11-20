@@ -46,7 +46,7 @@ async function testParentUpdateSecurity() {
   const parentClient = createClient(supabaseUrl, supabaseServiceKey)
   const { error: signInError } = await parentClient.auth.signInWithPassword({
     email: 'parent1@example.com',
-    password: 'password123'
+    password: process.env.DEMO_PASSWORD || 'password123'
   })
 
   if (signInError) {
@@ -153,7 +153,7 @@ async function testCoachUpdateSecurity() {
   const coachClient = createClient(supabaseUrl, supabaseServiceKey)
   const { error: signInError } = await coachClient.auth.signInWithPassword({
     email: 'coach1@example.com',
-    password: 'password123'
+    password: process.env.DEMO_PASSWORD || 'password123'
   })
 
   if (signInError) {

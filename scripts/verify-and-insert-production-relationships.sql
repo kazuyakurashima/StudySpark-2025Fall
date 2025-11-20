@@ -83,7 +83,7 @@ CROSS JOIN LATERAL (
   WHERE sp.display_name IN ('星野 光', '星野 明')
 ) s
 JOIN auth.users au_parent ON p_parent.id = au_parent.id
-WHERE au_parent.email = 'toshin.hitachi+test001@gmail.com'
+WHERE au_parent.email = 'demo-parent1@example.com'
   AND p_parent.role = 'parent';
 
 -- 青空太郎（parent_id確認後に実行）
@@ -103,7 +103,7 @@ CROSS JOIN LATERAL (
   WHERE sp.display_name = '青空 花'
 ) s
 JOIN auth.users au_parent ON p_parent.id = au_parent.id
-WHERE au_parent.email = 'toshin.hitachi+test002@gmail.com'
+WHERE au_parent.email = 'demo-parent2@example.com'
   AND p_parent.role = 'parent';
 
 -- ステップ6: 結果を確認

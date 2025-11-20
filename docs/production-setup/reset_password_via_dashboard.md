@@ -17,7 +17,7 @@ SQLでのパスワード設定がうまくいかないので、Supabase Dashboar
    - "Update user" ボタン、または
    - パスワードフィールド
 
-5. **パスワードを `demo2025` に設定**
+5. **パスワードを `<社内管理>` に設定**
    - もし "Send password recovery" しかない場合は、一度削除して再作成します
 
 ---
@@ -38,7 +38,7 @@ DELETE FROM auth.users WHERE email = 'hana6@studyspark.local';
 
 その後、Supabase Dashboard > Authentication > Users > "Add user" から手動で作成：
 - Email: `hana6@studyspark.local`
-- Password: `demo2025`
+- Password: `<社内管理>`
 - Auto Confirm User: ✓
 - User Metadata:
 ```json

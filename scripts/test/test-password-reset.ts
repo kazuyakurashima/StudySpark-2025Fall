@@ -128,7 +128,7 @@ async function testPasswordReset() {
     const { error: restoreError } = await supabase.auth.admin.updateUserById(
       student.user_id,
       {
-        password: "password123",
+        password: process.env.DEMO_PASSWORD || "password123",
       }
     )
 

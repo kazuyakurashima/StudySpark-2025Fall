@@ -20,7 +20,7 @@ async function main() {
   console.log('➕ 徳田創大くんのデータ補完...\n')
 
   try {
-    const parentEmail = 'toshin.hitachi+test025@gmail.com'
+    const parentEmail = 'demo-parent25@example.com'
     const studentLoginId = 'soudai6'
 
     // 1. Authユーザーを取得

@@ -14,7 +14,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   },
 })
 
-const EMAIL_TO_CHECK = "toshin.hitachi+test001@gmail.com"
+const EMAIL_TO_CHECK = "demo-parent1@example.com"
 
 async function checkAccount() {
   console.log(`\n🔍 Checking account for: ${EMAIL_TO_CHECK}\n`)

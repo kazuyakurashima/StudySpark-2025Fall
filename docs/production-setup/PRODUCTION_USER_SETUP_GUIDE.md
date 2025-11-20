@@ -52,10 +52,10 @@ Supabase Dashboard > Authentication > Users > "Add user" から以下の4ユー�
 
 | ユーザー | Email | Password | User Metadata |
 |---------|-------|----------|---------------|
-| hikaru6 | hikaru6@studyspark.local | demo2025 | `{"role":"student","login_id":"hikaru6","full_name":"星野 光","email_verified":true}` |
-| akira5 | akira5@studyspark.local | demo2025 | `{"role":"student","login_id":"akira5","full_name":"星野 明","email_verified":true}` |
-| parent1 | toshin.hitachi+test001@gmail.com | Testdemo2025 | `{"role":"parent","full_name":"青空 太郎","email_verified":true}` |
-| parent2 | toshin.hitachi+test002@gmail.com | Testdemo2025 | `{"role":"parent","full_name":"星野 一朗","email_verified":true}` |
+| hikaru6 | hikaru6@studyspark.local | <社内管理> | `{"role":"student","login_id":"hikaru6","full_name":"星野 光","email_verified":true}` |
+| akira5 | akira5@studyspark.local | <社内管理> | `{"role":"student","login_id":"akira5","full_name":"星野 明","email_verified":true}` |
+| parent1 | demo-parent1@example.com | <社内管理> | `{"role":"parent","full_name":"青空 太郎","email_verified":true}` |
+| parent2 | demo-parent2@example.com | <社内管理> | `{"role":"parent","full_name":"星野 一朗","email_verified":true}` |
 
 **重要:** "Auto Confirm User" にチェックを入れてください。
 
@@ -157,13 +157,13 @@ ORDER BY p.role, au.email;
 以下のアカウントで本番環境（https://study-spark-2025-fall.vercel.app）にログインできることを確認してください：
 
 **生徒アカウント:**
-- hana6 / demo2025
-- hikaru6 / demo2025
-- akira5 / demo2025
+- hana6 / <社内管理>
+- hikaru6 / <社内管理>
+- akira5 / <社内管理>
 
 **保護者アカウント:**
-- toshin.hitachi+test001@gmail.com / Testdemo2025
-- toshin.hitachi+test002@gmail.com / Testdemo2025
+- demo-parent1@example.com / <社内管理>
+- demo-parent2@example.com / <社内管理>
 
 ### 3. ダッシュボード表示確認
 
@@ -178,7 +178,7 @@ ORDER BY p.role, au.email;
 ### ログインできない場合
 
 1. **メールアドレス／IDまたはパスワードが違います**
-   - パスワードを再確認（生徒: `demo2025`, 保護者: `Testdemo2025`）
+   - パスワードを再確認（生徒: `<社内管理>`, 保護者: `<社内管理>`）
    - Supabase Dashboard > Authentication > Users で "Email confirmed" が true か確認
 
 2. **プロフィールが見つかりません**

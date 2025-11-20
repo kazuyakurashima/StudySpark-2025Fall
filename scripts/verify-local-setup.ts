@@ -22,8 +22,8 @@ async function verifyLocalSetup() {
     const authUser = authData?.users.find((u) => u.id === parent.id)
     const expected =
       parent.display_name === "星野 一朗"
-        ? "toshin.hitachi+test001@gmail.com"
-        : "toshin.hitachi+test002@gmail.com"
+        ? "demo-parent1@example.com"
+        : "demo-parent2@example.com"
     const match = authUser?.email === expected
     emailsCorrect = emailsCorrect && match
     console.log(`${match ? "✅" : "❌"} ${parent.display_name}: ${authUser?.email}`)

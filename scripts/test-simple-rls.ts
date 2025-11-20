@@ -15,8 +15,8 @@ async function testSimpleRLS() {
 
   // Sign in as parent
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-    email: "toshin.hitachi+test002@gmail.com",
-    password: "Testdemo2025",
+    email: "demo-parent2@example.com",
+    password: process.env.DEMO_PARENT_PASSWORD || "Testdemo2025",
   })
 
   if (authError || !authData.user) {

@@ -33,7 +33,7 @@ const DEMO_USERS = {
       id: "a0000001-0001-0001-0001-000000000001",
       loginId: "hana6",
       email: "hana6@studyspark.local",
-      password: "demo2025",
+      password: process.env.DEMO_STUDENT_PASSWORD || "demo2025",
       fullName: "青空 花",
       furigana: "あおぞらはな",
       nickname: "さくちゃん🌸",
@@ -46,7 +46,7 @@ const DEMO_USERS = {
       id: "b0000002-0002-0002-0001-000000000001",
       loginId: "hikaru6",
       email: "hikaru6@studyspark.local",
-      password: "demo2025",
+      password: process.env.DEMO_STUDENT_PASSWORD || "demo2025",
       fullName: "星野 光",
       furigana: "ほしのひかる",
       nickname: "星野 光",
@@ -59,7 +59,7 @@ const DEMO_USERS = {
       id: "b0000002-0002-0002-0002-000000000002",
       loginId: "akira5",
       email: "akira5@studyspark.local",
-      password: "demo2025",
+      password: process.env.DEMO_STUDENT_PASSWORD || "demo2025",
       fullName: "星野 明",
       furigana: "ほしのあきら",
       nickname: "星野 明",
@@ -72,8 +72,8 @@ const DEMO_USERS = {
   parents: [
     {
       id: "a0000001-0001-0001-0002-000000000002",
-      email: "toshin.hitachi+test001@gmail.com",
-      password: "Testdemo2025",
+      email: "demo-parent1@example.com",
+      password: process.env.DEMO_PARENT_PASSWORD || "Testdemo2025",
       fullName: "青空 太郎",
       furigana: "あおぞらたろう",
       nickname: "太郎さん",
@@ -82,8 +82,8 @@ const DEMO_USERS = {
     },
     {
       id: "b0000002-0002-0002-0003-000000000003",
-      email: "toshin.hitachi+test002@gmail.com",
-      password: "Testdemo2025",
+      email: "demo-parent2@example.com",
+      password: process.env.DEMO_PARENT_PASSWORD || "Testdemo2025",
       fullName: "星野 一朗",
       furigana: "ほしのいちろう",
       nickname: "一朗さん",
@@ -353,17 +353,17 @@ async function createParentChildRelations() {
 
   const relations = [
     {
-      parentEmail: "toshin.hitachi+test001@gmail.com",
+      parentEmail: "demo-parent1@example.com",
       studentLoginId: "hana6",
       relationType: "guardian"
     },
     {
-      parentEmail: "toshin.hitachi+test002@gmail.com",
+      parentEmail: "demo-parent2@example.com",
       studentLoginId: "hikaru6",
       relationType: "guardian"
     },
     {
-      parentEmail: "toshin.hitachi+test002@gmail.com",
+      parentEmail: "demo-parent2@example.com",
       studentLoginId: "akira5",
       relationType: "guardian"
     }

@@ -154,17 +154,14 @@ function LoginPageContent() {
         {/* Demo Account Info */}
         <div className="mt-6 p-4 bg-muted/30 rounded-lg border border-border/50">
           <div className="space-y-2.5 text-sm">
+            <p className="text-xs text-muted-foreground mb-2">デモアカウント（パスワードは社内管理）:</p>
             <div className="flex justify-between items-center gap-3">
-              <span className="text-muted-foreground text-xs">akira5（星野 明・小5・Bコース）</span>
-              <code className="text-xs bg-background px-2.5 py-1 rounded font-mono">akira5 / demo2025</code>
+              <span className="text-muted-foreground text-xs">生徒</span>
+              <code className="text-xs bg-background px-2.5 py-1 rounded font-mono">akira5, hikaru6, hana6</code>
             </div>
             <div className="flex justify-between items-center gap-3">
-              <span className="text-muted-foreground text-xs">hikaru6（星野 光・小6・Aコース）</span>
-              <code className="text-xs bg-background px-2.5 py-1 rounded font-mono">hikaru6 / demo2025</code>
-            </div>
-            <div className="flex justify-between items-center gap-3">
-              <span className="text-muted-foreground text-xs">保護者（星野 一朗）</span>
-              <code className="text-xs bg-background px-2.5 py-1 rounded font-mono">toshin.hitachi+test002@gmail.com / Testdemo2025</code>
+              <span className="text-muted-foreground text-xs">保護者</span>
+              <code className="text-xs bg-background px-2.5 py-1 rounded font-mono">demo-parent1@example.com, demo-parent2@example.com</code>
             </div>
           </div>
         </div>

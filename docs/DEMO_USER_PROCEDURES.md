@@ -33,14 +33,14 @@
 
 ```
 例：
-- toshin.hitachi+test001@gmail.com
+- demo-parent1@example.com
 - coach1@example.com
 ```
 
 ### パスワード
 
-- **生徒**: `demo2025`
-- **保護者・指導者**: `Testdemo2025`
+- **生徒**: `<社内管理>`
+- **保護者・指導者**: `<社内管理>`
 
 ### UUID生成ルール
 
@@ -81,7 +81,7 @@ const DEMO_USERS = {
       id: "a0000001-0001-0001-0001-000000000001",
       loginId: "hana6",
       email: "hana6@studyspark.local",  // ★ <login_id>@studyspark.local 形式
-      password: "demo2025",
+      password: process.env.DEMO_STUDENT_PASSWORD, // 環境変数から取得
       fullName: "青空 花",
       furigana: "あおぞらはな",
       nickname: "はなちゃん🌸",
@@ -95,8 +95,8 @@ const DEMO_USERS = {
   parents: [
     {
       id: "a0000001-0001-0001-0002-000000000002",
-      email: "toshin.hitachi+test001@gmail.com",
-      password: "Testdemo2025",
+      email: "demo-parent1@example.com",
+      password: process.env.DEMO_PARENT_PASSWORD, // 環境変数から取得
       fullName: "青空 太郎",
       furigana: "あおぞらたろう",
       nickname: "太郎さん",
@@ -129,8 +129,8 @@ docker exec supabase_db_StudySpark-2025Fall psql -U postgres -d postgres -c \
 #### ログイン確認
 
 1. http://localhost:3000 にアクセス
-2. 生徒ログイン: `hana6` / `demo2025`
-3. 保護者ログイン: `toshin.hitachi+test001@gmail.com` / `Testdemo2025`
+2. 生徒ログイン: `hana6` / `<社内管理>`
+3. 保護者ログイン: `demo-parent1@example.com` / `<社内管理>`
 
 ## 非推奨: SQL スクリプトを使用した作成手順
 
@@ -165,7 +165,7 @@ BEGIN
     new_user_id,
     '00000000-0000-0000-0000-000000000000',
     user_email,
-    crypt('demo2025', gen_salt('bf')),
+    crypt('<パスワード>', gen_salt('bf')), -- 実際のパスワードは社内管理
     NOW(), NOW(), NOW(),
     '{"provider":"email","providers":["email"]}',
     '{"login_id":"taro6","full_name":"山田 太郎","role":"student"}',
@@ -246,16 +246,16 @@ npx supabase db reset
 
 | ログインID | メール | パスワード | 氏名 | 学年 |
 |-----------|--------|----------|------|------|
-| hana6 | hana6@studyspark.local | demo2025 | 青空 花 | 6 |
-| hikaru6 | hikaru6@studyspark.local | demo2025 | 星野 光 | 6 |
-| akira5 | akira5@studyspark.local | demo2025 | 星野 明 | 5 |
+| hana6 | hana6@studyspark.local | <社内管理> | 青空 花 | 6 |
+| hikaru6 | hikaru6@studyspark.local | <社内管理> | 星野 光 | 6 |
+| akira5 | akira5@studyspark.local | <社内管理> | 星野 明 | 5 |
 
 ### 保護者（2名）
 
 | メール | パスワード | 氏名 |
 |--------|----------|------|
-| toshin.hitachi+test001@gmail.com | Testdemo2025 | 青空 太郎 |
-| toshin.hitachi+test002@gmail.com | Testdemo2025 | 星野 一朗 |
+| demo-parent1@example.com | <社内管理> | 青空 太郎 |
+| demo-parent2@example.com | <社内管理> | 星野 一朗 |
 
 ## チェックリスト
 

@@ -10,7 +10,7 @@ async function setupDemoData() {
   const { data: parentAuthData, error: parentAuthError } =
     await supabase.auth.admin.createUser({
       email: "demo-parent@example.com",
-      password: "demo2025",
+      password: process.env.DEMO_STUDENT_PASSWORD || "demo2025",
       email_confirm: true,
       user_metadata: {
         role: "parent",
@@ -336,9 +336,9 @@ async function setupDemoData() {
 
   console.log("\n✅ Demo data setup complete!")
   console.log("\nDemo accounts:")
-  console.log("  Parent: demo-parent@example.com / demo2025")
-  console.log("  Student (Grade 5): demo-student5 / demo2025")
-  console.log("  Student (Grade 6): demo-student6 / demo2025")
+  console.log("  Parent: demo-parent@example.com / <社内管理>")
+  console.log("  Student (Grade 5): demo-student5 / <社内管理>")
+  console.log("  Student (Grade 6): demo-student6 / <社内管理>")
 }
 
 setupDemoData()

@@ -4,7 +4,7 @@ Supabase Dashboard > Authentication > Users > "Add user" から以下のユー�
 
 ## hikaru6 (星野 光)
 - **Email**: `hikaru6@studyspark.local`
-- **Password**: `demo2025`
+- **Password**: `<社内管理>`
 - **Auto Confirm User**: チェックを入れる
 - **User Metadata** (JSON):
 ```json
@@ -18,7 +18,7 @@ Supabase Dashboard > Authentication > Users > "Add user" から以下のユー�
 
 ## akira5 (星野 明)
 - **Email**: `akira5@studyspark.local`
-- **Password**: `demo2025`
+- **Password**: `<社内管理>`
 - **Auto Confirm User**: チェックを入れる
 - **User Metadata** (JSON):
 ```json
@@ -31,8 +31,8 @@ Supabase Dashboard > Authentication > Users > "Add user" から以下のユー�
 ```
 
 ## parent1 (青空 太郎)
-- **Email**: `toshin.hitachi+test001@gmail.com`
-- **Password**: `Testdemo2025`
+- **Email**: `demo-parent1@example.com`
+- **Password**: `<社内管理>`
 - **Auto Confirm User**: チェックを入れる
 - **User Metadata** (JSON):
 ```json
@@ -44,8 +44,8 @@ Supabase Dashboard > Authentication > Users > "Add user" から以下のユー�
 ```
 
 ## parent2 (星野 一朗)
-- **Email**: `toshin.hitachi+test002@gmail.com`
-- **Password**: `Testdemo2025`
+- **Email**: `demo-parent2@example.com`
+- **Password**: `<社内管理>`
 - **Auto Confirm User**: チェックを入れる
 - **User Metadata** (JSON):
 ```json

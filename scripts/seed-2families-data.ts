@@ -34,15 +34,15 @@ interface TestFamily {
 const testFamilies: TestFamily[] = [
   {
     parent: {
-      email: 'toshin.hitachi+test002@gmail.com',
-      password: 'Testdemo2025',
+      email: 'demo-parent2@example.com',
+      password: process.env.DEMO_PARENT_PASSWORD || 'Testdemo2025',
       displayName: '星野一朗'
     },
     students: [
       {
         loginId: 'akira5',
         email: 'akira5@studyspark.local',
-        password: 'demo2025',
+        password: process.env.DEMO_STUDENT_PASSWORD || 'demo2025',
         displayName: '星野明',
         fullName: '星野明',
         grade: 5,
@@ -51,7 +51,7 @@ const testFamilies: TestFamily[] = [
       {
         loginId: 'hikaru6',
         email: 'hikaru6@studyspark.local',
-        password: 'demo2025',
+        password: process.env.DEMO_STUDENT_PASSWORD || 'demo2025',
         displayName: '星野光',
         fullName: '星野光',
         grade: 6,
@@ -61,15 +61,15 @@ const testFamilies: TestFamily[] = [
   },
   {
     parent: {
-      email: 'toshin.hitachi+test001@gmail.com',
-      password: 'Testdemo2025',
+      email: 'demo-parent1@example.com',
+      password: process.env.DEMO_PARENT_PASSWORD || 'Testdemo2025',
       displayName: '青空太郎'
     },
     students: [
       {
         loginId: 'hana6',
         email: 'hana6@studyspark.local',
-        password: 'demo2025',
+        password: process.env.DEMO_STUDENT_PASSWORD || 'demo2025',
         displayName: '青空花',
         fullName: '青空花',
         grade: 6,
@@ -297,23 +297,23 @@ async function main() {
 
     console.log('\n🔑 Login credentials:')
     console.log('\n保護者: 星野一朗')
-    console.log('  Email: toshin.hitachi+test002@gmail.com')
-    console.log('  Password: Testdemo2025')
+    console.log('  Email: demo-parent2@example.com')
+    console.log('  Password: <env DEMO_PARENT_PASSWORD>')
     console.log('\n生徒: 星野明（小5・Bコース）')
     console.log('  Login ID: akira5')
     console.log('  Email: akira5@studyspark.local')
-    console.log('  Password: demo2025')
+    console.log('  Password: <env DEMO_STUDENT_PASSWORD>')
     console.log('\n生徒: 星野光（小6・Aコース）')
     console.log('  Login ID: hikaru6')
     console.log('  Email: hikaru6@studyspark.local')
-    console.log('  Password: demo2025')
+    console.log('  Password: <env DEMO_STUDENT_PASSWORD>')
     console.log('\n保護者: 青空太郎')
-    console.log('  Email: toshin.hitachi+test001@gmail.com')
-    console.log('  Password: Testdemo2025')
+    console.log('  Email: demo-parent1@example.com')
+    console.log('  Password: <env DEMO_PARENT_PASSWORD>')
     console.log('\n生徒: 青空花（小6・Bコース）')
     console.log('  Login ID: hana6')
     console.log('  Email: hana6@studyspark.local')
-    console.log('  Password: demo2025')
+    console.log('  Password: <env DEMO_STUDENT_PASSWORD>')
 
   } catch (error) {
     console.error('\n❌ Error during seeding:', error)

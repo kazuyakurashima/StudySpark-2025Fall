@@ -95,12 +95,12 @@ async function verifyData() {
   console.log("\n✅ Verification completed!")
   console.log("\n📝 Login credentials:")
   console.log("  Students:")
-  console.log("    akira5 / demo2025")
-  console.log("    hikaru6 / demo2025")
-  console.log("    hana6 / demo2025")
+  console.log("    akira5 / <社内管理>")
+  console.log("    hikaru6 / <社内管理>")
+  console.log("    hana6 / <社内管理>")
   console.log("  Parents:")
-  console.log("    toshin.hitachi+test002@gmail.com / Testdemo2025 (星野 一朗)")
-  console.log("    toshin.hitachi+test001@gmail.com / Testdemo2025 (青空 太郎)")
+  console.log("    demo-parent2@example.com / <社内管理> (星野 一朗)")
+  console.log("    demo-parent1@example.com / <社内管理> (青空 太郎)")
 }
 
 verifyData().catch((error) => {
