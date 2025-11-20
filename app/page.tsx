@@ -154,15 +154,20 @@ function LoginPageContent() {
         {/* Demo Account Info */}
         <div className="mt-6 p-4 bg-muted/30 rounded-lg border border-border/50">
           <div className="space-y-2.5 text-sm">
-            <p className="text-xs text-muted-foreground mb-2">デモアカウント（パスワードは社内管理）:</p>
+            <p className="text-xs text-muted-foreground mb-2">
+              デモアカウント（11/28まで有効）
+            </p>
             <div className="flex justify-between items-center gap-3">
               <span className="text-muted-foreground text-xs">生徒</span>
-              <code className="text-xs bg-background px-2.5 py-1 rounded font-mono">akira5, hikaru6, hana6</code>
+              <code className="text-xs bg-background px-2.5 py-1 rounded font-mono">akira5 / demo2025</code>
             </div>
             <div className="flex justify-between items-center gap-3">
               <span className="text-muted-foreground text-xs">保護者</span>
-              <code className="text-xs bg-background px-2.5 py-1 rounded font-mono">demo-parent1@example.com, demo-parent2@example.com</code>
+              <code className="text-xs bg-background px-2.5 py-1 rounded font-mono">demo-parent2@example.com / Testdemo2025</code>
             </div>
+            <p className="text-xs text-muted-foreground mt-2 pt-2 border-t border-border/30">
+              セキュリティのため期間後にパスワードを変更します
+            </p>
           </div>
         </div>
       </div>
