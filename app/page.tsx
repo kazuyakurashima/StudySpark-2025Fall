@@ -159,7 +159,7 @@ function LoginPageContent() {
             </p>
             <div className="flex justify-between items-center gap-3">
               <span className="text-muted-foreground text-xs">生徒</span>
-              <code className="text-xs bg-background px-2.5 py-1 rounded font-mono">akira5 / demo2025</code>
+              <code className="text-xs bg-background px-2.5 py-1 rounded font-mono">akira5, hikaru6 / demo2025</code>
             </div>
             <div className="flex justify-between items-center gap-3">
               <span className="text-muted-foreground text-xs">保護者</span>
