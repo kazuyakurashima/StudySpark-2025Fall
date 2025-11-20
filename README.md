@@ -104,17 +104,21 @@ StudySpark-2025Fall/
 │   │   ├── page.tsx          # ダッシュボード
 │   │   └── encouragement/    # 応援機能
 │   ├── actions/              # Server Actions
-│   │   ├── spark.ts          # 学習記録
+│   │   ├── study-log.ts      # 学習記録
+│   │   ├── dashboard.ts      # ダッシュボード
 │   │   ├── goal.ts           # 目標管理
 │   │   ├── reflect.ts        # 振り返り
 │   │   ├── encouragement.ts  # 応援
-│   │   └── parent.ts         # 保護者用
+│   │   ├── parent.ts         # 保護者用
+│   │   └── auth.ts           # 認証
 │   └── api/                  # API Routes
 │       ├── goal/             # 目標API
 │       ├── reflect/          # 振り返りAPI
 │       └── cron/             # Cron Jobs (Vercel)
 │           ├── generate-coach-messages/  # 生徒向けコーチメッセージ
-│           └── generate-parent-status/   # 保護者向け今日の様子
+│           ├── generate-parent-status/   # 保護者向け今日の様子
+│           ├── weekly-analysis/          # 週次分析
+│           └── data-retention/           # データ保持ポリシー
 ├── lib/                      # ライブラリ
 │   ├── supabase/             # Supabaseクライアント
 │   └── openai/               # OpenAI統合
@@ -218,7 +222,7 @@ npm run dev
 #### 保護者（17家族）
 - **デモアカウント:** `demo-parent1@example.com` / **パスワード:** `<社内管理>`（青空太郎）
 - **デモアカウント:** `demo-parent2@example.com` / **パスワード:** `<社内管理>`（星野一朗）
-- **追加テストアカウント:** `demo-parent10@example.com` ～ `test024@gmail.com`（15家族、パスワードは別途管理）
+- **追加テストアカウント:** `demo-parent3@example.com` ～ `demo-parent17@example.com`（15家族、パスワードは別途管理）
 
 #### 生徒（19名）
 - **デモアカウント:** `hana6` / **パスワード:** `<社内管理>`（青空花・小6・Bコース）
