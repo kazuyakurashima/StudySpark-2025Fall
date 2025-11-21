@@ -163,7 +163,7 @@ function LoginPageContent() {
             </div>
             <div className="flex justify-between items-center gap-3">
               <span className="text-muted-foreground text-xs">保護者</span>
-              <code className="text-xs bg-background px-2.5 py-1 rounded font-mono">demo-parent2@example.com / Testdemo2025</code>
+              <code className="text-xs bg-background px-2.5 py-1 rounded font-mono">toshin.hitachi+test002@gmail.com / Testdemo2025</code>
             </div>
             <p className="text-xs text-muted-foreground mt-2 pt-2 border-t border-border/30">
               セキュリティのため期間後にパスワードを変更します
