@@ -8,7 +8,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Home, Flag, Map, BookOpen, Heart, MessageCircle, X, Users, Loader2 } from "lucide-react"
 import { CoachBottomNavigation } from "@/components/coach-bottom-navigation"
+import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { getCoachStudents, type CoachStudent } from "@/app/actions/coach"
+import { getAvatarById } from "@/lib/constants/avatars"
 
 export default function StudentsListPage() {
   const [students, setStudents] = useState<CoachStudent[]>([])
@@ -123,6 +125,7 @@ export default function StudentsListPage() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
+      <UserProfileHeader />
       <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
         {/* Header */}
         <Card className="border-l-4 border-l-primary">
@@ -167,7 +170,10 @@ export default function StudentsListPage() {
                       {/* Student Info */}
                       <div className="flex items-center gap-3 md:gap-4">
                         <Avatar className="h-14 w-14 md:h-16 md:w-16 border-2 border-border">
-                          <AvatarImage src={student.avatar_id || "/placeholder.svg"} alt={student.full_name} />
+                          <AvatarImage
+                            src={student.avatar_id ? getAvatarById(student.avatar_id)?.src || "/placeholder.svg" : "/placeholder.svg"}
+                            alt={student.full_name}
+                          />
                           <AvatarFallback>{student.full_name.charAt(0)}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">

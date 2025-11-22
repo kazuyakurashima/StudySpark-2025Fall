@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Users, AlertTriangle, MessageSquare, TrendingUp, Send, CheckCircle, Clock, Target } from "lucide-react"
 import CoachBottomNavigation from "@/components/coach-bottom-navigation"
+import { UserProfileHeader } from "@/components/common/user-profile-header"
 
 // Mock student data (same as coach page)
 const students = [
@@ -174,6 +175,7 @@ export default function CoachSparkPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-20">
+      <UserProfileHeader />
       {/* Header */}
       <div className="bg-card/80 backdrop-blur-sm border-b border-border/50 p-4">
         <div className="max-w-7xl mx-auto">

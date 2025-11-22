@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { RotateCcw, Calendar, BookOpen } from "lucide-react"
 import CoachBottomNavigation from "@/components/coach-bottom-navigation"
+import { UserProfileHeader } from "@/components/common/user-profile-header"
 
 export default function CoachReflectPage() {
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null)
@@ -214,6 +215,7 @@ export default function CoachReflectPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
+      <UserProfileHeader />
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-md mx-auto px-4 py-4">
           <div className="flex items-center gap-3">

@@ -84,6 +84,42 @@ export const PARENT_AVATARS: Avatar[] = [
 ]
 
 /**
+ * 指導者用アバター（6種類）
+ */
+export const COACH_AVATARS: Avatar[] = [
+  {
+    id: "coach1",
+    name: "指導者1",
+    src: "/images/coach1.png",
+  },
+  {
+    id: "coach2",
+    name: "指導者2",
+    src: "/images/coach2.png",
+  },
+  {
+    id: "coach3",
+    name: "指導者3",
+    src: "/images/coach3.png",
+  },
+  {
+    id: "coach4",
+    name: "指導者4",
+    src: "/images/coach4.png",
+  },
+  {
+    id: "coach5",
+    name: "指導者5",
+    src: "/images/coach5.png",
+  },
+  {
+    id: "coach6",
+    name: "指導者6",
+    src: "/images/coach6.png",
+  },
+]
+
+/**
  * ロール別にアバターリストを取得
  */
 export function getAvatarsByRole(role: UserRole): Avatar[] {
@@ -94,8 +130,7 @@ export function getAvatarsByRole(role: UserRole): Avatar[] {
       return PARENT_AVATARS
     case "coach":
     case "admin":
-      // 暫定: 保護者用を流用
-      return PARENT_AVATARS
+      return COACH_AVATARS
     default:
       return STUDENT_AVATARS
   }
@@ -105,7 +140,7 @@ export function getAvatarsByRole(role: UserRole): Avatar[] {
  * アバターIDからアバター情報を取得
  */
 export function getAvatarById(avatarId: string): Avatar | undefined {
-  const allAvatars = [...STUDENT_AVATARS, ...PARENT_AVATARS]
+  const allAvatars = [...STUDENT_AVATARS, ...PARENT_AVATARS, ...COACH_AVATARS]
   return allAvatars.find((avatar) => avatar.id === avatarId)
 }
 
@@ -120,7 +155,7 @@ export function getDefaultAvatarId(role: UserRole): string {
       return "parent1"
     case "coach":
     case "admin":
-      return "parent1"
+      return "coach1"
     default:
       return "student1"
   }

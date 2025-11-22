@@ -154,6 +154,12 @@ const getAvatarSrc = (avatarId?: string) => {
     student5: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student5-kehwNSIKsgkTL6EkAPO2evB3qJWnRM.png",
     student6: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/student6-dJrMk7uUxYSRMp5tMJ3t4KYDOEIuNl.png",
     coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/coach-LENT7C1nR9yWT7UBNTHgxnWakF66Pr.png",
+    coach1: "/images/coach1.png",
+    coach2: "/images/coach2.png",
+    coach3: "/images/coach3.png",
+    coach4: "/images/coach4.png",
+    coach5: "/images/coach5.png",
+    coach6: "/images/coach6.png",
     ai_coach: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png",
     parent1: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent1-HbhESuJlC27LuGOGupullRXyEUzFLy.png",
     parent2: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent2-zluk4uVJLfzP8dBe0I7v5fVGSn5QfU.png",
@@ -722,7 +728,7 @@ const TodayMissionCard = ({ todayProgress, yesterdayProgress, reflectionComplete
   }
 
   const handleReflectNavigation = () => {
-    router.push("/student/reflect")
+    router.push("/student/reflect?tab=coaching")
   }
 
   // 科目別ボタンスタイル
@@ -1252,7 +1258,7 @@ const RecentEncouragementCard = ({ messages }: { messages: any[] }) => {
     // avatar_idが設定されている場合はそれを使用、なければsender_roleに基づいたデフォルトアバターを取得
     const avatarUrl = senderProfile?.avatar_id
       ? getAvatarSrc(senderProfile.avatar_id)
-      : getAvatarSrc(msg.sender_role === "parent" ? "parent1" : msg.sender_role === "coach" ? "coach" : undefined)
+      : getAvatarSrc(msg.sender_role === "parent" ? "parent1" : msg.sender_role === "coach" ? "coach1" : undefined)
 
     // 学習記録情報の整形
     let studyInfo = null

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Target, User, BookOpen, TrendingUp, AlertCircle } from "lucide-react"
 import CoachBottomNavigation from "@/components/coach-bottom-navigation"
+import { UserProfileHeader } from "@/components/common/user-profile-header"
 
 export default function CoachGoalPage() {
   const [expandedStudent, setExpandedStudent] = useState<string | null>(null)
@@ -87,6 +88,7 @@ export default function CoachGoalPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
+      <UserProfileHeader />
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center gap-3">

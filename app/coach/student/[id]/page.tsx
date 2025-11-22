@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeft, Send, Bot, TrendingUp, Calendar, BookOpen, Target, MessageSquare, Sparkles } from "lucide-react"
 import { getStudentDetail, getStudentLearningHistory, sendEncouragementToStudent } from "@/app/actions/coach"
+import { UserProfileHeader } from "@/components/common/user-profile-header"
 
 interface Student {
   id: string
@@ -227,6 +228,7 @@ export default function StudentDetailPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-20">
+      <UserProfileHeader />
       {/* Header */}
       <div className="bg-card/80 backdrop-blur-sm border-b border-border/50 p-4">
         <div className="max-w-7xl mx-auto">

@@ -47,8 +47,6 @@ export async function getCoachStudents() {
         id,
         user_id,
         full_name,
-        nickname,
-        avatar_id,
         grade,
         course
       )
@@ -61,19 +59,46 @@ export async function getCoachStudents() {
     return { error: "生徒一覧の取得に失敗しました" }
   }
 
+  // 生徒のuser_idを取得してprofilesからnickname/avatar_idを取得
+  const studentUserIds = relations
+    ?.map((rel: any) => rel.students?.user_id)
+    .filter(Boolean) || []
+
+  let profilesMap: Record<string, { nickname: string | null; avatar_id: string | null }> = {}
+
+  if (studentUserIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, nickname, avatar_id")
+      .in("id", studentUserIds)
+
+    if (profiles) {
+      profilesMap = profiles.reduce((acc, profile) => {
+        acc[profile.id] = {
+          nickname: profile.nickname,
+          avatar_id: profile.avatar_id
+        }
+        return acc
+      }, {} as Record<string, { nickname: string | null; avatar_id: string | null }>)
+    }
+  }
+
   // データを整形
   const students: CoachStudent[] =
     relations
       ?.map((rel: any) => rel.students)
       .filter(Boolean)
-      .map((student: any) => ({
-        id: student.id,
-        full_name: student.full_name,
-        nickname: student.nickname,
-        avatar_id: student.avatar_id,
-        grade: student.grade === 5 ? "小学5年" : "小学6年",
-        course: student.course,
-      })) || []
+      .map((student: any) => {
+        const profile = profilesMap[student.user_id] || { nickname: null, avatar_id: null }
+        return {
+          id: student.id,
+          full_name: student.full_name,
+          nickname: profile.nickname,
+          avatar_id: profile.avatar_id,
+          grade: student.grade === 5 ? "小学5年" : "小学6年",
+          course: student.course,
+        }
+      }) || []
 
   return { students }
 }
@@ -119,12 +144,25 @@ export async function getStudentDetail(studentId: string) {
   // 生徒の詳細情報を取得
   const { data: student, error: studentError } = await supabase
     .from("students")
-    .select("id, user_id, full_name, nickname, avatar_id, grade, course, target_school, target_class")
+    .select("id, user_id, full_name, grade, course, target_school, target_class")
     .eq("id", studentId)
     .single()
 
   if (studentError || !student) {
     return { error: "生徒情報の取得に失敗しました" }
+  }
+
+  // profilesからnickname/avatar_idを取得
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("nickname, avatar_id")
+    .eq("id", student.user_id)
+    .single()
+
+  const studentWithProfile = {
+    ...student,
+    nickname: profile?.nickname || null,
+    avatar_id: profile?.avatar_id || null,
   }
 
   // 学習履歴を取得（最新50件）
@@ -164,8 +202,8 @@ export async function getStudentDetail(studentId: string) {
 
   return {
     student: {
-      ...student,
-      grade: student.grade === 5 ? "小学5年" : "小学6年",
+      ...studentWithProfile,
+      grade: studentWithProfile.grade === 5 ? "小学5年" : "小学6年",
       streak: streakData || 0,
       weekRing: weekLogs.length,
       recentScore,
@@ -228,14 +266,14 @@ export async function getStudentLearningHistory(studentId: string, limit = 20) {
   // 指導者からの応援メッセージを取得
   const studyLogIds = studyLogs.map((log) => log.id)
   const { data: encouragements } = await supabase
-    .from("encouragements")
+    .from("encouragement_messages")
     .select("*")
     .eq("sender_role", "coach")
-    .in("study_log_id", studyLogIds)
+    .in("related_study_log_id", studyLogIds)
 
   // 学習履歴に応援メッセージを紐付け
   const logsWithEncouragement = studyLogs.map((log) => {
-    const encouragement = encouragements?.find((e) => e.study_log_id === log.id)
+    const encouragement = encouragements?.find((e) => e.related_study_log_id === log.id)
     return {
       ...log,
       hasCoachResponse: !!encouragement,
@@ -285,15 +323,20 @@ export async function sendEncouragementToStudent(studentId: string, studyLogId: 
     return { error: "この生徒にアクセスする権限がありません" }
   }
 
+  // support_typeを判定（スタンプ=quick、それ以外=custom）
+  const isStamp = message.length <= 2 && /[\u{1F300}-\u{1F9FF}]/u.test(message)
+  const supportType = isStamp ? "quick" : "custom"
+
   // 応援メッセージを保存
   const { data: encouragement, error: saveError } = await supabase
-    .from("encouragements")
+    .from("encouragement_messages")
     .insert({
       student_id: studentId,
-      sender_id: coach.id,
+      sender_id: user.id,  // auth.users.idを使用
       sender_role: "coach",
       message,
-      study_log_id: studyLogId,
+      related_study_log_id: studyLogId,
+      support_type: supportType,
     })
     .select()
     .single()
@@ -304,4 +347,353 @@ export async function sendEncouragementToStudent(studentId: string, studyLogId: 
   }
 
   return { success: true, encouragement }
+}
+
+export interface LearningRecordWithEncouragements {
+  id: string
+  studentId: string
+  studentName: string
+  studentNickname: string | null
+  studentAvatar: string | null
+  grade: string
+  subject: string
+  content: string
+  totalQuestions: number
+  correctCount: number
+  timestamp: string
+  parentEncouragements: {
+    id: string
+    message: string
+    senderName: string
+    timestamp: string
+  }[]
+  coachEncouragements: {
+    id: string
+    message: string
+    senderName: string
+    timestamp: string
+  }[]
+}
+
+/**
+ * 担当生徒の学習記録を取得（応援機能用）
+ */
+export async function getCoachStudentLearningRecords(limit = 50) {
+  const supabase = await createClient()
+
+  // 現在の指導者を取得
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: "認証が必要です" }
+  }
+
+  // 指導者IDを取得
+  const { data: coach, error: coachError } = await supabase
+    .from("coaches")
+    .select("id")
+    .eq("user_id", user.id)
+    .single()
+
+  if (coachError || !coach) {
+    return { error: "指導者情報が見つかりません" }
+  }
+
+  console.log("[getCoachStudentLearningRecords] Coach ID:", coach.id)
+
+  // 担当生徒のIDを取得
+  const { data: relations, error: relationsError } = await supabase
+    .from("coach_student_relations")
+    .select("student_id")
+    .eq("coach_id", coach.id)
+
+  if (relationsError) {
+    console.error("Failed to fetch coach-student relations:", relationsError)
+    return { error: "担当生徒の取得に失敗しました" }
+  }
+
+  console.log("[getCoachStudentLearningRecords] Relations:", relations)
+
+  const studentIds = relations?.map((rel) => rel.student_id) || []
+
+  if (studentIds.length === 0) {
+    console.log("[getCoachStudentLearningRecords] No students found, returning empty records")
+    return { records: [] }
+  }
+
+  console.log("[getCoachStudentLearningRecords] Fetching logs for student IDs:", studentIds)
+
+  // 担当生徒の学習記録を取得
+  const { data: studyLogs, error: logsError } = await supabase
+    .from("study_logs")
+    .select(`
+      id,
+      student_id,
+      subject_id,
+      reflection_text,
+      total_problems,
+      correct_count,
+      created_at,
+      students (
+        id,
+        user_id,
+        full_name,
+        grade
+      ),
+      subjects (
+        id,
+        name
+      )
+    `)
+    .in("student_id", studentIds)
+    .order("created_at", { ascending: false })
+    .limit(limit)
+
+  console.log("[getCoachStudentLearningRecords] Query error:", logsError)
+
+  if (logsError) {
+    console.error("Failed to fetch study logs:", logsError)
+    return { error: "学習記録の取得に失敗しました" }
+  }
+
+  // デバッグ: 取得したデータを確認
+  console.log("[getCoachStudentLearningRecords] Study logs count:", studyLogs?.length || 0)
+  if (studyLogs && studyLogs.length > 0) {
+    console.log("[getCoachStudentLearningRecords] First log sample:", JSON.stringify({
+      id: studyLogs[0].id,
+      student_id: studyLogs[0].student_id,
+      students: studyLogs[0].students,
+      subjects: studyLogs[0].subjects
+    }, null, 2))
+  }
+
+  // 生徒のuser_idを取得してprofilesからnickname/avatar_idを取得
+  const studentUserIds = studyLogs
+    ?.map((log: any) => log.students?.user_id)
+    .filter(Boolean) || []
+
+  console.log("[getCoachStudentLearningRecords] Student user IDs:", studentUserIds)
+
+  let profilesMap: Record<string, { nickname: string | null; avatar_id: string | null }> = {}
+
+  if (studentUserIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, nickname, avatar_id")
+      .in("id", studentUserIds)
+
+    if (profiles) {
+      profilesMap = profiles.reduce((acc, profile) => {
+        acc[profile.id] = {
+          nickname: profile.nickname,
+          avatar_id: profile.avatar_id
+        }
+        return acc
+      }, {} as Record<string, { nickname: string | null; avatar_id: string | null }>)
+    }
+  }
+
+  // 学習記録IDを取得
+  const studyLogIds = studyLogs?.map((log) => log.id) || []
+
+  // 応援メッセージを取得
+  let encouragements: any[] = []
+  if (studyLogIds.length > 0) {
+    const { data: encData } = await supabase
+      .from("encouragement_messages")
+      .select(`
+        id,
+        message,
+        sender_role,
+        related_study_log_id,
+        created_at,
+        sender_id
+      `)
+      .in("related_study_log_id", studyLogIds)
+
+    encouragements = encData || []
+  }
+
+  // データを整形
+  const records: LearningRecordWithEncouragements[] = studyLogs?.map((log: any) => {
+    const profile = profilesMap[log.students?.user_id] || { nickname: null, avatar_id: null }
+    const logEncouragements = encouragements.filter((e) => e.related_study_log_id === log.id)
+
+    return {
+      id: log.id,
+      studentId: log.student_id,
+      studentName: log.students?.full_name || "不明",
+      studentNickname: profile.nickname,
+      studentAvatar: profile.avatar_id,
+      grade: log.students?.grade === 5 ? "小学5年" : "小学6年",
+      subject: log.subjects?.name || "不明",
+      content: log.reflection_text || "",
+      totalQuestions: log.total_problems || 0,
+      correctCount: log.correct_count || 0,
+      timestamp: log.created_at,
+      parentEncouragements: logEncouragements
+        .filter((e) => e.sender_role === "parent")
+        .map((e) => ({
+          id: e.id,
+          message: e.message,
+          senderName: "保護者",
+          timestamp: e.created_at,
+        })),
+      coachEncouragements: logEncouragements
+        .filter((e) => e.sender_role === "coach")
+        .map((e) => ({
+          id: e.id,
+          message: e.message,
+          senderName: "指導者",
+          timestamp: e.created_at,
+        })),
+    }
+  }) || []
+
+  console.log("[getCoachStudentLearningRecords] Final records count:", records.length)
+  if (records.length > 0) {
+    console.log("[getCoachStudentLearningRecords] First record sample:", JSON.stringify({
+      id: records[0].id,
+      studentId: records[0].studentId,
+      studentName: records[0].studentName,
+      studentNickname: records[0].studentNickname,
+      studentAvatar: records[0].studentAvatar,
+      grade: records[0].grade,
+      subject: records[0].subject
+    }, null, 2))
+  }
+
+  return { records }
+}
+
+export interface InactiveStudentData {
+  id: string
+  name: string
+  nickname: string | null
+  avatar: string | null
+  grade: string
+  lastInputDate: string | null
+  daysInactive: number
+}
+
+/**
+ * 未入力生徒一覧を取得
+ */
+export async function getInactiveStudents(thresholdDays = 7) {
+  const supabase = await createClient()
+
+  // 現在の指導者を取得
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: "認証が必要です" }
+  }
+
+  // 指導者IDを取得
+  const { data: coach, error: coachError } = await supabase
+    .from("coaches")
+    .select("id")
+    .eq("user_id", user.id)
+    .single()
+
+  if (coachError || !coach) {
+    return { error: "指導者情報が見つかりません" }
+  }
+
+  // 担当生徒を取得
+  const { data: relations, error: relationsError } = await supabase
+    .from("coach_student_relations")
+    .select(`
+      student_id,
+      students (
+        id,
+        user_id,
+        full_name,
+        grade
+      )
+    `)
+    .eq("coach_id", coach.id)
+
+  if (relationsError) {
+    console.error("Failed to fetch coach-student relations:", relationsError)
+    return { error: "担当生徒の取得に失敗しました" }
+  }
+
+  // 生徒のuser_idを取得してprofilesからnickname/avatar_idを取得
+  const studentUserIds = relations
+    ?.map((rel: any) => rel.students?.user_id)
+    .filter(Boolean) || []
+
+  let profilesMap: Record<string, { nickname: string | null; avatar_id: string | null }> = {}
+
+  if (studentUserIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, nickname, avatar_id")
+      .in("id", studentUserIds)
+
+    if (profiles) {
+      profilesMap = profiles.reduce((acc, profile) => {
+        acc[profile.id] = {
+          nickname: profile.nickname,
+          avatar_id: profile.avatar_id
+        }
+        return acc
+      }, {} as Record<string, { nickname: string | null; avatar_id: string | null }>)
+    }
+  }
+
+  // 各生徒の最新学習記録を取得
+  const students = relations?.map((rel: any) => rel.students).filter(Boolean) || []
+  const studentIds = students.map((s: any) => s.id)
+
+  let lastStudyDates: Record<string, string> = {}
+  if (studentIds.length > 0) {
+    // 各生徒の最新学習日を取得
+    for (const studentId of studentIds) {
+      const { data: lastLog } = await supabase
+        .from("study_logs")
+        .select("created_at")
+        .eq("student_id", studentId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single()
+
+      if (lastLog) {
+        lastStudyDates[studentId] = lastLog.created_at
+      }
+    }
+  }
+
+  // 未入力日数を計算
+  const now = new Date()
+  const inactiveStudents: InactiveStudentData[] = students
+    .map((student: any) => {
+      const profile = profilesMap[student.user_id] || { nickname: null, avatar_id: null }
+      const lastDate = lastStudyDates[student.id]
+      let daysInactive = Infinity
+
+      if (lastDate) {
+        const lastDateTime = new Date(lastDate)
+        daysInactive = Math.floor((now.getTime() - lastDateTime.getTime()) / (1000 * 60 * 60 * 24))
+      }
+
+      return {
+        id: student.id,
+        name: student.full_name,
+        nickname: profile.nickname,
+        avatar: profile.avatar_id,
+        grade: student.grade === 5 ? "小学5年" : "小学6年",
+        lastInputDate: lastDate || null,
+        daysInactive: lastDate ? daysInactive : Infinity,
+      }
+    })
+    .filter((student: InactiveStudentData) => student.daysInactive >= thresholdDays)
+    .sort((a: InactiveStudentData, b: InactiveStudentData) => b.daysInactive - a.daysInactive)
+
+  return { students: inactiveStudents }
 }
