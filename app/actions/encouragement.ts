@@ -359,7 +359,7 @@ export async function getCoachStudents() {
     .from("coach_student_relations")
     .select(`
       student_id,
-      students(id, full_name, grade, profiles!students_user_id_fkey(avatar_id))
+      students(id, full_name, grade, profiles!students_user_id_fkey(avatar_id, nickname))
     `)
     .eq("coach_id", coachData.id)
 
@@ -409,7 +409,7 @@ export async function getAllStudyLogsForCoach(filters?: {
       correct_count,
       reflection_text,
       created_at,
-      students(id, full_name, grade, profiles!students_user_id_fkey(avatar_id)),
+      students(id, full_name, grade, profiles!students_user_id_fkey(avatar_id, nickname)),
       study_sessions(session_number, grade),
       subjects(name),
       study_content_types(content_name),

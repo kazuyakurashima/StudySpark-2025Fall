@@ -120,11 +120,12 @@ export async function getWeeklyEncouragementData(
 export async function getWeeklyReflectionData(studentId: string, weekStartDate: Date, weekEndDate: Date) {
   const supabase = await createClient()
 
+  // coaching_sessions テーブルには session_type カラムがないため、
+  // 完了済みのセッションを全て振り返りデータとして扱う
   const { data: reflections, error } = await supabase
     .from("coaching_sessions")
-    .select("id, session_type, week_start_date, completed_at, summary")
+    .select("id, week_start_date, completed_at, summary_text")
     .eq("student_id", studentId)
-    .eq("session_type", "reflection")
     .gte("week_start_date", formatDateToJST(weekStartDate))
     .lte("week_start_date", formatDateToJST(weekEndDate))
     .not("completed_at", "is", null)
@@ -139,25 +140,13 @@ export async function getWeeklyReflectionData(studentId: string, weekStartDate: 
 
 /**
  * 目標（ゴールナビ）データを取得
+ * 注: 現在のスキーマでは目標専用のテーブル/カラムがないため、
+ * 空の配列を返す（将来の実装用にプレースホルダー）
  */
 export async function getWeeklyGoalData(studentId: string, weekStartDate: Date, weekEndDate: Date) {
-  const supabase = await createClient()
-
-  const { data: goals, error } = await supabase
-    .from("coaching_sessions")
-    .select("id, session_type, week_start_date, completed_at, summary")
-    .eq("student_id", studentId)
-    .eq("session_type", "goal")
-    .gte("week_start_date", formatDateToJST(weekStartDate))
-    .lte("week_start_date", formatDateToJST(weekEndDate))
-    .not("completed_at", "is", null)
-
-  if (error) {
-    console.error("Failed to fetch goals:", error)
-    return { error: "目標データの取得に失敗しました" }
-  }
-
-  return { goals }
+  // 目標データは現在のスキーマでは取得できないため、空を返す
+  // 将来的に goals テーブルまたは session_type カラムが追加された場合に実装
+  return { goals: [] }
 }
 
 /**
@@ -463,22 +452,14 @@ export async function generateWeeklyAnalysisForBatch(studentId: string, weekStar
   // 振り返りデータを取得
   const { data: reflections } = await supabase
     .from("coaching_sessions")
-    .select("id, session_type, week_start_date, completed_at, summary")
+    .select("id, week_start_date, completed_at, summary_text")
     .eq("student_id", studentId)
-    .eq("session_type", "reflection")
     .gte("week_start_date", formatDateToJST(weekStartDate))
     .lte("week_start_date", formatDateToJST(weekEndDate))
     .not("completed_at", "is", null)
 
-  // 目標データを取得
-  const { data: goals } = await supabase
-    .from("coaching_sessions")
-    .select("id, session_type, week_start_date, completed_at, summary")
-    .eq("student_id", studentId)
-    .eq("session_type", "goal")
-    .gte("week_start_date", formatDateToJST(weekStartDate))
-    .lte("week_start_date", formatDateToJST(weekEndDate))
-    .not("completed_at", "is", null)
+  // 目標データは現在のスキーマでは取得できないため、空配列を使用
+  const goals: any[] = []
 
   // AI分析プロンプトを構築
   const analysisData = {

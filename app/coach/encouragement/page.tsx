@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import CoachBottomNavigation from "@/components/coach-bottom-navigation"
+import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { Heart, Star, ThumbsUp, Sparkles, MessageSquare, ChevronDown, ChevronUp, Loader2, AlertTriangle } from "lucide-react"
 import {
   getAllStudyLogsForCoach,
@@ -18,6 +19,7 @@ import {
   sendCoachCustomEncouragement,
 } from "@/app/actions/encouragement"
 import type { QuickEncouragementType } from "@/lib/openai/prompts"
+import { getAvatarById } from "@/lib/constants/avatars"
 
 export default function CoachEncouragementPage() {
   const [activeTab, setActiveTab] = useState<"encouragement" | "inactive">("encouragement")
@@ -144,6 +146,7 @@ export default function CoachEncouragementPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 pb-20">
+      <UserProfileHeader />
       <div className="bg-white border-b border-slate-200 p-4">
         <h1 className="text-2xl font-bold text-slate-800">応援</h1>
         <p className="text-sm text-slate-600 mt-1">生徒の学習を応援しましょう</p>
@@ -213,6 +216,10 @@ export default function CoachEncouragementPage() {
                 const accuracy = log.total_problems > 0 ? Math.round((log.correct_count / log.total_problems) * 100) : 0
                 const hasCoachEncouragement = Array.isArray(log.encouragement_messages) && log.encouragement_messages.some((msg: any) => msg.sender_role === "coach")
                 const student = Array.isArray(log.students) ? log.students[0] : log.students
+                const profile = student?.profiles
+                const nickname = profile?.nickname || student?.full_name || "生徒"
+                const avatarId = profile?.avatar_id
+                const avatarSrc = avatarId ? getAvatarById(avatarId)?.src || "/placeholder.svg" : "/placeholder.svg"
 
                 return (
                   <Card key={log.id} className={hasCoachEncouragement ? "border-green-200 bg-green-50" : ""}>
@@ -220,11 +227,12 @@ export default function CoachEncouragementPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-10 w-10">
-                            <AvatarFallback>{student?.nickname?.[0] || "生"}</AvatarFallback>
+                            <AvatarImage src={avatarSrc} alt={nickname} />
+                            <AvatarFallback>{nickname?.[0] || "生"}</AvatarFallback>
                           </Avatar>
                           <div>
                             <div className="flex items-center gap-2">
-                              <CardTitle className="text-base">{student?.nickname || "生徒"}</CardTitle>
+                              <CardTitle className="text-base">{nickname}</CardTitle>
                               {student?.grade && <Badge variant="outline" className="text-xs">小{student.grade}</Badge>}
                               {hasCoachEncouragement && <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">応援済み</Badge>}
                             </div>
@@ -337,6 +345,10 @@ export default function CoachEncouragementPage() {
             ) : (
               inactiveStudents.map((student) => {
                 const isWarning = student.daysInactive >= 7
+                const profile = student.profiles
+                const studentNickname = profile?.nickname || student.full_name || "生徒"
+                const avatarId = profile?.avatar_id
+                const avatarSrc = avatarId ? getAvatarById(avatarId)?.src || "/placeholder.svg" : "/placeholder.svg"
 
                 return (
                   <Card key={student.id} className={isWarning ? "border-red-300 bg-red-50" : "border-yellow-300 bg-yellow-50"}>
@@ -344,11 +356,12 @@ export default function CoachEncouragementPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-10 w-10">
-                            <AvatarFallback>{student.nickname?.[0] || "生"}</AvatarFallback>
+                            <AvatarImage src={avatarSrc} alt={studentNickname} />
+                            <AvatarFallback>{studentNickname?.[0] || "生"}</AvatarFallback>
                           </Avatar>
                           <div>
                             <div className="flex items-center gap-2">
-                              <CardTitle className="text-base">{student.nickname || "生徒"}</CardTitle>
+                              <CardTitle className="text-base">{studentNickname}</CardTitle>
                               {student.grade && <Badge variant="outline" className="text-xs">小{student.grade}</Badge>}
                               {isWarning && <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3 w-3" />警告</Badge>}
                             </div>
