@@ -33,6 +33,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { GoalNavigationChat } from "./goal-navigation-chat";
+import { PastExamTab } from "./past-exam-tab";
 import {
   getAvailableTests,
   saveTestGoal,
@@ -142,7 +143,7 @@ function GoalPageInner() {
   const [studentName, setStudentName] = useState("");
   const [studentGrade, setStudentGrade] = useState<number | null>(null);
   const [studentAvatar, setStudentAvatar] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"input" | "result" | "test">(
+  const [activeTab, setActiveTab] = useState<"input" | "result" | "test" | "pastexam">(
     "test",
   );
 
@@ -540,12 +541,15 @@ function GoalPageInner() {
       <div className="max-w-screen-xl mx-auto p-3 sm:p-4">
         <Tabs
           value={activeTab}
-          onValueChange={(v) => setActiveTab(v as "input" | "result" | "test")}
+          onValueChange={(v) => setActiveTab(v as "input" | "result" | "test" | "pastexam")}
         >
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className={`grid w-full ${studentGrade === 6 ? "grid-cols-4" : "grid-cols-3"}`}>
             <TabsTrigger value="input">目標入力</TabsTrigger>
             <TabsTrigger value="result">結果入力</TabsTrigger>
-            <TabsTrigger value="test">目標と結果の履歴</TabsTrigger>
+            <TabsTrigger value="test">履歴</TabsTrigger>
+            {studentGrade === 6 && (
+              <TabsTrigger value="pastexam">過去問演習</TabsTrigger>
+            )}
           </TabsList>
 
           {/* 目標入力タブ */}
@@ -1327,6 +1331,13 @@ function GoalPageInner() {
             );
             })()}
           </TabsContent>
+
+          {/* 過去問演習タブ（小学6年生のみ） */}
+          {studentGrade === 6 && (
+            <TabsContent value="pastexam" className="mt-6">
+              <PastExamTab studentGrade={studentGrade} />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
 
