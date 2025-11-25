@@ -93,7 +93,7 @@ export async function getStudyLogsForEncouragement(
                   nickname: senderProfile.nickname ?? senderProfile.display_name ?? "応援者",
                   display_name: senderProfile.display_name ?? senderProfile.nickname ?? "応援者",
                 }
-              : { display_name: "応援者", avatar_id: null, nickname: "応援者" }
+              : { display_name: "応援者", avatar_id: null, nickname: "応援者", custom_avatar_url: null }
 
             return {
               ...msg,
@@ -359,7 +359,7 @@ export async function getCoachStudents() {
     .from("coach_student_relations")
     .select(`
       student_id,
-      students(id, full_name, grade, profiles!students_user_id_fkey(avatar_id, nickname))
+      students(id, full_name, grade, profiles!students_user_id_fkey(avatar_id, nickname, custom_avatar_url))
     `)
     .eq("coach_id", coachData.id)
 
@@ -409,7 +409,7 @@ export async function getAllStudyLogsForCoach(filters?: {
       correct_count,
       reflection_text,
       created_at,
-      students(id, full_name, grade, profiles!students_user_id_fkey(avatar_id, nickname)),
+      students(id, full_name, grade, profiles!students_user_id_fkey(avatar_id, nickname, custom_avatar_url)),
       study_sessions(session_number, grade),
       subjects(name),
       study_content_types(content_name),
@@ -740,7 +740,7 @@ export async function getRecentEncouragementMessages() {
       success: true as const,
       messages: messages.map((msg) => ({
         ...msg,
-        sender_profile: { display_name: "応援者", avatar_id: null, nickname: "応援者" },
+        sender_profile: { display_name: "応援者", avatar_id: null, nickname: "応援者", custom_avatar_url: null },
       })),
     }
   }
@@ -761,7 +761,7 @@ export async function getRecentEncouragementMessages() {
           nickname: senderProfile.nickname ?? senderProfile.display_name ?? "応援者",
           display_name: senderProfile.display_name ?? senderProfile.nickname ?? "応援者",
         }
-      : { display_name: "応援者", avatar_id: null, nickname: "応援者" }
+      : { display_name: "応援者", avatar_id: null, nickname: "応援者", custom_avatar_url: null }
 
     return {
       ...msg,
@@ -890,7 +890,7 @@ export async function getAllEncouragementMessages(filters?: {
       success: true as const,
       messages: filteredMessages.map((msg) => ({
         ...msg,
-        sender_profile: { display_name: "応援者", avatar_id: null, nickname: "応援者" },
+        sender_profile: { display_name: "応援者", avatar_id: null, nickname: "応援者", custom_avatar_url: null },
       })),
     }
   }
@@ -906,7 +906,7 @@ export async function getAllEncouragementMessages(filters?: {
           nickname: senderProfile.nickname ?? senderProfile.display_name ?? "応援者",
           display_name: senderProfile.display_name ?? senderProfile.nickname ?? "応援者",
         }
-      : { display_name: "応援者", avatar_id: null, nickname: "応援者" }
+      : { display_name: "応援者", avatar_id: null, nickname: "応援者", custom_avatar_url: null }
 
     return {
       ...msg,

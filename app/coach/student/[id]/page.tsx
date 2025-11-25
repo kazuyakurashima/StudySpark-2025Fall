@@ -13,6 +13,7 @@ import { sendEncouragementToStudent } from "@/app/actions/coach"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { CoachPastExamViewer } from "@/app/coach/components/past-exam-viewer"
 import { useCoachStudentDetail, type StudyLog } from "@/lib/hooks/use-coach-student-detail"
+import { getAvatarById } from "@/lib/constants/avatars"
 
 interface AIMessage {
   type: "celebrate" | "insight" | "nextstep"
@@ -187,7 +188,7 @@ export default function StudentDetailPage() {
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <Avatar className="h-12 w-12">
-                <AvatarImage src={student.avatar_id || "/placeholder.svg"} alt={student.full_name} />
+                <AvatarImage src={student.custom_avatar_url || (student.avatar_id ? getAvatarById(student.avatar_id)?.src || "/placeholder.svg" : "/placeholder.svg")} alt={student.full_name} />
                 <AvatarFallback>{student.full_name.charAt(0)}</AvatarFallback>
               </Avatar>
               <div>

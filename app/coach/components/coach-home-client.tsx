@@ -69,7 +69,9 @@ export function CoachHomeClient({ initialRecords, initialInactiveStudents }: Coa
   const [noteInput, setNoteInput] = useState<{ [key: string]: string }>({})
   const [handledStudents, setHandledStudents] = useState<Set<string>>(new Set())
 
-  const getAvatarSrc = (avatarId: string | null) => {
+  const getAvatarSrc = (avatarId: string | null, customAvatarUrl?: string | null) => {
+    // カスタムアバターURLを優先
+    if (customAvatarUrl) return customAvatarUrl
     if (!avatarId) return "/placeholder.svg"
     const avatar = getAvatarById(avatarId)
     return avatar?.src || "/placeholder.svg"
@@ -320,7 +322,7 @@ export function CoachHomeClient({ initialRecords, initialInactiveStudents }: Coa
                           <div className="flex items-center gap-3">
                             <Avatar className="h-12 w-12 border-2 border-border">
                               <AvatarImage
-                                src={getAvatarSrc(record.studentAvatar)}
+                                src={getAvatarSrc(record.studentAvatar, record.studentCustomAvatarUrl)}
                                 alt={record.studentName}
                               />
                               <AvatarFallback>{record.studentName.charAt(0)}</AvatarFallback>
@@ -592,7 +594,7 @@ export function CoachHomeClient({ initialRecords, initialInactiveStudents }: Coa
                         <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
                           <div className="flex items-center gap-3">
                             <Avatar className="h-12 w-12 border-2 border-border">
-                              <AvatarImage src={getAvatarSrc(student.avatar)} alt={student.name} />
+                              <AvatarImage src={getAvatarSrc(student.avatar, student.customAvatarUrl)} alt={student.name} />
                               <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
                             </Avatar>
                             <div>

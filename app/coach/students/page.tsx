@@ -168,7 +168,7 @@ export default function StudentsListPage() {
                       <div className="flex items-center gap-3 md:gap-4">
                         <Avatar className="h-14 w-14 md:h-16 md:w-16 border-2 border-border">
                           <AvatarImage
-                            src={student.avatar_id ? getAvatarById(student.avatar_id)?.src || "/placeholder.svg" : "/placeholder.svg"}
+                            src={student.custom_avatar_url || (student.avatar_id ? getAvatarById(student.avatar_id)?.src || "/placeholder.svg" : "/placeholder.svg")}
                             alt={student.full_name}
                           />
                           <AvatarFallback>{student.full_name.charAt(0)}</AvatarFallback>
