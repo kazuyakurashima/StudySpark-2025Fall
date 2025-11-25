@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -14,6 +14,7 @@ import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, Ch
 import { UserProfileProvider, useUserProfile } from "@/lib/hooks/use-user-profile"
 import { hexWithAlpha, isThemeActive } from "@/lib/utils/theme-color"
 import { StreakCard } from "@/components/streak-card"
+import { useStudentDashboard, type StudentDashboardData as SWRDashboardData } from "@/lib/hooks/use-student-dashboard"
 
 interface DashboardData {
   userName: string
@@ -65,6 +66,47 @@ interface DashboardData {
   }>
   lastUpdateTime: string | null
   hasLiveUpdates: boolean
+}
+
+/**
+ * SSR初期データをSWR形式に変換する関数
+ */
+function transformSSRtoSWRData(ssrData: DashboardData): Partial<SWRDashboardData> {
+  return {
+    profile: {
+      nickname: ssrData.userName,
+      avatarId: ssrData.selectedAvatar,
+      themeColor: "default",
+    },
+    aiCoachMessage: {
+      message: ssrData.aiCoachMessage,
+      createdAt: ssrData.aiCoachMessageCreatedAt,
+    },
+    streak: {
+      streak: ssrData.studyStreak,
+      maxStreak: ssrData.maxStreak,
+      lastStudyDate: ssrData.lastStudyDate,
+      todayStudied: ssrData.todayStudied,
+      state: ssrData.streakState,
+    },
+    recentLogs: { logs: ssrData.recentLogs },
+    recentMessages: { messages: ssrData.recentMessages },
+    lastLoginInfo: ssrData.lastLoginInfo,
+    todayProgress: { todayProgress: ssrData.todayProgress },
+    yesterdayProgress: { yesterdayProgress: ssrData.yesterdayProgress },
+    calendar: { calendarData: ssrData.calendarData },
+    weeklyProgress: {
+      progress: ssrData.weeklyProgress,
+      sessionNumber: ssrData.sessionNumber,
+    },
+    reflection: { completed: ssrData.reflectionCompleted },
+    liveUpdates: {
+      updates: ssrData.liveUpdates,
+      lastUpdateTime: ssrData.lastUpdateTime,
+      hasUpdates: ssrData.hasLiveUpdates,
+    },
+    fetchedAt: Date.now(),
+  }
 }
 
 // ユーティリティ関数: 科目名 → アイコン
@@ -1429,30 +1471,40 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
   const [messages, setMessages] = useState(initialData.recentMessages)
   const { profile } = useUserProfile()
 
+  // 🚀 SWR: SSR初期データをSWR形式に変換してfallbackとして使用
+  const swrFallbackData = React.useMemo(() => transformSSRtoSWRData(initialData), [initialData])
+
+  // 🚀 SWR: ダッシュボードデータをSWRでキャッシュ・管理
   const {
-    userName,
-    selectedAvatar,
-    aiCoachMessage,
-    aiCoachMessageCreatedAt,
-    studyStreak,
-    maxStreak,
-    lastStudyDate,
-    todayStudied,
-    streakState,
-    recentLogs,
-    lastLoginInfo,
-    todayProgress,
-    calendarData,
-    weeklyProgress,
-    sessionNumber,
-    reflectionCompleted,
-    liveUpdates,
-    lastUpdateTime,
-    hasLiveUpdates,
-  } = initialData
+    data: swrData,
+    isValidating: swrValidating,
+    mutate: swrMutate,
+  } = useStudentDashboard(swrFallbackData)
+
+  // SWRデータがあればそれを使用、なければ初期データを使用
+  const userName = swrData?.profile?.nickname || initialData.userName
+  const selectedAvatar = swrData?.profile?.avatarId || initialData.selectedAvatar
+  const aiCoachMessage = swrData?.aiCoachMessage?.message || initialData.aiCoachMessage
+  const aiCoachMessageCreatedAt = swrData?.aiCoachMessage?.createdAt || initialData.aiCoachMessageCreatedAt
+  const studyStreak = swrData?.streak?.streak ?? initialData.studyStreak
+  const maxStreak = swrData?.streak?.maxStreak ?? initialData.maxStreak
+  const lastStudyDate = swrData?.streak?.lastStudyDate ?? initialData.lastStudyDate
+  const todayStudied = swrData?.streak?.todayStudied ?? initialData.todayStudied
+  const streakState = swrData?.streak?.state ?? initialData.streakState
+  const recentLogs = swrData?.recentLogs?.logs ?? initialData.recentLogs
+  const lastLoginInfo = swrData?.lastLoginInfo ?? initialData.lastLoginInfo
+  const todayProgress = swrData?.todayProgress?.todayProgress ?? initialData.todayProgress
+  const yesterdayProgress = swrData?.yesterdayProgress?.yesterdayProgress ?? initialData.yesterdayProgress
+  const calendarData = swrData?.calendar?.calendarData ?? initialData.calendarData
+  const weeklyProgress = swrData?.weeklyProgress?.progress ?? initialData.weeklyProgress
+  const sessionNumber = swrData?.weeklyProgress?.sessionNumber ?? initialData.sessionNumber
+  const reflectionCompleted = swrData?.reflection?.completed ?? initialData.reflectionCompleted
+  const liveUpdates = swrData?.liveUpdates?.updates ?? initialData.liveUpdates
+  const lastUpdateTime = swrData?.liveUpdates?.lastUpdateTime ?? initialData.lastUpdateTime
+  const hasLiveUpdates = swrData?.liveUpdates?.hasUpdates ?? initialData.hasLiveUpdates
 
   // テーマカラーを取得（デフォルトは使わない）
-  const themeColor = profile?.theme_color || "default"
+  const themeColor = profile?.theme_color || swrData?.profile?.themeColor || "default"
 
   // AIコーチメッセージの開閉状態を管理（初期値は常に true でサーバーとクライアントを一致）
   const [isCoachMessageExpanded, setIsCoachMessageExpanded] = useState(true)
@@ -1616,7 +1668,7 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
               )}
             </Card>
 
-            <TodayMissionCard todayProgress={todayProgress} yesterdayProgress={initialData.yesterdayProgress} reflectionCompleted={reflectionCompleted} weeklyProgress={weeklyProgress} />
+            <TodayMissionCard todayProgress={todayProgress} yesterdayProgress={yesterdayProgress} reflectionCompleted={reflectionCompleted} weeklyProgress={weeklyProgress} />
             <StreakCard
               streak={studyStreak}
               maxStreak={maxStreak}
@@ -1739,7 +1791,7 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
                 )}
               </Card>
 
-              <TodayMissionCard todayProgress={todayProgress} yesterdayProgress={initialData.yesterdayProgress} reflectionCompleted={reflectionCompleted} weeklyProgress={weeklyProgress} />
+              <TodayMissionCard todayProgress={todayProgress} yesterdayProgress={yesterdayProgress} reflectionCompleted={reflectionCompleted} weeklyProgress={weeklyProgress} />
               <RecentEncouragementCard messages={messages} />
               <RecentLearningHistoryCard logs={recentLogs} />
             </div>
