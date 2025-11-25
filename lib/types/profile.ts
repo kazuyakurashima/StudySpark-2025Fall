@@ -7,6 +7,7 @@ export interface UserProfile {
   id: string
   nickname: string
   avatar_id: string
+  custom_avatar_url: string | null
   theme_color: string
   role: UserRole
   created_at: string
@@ -25,6 +26,7 @@ export interface UserProfile {
 export interface UpdateProfileInput {
   nickname?: string
   avatar_id?: string
+  custom_avatar_url?: string | null
   theme_color?: string
 }
 
@@ -44,6 +46,7 @@ export interface ChildProfile {
   user_id: string
   nickname: string
   avatar_id: string
+  custom_avatar_url: string | null
   theme_color: string
   grade: number
   course: "A" | "B" | "C" | "S"

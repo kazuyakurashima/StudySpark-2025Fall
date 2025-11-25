@@ -8,6 +8,7 @@ export interface Student {
   full_name: string
   nickname: string | null
   avatar_id: string | null
+  custom_avatar_url: string | null
   grade: string
   course: string | null
   streak: number

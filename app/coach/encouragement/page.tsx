@@ -229,7 +229,8 @@ export default function CoachEncouragementPage() {
                 const nickname = profile?.nickname
                 const displayName = nickname && nickname !== fullName ? `${fullName}（${nickname}）` : fullName
                 const avatarId = profile?.avatar_id
-                const avatarSrc = avatarId ? getAvatarById(avatarId)?.src || "/placeholder.svg" : "/placeholder.svg"
+                const customAvatarUrl = profile?.custom_avatar_url
+                const avatarSrc = customAvatarUrl || (avatarId ? getAvatarById(avatarId)?.src || "/placeholder.svg" : "/placeholder.svg")
 
                 return (
                   <Card key={log.id} className={hasCoachEncouragement ? "border-green-200 bg-green-50" : ""}>
@@ -360,7 +361,8 @@ export default function CoachEncouragementPage() {
                 const nickname = profile?.nickname
                 const displayName = nickname && nickname !== fullName ? `${fullName}（${nickname}）` : fullName
                 const avatarId = profile?.avatar_id
-                const avatarSrc = avatarId ? getAvatarById(avatarId)?.src || "/placeholder.svg" : "/placeholder.svg"
+                const customAvatarUrl = profile?.custom_avatar_url
+                const avatarSrc = customAvatarUrl || (avatarId ? getAvatarById(avatarId)?.src || "/placeholder.svg" : "/placeholder.svg")
 
                 return (
                   <Card key={student.id} className={isWarning ? "border-red-300 bg-red-50" : "border-yellow-300 bg-yellow-50"}>

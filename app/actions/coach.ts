@@ -7,6 +7,7 @@ export interface CoachStudent {
   full_name: string
   nickname: string | null
   avatar_id: string | null
+  custom_avatar_url: string | null
   grade: string
   course: string | null
 }
@@ -64,22 +65,23 @@ export async function getCoachStudents() {
     ?.map((rel: any) => rel.students?.user_id)
     .filter(Boolean) || []
 
-  let profilesMap: Record<string, { nickname: string | null; avatar_id: string | null }> = {}
+  let profilesMap: Record<string, { nickname: string | null; avatar_id: string | null; custom_avatar_url: string | null }> = {}
 
   if (studentUserIds.length > 0) {
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, nickname, avatar_id")
+      .select("id, nickname, avatar_id, custom_avatar_url")
       .in("id", studentUserIds)
 
     if (profiles) {
       profilesMap = profiles.reduce((acc, profile) => {
         acc[profile.id] = {
           nickname: profile.nickname,
-          avatar_id: profile.avatar_id
+          avatar_id: profile.avatar_id,
+          custom_avatar_url: profile.custom_avatar_url
         }
         return acc
-      }, {} as Record<string, { nickname: string | null; avatar_id: string | null }>)
+      }, {} as Record<string, { nickname: string | null; avatar_id: string | null; custom_avatar_url: string | null }>)
     }
   }
 
@@ -89,12 +91,13 @@ export async function getCoachStudents() {
       ?.map((rel: any) => rel.students)
       .filter(Boolean)
       .map((student: any) => {
-        const profile = profilesMap[student.user_id] || { nickname: null, avatar_id: null }
+        const profile = profilesMap[student.user_id] || { nickname: null, avatar_id: null, custom_avatar_url: null }
         return {
           id: student.id,
           full_name: student.full_name,
           nickname: profile.nickname,
           avatar_id: profile.avatar_id,
+          custom_avatar_url: profile.custom_avatar_url,
           grade: student.grade === 5 ? "小学5年" : "小学6年",
           course: student.course,
         }
@@ -152,10 +155,10 @@ export async function getStudentDetail(studentId: string) {
     return { error: "生徒情報の取得に失敗しました" }
   }
 
-  // profilesからnickname/avatar_idを取得
+  // profilesからnickname/avatar_id/custom_avatar_urlを取得
   const { data: profile } = await supabase
     .from("profiles")
-    .select("nickname, avatar_id")
+    .select("nickname, avatar_id, custom_avatar_url")
     .eq("id", student.user_id)
     .single()
 
@@ -163,6 +166,7 @@ export async function getStudentDetail(studentId: string) {
     ...student,
     nickname: profile?.nickname || null,
     avatar_id: profile?.avatar_id || null,
+    custom_avatar_url: profile?.custom_avatar_url || null,
   }
 
   // 学習履歴を取得（最新50件）
@@ -355,6 +359,7 @@ export interface LearningRecordWithEncouragements {
   studentName: string
   studentNickname: string | null
   studentAvatar: string | null
+  studentCustomAvatarUrl: string | null
   grade: string
   subject: string
   content: string
@@ -476,22 +481,23 @@ export async function getCoachStudentLearningRecords(limit = 50) {
 
   console.log("[getCoachStudentLearningRecords] Student user IDs:", studentUserIds)
 
-  let profilesMap: Record<string, { nickname: string | null; avatar_id: string | null }> = {}
+  let profilesMap: Record<string, { nickname: string | null; avatar_id: string | null; custom_avatar_url: string | null }> = {}
 
   if (studentUserIds.length > 0) {
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, nickname, avatar_id")
+      .select("id, nickname, avatar_id, custom_avatar_url")
       .in("id", studentUserIds)
 
     if (profiles) {
       profilesMap = profiles.reduce((acc, profile) => {
         acc[profile.id] = {
           nickname: profile.nickname,
-          avatar_id: profile.avatar_id
+          avatar_id: profile.avatar_id,
+          custom_avatar_url: profile.custom_avatar_url
         }
         return acc
-      }, {} as Record<string, { nickname: string | null; avatar_id: string | null }>)
+      }, {} as Record<string, { nickname: string | null; avatar_id: string | null; custom_avatar_url: string | null }>)
     }
   }
 
@@ -518,7 +524,7 @@ export async function getCoachStudentLearningRecords(limit = 50) {
 
   // データを整形
   const records: LearningRecordWithEncouragements[] = studyLogs?.map((log: any) => {
-    const profile = profilesMap[log.students?.user_id] || { nickname: null, avatar_id: null }
+    const profile = profilesMap[log.students?.user_id] || { nickname: null, avatar_id: null, custom_avatar_url: null }
     const logEncouragements = encouragements.filter((e) => e.related_study_log_id === log.id)
 
     return {
@@ -527,6 +533,7 @@ export async function getCoachStudentLearningRecords(limit = 50) {
       studentName: log.students?.full_name || "不明",
       studentNickname: profile.nickname,
       studentAvatar: profile.avatar_id,
+      studentCustomAvatarUrl: profile.custom_avatar_url,
       grade: log.students?.grade === 5 ? "小学5年" : "小学6年",
       subject: log.subjects?.name || "不明",
       content: log.reflection_text || "",
@@ -573,6 +580,7 @@ export interface InactiveStudentData {
   name: string
   nickname: string | null
   avatar: string | null
+  customAvatarUrl: string | null
   grade: string
   lastInputDate: string | null
   daysInactive: number
@@ -628,22 +636,23 @@ export async function getInactiveStudents(thresholdDays = 7) {
     ?.map((rel: any) => rel.students?.user_id)
     .filter(Boolean) || []
 
-  let profilesMap: Record<string, { nickname: string | null; avatar_id: string | null }> = {}
+  let profilesMap: Record<string, { nickname: string | null; avatar_id: string | null; custom_avatar_url: string | null }> = {}
 
   if (studentUserIds.length > 0) {
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, nickname, avatar_id")
+      .select("id, nickname, avatar_id, custom_avatar_url")
       .in("id", studentUserIds)
 
     if (profiles) {
       profilesMap = profiles.reduce((acc, profile) => {
         acc[profile.id] = {
           nickname: profile.nickname,
-          avatar_id: profile.avatar_id
+          avatar_id: profile.avatar_id,
+          custom_avatar_url: profile.custom_avatar_url
         }
         return acc
-      }, {} as Record<string, { nickname: string | null; avatar_id: string | null }>)
+      }, {} as Record<string, { nickname: string | null; avatar_id: string | null; custom_avatar_url: string | null }>)
     }
   }
 
@@ -673,7 +682,7 @@ export async function getInactiveStudents(thresholdDays = 7) {
   const now = new Date()
   const inactiveStudents: InactiveStudentData[] = students
     .map((student: any) => {
-      const profile = profilesMap[student.user_id] || { nickname: null, avatar_id: null }
+      const profile = profilesMap[student.user_id] || { nickname: null, avatar_id: null, custom_avatar_url: null }
       const lastDate = lastStudyDates[student.id]
       let daysInactive = Infinity
 
@@ -687,6 +696,7 @@ export async function getInactiveStudents(thresholdDays = 7) {
         name: student.full_name,
         nickname: profile.nickname,
         avatar: profile.avatar_id,
+        customAvatarUrl: profile.custom_avatar_url,
         grade: student.grade === 5 ? "小学5年" : "小学6年",
         lastInputDate: lastDate || null,
         daysInactive: lastDate ? daysInactive : Infinity,
