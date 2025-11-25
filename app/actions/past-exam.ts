@@ -481,6 +481,34 @@ export async function getAllStudentsPastExamSummaryForCoach() {
     return { error: "指導者アカウントが必要です" }
   }
 
+  // 指導者IDを取得
+  const { data: coach, error: coachError } = await supabase
+    .from("coaches")
+    .select("id")
+    .eq("user_id", user.id)
+    .single()
+
+  if (coachError || !coach) {
+    return { error: "指導者情報が見つかりません" }
+  }
+
+  // 担当生徒のIDを取得
+  const { data: relations, error: relationsError } = await supabase
+    .from("coach_student_relations")
+    .select("student_id")
+    .eq("coach_id", coach.id)
+
+  if (relationsError) {
+    console.error("Failed to fetch coach-student relations:", relationsError)
+    return { error: "担当生徒の取得に失敗しました" }
+  }
+
+  const studentIds = relations?.map((rel) => rel.student_id) || []
+
+  if (studentIds.length === 0) {
+    return { summaries: [] }
+  }
+
   // 担当する小学6年生の生徒一覧を取得
   const { data: students, error: studentsError } = await supabase
     .from("students")
@@ -497,6 +525,7 @@ export async function getAllStudentsPastExamSummaryForCoach() {
         score
       )
     `)
+    .in("id", studentIds)
     .eq("grade", 6)
     .order("full_name", { ascending: true })
 

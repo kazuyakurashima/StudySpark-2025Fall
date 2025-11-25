@@ -112,20 +112,19 @@ export function PastExamSummaryList() {
 
   // 統計情報
   const studentsWithResults = summaries.filter(s => s.totalResults > 0)
-  const overallAvgTekisei1 = studentsWithResults.length > 0
+  const studentsWithTekisei1 = studentsWithResults.filter(s => s.avgTekisei1 !== null)
+  const studentsWithTekisei2 = studentsWithResults.filter(s => s.avgTekisei2 !== null)
+
+  const overallAvgTekisei1 = studentsWithTekisei1.length > 0
     ? Math.round(
-        studentsWithResults
-          .filter(s => s.avgTekisei1 !== null)
-          .reduce((sum, s) => sum + (s.avgTekisei1 || 0), 0) /
-        studentsWithResults.filter(s => s.avgTekisei1 !== null).length
+        studentsWithTekisei1.reduce((sum, s) => sum + (s.avgTekisei1 || 0), 0) /
+        studentsWithTekisei1.length
       )
     : null
-  const overallAvgTekisei2 = studentsWithResults.length > 0
+  const overallAvgTekisei2 = studentsWithTekisei2.length > 0
     ? Math.round(
-        studentsWithResults
-          .filter(s => s.avgTekisei2 !== null)
-          .reduce((sum, s) => sum + (s.avgTekisei2 || 0), 0) /
-        studentsWithResults.filter(s => s.avgTekisei2 !== null).length
+        studentsWithTekisei2.reduce((sum, s) => sum + (s.avgTekisei2 || 0), 0) /
+        studentsWithTekisei2.length
       )
     : null
 
