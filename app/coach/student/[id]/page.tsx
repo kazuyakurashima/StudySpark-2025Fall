@@ -8,9 +8,10 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, Send, Bot, TrendingUp, Calendar, BookOpen, Target, MessageSquare, Sparkles } from "lucide-react"
+import { ArrowLeft, Send, Bot, TrendingUp, Calendar, BookOpen, Target, MessageSquare, Sparkles, FileText } from "lucide-react"
 import { getStudentDetail, getStudentLearningHistory, sendEncouragementToStudent } from "@/app/actions/coach"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
+import { CoachPastExamViewer } from "@/app/coach/components/past-exam-viewer"
 
 interface Student {
   id: string
@@ -418,6 +419,21 @@ export default function StudentDetailPage() {
             </Tabs>
           </CardContent>
         </Card>
+
+        {/* Past Exam Results - 小学6年生のみ表示 */}
+        {student.grade.includes("6") && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-purple-600" />
+                過去問演習結果
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CoachPastExamViewer studentId={studentId} />
+            </CardContent>
+          </Card>
+        )}
 
         {/* AI Message Generation Modal */}
         {selectedHistory && (

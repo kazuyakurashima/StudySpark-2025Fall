@@ -322,3 +322,216 @@ export async function getNextAttemptNumber(year: number, examType: ExamType) {
 
   return { nextAttempt: null }
 }
+
+// ============================================================================
+// 保護者向け関数
+// ============================================================================
+
+/**
+ * 保護者が子供の過去問結果を取得
+ * RLSポリシーにより、parent_child_relationsで紐づいた子供のデータのみ取得可能
+ */
+export async function getChildPastExamResults(childStudentId: string) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: "ログインが必要です" }
+  }
+
+  // 保護者かどうか確認
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single()
+
+  if (!profile || profile.role !== "parent") {
+    return { error: "保護者アカウントが必要です" }
+  }
+
+  // 子供の学年を確認（小学6年生のみ）
+  const { data: childStudent } = await supabase
+    .from("students")
+    .select("id, grade")
+    .eq("id", childStudentId)
+    .single()
+
+  if (!childStudent) {
+    return { error: "生徒情報が見つかりません" }
+  }
+
+  if (childStudent.grade !== 6) {
+    return { error: "過去問演習は小学6年生のみ利用可能です", notGrade6: true }
+  }
+
+  // 過去問結果を取得（RLSポリシーで権限チェック済み）
+  const { data: results, error } = await supabase
+    .from("past_exam_results")
+    .select("*")
+    .eq("student_id", childStudentId)
+    .order("exam_year", { ascending: false })
+    .order("exam_type", { ascending: true })
+    .order("attempt_number", { ascending: true })
+
+  if (error) {
+    console.error("Failed to fetch child past exam results:", error)
+    return { error: "過去問結果の取得に失敗しました" }
+  }
+
+  return { results: results as PastExamResult[], studentId: childStudentId }
+}
+
+// ============================================================================
+// 指導者向け関数
+// ============================================================================
+
+/**
+ * 指導者が担当生徒の過去問結果を取得
+ * RLSポリシーにより、coach_student_relationsで紐づいた生徒のデータのみ取得可能
+ */
+export async function getStudentPastExamResultsForCoach(studentId: string) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: "ログインが必要です" }
+  }
+
+  // 指導者かどうか確認
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single()
+
+  if (!profile || (profile.role !== "coach" && profile.role !== "admin")) {
+    return { error: "指導者アカウントが必要です" }
+  }
+
+  // 生徒の学年を確認（小学6年生のみ）
+  const { data: student } = await supabase
+    .from("students")
+    .select("id, grade, full_name, nickname")
+    .eq("id", studentId)
+    .single()
+
+  if (!student) {
+    return { error: "生徒情報が見つかりません" }
+  }
+
+  if (student.grade !== 6) {
+    return {
+      error: "過去問演習は小学6年生のみ利用可能です",
+      notGrade6: true,
+      studentName: student.nickname || student.full_name,
+      grade: student.grade
+    }
+  }
+
+  // 過去問結果を取得（RLSポリシーで権限チェック済み）
+  const { data: results, error } = await supabase
+    .from("past_exam_results")
+    .select("*")
+    .eq("student_id", studentId)
+    .order("exam_year", { ascending: false })
+    .order("exam_type", { ascending: true })
+    .order("attempt_number", { ascending: true })
+
+  if (error) {
+    console.error("Failed to fetch student past exam results for coach:", error)
+    return { error: "過去問結果の取得に失敗しました" }
+  }
+
+  return {
+    results: results as PastExamResult[],
+    studentId,
+    studentName: student.nickname || student.full_name
+  }
+}
+
+/**
+ * 指導者が担当する全生徒の過去問結果サマリーを取得
+ */
+export async function getAllStudentsPastExamSummaryForCoach() {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: "ログインが必要です" }
+  }
+
+  // 指導者かどうか確認
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single()
+
+  if (!profile || (profile.role !== "coach" && profile.role !== "admin")) {
+    return { error: "指導者アカウントが必要です" }
+  }
+
+  // 担当する小学6年生の生徒一覧を取得
+  const { data: students, error: studentsError } = await supabase
+    .from("students")
+    .select(`
+      id,
+      full_name,
+      nickname,
+      grade,
+      past_exam_results (
+        id,
+        exam_year,
+        exam_type,
+        attempt_number,
+        score
+      )
+    `)
+    .eq("grade", 6)
+    .order("full_name", { ascending: true })
+
+  if (studentsError) {
+    console.error("Failed to fetch students for coach:", studentsError)
+    return { error: "生徒情報の取得に失敗しました" }
+  }
+
+  // サマリー情報を構築
+  const summaries = students?.map(student => {
+    const results = student.past_exam_results || []
+    const tekisei1 = results.filter((r: any) => r.exam_type === "tekisei_1")
+    const tekisei2 = results.filter((r: any) => r.exam_type === "tekisei_2")
+
+    return {
+      studentId: student.id,
+      studentName: student.nickname || student.full_name,
+      fullName: student.full_name,
+      grade: student.grade,
+      totalResults: results.length,
+      avgTekisei1: tekisei1.length > 0
+        ? Math.round(tekisei1.reduce((sum: number, r: any) => sum + r.score, 0) / tekisei1.length)
+        : null,
+      avgTekisei2: tekisei2.length > 0
+        ? Math.round(tekisei2.reduce((sum: number, r: any) => sum + r.score, 0) / tekisei2.length)
+        : null,
+      maxTekisei1: tekisei1.length > 0
+        ? Math.max(...tekisei1.map((r: any) => r.score))
+        : null,
+      maxTekisei2: tekisei2.length > 0
+        ? Math.max(...tekisei2.map((r: any) => r.score))
+        : null,
+      yearsWithResults: [...new Set(results.map((r: any) => r.exam_year))].length,
+    }
+  }) || []
+
+  return { summaries }
+}

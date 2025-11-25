@@ -12,11 +12,12 @@ import { Slider } from "@/components/ui/slider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import ParentBottomNavigation from "@/components/parent-bottom-navigation"
-import { Calendar, Flag, Target, PartyPopper, Eye, Users } from "lucide-react"
+import { Calendar, Flag, Target, PartyPopper, Eye, Users, FileText } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
   getParentChildren,
 } from "@/app/actions/parent"
+import { ParentPastExamViewer } from "./past-exam-viewer"
 import {
   getAvailableTestsForStudent,
   getAllTestGoalsForStudent,
@@ -79,7 +80,7 @@ export default function ParentGoalNaviPage() {
   const [testGoals, setTestGoals] = useState<TestGoal[]>([])
   const [testResults, setTestResults] = useState<any[]>([])
   const [selectedGoal, setSelectedGoal] = useState<TestGoal | null>(null)
-  const [activeTab, setActiveTab] = useState<"input" | "result" | "test">("test")
+  const [activeTab, setActiveTab] = useState<"input" | "result" | "test" | "pastexam">("test")
   const [loading, setLoading] = useState(true)
   const [encouragementStatus, setEncouragementStatus] = useState<{ [childId: number]: boolean }>({})
 
@@ -265,11 +266,15 @@ export default function ParentGoalNaviPage() {
 
       <div className="max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         {/* タブコンテンツ */}
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "input" | "result" | "test")}>
-          <TabsList className="grid w-full grid-cols-3">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "input" | "result" | "test" | "pastexam")}>
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="input">目標入力</TabsTrigger>
             <TabsTrigger value="result">結果入力</TabsTrigger>
-            <TabsTrigger value="test">目標と結果の履歴</TabsTrigger>
+            <TabsTrigger value="test">履歴</TabsTrigger>
+            <TabsTrigger value="pastexam" className="flex items-center gap-1">
+              <FileText className="h-3 w-3" />
+              過去問
+            </TabsTrigger>
           </TabsList>
 
           {/* 目標入力タブ */}
@@ -461,6 +466,16 @@ export default function ParentGoalNaviPage() {
                   ))
                 })()}
               </div>
+            )}
+          </TabsContent>
+
+          {/* 過去問演習タブ */}
+          <TabsContent value="pastexam" className="space-y-4 mt-6">
+            {selectedChild && (
+              <ParentPastExamViewer
+                childId={selectedChildId}
+                childName={selectedChild.display_name || selectedChild.full_name}
+              />
             )}
           </TabsContent>
         </Tabs>
