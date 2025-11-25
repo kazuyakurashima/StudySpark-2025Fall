@@ -229,6 +229,7 @@ export async function updateProfileCustomization(
   const updateData: Record<string, any> = {}
 
   if (input.avatar_id !== undefined) updateData.avatar_id = input.avatar_id
+  if (input.custom_avatar_url !== undefined) updateData.custom_avatar_url = input.custom_avatar_url
   if (input.nickname !== undefined) updateData.nickname = input.nickname
   if (input.theme_color !== undefined) updateData.theme_color = input.theme_color
 

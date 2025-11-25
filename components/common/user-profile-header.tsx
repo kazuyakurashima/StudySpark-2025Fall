@@ -55,6 +55,8 @@ export function UserProfileHeader({ encouragementStatus }: UserProfileHeaderProp
 
   const avatar = getAvatarById(profile.avatar_id)
   const isParent = profile.role === "parent"
+  // カスタムアバターURLを優先して使用
+  const avatarSrc = profile.custom_avatar_url || avatar?.src
 
   return (
     <>
@@ -87,11 +89,12 @@ export function UserProfileHeader({ encouragementStatus }: UserProfileHeaderProp
                   }}
                 >
                   <Image
-                    src={getAvatarById(selectedChild.avatar_id)?.src || ""}
+                    src={selectedChild.custom_avatar_url || getAvatarById(selectedChild.avatar_id)?.src || ""}
                     alt={selectedChild.nickname}
                     width={28}
                     height={28}
                     className="object-cover"
+                    unoptimized={!!selectedChild.custom_avatar_url}
                   />
                 </div>
                 {/* ハートバッジ */}
@@ -127,7 +130,16 @@ export function UserProfileHeader({ encouragementStatus }: UserProfileHeaderProp
                     : { backgroundColor: "#f3f4f6", border: "3px solid #d1d5db" }
                 }
               >
-                {avatar && <Image src={avatar.src} alt={avatar.name} width={40} height={40} className="object-cover" />}
+                {avatarSrc && (
+                  <Image
+                    src={avatarSrc}
+                    alt={avatar?.name || "アバター"}
+                    width={40}
+                    height={40}
+                    className="object-cover"
+                    unoptimized={!!profile.custom_avatar_url}
+                  />
+                )}
               </div>
 
               {/* ユーザー名（タブレット以上で表示） */}
@@ -182,11 +194,12 @@ export function UserProfileHeader({ encouragementStatus }: UserProfileHeaderProp
                               }}
                             >
                               <Image
-                                src={getAvatarById(child.avatar_id)?.src || ""}
+                                src={child.custom_avatar_url || getAvatarById(child.avatar_id)?.src || ""}
                                 alt={child.nickname}
                                 width={36}
                                 height={36}
                                 className="object-cover"
+                                unoptimized={!!child.custom_avatar_url}
                               />
                             </div>
 
