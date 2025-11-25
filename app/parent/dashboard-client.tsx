@@ -16,10 +16,57 @@ import { useUserProfile } from "@/lib/hooks/use-user-profile"
 import { hexWithAlpha, isThemeActive } from "@/lib/utils/theme-color"
 import { isError } from "@/lib/types/profile"
 import { StreakCard } from "@/components/streak-card"
-import { useParentDashboard, prefetchChildDashboard } from "@/lib/hooks/use-parent-dashboard"
+import { useParentDashboard, prefetchChildDashboard, type ParentDashboardData as SWRDashboardData } from "@/lib/hooks/use-parent-dashboard"
 
 // 🚀 パフォーマンス改善: カレンダーコンポーネントを遅延ロード（IntersectionObserver で真の遅延ロード）
 import LazyCalendarWrapper from './components/lazy-calendar-wrapper'
+
+/**
+ * SSR初期データをSWR形式に変換する関数
+ * SSR: todayMission, calendarData, reflectionStatus, streakState
+ * SWR: todayProgress, calendar, reflection, state
+ */
+function transformSSRtoSWRData(
+  childId: number,
+  ssrData: import("@/lib/types/profile").ParentDashboardData | null
+): Partial<SWRDashboardData> | undefined {
+  if (!ssrData) return undefined
+
+  return {
+    childId,
+    todayStatus: isError(ssrData.todayStatus)
+      ? { message: "", createdAt: null, error: ssrData.todayStatus.error }
+      : { message: ssrData.todayStatus.message, createdAt: ssrData.todayStatus.createdAt || null },
+    streak: isError(ssrData.streak)
+      ? { streak: 0, maxStreak: 0, lastStudyDate: null, todayStudied: false, state: "reset" as const, error: ssrData.streak.error }
+      : {
+          streak: ssrData.streak.streak,
+          maxStreak: (ssrData.streak as any).maxStreak || 0,
+          lastStudyDate: (ssrData.streak as any).lastStudyDate || null,
+          todayStudied: (ssrData.streak as any).todayStudied || false,
+          state: (ssrData.streak as any).streakState || "reset",
+        },
+    todayProgress: isError(ssrData.todayMission)
+      ? { todayProgress: [], error: ssrData.todayMission.error }
+      : { todayProgress: ssrData.todayMission.todayProgress },
+    weeklyProgress: isError(ssrData.weeklyProgress)
+      ? { progress: [], sessionNumber: null, error: ssrData.weeklyProgress.error }
+      : { progress: ssrData.weeklyProgress.progress, sessionNumber: ssrData.weeklyProgress.sessionNumber },
+    calendar: isError(ssrData.calendarData)
+      ? { calendarData: {}, error: ssrData.calendarData.error }
+      : { calendarData: ssrData.calendarData.calendarData },
+    recentLogs: isError(ssrData.recentLogs)
+      ? { logs: [], error: ssrData.recentLogs.error }
+      : { logs: ssrData.recentLogs.logs },
+    recentMessages: isError(ssrData.recentMessages)
+      ? { messages: [], error: ssrData.recentMessages.error }
+      : { messages: ssrData.recentMessages.messages },
+    reflection: isError(ssrData.reflectionStatus)
+      ? { completed: false, error: ssrData.reflectionStatus.error }
+      : { completed: ssrData.reflectionStatus.completed },
+    fetchedAt: Date.now(),
+  }
+}
 
 const getGreetingMessage = (userName: string, lastLoginInfo: { lastLoginDays: number | null, lastLoginHours: number, isFirstTime: boolean } | null) => {
   if (!lastLoginInfo || lastLoginInfo.isFirstTime || lastLoginInfo.lastLoginDays === 0) {
@@ -1523,6 +1570,15 @@ function ParentDashboardInner({
   // Cache for AI-generated status message (persisted in localStorage)
   const [encouragementStatus, setEncouragementStatus] = useState<{ [childId: number]: boolean }>({})
 
+  // 🚀 SWR: SSR初期データをSWR形式に変換（初期表示用）
+  // useMemoで初回のみ計算し、子供切り替え時は再計算
+  const swrFallbackData = React.useMemo(() => {
+    if (!initialSelectedChild?.id || !initialData) return undefined
+    // 初期選択された子供のデータのみfallbackとして使用
+    if (selectedChild?.id !== initialSelectedChild.id) return undefined
+    return transformSSRtoSWRData(initialSelectedChild.id, initialData)
+  }, [initialSelectedChild?.id, initialData, selectedChild?.id])
+
   // 🚀 SWR: 子供ごとのデータをSWRでキャッシュ・管理
   const {
     data: swrData,
@@ -1530,7 +1586,7 @@ function ParentDashboardInner({
     isValidating: swrValidating,
     mutate: swrMutate,
     isStale: swrIsStale,
-  } = useParentDashboard(selectedChild?.id ?? null)
+  } = useParentDashboard(selectedChild?.id ?? null, swrFallbackData)
 
   // 手動更新ハンドラー
   const handleManualRefresh = useCallback(() => {

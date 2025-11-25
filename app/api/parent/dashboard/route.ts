@@ -120,8 +120,15 @@ export async function GET(request: NextRequest) {
         ? { message: "", createdAt: null, error: statusMsg.error }
         : { message: statusMsg.message, createdAt: statusMsg.createdAt || null },
       streak: "error" in streakResult
-        ? { streak: 0, maxStreak: 0, lastStudyDate: null, todayStudied: false, state: "reset", error: streakResult.error }
-        : streakResult,
+        ? { streak: 0, maxStreak: 0, lastStudyDate: null, todayStudied: false, state: "reset" as const, error: streakResult.error }
+        : {
+            streak: streakResult.streak,
+            maxStreak: streakResult.maxStreak,
+            lastStudyDate: streakResult.lastStudyDate,
+            todayStudied: streakResult.todayStudied,
+            // Server Action returns "streakState", but client expects "state"
+            state: streakResult.streakState,
+          },
       todayProgress: "error" in todayMission
         ? { todayProgress: [], error: todayMission.error }
         : { todayProgress: todayMission.todayProgress },

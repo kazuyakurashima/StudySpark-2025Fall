@@ -1,4 +1,4 @@
-import useSWR from "swr"
+import useSWR, { mutate } from "swr"
 
 /**
  * 保護者ダッシュボードのデータ型定義
@@ -133,10 +133,23 @@ export function useParentDashboard(
 /**
  * 複数の子どものダッシュボードデータをプリフェッチ
  * 子ども切り替え時の待ち時間を削減
+ *
+ * mutate を使用して SWR キャッシュに直接データを登録
  */
 export function prefetchChildDashboard(childId: number) {
-  // SWRのキャッシュにデータを事前取得
-  return fetch(`/api/parent/dashboard?childId=${childId}`)
+  const key = `/api/parent/dashboard?childId=${childId}`
+
+  // fetch してから mutate でキャッシュに登録
+  return fetch(key)
     .then(res => res.json())
-    .catch(err => console.error("Prefetch failed:", err))
+    .then((data: ParentDashboardData) => {
+      // SWR キャッシュにデータを登録（revalidate: false で再取得しない）
+      mutate(key, data, { revalidate: false })
+      console.log("🚀 [Prefetch] Cache populated for child:", childId)
+      return data
+    })
+    .catch(err => {
+      console.error("Prefetch failed:", err)
+      return null
+    })
 }

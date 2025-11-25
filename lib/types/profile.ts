@@ -54,7 +54,7 @@ export interface ChildProfile {
  * 各フィールドは成功時とエラー時のデータを持つ
  */
 export interface ParentDashboardData {
-  todayStatus: { message: string } | { error: string }
+  todayStatus: { message: string; createdAt?: string } | { error: string }
   streak: { streak: number } | { error: string }
   todayMission: { todayProgress: any[] } | { error: string }
   weeklyProgress: { progress: any[]; sessionNumber: number | null } | { error: string }
