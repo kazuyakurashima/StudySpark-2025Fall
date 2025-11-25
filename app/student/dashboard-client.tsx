@@ -76,7 +76,8 @@ function transformSSRtoSWRData(ssrData: DashboardData): Partial<SWRDashboardData
     profile: {
       nickname: ssrData.userName,
       avatarId: ssrData.selectedAvatar,
-      themeColor: "default",
+      // SSR初期データにはthemeColorがないため空文字（profile hookの値を優先）
+      themeColor: "",
     },
     aiCoachMessage: {
       message: ssrData.aiCoachMessage,
@@ -1545,6 +1546,13 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [])
+
+  // 🚀 SWR: recentMessagesをSWRデータと同期
+  useEffect(() => {
+    if (swrData?.recentMessages?.messages) {
+      setMessages(swrData.recentMessages.messages)
+    }
+  }, [swrData?.recentMessages?.messages])
 
   const greetingMessage = getGreetingMessage(userName, lastLoginInfo)
 
