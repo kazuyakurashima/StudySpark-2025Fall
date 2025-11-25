@@ -47,6 +47,7 @@ export async function getParentChildren(): Promise<{ children: ChildProfile[]; e
             id,
             nickname,
             avatar_id,
+            custom_avatar_url,
             theme_color
           )
         )
@@ -71,6 +72,7 @@ export async function getParentChildren(): Promise<{ children: ChildProfile[]; e
           user_id: student.user_id,
           nickname: profile.nickname,
           avatar_id: profile.avatar_id,
+          custom_avatar_url: profile.custom_avatar_url || null,
           theme_color: profile.theme_color,
           grade: student.grade,
           course: student.course as "A" | "B" | "C" | "S",
