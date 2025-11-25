@@ -1,41 +1,25 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Home, Flag, Map, BookOpen, Heart, MessageCircle, X, Users, Loader2 } from "lucide-react"
+import { Home, Flag, Map, BookOpen, Heart, MessageCircle, X, Users, Loader2, RefreshCw } from "lucide-react"
 import { CoachBottomNavigation } from "@/components/coach-bottom-navigation"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
-import { getCoachStudents, type CoachStudent } from "@/app/actions/coach"
+import { useCoachStudents } from "@/lib/hooks/use-coach-students"
+import type { CoachStudent } from "@/app/actions/coach"
 import { getAvatarById } from "@/lib/constants/avatars"
 
 export default function StudentsListPage() {
-  const [students, setStudents] = useState<CoachStudent[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // SWRフックで生徒一覧を取得
+  const { students, studentsError, isLoading, isValidating, mutate } = useCoachStudents()
+
   const [selectedStudent, setSelectedStudent] = useState<CoachStudent | null>(null)
   const [selectedView, setSelectedView] = useState<string | null>(null)
   const [gradeFilter, setGradeFilter] = useState<string>("all")
-
-  useEffect(() => {
-    async function loadStudents() {
-      setLoading(true)
-      const result = await getCoachStudents()
-
-      if (result.error) {
-        setError(result.error)
-      } else if (result.students) {
-        setStudents(result.students)
-      }
-
-      setLoading(false)
-    }
-
-    loadStudents()
-  }, [])
 
   const actionButtons = [
     { id: "home", label: "ホーム", icon: Home, description: "学習カレンダー、今日のミッション！、今週の進捗など" },
@@ -61,7 +45,7 @@ export default function StudentsListPage() {
     return student.grade === gradeFilter
   })
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-background pb-20 flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -69,13 +53,13 @@ export default function StudentsListPage() {
     )
   }
 
-  if (error) {
+  if (studentsError) {
     return (
       <div className="min-h-screen bg-background pb-20">
         <div className="max-w-7xl mx-auto p-4 md:p-6">
           <Card className="border-destructive">
             <CardContent className="p-6 text-center">
-              <p className="text-destructive">{error}</p>
+              <p className="text-destructive">{studentsError}</p>
             </CardContent>
           </Card>
         </div>
@@ -130,11 +114,24 @@ export default function StudentsListPage() {
         {/* Header */}
         <Card className="border-l-4 border-l-primary">
           <CardContent className="p-6">
-            <h1 className="text-2xl md:text-3xl font-bold mb-2 flex items-center gap-2">
-              <Users className="h-6 w-6 md:h-7 md:w-7" />
-              生徒一覧
-            </h1>
-            <p className="text-muted-foreground">各生徒の詳細情報を確認</p>
+            <div className="flex items-start justify-between">
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold mb-2 flex items-center gap-2">
+                  <Users className="h-6 w-6 md:h-7 md:w-7" />
+                  生徒一覧
+                </h1>
+                <p className="text-muted-foreground">各生徒の詳細情報を確認</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => mutate()}
+                disabled={isValidating}
+                title="データを更新"
+              >
+                <RefreshCw className={`h-5 w-5 ${isValidating ? "animate-spin" : ""}`} />
+              </Button>
+            </div>
           </CardContent>
         </Card>
 

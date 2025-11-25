@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -8,35 +8,11 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, Send, Bot, TrendingUp, Calendar, BookOpen, Target, MessageSquare, Sparkles, FileText } from "lucide-react"
-import { getStudentDetail, getStudentLearningHistory, sendEncouragementToStudent } from "@/app/actions/coach"
+import { ArrowLeft, Send, Bot, TrendingUp, Calendar, BookOpen, Target, MessageSquare, Sparkles, FileText, RefreshCw, Loader2 } from "lucide-react"
+import { sendEncouragementToStudent } from "@/app/actions/coach"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { CoachPastExamViewer } from "@/app/coach/components/past-exam-viewer"
-
-interface Student {
-  id: string
-  full_name: string
-  nickname: string | null
-  avatar_id: string | null
-  grade: string
-  course: string | null
-  streak: number
-  weekRing: number
-  recentScore: number
-}
-
-interface StudyLog {
-  id: string
-  created_at: string
-  subject: string
-  understanding_level: number
-  reflection: string | null
-  total_questions: number
-  correct_count: number
-  hasCoachResponse: boolean
-  coachMessage: string
-  encouragementId: string | null
-}
+import { useCoachStudentDetail, type StudyLog } from "@/lib/hooks/use-coach-student-detail"
 
 interface AIMessage {
   type: "celebrate" | "insight" | "nextstep"
@@ -49,42 +25,14 @@ export default function StudentDetailPage() {
   const router = useRouter()
   const studentId = params.id as string
 
-  const [student, setStudent] = useState<Student | null>(null)
-  const [studyLogs, setStudyLogs] = useState<StudyLog[]>([])
-  const [loading, setLoading] = useState(true)
+  // SWRでデータを管理
+  const { student, studyLogs, isLoading, isValidating, mutate } = useCoachStudentDetail(studentId)
+
   const [activeTab, setActiveTab] = useState("all")
   const [selectedHistory, setSelectedHistory] = useState<StudyLog | null>(null)
   const [aiMessages, setAiMessages] = useState<AIMessage[]>([])
   const [isGeneratingAI, setIsGeneratingAI] = useState(false)
   const [customMessage, setCustomMessage] = useState("")
-
-  useEffect(() => {
-    loadStudentData()
-  }, [studentId])
-
-  const loadStudentData = async () => {
-    setLoading(true)
-
-    // 生徒詳細を取得
-    const detailResult = await getStudentDetail(studentId)
-    if (detailResult.error) {
-      console.error(detailResult.error)
-      setLoading(false)
-      return
-    }
-
-    setStudent(detailResult.student as Student)
-
-    // 学習履歴を取得
-    const historyResult = await getStudentLearningHistory(studentId, 30)
-    if (historyResult.error) {
-      console.error(historyResult.error)
-    } else {
-      setStudyLogs(historyResult.studyLogs as StudyLog[])
-    }
-
-    setLoading(false)
-  }
 
   const getUnderstandingEmoji = (level: number) => {
     if (level >= 4) return "😄バッチリ理解"
@@ -195,15 +143,15 @@ export default function StudentDetailPage() {
 
     alert(`${student.nickname || student.full_name}さんに応援メッセージを送信しました！`)
 
-    // 学習履歴を再読み込み
-    await loadStudentData()
+    // SWRデータを再取得
+    mutate()
 
     setSelectedHistory(null)
     setAiMessages([])
     setCustomMessage("")
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center">
         <div className="text-center">
@@ -233,20 +181,36 @@ export default function StudentDetailPage() {
       {/* Header */}
       <div className="bg-card/80 backdrop-blur-sm border-b border-border/50 p-4">
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => router.back()}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <Avatar className="h-12 w-12">
-              <AvatarImage src={student.avatar_id || "/placeholder.svg"} alt={student.full_name} />
-              <AvatarFallback>{student.full_name.charAt(0)}</AvatarFallback>
-            </Avatar>
-            <div>
-              <h1 className="text-xl font-bold text-foreground">{student.full_name}</h1>
-              <p className="text-sm text-muted-foreground">
-                ニックネーム: {student.nickname || "未設定"} | {student.grade} | {student.course || "未設定"}コース
-              </p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="sm" onClick={() => router.back()}>
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <Avatar className="h-12 w-12">
+                <AvatarImage src={student.avatar_id || "/placeholder.svg"} alt={student.full_name} />
+                <AvatarFallback>{student.full_name.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <div>
+                <h1 className="text-xl font-bold text-foreground">{student.full_name}</h1>
+                <p className="text-sm text-muted-foreground">
+                  ニックネーム: {student.nickname || "未設定"} | {student.grade} | {student.course || "未設定"}コース
+                </p>
+              </div>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => mutate()}
+              disabled={isValidating}
+              className="flex items-center gap-2"
+            >
+              {isValidating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              <span className="hidden sm:inline">更新</span>
+            </Button>
           </div>
         </div>
       </div>
