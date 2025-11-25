@@ -421,7 +421,7 @@ export default function StudentDetailPage() {
         </Card>
 
         {/* Past Exam Results - 小学6年生のみ表示 */}
-        {student.grade.includes("6") && (
+        {(student.grade === 6 || String(student.grade).includes("6")) && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
