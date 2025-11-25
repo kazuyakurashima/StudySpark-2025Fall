@@ -217,7 +217,9 @@ export default function CoachEncouragementPage() {
                 const hasCoachEncouragement = Array.isArray(log.encouragement_messages) && log.encouragement_messages.some((msg: any) => msg.sender_role === "coach")
                 const student = Array.isArray(log.students) ? log.students[0] : log.students
                 const profile = student?.profiles
-                const nickname = profile?.nickname || student?.full_name || "生徒"
+                const fullName = student?.full_name || "生徒"
+                const nickname = profile?.nickname
+                const displayName = nickname && nickname !== fullName ? `${fullName}（${nickname}）` : fullName
                 const avatarId = profile?.avatar_id
                 const avatarSrc = avatarId ? getAvatarById(avatarId)?.src || "/placeholder.svg" : "/placeholder.svg"
 
@@ -227,12 +229,12 @@ export default function CoachEncouragementPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-10 w-10">
-                            <AvatarImage src={avatarSrc} alt={nickname} />
-                            <AvatarFallback>{nickname?.[0] || "生"}</AvatarFallback>
+                            <AvatarImage src={avatarSrc} alt={displayName} />
+                            <AvatarFallback>{fullName?.[0] || "生"}</AvatarFallback>
                           </Avatar>
                           <div>
                             <div className="flex items-center gap-2">
-                              <CardTitle className="text-base">{nickname}</CardTitle>
+                              <CardTitle className="text-base">{displayName}</CardTitle>
                               {student?.grade && <Badge variant="outline" className="text-xs">小{student.grade}</Badge>}
                               {hasCoachEncouragement && <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">応援済み</Badge>}
                             </div>
@@ -346,7 +348,9 @@ export default function CoachEncouragementPage() {
               inactiveStudents.map((student) => {
                 const isWarning = student.daysInactive >= 7
                 const profile = student.profiles
-                const studentNickname = profile?.nickname || student.full_name || "生徒"
+                const fullName = student.full_name || "生徒"
+                const nickname = profile?.nickname
+                const displayName = nickname && nickname !== fullName ? `${fullName}（${nickname}）` : fullName
                 const avatarId = profile?.avatar_id
                 const avatarSrc = avatarId ? getAvatarById(avatarId)?.src || "/placeholder.svg" : "/placeholder.svg"
 
@@ -356,12 +360,12 @@ export default function CoachEncouragementPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-10 w-10">
-                            <AvatarImage src={avatarSrc} alt={studentNickname} />
-                            <AvatarFallback>{studentNickname?.[0] || "生"}</AvatarFallback>
+                            <AvatarImage src={avatarSrc} alt={displayName} />
+                            <AvatarFallback>{fullName?.[0] || "生"}</AvatarFallback>
                           </Avatar>
                           <div>
                             <div className="flex items-center gap-2">
-                              <CardTitle className="text-base">{studentNickname}</CardTitle>
+                              <CardTitle className="text-base">{displayName}</CardTitle>
                               {student.grade && <Badge variant="outline" className="text-xs">小{student.grade}</Badge>}
                               {isWarning && <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3 w-3" />警告</Badge>}
                             </div>
