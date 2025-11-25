@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -10,12 +10,13 @@ import { Button } from "@/components/ui/button"
 import ParentBottomNavigation from "@/components/parent-bottom-navigation"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { PageHeader } from "@/components/common/page-header"
-import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, Sparkles, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from "lucide-react"
+import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, Sparkles, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, RefreshCw } from "lucide-react"
 import { WeeklySubjectProgressCard } from "@/components/weekly-subject-progress-card"
 import { useUserProfile } from "@/lib/hooks/use-user-profile"
 import { hexWithAlpha, isThemeActive } from "@/lib/utils/theme-color"
 import { isError } from "@/lib/types/profile"
 import { StreakCard } from "@/components/streak-card"
+import { useParentDashboard, prefetchChildDashboard } from "@/lib/hooks/use-parent-dashboard"
 
 // 🚀 パフォーマンス改善: カレンダーコンポーネントを遅延ロード（IntersectionObserver で真の遅延ロード）
 import LazyCalendarWrapper from './components/lazy-calendar-wrapper'
@@ -1522,30 +1523,23 @@ function ParentDashboardInner({
   // Cache for AI-generated status message (persisted in localStorage)
   const [encouragementStatus, setEncouragementStatus] = useState<{ [childId: number]: boolean }>({})
 
-  // 子供ごとのデータキャッシュ（メモリ内）
-  const [childDataCache, setChildDataCache] = useState<{
-    [childId: number]: {
-      todayStatusMessage: string
-      todayStatusMessageCreatedAt: string | null
-      studyStreak: number
-      maxStreak: number
-      lastStudyDate: string | null
-      todayStudied: boolean
-      streakState: "active" | "grace" | "warning" | "reset"
-      todayProgress: any[]
-      calendarData: any
-      weeklyProgress: any[]
-      sessionNumber: number | null
-      recentLogs: any[]
-      recentMessages: any[]
-      isReflectCompleted: boolean
-      cachedAt: number // タイムスタンプ
-    }
-  }>({})
+  // 🚀 SWR: 子供ごとのデータをSWRでキャッシュ・管理
+  const {
+    data: swrData,
+    isLoading: swrLoading,
+    isValidating: swrValidating,
+    mutate: swrMutate,
+    isStale: swrIsStale,
+  } = useParentDashboard(selectedChild?.id ?? null)
+
+  // 手動更新ハンドラー
+  const handleManualRefresh = useCallback(() => {
+    swrMutate()
+  }, [swrMutate])
 
   // 🚀 改善: aiMessageCache を削除（サーバー側で ai_cache テーブルで管理）
 
-  // ページがフォーカスされたときの再読み込みは、子ども切り替え時のuseEffectで処理される
+  // ページがフォーカスされたときの再読み込みは、SWRのrevalidateOnFocusで自動処理される
 
   // 初期データはサーバーから渡されているため、fetchParentDataは不要
 
@@ -1609,27 +1603,7 @@ function ParentDashboardInner({
         setIsReflectCompleted(initialData.reflectionStatus.completed)
       }
 
-      // キャッシュに保存（フラット化した形式で）
-      setChildDataCache(prev => ({
-        ...prev,
-        [initialSelectedChild.id]: {
-          todayStatusMessage: !isError(initialData.todayStatus) ? initialData.todayStatus.message : "",
-          todayStatusMessageCreatedAt: !isError(initialData.todayStatus) ? initialData.todayStatus.createdAt || null : null,
-          studyStreak: !isError(initialData.streak) ? initialData.streak.streak : 0,
-          maxStreak: !isError(initialData.streak) ? initialData.streak.maxStreak : 0,
-          lastStudyDate: !isError(initialData.streak) ? initialData.streak.lastStudyDate : null,
-          todayStudied: !isError(initialData.streak) ? initialData.streak.todayStudied : false,
-          streakState: !isError(initialData.streak) ? initialData.streak.streakState : "reset",
-          todayProgress: !isError(initialData.todayMission) ? initialData.todayMission.todayProgress : [],
-          calendarData: !isError(initialData.calendarData) ? initialData.calendarData.calendarData : {},
-          weeklyProgress: !isError(initialData.weeklyProgress) ? initialData.weeklyProgress.progress : [],
-          sessionNumber: !isError(initialData.weeklyProgress) ? initialData.weeklyProgress.sessionNumber : null,
-          recentLogs: !isError(initialData.recentLogs) ? initialData.recentLogs.logs : [],
-          recentMessages: !isError(initialData.recentMessages) ? initialData.recentMessages.messages : [],
-          isReflectCompleted: !isError(initialData.reflectionStatus) ? initialData.reflectionStatus.completed : false,
-          cachedAt: Date.now()
-        }
-      }))
+      // 🚀 SWR: キャッシュはSWRが管理するため、childDataCacheへの保存は不要
 
       setIsLoading(false)
     }
@@ -1643,202 +1617,87 @@ function ParentDashboardInner({
     }
   }, [profileLoading, profileChildren])
 
-  // Fetch child-specific data when selected child changes
+  // 🚀 SWR: データが更新されたら各stateに反映
   useEffect(() => {
-    const selectedChildId = selectedChild?.id
-    console.log("🔍 [CLIENT] useEffect triggered - selectedChildId:", selectedChildId, "profileLoading:", profileLoading)
+    if (!swrData) return
 
-    if (profileLoading) {
-      console.log("🔍 [CLIENT] Profile still loading, waiting...")
-      return
+    console.log("🚀 [SWR] Data received for child:", swrData.childId)
+
+    // ステータスメッセージ
+    if (!swrData.todayStatus.error) {
+      setTodayStatusMessage(swrData.todayStatus.message)
+      setTodayStatusMessageCreatedAt(swrData.todayStatus.createdAt)
     }
 
-    if (!selectedChildId) {
-      console.log("🔍 [CLIENT] No child selected, setting loading to false")
+    // ストリーク
+    if (!swrData.streak.error) {
+      setStudyStreak(swrData.streak.streak)
+      setMaxStreak(swrData.streak.maxStreak)
+      setLastStudyDate(swrData.streak.lastStudyDate)
+      setTodayStudied(swrData.streak.todayStudied)
+      setStreakState(swrData.streak.state)
+    }
+
+    // 今日の進捗
+    if (!swrData.todayProgress.error) {
+      setTodayProgress(swrData.todayProgress.todayProgress)
+    }
+
+    // 週間進捗
+    if (!swrData.weeklyProgress.error) {
+      setWeeklyProgress(swrData.weeklyProgress.progress)
+      setSessionNumber(swrData.weeklyProgress.sessionNumber)
+    }
+
+    // カレンダー
+    if (!swrData.calendar.error) {
+      setCalendarData(swrData.calendar.calendarData)
+    }
+
+    // 最近のログ
+    if (!swrData.recentLogs.error) {
+      setRecentLogs(swrData.recentLogs.logs)
+    }
+
+    // 最近のメッセージ
+    if (!swrData.recentMessages.error) {
+      setRecentMessages(swrData.recentMessages.messages)
+    }
+
+    // 振り返り完了状態
+    if (!swrData.reflection.error) {
+      setIsReflectCompleted(swrData.reflection.completed)
+    }
+
+    console.log("✅ [SWR] All state updated from SWR data")
+  }, [swrData])
+
+  // 🚀 SWR: ローディング状態を同期
+  useEffect(() => {
+    // SWRのローディング状態を反映（初期データがある場合は即座に表示）
+    if (!selectedChild?.id) {
       setIsLoading(false)
       return
     }
-
-    // メモリキャッシュをチェック（5分以内のデータは再利用）
-    const cachedData = childDataCache[selectedChildId]
-    const now = Date.now()
-    const CACHE_DURATION = 5 * 60 * 1000 // 5分
-
-    if (cachedData && (now - cachedData.cachedAt < CACHE_DURATION)) {
-      console.log("✅ [CLIENT] Using cached data for child:", selectedChildId)
-      // キャッシュから即座に復元
-      setTodayStatusMessage(cachedData.todayStatusMessage)
-      setTodayStatusMessageCreatedAt(cachedData.todayStatusMessageCreatedAt)
-      setStudyStreak(cachedData.studyStreak)
-      setMaxStreak(cachedData.maxStreak)
-      setLastStudyDate(cachedData.lastStudyDate)
-      setTodayStudied(cachedData.todayStudied)
-      setStreakState(cachedData.streakState)
-      setTodayProgress(cachedData.todayProgress)
-      setCalendarData(cachedData.calendarData)
-      setWeeklyProgress(cachedData.weeklyProgress)
-      setSessionNumber(cachedData.sessionNumber)
-      setRecentLogs(cachedData.recentLogs)
-      setRecentMessages(cachedData.recentMessages)
-      setIsReflectCompleted(cachedData.isReflectCompleted)
+    // swrDataがある場合はローディング完了
+    if (swrData) {
       setIsLoading(false)
-      return
+    } else if (swrLoading) {
+      setIsLoading(true)
     }
+  }, [selectedChild?.id, swrData, swrLoading])
 
-    console.log("🔍 [CLIENT] Fetching data for child:", selectedChildId)
-    setIsLoading(true)
+  // 🚀 SWR: 子ども選択時に他の子どものデータをプリフェッチ
+  useEffect(() => {
+    if (!children || children.length <= 1) return
 
-    const fetchChildData = async () => {
-      try {
-        const {
-          getTodayStatusMessageAI,
-          getStudentStreak,
-          getStudentTodayMissionData,
-          getStudentWeeklyProgress,
-          getStudentCalendarData,
-          getStudentRecentLogs,
-          getStudentRecentMessages,
-          checkStudentWeeklyReflection,
-        } = await import("@/app/actions/parent-dashboard")
-
-        // 🚀 改善: getTodayLogCountを削除し、サーバー側のキャッシュ管理に一本化
-        // サーバー側の getTodayStatusMessageAI がキャッシュを自動管理
-
-        // Fetch data in parallel
-        const fetchPromises = [
-          getTodayStatusMessageAI(selectedChildId),
-          getStudentStreak(selectedChildId),
-          getStudentTodayMissionData(selectedChildId),
-          getStudentWeeklyProgress(selectedChildId),
-          getStudentCalendarData(selectedChildId),
-          getStudentRecentLogs(selectedChildId, 50),
-          getStudentRecentMessages(selectedChildId, 3),
-          checkStudentWeeklyReflection(selectedChildId),
-        ]
-
-        const [
-          statusMsg,
-          streakResult,
-          todayMission,
-          weeklySubject,
-          calendar,
-          logsResult,
-          messagesResult,
-          reflectionResult,
-        ] = await Promise.all(fetchPromises) as [
-          { message: string; createdAt?: string } | { error: string },
-          { streak: number } | { error: string },
-          { todayProgress: any[] } | { error: string },
-          { progress: any[]; sessionNumber: number | null } | { error: string },
-          { calendarData: any } | { error: string },
-          { logs: any[] } | { error: string },
-          { messages: any[] } | { error: string },
-          { completed: boolean } | { error: string }
-        ]
-
-        if (!isError(statusMsg)) {
-          setTodayStatusMessage((statusMsg as { message: string }).message)
-          setTodayStatusMessageCreatedAt((statusMsg as { message: string; createdAt?: string }).createdAt || null)
-        } else {
-          console.error("❌ [CLIENT] Status message error:", (statusMsg as { error: string }).error)
-        }
-
-        if (!isError(streakResult)) {
-          const streak = streakResult as { streak: number; maxStreak: number; lastStudyDate: string | null; todayStudied: boolean; state: "active" | "grace" | "warning" | "reset" }
-          setStudyStreak(streak.streak)
-          setMaxStreak(streak.maxStreak)
-          setLastStudyDate(streak.lastStudyDate)
-          setTodayStudied(streak.todayStudied)
-          setStreakState(streak.state)
-        } else {
-          console.error("❌ [CLIENT] Streak error:", (streakResult as { error: string }).error)
-        }
-
-        if (!isError(todayMission)) {
-          console.log("🔍 [CLIENT] Today progress received:", (todayMission as { todayProgress: any[] }).todayProgress)
-          setTodayProgress((todayMission as { todayProgress: any[] }).todayProgress)
-        } else {
-          console.error("❌ [CLIENT] Today mission error:", (todayMission as { error: string }).error)
-          setTodayProgress([])
-        }
-
-        if (!isError(weeklySubject)) {
-          const weeklyData = weeklySubject as { progress: any[]; sessionNumber: number | null }
-          console.log("🔍 [CLIENT] Weekly progress received:", weeklyData.progress)
-          setWeeklyProgress(weeklyData.progress)
-          setSessionNumber(weeklyData.sessionNumber)
-        } else {
-          console.error("❌ [CLIENT] Weekly progress error:", (weeklySubject as { error: string }).error)
-          setWeeklyProgress([])
-          setSessionNumber(null)
-        }
-
-        if (!isError(calendar)) {
-          setCalendarData((calendar as { calendarData: any }).calendarData)
-        } else {
-          console.error("❌ [CLIENT] Calendar error:", (calendar as { error: string }).error)
-          setCalendarData({})
-        }
-
-        if (!isError(logsResult)) {
-          setRecentLogs((logsResult as { logs: any[] }).logs)
-        } else {
-          console.error("❌ [CLIENT] Recent logs error:", (logsResult as { error: string }).error)
-          setRecentLogs([])
-        }
-
-        if (!isError(messagesResult)) {
-          setRecentMessages((messagesResult as { messages: any[] }).messages)
-        } else {
-          console.error("❌ [CLIENT] Recent messages error:", (messagesResult as { error: string }).error)
-          setRecentMessages([])
-        }
-
-        // 振り返り完了状態を設定
-        if (!isError(reflectionResult)) {
-          setIsReflectCompleted((reflectionResult as { completed: boolean }).completed)
-        } else {
-          console.error("❌ [CLIENT] Reflection check error:", (reflectionResult as { error: string }).error)
-          setIsReflectCompleted(false)
-        }
-
-        // 全データをメモリキャッシュに保存
-        const newCacheData = {
-          todayStatusMessage: !isError(statusMsg) ? (statusMsg as { message: string }).message : "",
-          todayStatusMessageCreatedAt: !isError(statusMsg) ? (statusMsg as { message: string; createdAt?: string }).createdAt || null : null,
-          studyStreak: !isError(streakResult) ? (streakResult as any).streak : 0,
-          maxStreak: !isError(streakResult) ? (streakResult as any).maxStreak : 0,
-          lastStudyDate: !isError(streakResult) ? (streakResult as any).lastStudyDate : null,
-          todayStudied: !isError(streakResult) ? (streakResult as any).todayStudied : false,
-          streakState: !isError(streakResult) ? (streakResult as any).state : "reset" as const,
-          todayProgress: !isError(todayMission) ? (todayMission as { todayProgress: any[] }).todayProgress : [],
-          calendarData: !isError(calendar) ? (calendar as { calendarData: any }).calendarData : {},
-          weeklyProgress: !isError(weeklySubject) ? (weeklySubject as { progress: any[] }).progress : [],
-          sessionNumber: !isError(weeklySubject) ? (weeklySubject as { sessionNumber: number | null }).sessionNumber : null,
-          recentLogs: !isError(logsResult) ? (logsResult as { logs: any[] }).logs : [],
-          recentMessages: !isError(messagesResult) ? (messagesResult as { messages: any[] }).messages : [],
-          isReflectCompleted: !isError(reflectionResult) ? (reflectionResult as { completed: boolean }).completed : false,
-          cachedAt: Date.now(),
-        }
-
-        setChildDataCache(prev => ({
-          ...prev,
-          [selectedChildId]: newCacheData
-        }))
-
-        console.log("💾 [CLIENT] Cached data for child:", selectedChildId)
-        console.log("🔍 [CLIENT] All child data fetched successfully")
-      } catch (error) {
-        console.error("Failed to fetch child data:", error)
-      } finally {
-        console.log("🔍 [CLIENT] Setting loading to false")
-        setIsLoading(false)
+    // 選択されていない子どものデータを事前取得
+    children.forEach((child) => {
+      if (child.id !== selectedChild?.id) {
+        prefetchChildDashboard(child.id)
       }
-    }
-
-    fetchChildData()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedChild?.id, profileLoading])
+    })
+  }, [children, selectedChild?.id])
 
   // 全ての子供の今日の応援状況をチェック
   useEffect(() => {
@@ -1895,6 +1754,16 @@ function ParentDashboardInner({
         />
 
         <div className="max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+          {/* 🚀 SWR: 更新状態インジケーター */}
+          {swrValidating && (
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground bg-blue-50 rounded-full px-3 py-1.5 w-fit mx-auto">
+              <RefreshCw className="h-3 w-3 animate-spin" />
+              <span>更新中...</span>
+            </div>
+          )}
+        </div>
+
+        <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
           <div className="space-y-8 lg:space-y-0">
             {/* スマホでの表示順序 */}
             <div className="lg:hidden space-y-8">
