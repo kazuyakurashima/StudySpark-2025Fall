@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -10,67 +10,58 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import CoachBottomNavigation from "@/components/coach-bottom-navigation"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
-import { Heart, Star, ThumbsUp, Sparkles, MessageSquare, ChevronDown, ChevronUp, Loader2, AlertTriangle } from "lucide-react"
+import { Heart, Star, ThumbsUp, Sparkles, MessageSquare, ChevronDown, ChevronUp, Loader2, AlertTriangle, RefreshCw } from "lucide-react"
 import {
-  getAllStudyLogsForCoach,
-  getInactiveStudents,
   sendCoachQuickEncouragement,
   generateCoachAIEncouragement,
   sendCoachCustomEncouragement,
 } from "@/app/actions/encouragement"
 import type { QuickEncouragementType } from "@/lib/openai/prompts"
 import { getAvatarById } from "@/lib/constants/avatars"
+import {
+  useCoachStudyLogs,
+  useCoachInactiveStudents,
+  type StudyLogsFilters,
+} from "@/lib/hooks/use-coach-encouragement"
 
 export default function CoachEncouragementPage() {
   const [activeTab, setActiveTab] = useState<"encouragement" | "inactive">("encouragement")
-  const [studyLogs, setStudyLogs] = useState<any[]>([])
-  const [inactiveStudents, setInactiveStudents] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
 
-  const [filters, setFilters] = useState({
-    grade: "all" as "5" | "6" | "all",
-    subject: "all" as string,
-    encouragementType: "none" as "coach" | "parent" | "none" | "all",
-    sortOrder: "desc" as "asc" | "desc",
+  // フィルター状態
+  const [filters, setFilters] = useState<StudyLogsFilters>({
+    grade: "all",
+    subject: "all",
+    encouragementType: "none",
+    sortOrder: "desc",
   })
-
   const [inactiveThreshold, setInactiveThreshold] = useState<3 | 5 | 7>(7)
 
+  // SWRフックでデータを取得（フィルターごとにキャッシュ）
+  const {
+    studyLogs,
+    isLoading: logsLoading,
+    isValidating: logsValidating,
+    mutate: mutateLogs,
+  } = useCoachStudyLogs(filters)
+
+  const {
+    inactiveStudents,
+    isLoading: inactiveLoading,
+    isValidating: inactiveValidating,
+    mutate: mutateInactive,
+  } = useCoachInactiveStudents(inactiveThreshold)
+
+  // AI応援ダイアログ状態
   const [aiDialogOpen, setAiDialogOpen] = useState<{ studentId: string; logId: string } | null>(null)
   const [aiMessages, setAiMessages] = useState<string[]>([])
   const [aiLoading, setAiLoading] = useState(false)
   const [selectedAiMessage, setSelectedAiMessage] = useState<string | null>(null)
   const [editingMessage, setEditingMessage] = useState("")
 
+  // カスタム応援ダイアログ状態
   const [customDialogOpen, setCustomDialogOpen] = useState<{ studentId: string; logId: string | null } | null>(null)
   const [customMessage, setCustomMessage] = useState("")
-
-  useEffect(() => {
-    if (activeTab === "encouragement") {
-      loadStudyLogs()
-    } else {
-      loadInactiveStudents()
-    }
-  }, [activeTab, filters, inactiveThreshold])
-
-  const loadStudyLogs = async () => {
-    setLoading(true)
-    const result = await getAllStudyLogsForCoach(filters)
-    if (result.success) {
-      setStudyLogs(result.logs)
-    }
-    setLoading(false)
-  }
-
-  const loadInactiveStudents = async () => {
-    setLoading(true)
-    const result = await getInactiveStudents(inactiveThreshold)
-    if (result.success) {
-      setInactiveStudents(result.students)
-    }
-    setLoading(false)
-  }
 
   const toggleCard = (logId: string) => {
     const newExpanded = new Set(expandedCards)
@@ -85,7 +76,7 @@ export default function CoachEncouragementPage() {
   const handleQuickEncouragement = async (studentId: string, studyLogId: string, quickType: QuickEncouragementType) => {
     const result = await sendCoachQuickEncouragement(studentId, studyLogId, quickType)
     if (result.success) {
-      await loadStudyLogs()
+      mutateLogs()
     } else {
       alert(result.error)
     }
@@ -120,7 +111,7 @@ export default function CoachEncouragementPage() {
     const result = await sendCoachCustomEncouragement(aiDialogOpen.studentId, aiDialogOpen.logId, editingMessage, "ai")
     if (result.success) {
       setAiDialogOpen(null)
-      await loadStudyLogs()
+      mutateLogs()
     } else {
       alert(result.error)
     }
@@ -133,23 +124,40 @@ export default function CoachEncouragementPage() {
     if (result.success) {
       setCustomDialogOpen(null)
       setCustomMessage("")
-      // Reload appropriate tab content
+      // SWRキャッシュを再取得
       if (activeTab === "encouragement") {
-        await loadStudyLogs()
+        mutateLogs()
       } else {
-        await loadInactiveStudents()
+        mutateInactive()
       }
     } else {
       alert(result.error)
     }
   }
 
+  // 現在のタブに応じたローディング状態
+  const isLoading = activeTab === "encouragement" ? logsLoading : inactiveLoading
+  const isValidating = activeTab === "encouragement" ? logsValidating : inactiveValidating
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 pb-20">
       <UserProfileHeader />
       <div className="bg-white border-b border-slate-200 p-4">
-        <h1 className="text-2xl font-bold text-slate-800">応援</h1>
-        <p className="text-sm text-slate-600 mt-1">生徒の学習を応援しましょう</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800">応援</h1>
+            <p className="text-sm text-slate-600 mt-1">生徒の学習を応援しましょう</p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => activeTab === "encouragement" ? mutateLogs() : mutateInactive()}
+            disabled={isValidating}
+            title="データを更新"
+          >
+            <RefreshCw className={`h-5 w-5 ${isValidating ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={(value: any) => setActiveTab(value)} className="w-full">
@@ -204,7 +212,7 @@ export default function CoachEncouragementPage() {
           </div>
 
           <div className="p-4 space-y-4">
-            {loading ? (
+            {logsLoading ? (
               <div className="flex justify-center items-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
@@ -338,7 +346,7 @@ export default function CoachEncouragementPage() {
           </div>
 
           <div className="p-4 space-y-4">
-            {loading ? (
+            {inactiveLoading ? (
               <div className="flex justify-center items-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
