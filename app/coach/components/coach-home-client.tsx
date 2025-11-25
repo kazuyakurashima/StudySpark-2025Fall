@@ -18,23 +18,44 @@ import {
   Sparkles,
   Clock,
   Calendar,
+  Target,
+  RefreshCw,
+  Loader2,
 } from "lucide-react"
 import { CoachBottomNavigation } from "@/components/coach-bottom-navigation"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { getAvatarById } from "@/lib/constants/avatars"
 import { sendEncouragementToStudent } from "@/app/actions/coach"
 import type { LearningRecordWithEncouragements, InactiveStudentData } from "@/app/actions/coach"
+import { PastExamSummaryList } from "./past-exam-summary-list"
+import { useCoachDashboard, type CoachDashboardData } from "@/lib/hooks/use-coach-dashboard"
 
 interface CoachHomeClientProps {
   initialRecords: LearningRecordWithEncouragements[]
   initialInactiveStudents: InactiveStudentData[]
 }
 
+/**
+ * SSR初期データをSWR形式に変換
+ */
+function transformSSRtoSWRData(
+  initialRecords: LearningRecordWithEncouragements[],
+  initialInactiveStudents: InactiveStudentData[]
+): Partial<CoachDashboardData> {
+  return {
+    records: { records: initialRecords },
+    inactiveStudents: { students: initialInactiveStudents },
+    fetchedAt: Date.now(),
+  }
+}
+
 const stamps = ["👍", "🎉", "💪", "✨", "🌟", "❤️", "😊", "🔥"]
 
 export function CoachHomeClient({ initialRecords, initialInactiveStudents }: CoachHomeClientProps) {
-  const [records] = useState(initialRecords)
-  const [inactiveStudents] = useState(initialInactiveStudents)
+  // SWRでデータを管理（SSRデータをfallbackとして使用）
+  const { records, inactiveStudents, isValidating, mutate } = useCoachDashboard(
+    transformSSRtoSWRData(initialRecords, initialInactiveStudents)
+  )
   const [gradeFilter, setGradeFilter] = useState("all")
   const [subjectFilter, setSubjectFilter] = useState("all")
   const [encouragementFilter, setEncouragementFilter] = useState("all")
@@ -73,6 +94,8 @@ export function CoachHomeClient({ initialRecords, initialInactiveStudents }: Coa
     } else {
       const nickname = record.studentNickname || record.studentName
       alert(`${nickname}さんに応援メッセージを送信しました！`)
+      // SWRデータを再取得
+      mutate()
     }
     setSelectedRecord(null)
     setCustomMessage("")
@@ -158,22 +181,40 @@ export function CoachHomeClient({ initialRecords, initialInactiveStudents }: Coa
         {/* Header */}
         <Card className="border-l-4 border-l-primary">
           <CardContent className="p-6">
-            <h1 className="text-2xl md:text-3xl font-bold mb-2">ホーム</h1>
-            <p className="text-muted-foreground">学習記録への応援と未入力生徒の管理</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold mb-2">ホーム</h1>
+                <p className="text-muted-foreground">学習記録への応援と未入力生徒の管理</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => mutate()}
+                disabled={isValidating}
+                className="flex items-center gap-2"
+              >
+                {isValidating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                <span className="hidden sm:inline">更新</span>
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
         <Tabs defaultValue="encouragement" className="space-y-6">
-          <TabsList className="bg-muted w-full md:w-auto">
+          <TabsList className="bg-muted w-full md:w-auto grid grid-cols-3">
             <TabsTrigger
               value="encouragement"
-              className="data-[state=active]:bg-background data-[state=active]:shadow-sm flex-1 md:flex-none"
+              className="data-[state=active]:bg-background data-[state=active]:shadow-sm"
             >
               学習記録への応援
             </TabsTrigger>
             <TabsTrigger
               value="inactive"
-              className="data-[state=active]:bg-background data-[state=active]:shadow-sm flex-1 md:flex-none"
+              className="data-[state=active]:bg-background data-[state=active]:shadow-sm"
             >
               未入力生徒一覧
               {filteredInactiveStudents.length > 0 && (
@@ -181,6 +222,13 @@ export function CoachHomeClient({ initialRecords, initialInactiveStudents }: Coa
                   {filteredInactiveStudents.length}
                 </Badge>
               )}
+            </TabsTrigger>
+            <TabsTrigger
+              value="pastexam"
+              className="data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              <Target className="h-4 w-4 mr-1" />
+              過去問演習
             </TabsTrigger>
           </TabsList>
 
@@ -648,6 +696,11 @@ export function CoachHomeClient({ initialRecords, initialInactiveStudents }: Coa
                 </Card>
               )}
             </div>
+          </TabsContent>
+
+          {/* Past Exam Summary Tab */}
+          <TabsContent value="pastexam" className="space-y-4">
+            <PastExamSummaryList />
           </TabsContent>
         </Tabs>
       </div>
