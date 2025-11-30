@@ -151,25 +151,6 @@ function LoginPageContent() {
           </CardContent>
         </Card>
 
-        {/* Demo Account Info */}
-        <div className="mt-6 p-4 bg-muted/30 rounded-lg border border-border/50">
-          <div className="space-y-2.5 text-sm">
-            <p className="text-xs text-muted-foreground mb-2">
-              デモアカウント（11/28まで有効）
-            </p>
-            <div className="flex justify-between items-center gap-3">
-              <span className="text-muted-foreground text-xs">生徒</span>
-              <code className="text-xs bg-background px-2.5 py-1 rounded font-mono">akira5, hikaru6 / demo2025</code>
-            </div>
-            <div className="flex justify-between items-center gap-3">
-              <span className="text-muted-foreground text-xs">保護者</span>
-              <code className="text-xs bg-background px-2.5 py-1 rounded font-mono">toshin.hitachi+test002@gmail.com / Testdemo2025</code>
-            </div>
-            <p className="text-xs text-muted-foreground mt-2 pt-2 border-t border-border/30">
-              セキュリティのため期間後にパスワードを変更します
-            </p>
-          </div>
-        </div>
       </div>
     </div>
   )
