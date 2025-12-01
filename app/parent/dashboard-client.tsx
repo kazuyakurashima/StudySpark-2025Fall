@@ -1128,6 +1128,11 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
       sessionDisplay = `第${log.session_id || 0}回`
     }
 
+    // coach_feedbacks はone-to-one関係なので配列の最初の要素を取得
+    const coachFeedbackText = Array.isArray(log.coach_feedbacks)
+      ? log.coach_feedbacks[0]?.feedback_text
+      : log.coach_feedbacks?.feedback_text
+
     return {
       id: log.id,
       studentRecordTime: formatDate(loggedAt),
@@ -1139,6 +1144,7 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
       accuracy: log.total_problems > 0 ? Math.round((log.correct_count / log.total_problems) * 100) : 0,
       previousAccuracy: null, // FUTURE: 前回の正答率取得（Phase 1後の機能拡張予定）
       reflection: log.reflection_text || "",
+      coachFeedback: coachFeedbackText || "",
     }
   })
 
@@ -1244,6 +1250,30 @@ const RecentLearningHistoryCard = ({ logs }: { logs: any[] }) => {
                       <p className="text-sm text-blue-800 leading-relaxed">
                         <span className="font-semibold">今日の振り返り:</span> {item.reflection}
                       </p>
+                    </div>
+                  )}
+                  {item.coachFeedback ? (
+                    <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-xl border border-purple-200">
+                      <div className="flex items-start gap-3">
+                        <Avatar className="h-10 w-10 border-2 border-purple-300 shadow-md flex-shrink-0">
+                          <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
+                          <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-bold text-xs">AI</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <p className="text-xs text-purple-600 font-semibold mb-1">AIコーチより</p>
+                          <p className="text-sm text-purple-800 leading-relaxed">{item.coachFeedback}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-8 w-8 border border-slate-300 flex-shrink-0 opacity-50">
+                          <AvatarImage src={getAvatarSrc("ai_coach") || "/placeholder.svg"} alt="AIコーチ" />
+                          <AvatarFallback className="bg-slate-300 text-slate-500 font-bold text-xs">AI</AvatarFallback>
+                        </Avatar>
+                        <p className="text-xs text-slate-500">AIコーチからのメッセージ準備中...</p>
+                      </div>
                     </div>
                   )}
                 </div>

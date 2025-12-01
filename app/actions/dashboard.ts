@@ -637,7 +637,12 @@ export async function getStudyStreak() {
 }
 
 /**
- * 直近の学習履歴取得（昨日0:00〜今日23:59）
+ * 直近の学習履歴取得（batch_id でグルーピング対応）
+ *
+ * 返却形式:
+ * - logs: 個別の学習ログ（batch_id付き）
+ * - batchFeedbacks: batch_id → feedback_text のマップ
+ * - groupedLogs: batch_id でグループ化されたログ配列（UI表示用）
  */
 export async function getRecentStudyLogs(limit: number = 5) {
   try {
@@ -657,7 +662,7 @@ export async function getRecentStudyLogs(limit: number = 5) {
       return { error: "生徒情報が見つかりません" }
     }
 
-    // Get recent study logs with related data (no date filtering, just order by study_date)
+    // Get recent study logs with related data (batch_id を含む)
     const { data: logs, error: logsError } = await supabase
       .from("study_logs")
       .select(
@@ -669,6 +674,7 @@ export async function getRecentStudyLogs(limit: number = 5) {
         total_problems,
         reflection_text,
         session_id,
+        batch_id,
         subjects (name, color_code),
         study_content_types (content_name),
         study_sessions (session_number, start_date, end_date)
@@ -677,17 +683,133 @@ export async function getRecentStudyLogs(limit: number = 5) {
       .eq("student_id", student.id)
       .order("study_date", { ascending: false })
       .order("logged_at", { ascending: false })
-      .limit(limit)
+      .limit(limit * 4) // バッチグループ化のため多めに取得
 
     if (logsError) {
       console.error("Get recent study logs error:", logsError)
       if (isMissingTable(logsError, "public.study_logs")) {
-        return { logs: [] }
+        return { logs: [], batchFeedbacks: {}, groupedLogs: [] }
       }
       return { error: "学習履歴の取得に失敗しました" }
     }
 
-    return { logs: logs || [] }
+    if (!logs || logs.length === 0) {
+      return { logs: [], batchFeedbacks: {}, groupedLogs: [] }
+    }
+
+    // batch_idを収集（NULL以外）
+    const batchIds = [...new Set(logs.map(log => log.batch_id).filter((id): id is string => id !== null))]
+
+    // batch_idがあるものはbatch単位でフィードバック取得
+    let batchFeedbacks: Record<string, string> = {}
+    if (batchIds.length > 0) {
+      const { data: feedbacks, error: feedbackError } = await supabase
+        .from("coach_feedbacks")
+        .select("batch_id, feedback_text")
+        .in("batch_id", batchIds)
+
+      if (!feedbackError && feedbacks) {
+        feedbacks.forEach(f => {
+          if (f.batch_id) {
+            batchFeedbacks[f.batch_id] = f.feedback_text
+          }
+        })
+      }
+    }
+
+    // batch_idがNULLのログ用にstudy_log_idベースでフィードバック取得（レガシー対応）
+    const legacyLogIds = logs.filter(log => log.batch_id === null).map(log => log.id)
+    let legacyFeedbacks: Record<number, string> = {}
+    if (legacyLogIds.length > 0) {
+      const { data: legacyFb, error: legacyError } = await supabase
+        .from("coach_feedbacks")
+        .select("study_log_id, feedback_text")
+        .in("study_log_id", legacyLogIds)
+        .is("batch_id", null)
+
+      if (!legacyError && legacyFb) {
+        legacyFb.forEach(f => {
+          legacyFeedbacks[f.study_log_id] = f.feedback_text
+        })
+      }
+    }
+
+    // batch_idでグループ化（UI表示用）
+    type LogType = typeof logs[0]
+    const batchGroups = new Map<string, LogType[]>()
+    const standaloneLogs: (LogType & { feedback?: string })[] = []
+
+    logs.forEach(log => {
+      if (log.batch_id) {
+        const group = batchGroups.get(log.batch_id) || []
+        group.push(log)
+        batchGroups.set(log.batch_id, group)
+      } else {
+        // batch_idがない場合は単独ログとして扱う
+        standaloneLogs.push({
+          ...log,
+          feedback: legacyFeedbacks[log.id] || undefined,
+        })
+      }
+    })
+
+    // グループ化されたログ配列を作成
+    type GroupedLogEntry = {
+      type: "batch"
+      batchId: string
+      logs: LogType[]
+      feedback?: string
+      study_date: string
+      logged_at: string
+    } | {
+      type: "single"
+      log: LogType & { feedback?: string }
+      study_date: string
+      logged_at: string
+    }
+
+    const groupedLogs: GroupedLogEntry[] = []
+
+    // バッチグループを追加
+    batchGroups.forEach((batchLogs, batchId) => {
+      // 日付でソート済みなので先頭が最新
+      const latestLog = batchLogs[0]
+      groupedLogs.push({
+        type: "batch",
+        batchId,
+        logs: batchLogs,
+        feedback: batchFeedbacks[batchId],
+        study_date: latestLog.study_date,
+        logged_at: latestLog.logged_at,
+      })
+    })
+
+    // 単独ログを追加
+    standaloneLogs.forEach(log => {
+      groupedLogs.push({
+        type: "single",
+        log,
+        study_date: log.study_date,
+        logged_at: log.logged_at,
+      })
+    })
+
+    // 日付順でソート
+    groupedLogs.sort((a, b) => {
+      const dateCompare = b.study_date.localeCompare(a.study_date)
+      if (dateCompare !== 0) return dateCompare
+      return b.logged_at.localeCompare(a.logged_at)
+    })
+
+    // limitを適用
+    const limitedGroupedLogs = groupedLogs.slice(0, limit)
+
+    return {
+      logs: logs || [],
+      batchFeedbacks,
+      legacyFeedbacks,
+      groupedLogs: limitedGroupedLogs,
+    }
   } catch (error) {
     console.error("Get recent study logs error:", error)
     return { error: "予期しないエラーが発生しました" }

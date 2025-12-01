@@ -101,8 +101,12 @@ export async function GET() {
             state: streakResult?.streakState || "reset",
           },
       recentLogs: logsResult?.error
-        ? { logs: [], error: logsResult.error }
-        : { logs: Array.isArray(logsResult?.logs) ? logsResult.logs : [] },
+        ? { logs: [], batchFeedbacks: {}, legacyFeedbacks: {}, error: logsResult.error }
+        : {
+            logs: Array.isArray(logsResult?.logs) ? logsResult.logs : [],
+            batchFeedbacks: logsResult?.batchFeedbacks || {},
+            legacyFeedbacks: logsResult?.legacyFeedbacks || {},
+          },
       recentMessages: !messagesResult?.success
         ? { messages: [], error: "メッセージ取得エラー" }
         : { messages: Array.isArray(messagesResult?.messages) ? messagesResult.messages : [] },

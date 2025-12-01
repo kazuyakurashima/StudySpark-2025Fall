@@ -21,7 +21,11 @@ import {
   getContentTypeId,
   getCurrentSession,
 } from "@/app/actions/study-log"
-import { generateDailyReflections } from "@/app/actions/ai-reflection"
+import {
+  generateCoachFeedback,
+  retryCoachFeedbackSave,
+  type StudyDataForFeedback,
+} from "@/app/actions/coach-feedback"
 import { UserProfileProvider, useUserProfile } from "@/lib/hooks/use-user-profile"
 
 const subjects = [
@@ -400,10 +404,16 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
   const [reflection, setReflection] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const [showReflectionOptions, setShowReflectionOptions] = useState(false)
-  const [aiReflections, setAiReflections] = useState<string[]>([])
-  const [isGeneratingAI, setIsGeneratingAI] = useState(false)
-  const [reflectionMode, setReflectionMode] = useState<"manual" | "ai" | null>(null)
+  // コーチフィードバック関連のstate
+  const [coachFeedback, setCoachFeedback] = useState<string | null>(null)
+  const [isGeneratingFeedback, setIsGeneratingFeedback] = useState(false)
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false)
+  const [feedbackSavedToDb, setFeedbackSavedToDb] = useState(true)
+  const [feedbackCanRetry, setFeedbackCanRetry] = useState(false)
+  const [isRetryingSave, setIsRetryingSave] = useState(false)
+  const [lastStudyLogId, setLastStudyLogId] = useState<number | null>(null)
+  const [lastBatchId, setLastBatchId] = useState<string | null>(null)
+  const [lastStudyLogIds, setLastStudyLogIds] = useState<number[]>([])
 
   // 初回マウント時に現在のセッションをサーバーから取得
   useEffect(() => {
@@ -567,81 +577,16 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
     }))
   }
 
-  const generateAIReflections = async () => {
-    setIsGeneratingAI(true)
-
-    try {
-      // 学習データを整形
-      const studyData = {
-        subjects: selectedSubjects,
-        details: {} as any,
-      }
-
-      // 各科目の学習内容詳細を追加
-      for (const subjectId of selectedSubjects) {
-        const contentDetails = subjectDetails[subjectId] || {}
-        const availableContent = getAvailableLearningContent(subjectId)
-
-        console.log(`[AI Reflection] Subject: ${subjectId}`)
-        console.log(`[AI Reflection] Content Details:`, contentDetails)
-        console.log(`[AI Reflection] Available Content:`, availableContent)
-
-        studyData.details[subjectId] = {}
-
-        for (const content of availableContent) {
-          const maxProblems = getProblemCount(subjectId, content.id)
-          const correctAnswers = contentDetails[content.id] || 0
-
-          console.log(`[AI Reflection] Content: ${content.name} (${content.id})`)
-          console.log(`[AI Reflection]   Max Problems: ${maxProblems}`)
-          console.log(`[AI Reflection]   Correct Answers: ${correctAnswers}`)
-
-          if (maxProblems > 0) {
-            studyData.details[subjectId][content.id] = {
-              contentName: content.name,
-              correct: correctAnswers,
-              total: maxProblems,
-            }
-          }
-        }
-      }
-
-      console.log(`[AI Reflection] Final Study Data:`, JSON.stringify(studyData, null, 2))
-
-      // AI生成を呼び出し
-      const result = await generateDailyReflections(studyData)
-
-      if (result.error) {
-        console.error("AI reflection generation error:", result.error)
-        // エラー時はフォールバックの定型文を使用
-        const studiedSubjects = selectedSubjects.map((id) => subjects.find((s) => s.id === id)?.name).join("、")
-        setAiReflections([
-          `今日は${studiedSubjects}の学習に取り組めました。特に難しい問題にも諦めずに挑戦できたのは素晴らしいことです。`,
-          `${studiedSubjects}を学習する中で、基礎をしっかり理解することの大切さに気づきました。一つひとつ丁寧に取り組むことで理解が深まります。`,
-          `明日は今日間違えた問題を復習し、もし分からない部分があれば先生に質問して、確実に理解してから次に進みます。`,
-        ])
-      } else if (result.reflections) {
-        setAiReflections(result.reflections)
-      }
-    } catch (error) {
-      console.error("Failed to generate AI reflections:", error)
-      // エラー時はフォールバックの定型文を使用
-      const studiedSubjects = selectedSubjects.map((id) => subjects.find((s) => s.id === id)?.name).join("、")
-      setAiReflections([
-        `今日は${studiedSubjects}の学習に取り組めました。特に難しい問題にも諦めずに挑戦できたのは素晴らしいことです。`,
-        `${studiedSubjects}を学習する中で、基礎をしっかり理解することの大切さに気づきました。一つひとつ丁寧に取り組むことで理解が深まります。`,
-        `明日は今日間違えた問題を復習し、もし分からない部分があれば先生に質問して、確実に理解してから次に進みます。`,
-      ])
-    } finally {
-      setIsGeneratingAI(false)
-    }
-  }
-
   const handleSubmit = async () => {
     setIsSubmitting(true)
 
     try {
       // 1. Get session_id from Supabase (not from local mapping)
+      if (!selectedSession) {
+        alert("学習回を選択してください")
+        setIsSubmitting(false)
+        return
+      }
       const sessionNumber = parseInt(selectedSession.replace("session", ""))
       const grade = parseInt(studentGrade)
 
@@ -728,22 +673,74 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
 
       const result = await saveStudyLog(logs)
 
-      if (result.error) {
+      if ("error" in result) {
         alert(`エラー: ${result.error}`)
         setIsSubmitting(false)
         return
       }
 
-      // Reset form
+      // 保存成功 - コーチフィードバック生成開始
+      setIsSubmitting(false)
+      setIsGeneratingFeedback(true)
+      setShowFeedbackModal(true)
+
+      // 数値subject_id → 科目名マップ（DBのsubjects.idに対応）
+      const subjectIdToName: { [key: number]: string } = {
+        1: "算数",
+        2: "国語",
+        3: "理科",
+        4: "社会",
+      }
+
+      const feedbackData: StudyDataForFeedback = {
+        subjects: logs.map((log) => ({
+          name: subjectIdToName[log.subject_id] || "不明",
+          correct: log.correct_count,
+          total: log.total_problems,
+          accuracy: log.total_problems > 0
+            ? Math.round((log.correct_count / log.total_problems) * 100)
+            : 0,
+        })),
+        reflectionText: reflection || undefined,
+      }
+
+      // コーチフィードバック生成（batchIdベース）
+      if (result.studyLogIds.length > 0) {
+        setLastStudyLogId(result.studyLogIds[0])
+        setLastBatchId(result.batchId)
+        setLastStudyLogIds(result.studyLogIds)
+
+        const feedbackResult = await generateCoachFeedback(
+          result.studentId,
+          result.sessionId,
+          result.batchId,
+          result.studyLogIds,
+          feedbackData
+        )
+
+        if (feedbackResult.success) {
+          setCoachFeedback(feedbackResult.feedback)
+          setFeedbackSavedToDb(feedbackResult.savedToDb)
+          setFeedbackCanRetry(!feedbackResult.savedToDb) // DB未保存時はリトライ可能
+        } else {
+          // エラー時はフォールバックを表示
+          setCoachFeedback(feedbackResult.fallbackFeedback)
+          setFeedbackSavedToDb(false)
+          setFeedbackCanRetry(feedbackResult.canRetry)
+        }
+      } else {
+        // studyLogIdがない場合はフォールバック（静的メッセージ）
+        setCoachFeedback("今日も学習お疲れさま！頑張ったね！")
+        setFeedbackSavedToDb(true) // 保存対象がないので警告不要
+        setFeedbackCanRetry(false)
+      }
+
+      setIsGeneratingFeedback(false)
+
+      // フォームリセット（モーダルが閉じられた後も維持）
       setSelectedSubjects([])
       setSubjectDetails({})
       setReflection("")
-      setShowReflectionOptions(false)
-      setAiReflections([])
-      setReflectionMode(null)
-      setIsSubmitting(false)
-
-      alert("学習記録を保存しました！")
 
       // ページトップにスムーズスクロール
       window.scrollTo({ top: 0, behavior: "smooth" })
@@ -779,6 +776,27 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
         return inputValue !== undefined && inputValue >= 0
       })
     })
+  }
+
+  // フィードバックのDB保存リトライ
+  const handleRetryFeedbackSave = async () => {
+    if (!lastBatchId || !lastStudyLogId || !coachFeedback) return
+
+    setIsRetryingSave(true)
+    try {
+      const result = await retryCoachFeedbackSave(lastBatchId, lastStudyLogId, coachFeedback)
+      if (result.success) {
+        setFeedbackSavedToDb(true)
+        setFeedbackCanRetry(false)
+      } else {
+        // リトライ失敗時は警告を維持
+        console.error("Retry save failed:", result.error)
+      }
+    } catch (error) {
+      console.error("Retry save error:", error)
+    } finally {
+      setIsRetryingSave(false)
+    }
   }
 
   const CurrentLevelIcon = levels[currentLevel].icon
@@ -839,7 +857,7 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
           </CardHeader>
           <CardContent className="pt-6">
             <div className="space-y-4">
-              <Select value={selectedSession} onValueChange={handleSessionChange}>
+              <Select value={selectedSession ?? undefined} onValueChange={handleSessionChange}>
                 <SelectTrigger className="w-full h-14 text-base border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 rounded-xl shadow-sm">
                   <SelectValue placeholder="学習回を選択してください" />
                 </SelectTrigger>
@@ -1128,144 +1146,22 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
-            {!showReflectionOptions ? (
-              <div className="grid grid-cols-1 gap-6">
-                <Button
-                  onClick={() => {
-                    setShowReflectionOptions(true)
-                    setReflectionMode("manual")
-                    setReflection("")
-                    setAiReflections([])
-                  }}
-                  variant="outline"
-                  className="h-auto w-full whitespace-normal p-6 text-left border-2 border-slate-200 hover:border-purple-400 hover:bg-purple-50/70 transition-all duration-300 rounded-xl shadow-lg hover:shadow-xl"
-                >
-                  <div>
-                    <div className="font-bold text-lg text-slate-800">今日の振り返りをする</div>
-                    <div className="text-base text-slate-600 mt-2">自分の言葉で今日の学習を振り返る</div>
-                  </div>
-                </Button>
-
-                <Button
-                  onClick={() => {
-                    setShowReflectionOptions(true)
-                    setReflectionMode("ai")
-                    setReflection("")
-                    generateAIReflections()
-                  }}
-                  variant="outline"
-                  className="h-auto w-full whitespace-normal p-6 text-left border-2 border-slate-200 hover:border-blue-400 hover:bg-blue-50/70 transition-all duration-300 rounded-xl shadow-lg hover:shadow-xl"
-                >
-                  <div className="flex items-start gap-4">
-                    <Avatar className="h-12 w-12 border-2 border-blue-200 shadow-lg flex-shrink-0">
-                      <AvatarImage src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png" />
-                      <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-bold">
-                        <Bot className="h-6 w-6" />
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-bold text-lg text-slate-800">今日の振り返りを生成</div>
-                      <div className="text-base text-slate-600 mt-2 break-words">AIコーチが学習記録に基づいた3つの選択肢を作成</div>
-                    </div>
-                  </div>
-                </Button>
+            <div className="space-y-4">
+              <p className="text-base text-slate-600">
+                今日の学習で感じたことや気づいたことを自由に書いてみましょう。
+              </p>
+              <Textarea
+                placeholder="例：今日は算数の計算問題がスムーズに解けた！"
+                value={reflection}
+                onChange={(e) => setReflection(e.target.value)}
+                className="min-h-[120px] text-lg border-2 border-slate-300 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 p-4 rounded-xl shadow-lg"
+                maxLength={200}
+              />
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-slate-500">目安80-120字</span>
+                <span className="text-sm text-slate-500">{reflection.length}/200文字</span>
               </div>
-            ) : (
-              <div className="space-y-6">
-                {reflectionMode === "manual" && (
-                  <div className="space-y-4">
-                    <Textarea
-                      placeholder="今日の学習はどうでしたか?感じたことや気づいたことを自由に書いてみましょう。"
-                      value={reflection}
-                      onChange={(e) => setReflection(e.target.value)}
-                      className="min-h-[160px] text-lg border-2 border-slate-300 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 p-6 rounded-xl shadow-lg"
-                      maxLength={200}
-                    />
-                    <div className="flex justify-between items-center">
-                      <span className="text-base text-slate-600 font-bold">目安80-120字</span>
-                      <span className="text-base text-slate-600 font-bold">{reflection.length}/200文字</span>
-                    </div>
-                  </div>
-                )}
-
-                {reflectionMode === "ai" && (
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-4 p-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200 shadow-lg">
-                      <Avatar className="h-14 w-14 border-3 border-blue-300 shadow-xl flex-shrink-0">
-                        <AvatarImage src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png" />
-                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-bold">
-                          <Bot className="h-7 w-7" />
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="font-bold text-xl text-slate-800 mb-2">AIコーチ</div>
-                        <div className="text-base text-slate-600 leading-relaxed">
-                          あなたの学習記録を分析して振り返りを作成しました
-                        </div>
-                      </div>
-                    </div>
-
-                    {isGeneratingAI ? (
-                      <div className="flex items-center justify-center py-16 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl border border-blue-200 shadow-lg">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-600"></div>
-                        <span className="ml-6 text-xl text-slate-700 font-medium">振り返りを生成中...</span>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 shadow-lg">
-                          <p className="text-lg text-slate-700 font-medium leading-relaxed">
-                            学習内容に基づいて3つの振り返りを生成しました。気に入ったものを選んでください:
-                          </p>
-                        </div>
-                        <div className="space-y-4">
-                          {aiReflections.map((reflectionText, index) => {
-                            const colors = [
-                              "border-green-300 hover:bg-green-50 hover:border-green-400",
-                              "border-blue-300 hover:bg-blue-50 hover:border-blue-400",
-                              "border-purple-300 hover:bg-purple-50 hover:border-purple-400",
-                            ]
-                            const selectedColors = [
-                              "bg-gradient-to-r from-green-500 to-green-600 text-white shadow-xl border-green-500",
-                              "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-xl border-blue-500",
-                              "bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-xl border-purple-500",
-                            ]
-                            return (
-                              <Button
-                                key={index}
-                                onClick={() => setReflection(reflectionText)}
-                                variant="outline"
-                                className={`h-auto p-6 text-left w-full border-2 transition-all duration-300 rounded-xl shadow-lg hover:shadow-xl ${
-                                  reflection === reflectionText ? selectedColors[index] : `bg-white ${colors[index]}`
-                                }`}
-                              >
-                                <div className="text-base leading-relaxed font-medium break-words whitespace-normal overflow-wrap-anywhere">
-                                  {reflectionText}
-                                </div>
-                              </Button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="flex gap-4">
-                  <Button
-                    onClick={() => {
-                      setShowReflectionOptions(false)
-                      setReflectionMode(null)
-                      setReflection("")
-                      setAiReflections([])
-                    }}
-                    variant="outline"
-                    className="px-8 py-3 border-2 border-slate-300 hover:bg-slate-50 rounded-xl shadow-lg font-bold"
-                  >
-                    戻る
-                  </Button>
-                </div>
-              </div>
-            )}
+            </div>
           </CardContent>
         </Card>
 
@@ -1288,6 +1184,74 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
           </div>
         )}
       </div>
+
+      {/* コーチフィードバックモーダル */}
+      {showFeedbackModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-6 animate-in fade-in zoom-in duration-300">
+            <div className="flex items-center gap-4">
+              <Avatar className="h-16 w-16 border-3 border-blue-300 shadow-xl flex-shrink-0">
+                <AvatarImage src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png" />
+                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-bold">
+                  <Bot className="h-8 w-8" />
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <h3 className="text-xl font-bold text-slate-800">AIコーチからのメッセージ</h3>
+                <p className="text-sm text-slate-500">学習記録を保存しました</p>
+              </div>
+            </div>
+
+            {isGeneratingFeedback ? (
+              <div className="flex items-center justify-center py-8 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-4 border-blue-600"></div>
+                <span className="ml-4 text-lg text-slate-700 font-medium">メッセージ生成中...</span>
+              </div>
+            ) : (
+              <>
+                <div className="p-5 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl border border-blue-200">
+                  <p className="text-lg text-slate-700 leading-relaxed">
+                    {coachFeedback}
+                  </p>
+                </div>
+
+                {/* DB保存失敗時の警告 */}
+                {!feedbackSavedToDb && (
+                  <div className="p-4 bg-amber-50 rounded-xl border border-amber-200">
+                    <p className="text-sm text-amber-800 mb-2">
+                      ⚠️ メッセージの保存に失敗しました。後で履歴に表示されない可能性があります。
+                    </p>
+                    {feedbackCanRetry && (
+                      <Button
+                        onClick={handleRetryFeedbackSave}
+                        variant="outline"
+                        size="sm"
+                        disabled={isRetryingSave}
+                        className="text-amber-700 border-amber-300 hover:bg-amber-100"
+                      >
+                        {isRetryingSave ? "保存中..." : "再保存する"}
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
+            <Button
+              onClick={() => {
+                setShowFeedbackModal(false)
+                setCoachFeedback(null)
+                setFeedbackSavedToDb(true)
+                setFeedbackCanRetry(false)
+              }}
+              className="w-full h-14 text-lg font-bold bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl shadow-lg"
+              disabled={isGeneratingFeedback || isRetryingSave}
+            >
+              閉じる
+            </Button>
+          </div>
+        </div>
+      )}
 
       <BottomNavigation activeTab="spark" />
     </div>

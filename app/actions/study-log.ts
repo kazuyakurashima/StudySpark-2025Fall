@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
+import crypto from "crypto"
 
 export type StudyLogInput = {
   session_id: number
@@ -12,6 +13,18 @@ export type StudyLogInput = {
   study_date?: string // YYYY-MM-DD format, defaults to today
   reflection_text?: string
 }
+
+export type SaveStudyLogResult =
+  | {
+      success: true
+      studentId: number
+      sessionId: number
+      studyLogIds: number[]
+      batchId: string
+    }
+  | {
+      error: string
+    }
 
 /**
  * 現在の学習回をデータベースから取得（JST基準）
@@ -58,8 +71,9 @@ export async function getCurrentSession(grade: number) {
 
 /**
  * 学習ログを保存（新規作成または更新）
+ * @returns 成功時は studentId, sessionId, studyLogIds を返す
  */
-export async function saveStudyLog(logs: StudyLogInput[]) {
+export async function saveStudyLog(logs: StudyLogInput[]): Promise<SaveStudyLogResult> {
   try {
     const supabase = await createClient()
 
@@ -86,6 +100,15 @@ export async function saveStudyLog(logs: StudyLogInput[]) {
 
     // Import date utility
     const { getTodayJST } = await import("@/lib/utils/date-jst")
+
+    // 【セーフガード】session_id混在チェック（全ログが同一session_idであること）
+    const sessionIds = new Set(logs.map(log => log.session_id))
+    if (sessionIds.size > 1) {
+      console.error("Multiple session_ids in single save:", Array.from(sessionIds))
+      return {
+        error: "異なる学習回のデータを同時に保存することはできません。ページを再読み込みして、もう一度お試しください。"
+      }
+    }
 
     // 【セーフガード】各ログのsession_idが有効かチェック
     for (const log of logs) {
@@ -120,15 +143,17 @@ export async function saveStudyLog(logs: StudyLogInput[]) {
     // Check for existing logs for the same session/subject/content combinations
     const logsToUpdate: any[] = []
     const logsToInsert: any[] = []
+    const existingBatchIds: Set<string> = new Set()
 
     for (const log of logs) {
       const logStudyDate = log.study_date || studyDate
       const logReflectionText = log.reflection_text || reflectionText
 
       // maybeSingle()を使用してエラーハンドリングを改善
+      // batch_id も取得
       const { data: existingLog, error: checkError } = await supabase
         .from("study_logs")
-        .select("id, version")
+        .select("id, version, batch_id")
         .eq("student_id", student.id)
         .eq("session_id", log.session_id)
         .eq("subject_id", log.subject_id)
@@ -143,6 +168,10 @@ export async function saveStudyLog(logs: StudyLogInput[]) {
       }
 
       if (existingLog) {
+        // 既存レコードの batch_id を収集
+        if (existingLog.batch_id) {
+          existingBatchIds.add(existingLog.batch_id)
+        }
         // Update existing log (楽観的ロック)
         logsToUpdate.push({
           id: existingLog.id,
@@ -151,6 +180,7 @@ export async function saveStudyLog(logs: StudyLogInput[]) {
           study_date: logStudyDate,
           reflection_text: logReflectionText,
           version: existingLog.version,
+          batch_id: existingLog.batch_id, // 既存のbatch_idを保持
         })
       } else {
         // Insert new log
@@ -167,33 +197,68 @@ export async function saveStudyLog(logs: StudyLogInput[]) {
       }
     }
 
+    // 【重要】既存ログが複数の異なるbatch_idを持つ場合はエラー（データ整合性）
+    if (existingBatchIds.size > 1) {
+      console.error("Multiple batch_ids found in existing logs:", Array.from(existingBatchIds))
+      return {
+        error: "学習記録のデータ整合性エラーが発生しました。サポートにお問い合わせください。"
+      }
+    }
+
+    // batch_id 決定: 既存があれば引き継ぎ、なければ新規生成
+    const existingBatchId = existingBatchIds.size === 1
+      ? Array.from(existingBatchIds)[0]
+      : null
+    const batchId = existingBatchId || crypto.randomUUID()
+
     // デバッグログ
     console.log(`saveStudyLog: ${logsToInsert.length} records to insert, ${logsToUpdate.length} records to update`)
 
-    // Insert new logs
+    // Track saved study log IDs for return value
+    const savedStudyLogIds: number[] = []
+
+    // Insert new logs (batch_id を付与)
     if (logsToInsert.length > 0) {
-      const { error: insertError } = await supabase.from("study_logs").insert(logsToInsert)
+      const insertData = logsToInsert.map(log => ({
+        ...log,
+        batch_id: batchId,
+      }))
+
+      const { data: insertedLogs, error: insertError } = await supabase
+        .from("study_logs")
+        .insert(insertData)
+        .select("id")
 
       if (insertError) {
         console.error("Insert error:", insertError)
         return { error: `学習記録の保存に失敗しました: ${insertError.message}` }
       }
-      console.log(`Successfully inserted ${logsToInsert.length} study logs`)
+
+      if (insertedLogs) {
+        savedStudyLogIds.push(...insertedLogs.map(log => log.id))
+      }
+      console.log(`Successfully inserted ${logsToInsert.length} study logs with batch_id: ${batchId}`)
     }
 
-    // Update existing logs
+    // Update existing logs (batch_id がなければ付与)
     if (logsToUpdate.length > 0) {
       for (const log of logsToUpdate) {
-        const { error: updateError, data: updateData } = await supabase
+        const updateData: any = {
+          correct_count: log.correct_count,
+          total_problems: log.total_problems,
+          study_date: log.study_date,
+          reflection_text: log.reflection_text,
+          version: log.version + 1,
+          logged_at: new Date().toISOString(), // 更新日時を記録
+        }
+        // 既存に batch_id がなければ付与（レガシー対応）
+        if (!log.batch_id) {
+          updateData.batch_id = batchId
+        }
+
+        const { error: updateError, data: updateResult } = await supabase
           .from("study_logs")
-          .update({
-            correct_count: log.correct_count,
-            total_problems: log.total_problems,
-            study_date: log.study_date,
-            reflection_text: log.reflection_text,
-            version: log.version + 1,
-            logged_at: new Date().toISOString(), // 更新日時を記録
-          })
+          .update(updateData)
           .eq("id", log.id)
           .eq("version", log.version) // 楽観的ロック
           .select()
@@ -204,11 +269,12 @@ export async function saveStudyLog(logs: StudyLogInput[]) {
         }
 
         // 楽観的ロックの競合チェック
-        if (!updateData || updateData.length === 0) {
+        if (!updateResult || updateResult.length === 0) {
           console.error("Optimistic lock conflict: record was modified by another process")
           return { error: "記録が他の処理で更新されました。再度お試しください。" }
         }
 
+        savedStudyLogIds.push(log.id)
         console.log(`Successfully updated study log id: ${log.id}`)
       }
     }
@@ -216,7 +282,14 @@ export async function saveStudyLog(logs: StudyLogInput[]) {
     revalidatePath("/student")
     revalidatePath("/student/spark")
 
-    return { success: true }
+    // コーチフィードバック生成に必要な情報を返す
+    return {
+      success: true,
+      studentId: student.id,
+      sessionId: logs[0]?.session_id,
+      studyLogIds: savedStudyLogIds,
+      batchId: batchId,
+    }
   } catch (error) {
     console.error("Save study log error:", error)
     return { error: "予期しないエラーが発生しました" }

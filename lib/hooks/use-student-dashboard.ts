@@ -25,6 +25,8 @@ export interface StudentDashboardData {
   }
   recentLogs: {
     logs: any[]
+    batchFeedbacks?: Record<string, string>
+    legacyFeedbacks?: Record<number, string>
     error?: string
   }
   recentMessages: {
@@ -115,7 +117,7 @@ export function useStudentDashboard(fallbackData?: Partial<StudentDashboardData>
             profile: { nickname: "学習者", avatarId: "student1", themeColor: "default" },
             aiCoachMessage: { message: "", createdAt: null },
             streak: { streak: 0, maxStreak: 0, lastStudyDate: null, todayStudied: false, state: "reset" as const },
-            recentLogs: { logs: [] },
+            recentLogs: { logs: [], batchFeedbacks: {}, legacyFeedbacks: {} },
             recentMessages: { messages: [] },
             lastLoginInfo: null,
             todayProgress: { todayProgress: [] },

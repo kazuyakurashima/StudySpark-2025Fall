@@ -75,6 +75,8 @@ export default async function StudentDashboard() {
     todayStudied: streakResult?.todayStudied || false,
     streakState: streakResult?.streakState || "reset",
     recentLogs: Array.isArray(logsResult?.logs) ? logsResult.logs : [],
+    batchFeedbacks: logsResult?.batchFeedbacks || {},
+    legacyFeedbacks: logsResult?.legacyFeedbacks || {},
     recentMessages: messagesResult?.success && Array.isArray(messagesResult?.messages) ? messagesResult.messages : [],
     lastLoginInfo: (loginInfo && 'lastLoginDays' in loginInfo) ? loginInfo : null,
     todayProgress: Array.isArray(todayMission?.todayProgress) ? todayMission.todayProgress : [],
