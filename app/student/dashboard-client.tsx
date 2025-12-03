@@ -15,7 +15,7 @@ import { UserProfileProvider, useUserProfile } from "@/lib/hooks/use-user-profil
 import { hexWithAlpha, isThemeActive } from "@/lib/utils/theme-color"
 import { StreakCard } from "@/components/streak-card"
 import { useStudentDashboard, type StudentDashboardData as SWRDashboardData } from "@/lib/hooks/use-student-dashboard"
-import { groupLogsByBatch, getEntryLoggedAt, calculateSummary, calculateAccuracy } from "@/lib/utils/batch-grouping"
+import { groupLogsByBatch, getRepresentativeLog, calculateSummary, calculateAccuracy } from "@/lib/utils/batch-grouping"
 import type { StudyLogWithBatch, GroupedLogEntry, FeedbackMaps } from "@/lib/types/batch-grouping"
 
 interface DashboardData {
@@ -1114,16 +1114,14 @@ const RecentLearningHistoryCard = ({
   }
 
   const historyEntries: DisplayEntry[] = groupedEntries.map((entry) => {
+    // 代表ログを共通ユーティリティで取得（ロジック二重管理を防止）
+    const representativeLog = getRepresentativeLog(entry)
     if (entry.type === "batch") {
-      // バッチ内の最新ログを取得（ユーティリティでソート済み、latestLoggedAtと一致するログ）
-      const latestLog = entry.logs.reduce((latest, log) =>
-        new Date(log.logged_at).getTime() > new Date(latest.logged_at).getTime() ? log : latest
-      )
       return {
         ...entry,
         studentRecordTime: formatDate(entry.latestLoggedAt),
-        session: formatSession(latestLog),
-        reflection: latestLog.reflection_text || "",
+        session: formatSession(representativeLog),
+        reflection: representativeLog.reflection_text || "",
       }
     }
     return {
