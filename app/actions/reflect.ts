@@ -420,6 +420,7 @@ export async function getStudyHistory(params?: {
     .from("study_logs")
     .select(`
       id,
+      batch_id,
       logged_at,
       study_date,
       correct_count,
@@ -522,6 +523,7 @@ export async function getEncouragementHistory(params?: {
       related_study_log_id,
       study_logs:related_study_log_id (
         id,
+        batch_id,
         logged_at,
         study_date,
         correct_count,

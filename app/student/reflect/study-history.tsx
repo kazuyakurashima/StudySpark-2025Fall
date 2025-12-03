@@ -12,15 +12,24 @@ import {
 } from "@/components/ui/select"
 import { getStudyHistory } from "@/app/actions/reflect"
 import { getChildStudyHistory } from "@/app/actions/parent"
-import { BookOpen, TrendingUp, TrendingDown, Minus } from "lucide-react"
+import { BookOpen, TrendingUp, TrendingDown, Minus, Layers } from "lucide-react"
+import { groupLogsByBatch, calculateSummary, calculateAccuracy, getRepresentativeLog } from "@/lib/utils/batch-grouping"
+import type { GroupedLogEntry, StudyLogWithBatch } from "@/lib/types/batch-grouping"
 
 interface StudyHistoryProps {
   viewerRole?: "student" | "parent"
   studentId?: string
 }
 
+// 学習ログ型（APIレスポンスに合わせて拡張）
+interface StudyLogFromAPI extends StudyLogWithBatch {
+  subjects?: { id?: number; name: string; color_code: string } | null
+  study_content_types?: { id?: number; content_name: string } | null
+  study_sessions?: { id?: number; session_number: number; start_date: string; end_date: string } | null
+}
+
 export function StudyHistory({ viewerRole = "student", studentId }: StudyHistoryProps = {}) {
-  const [logs, setLogs] = useState<any[]>([])
+  const [entries, setEntries] = useState<GroupedLogEntry<StudyLogFromAPI>[]>([])
   const [loading, setLoading] = useState(true)
   const [subjectFilter, setSubjectFilter] = useState("all")
   const [periodFilter, setPeriodFilter] = useState("1month")
@@ -47,21 +56,44 @@ export function StudyHistory({ viewerRole = "student", studentId }: StudyHistory
         })
 
     if (!result.error && result.logs) {
-      let processedLogs = result.logs
+      // 学習ログをグループ化（batch_idでまとめる）
+      // 現時点ではフィードバックマップは空（学習履歴画面ではコーチフィードバック不要）
+      const logsWithSubject = result.logs.map((log: any) => ({
+        ...log,
+        subject: log.subjects?.name || "不明",
+      })) as StudyLogFromAPI[]
 
-      // 正答率でソートする場合
+      const grouped = groupLogsByBatch(logsWithSubject, {
+        batchFeedbacks: {},
+        legacyFeedbacks: {},
+      })
+
+      // sortByに応じてグループ化後のソートを適用
       if (sortBy === "accuracy") {
-        processedLogs = [...result.logs].sort((a, b) => {
-          const accA = a.total_problems > 0 ? (a.correct_count / a.total_problems) * 100 : 0
-          const accB = b.total_problems > 0 ? (b.correct_count / b.total_problems) * 100 : 0
+        // 正答率でソート
+        grouped.sort((a, b) => {
+          const summaryA = calculateSummary(a)
+          const summaryB = calculateSummary(b)
+          const accA = calculateAccuracy(summaryA.totalQuestions, summaryA.totalCorrect)
+          const accB = calculateAccuracy(summaryB.totalQuestions, summaryB.totalCorrect)
           return accB - accA
         })
+      } else if (sortBy === "session") {
+        // セッション番号でソート（代表ログのsession_idで比較）
+        grouped.sort((a, b) => {
+          const repA = getRepresentativeLog(a)
+          const repB = getRepresentativeLog(b)
+          const sessionA = repA.study_sessions?.session_number || repA.session_id || 0
+          const sessionB = repB.study_sessions?.session_number || repB.session_id || 0
+          return sessionB - sessionA // 降順
+        })
       }
+      // sortBy === "date" の場合は groupLogsByBatch のデフォルト（logged_at降順）のまま
 
-      setLogs(processedLogs)
+      setEntries(grouped)
 
       // 1ヶ月フィルターで5件未満の場合、全期間に切り替え
-      if (periodFilter === "1month" && processedLogs.length < 5) {
+      if (periodFilter === "1month" && grouped.length < 5) {
         setPeriodFilter("all")
       }
     }
@@ -160,27 +192,41 @@ export function StudyHistory({ viewerRole = "student", studentId }: StudyHistory
         {/* 学習履歴リスト */}
         {loading ? (
           <div className="text-center py-8 text-muted-foreground">読み込み中...</div>
-        ) : logs.length === 0 ? (
+        ) : entries.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             該当する学習履歴がありません
           </div>
         ) : (
           <div className="space-y-4">
-            {logs.map((log, index) => {
-              const { accuracy, changeIcon, changeText } = getAccuracyBadge(
-                log,
-                index < logs.length - 1 ? logs[index + 1].total_problems > 0
-                  ? Math.round((logs[index + 1].correct_count / logs[index + 1].total_problems) * 100)
-                  : 0
-                : undefined
+            {entries.map((entry, index) => {
+              // グループ化されたエントリから集計情報を取得
+              const summary = calculateSummary(entry)
+              const accuracy = calculateAccuracy(summary.totalQuestions, summary.totalCorrect)
+
+              // 前のエントリとの比較用
+              let prevAccuracy: number | undefined
+              if (index < entries.length - 1) {
+                const prevSummary = calculateSummary(entries[index + 1])
+                prevAccuracy = calculateAccuracy(prevSummary.totalQuestions, prevSummary.totalCorrect)
+              }
+
+              const { changeIcon, changeText } = getAccuracyBadge(
+                { total_problems: summary.totalQuestions, correct_count: summary.totalCorrect },
+                prevAccuracy
               )
 
-              const sessionNum = log.study_sessions?.session_number || log.session_id || 0
-              const startDate = log.study_sessions?.start_date
-                ? new Date(log.study_sessions.start_date)
+              // バッチ or 単独によって表示を分岐
+              const isBatch = entry.type === "batch"
+              // 代表ログを共通ユーティリティで取得（max(logged_at)と整合）
+              const representativeLog = getRepresentativeLog(entry)
+              const loggedAt = isBatch ? entry.latestLoggedAt : entry.log.logged_at
+
+              const sessionNum = representativeLog.study_sessions?.session_number || representativeLog.session_id || 0
+              const startDate = representativeLog.study_sessions?.start_date
+                ? new Date(representativeLog.study_sessions.start_date)
                 : null
-              const endDate = log.study_sessions?.end_date
-                ? new Date(log.study_sessions.end_date)
+              const endDate = representativeLog.study_sessions?.end_date
+                ? new Date(representativeLog.study_sessions.end_date)
                 : null
 
               let sessionDisplay = `第${sessionNum}回`
@@ -190,25 +236,51 @@ export function StudyHistory({ viewerRole = "student", studentId }: StudyHistory
                 sessionDisplay = `第${sessionNum}回(${startStr}〜${endStr})`
               }
 
+              // キー生成
+              const entryKey = isBatch ? `batch-${entry.batchId}` : `single-${entry.log.id}`
+
+              // 振り返りテキスト（単独の場合はそのまま、バッチの場合は代表ログから）
+              const reflectionText = isBatch
+                ? entry.logs.find(log => log.reflection_text)?.reflection_text
+                : entry.log.reflection_text
+
               return (
                 <div
-                  key={log.id}
+                  key={entryKey}
                   className="p-4 bg-muted/30 rounded-lg border border-border hover:shadow-md transition-shadow"
                 >
                   <div className="flex items-start justify-between gap-4 mb-2">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span
-                          className="inline-block w-3 h-3 rounded-full"
-                          style={{ backgroundColor: log.subjects?.color_code || "#666" }}
-                        ></span>
-                        <span className="font-semibold">{log.subjects?.name}</span>
-                        <span className="text-sm text-muted-foreground">
-                          {log.study_content_types?.content_name}
-                        </span>
-                      </div>
+                      {/* バッチの場合は複数科目を表示 */}
+                      {isBatch ? (
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <Layers className="h-4 w-4 text-muted-foreground" />
+                          {entry.logs.map((log, idx) => (
+                            <span key={log.id} className="flex items-center gap-1">
+                              <span
+                                className="inline-block w-3 h-3 rounded-full"
+                                style={{ backgroundColor: log.subjects?.color_code || "#666" }}
+                              ></span>
+                              <span className="font-semibold text-sm">{log.subjects?.name}</span>
+                              {idx < entry.logs.length - 1 && <span className="text-muted-foreground">·</span>}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 mb-1">
+                          <span
+                            className="inline-block w-3 h-3 rounded-full"
+                            style={{ backgroundColor: entry.log.subjects?.color_code || "#666" }}
+                          ></span>
+                          <span className="font-semibold">{entry.log.subjects?.name}</span>
+                          <span className="text-sm text-muted-foreground">
+                            {entry.log.study_content_types?.content_name}
+                          </span>
+                        </div>
+                      )}
                       <p className="text-xs text-muted-foreground">
-                        {formatDate(log.logged_at || log.study_date)} · {sessionDisplay}
+                        {formatDate(loggedAt || representativeLog.study_date)} · {sessionDisplay}
+                        {isBatch && <span className="ml-2 text-primary">（{entry.logs.length}科目同時記録）</span>}
                       </p>
                     </div>
 
@@ -216,7 +288,7 @@ export function StudyHistory({ viewerRole = "student", studentId }: StudyHistory
                       <div className="text-right">
                         <p className="text-2xl font-bold">{accuracy}%</p>
                         <p className="text-xs text-muted-foreground">
-                          {log.correct_count}/{log.total_problems}問
+                          {summary.totalCorrect}/{summary.totalQuestions}問
                         </p>
                       </div>
                       {changeIcon && (
@@ -228,12 +300,37 @@ export function StudyHistory({ viewerRole = "student", studentId }: StudyHistory
                     </div>
                   </div>
 
-                  {log.reflection_text && (
+                  {/* バッチの場合は各科目の内訳を表示 */}
+                  {isBatch && (
+                    <div className="mt-2 mb-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {entry.logs.map((log) => {
+                        const logAccuracy = log.total_problems > 0
+                          ? Math.round((log.correct_count / log.total_problems) * 100)
+                          : 0
+                        return (
+                          <div key={log.id} className="text-xs p-2 bg-background rounded border">
+                            <div className="flex items-center gap-1 mb-1">
+                              <span
+                                className="inline-block w-2 h-2 rounded-full"
+                                style={{ backgroundColor: log.subjects?.color_code || "#666" }}
+                              ></span>
+                              <span className="font-medium">{log.subjects?.name}</span>
+                            </div>
+                            <p className="text-muted-foreground">
+                              {logAccuracy}% ({log.correct_count}/{log.total_problems})
+                            </p>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {reflectionText && (
                     <div className="mt-3 p-3 bg-background rounded-md border-l-4 border-primary">
                       <p className="text-xs font-semibold text-muted-foreground mb-1">
                         今日の振り返り
                       </p>
-                      <p className="text-sm">{log.reflection_text}</p>
+                      <p className="text-sm">{reflectionText}</p>
                     </div>
                   )}
                 </div>

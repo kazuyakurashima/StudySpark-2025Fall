@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select"
 import { getEncouragementHistory } from "@/app/actions/reflect"
 import { getChildEncouragementHistory } from "@/app/actions/parent"
-import { Heart, ChevronDown, ChevronUp } from "lucide-react"
+import { Heart, ChevronDown, ChevronUp, Layers } from "lucide-react"
 
 interface EncouragementHistoryProps {
   viewerRole?: "student" | "parent"
@@ -271,9 +271,17 @@ export function EncouragementHistory({
                   {/* 学習記録詳細（デフォルト非表示、全表示モードまたは展開時に表示） */}
                   {(displayMode === "full" || isExpanded) && studyLog && (
                     <div className="mt-3 p-3 bg-white/80 rounded-md border-l-4 border-primary">
-                      <p className="text-xs font-semibold text-muted-foreground mb-2">
-                        関連する学習記録
-                      </p>
+                      <div className="flex items-center gap-2 mb-2">
+                        <p className="text-xs font-semibold text-muted-foreground">
+                          関連する学習記録
+                        </p>
+                        {studyLog.batch_id && (
+                          <span className="flex items-center gap-1 text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                            <Layers className="h-3 w-3" />
+                            同時記録
+                          </span>
+                        )}
+                      </div>
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
                           <span className="text-muted-foreground">生徒記録日時:</span>{" "}

@@ -431,6 +431,7 @@ export async function getChildStudyHistory(
     .from("study_logs")
     .select(`
       id,
+      batch_id,
       study_date,
       correct_count,
       total_problems,
@@ -542,6 +543,7 @@ export async function getChildEncouragementHistory(
       related_study_log_id,
       study_logs:related_study_log_id (
         id,
+        batch_id,
         logged_at,
         study_date,
         correct_count,

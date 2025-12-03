@@ -351,14 +351,14 @@ export function groupLogsByBatch<TLog extends StudyLogWithBatch>(
 
 | ID | タスク | Status | Note |
 |----|--------|--------|------|
-| 1-1 | getStudyHistory() batch対応 | ⬜ | |
-| 1-2 | getEncouragementHistory() batch対応 | ⬜ | |
-| 1-3 | getChildStudyHistory() batch対応 | ⬜ | |
-| 1-4 | getChildEncouragementHistory() batch対応 | ⬜ | |
-| 1-5 | StudyHistory グループ化適用 | ⬜ | |
-| 1-6 | EncouragementHistory グループ化適用 | ⬜ | |
-| 1-7 | フロント型をbatch対応に更新 | ⬜ | |
-| 1-8 | 手動QA（混在データ、並び順） | ⬜ | |
+| 1-1 | getStudyHistory() batch対応 | ✅ | `batch_id` を select に追加 |
+| 1-2 | getEncouragementHistory() batch対応 | ✅ | study_logs join に `batch_id` 追加 |
+| 1-3 | getChildStudyHistory() batch対応 | ✅ | `batch_id` を select に追加 |
+| 1-4 | getChildEncouragementHistory() batch対応 | ✅ | study_logs join に `batch_id` 追加 |
+| 1-5 | StudyHistory グループ化適用 | ✅ | `groupLogsByBatch` 適用、バッチ表示・内訳グリッド実装 |
+| 1-6 | EncouragementHistory batch情報表示 | ✅ | メッセージ自体のグループ化は不要と判断。「同時記録」バッジ表示 |
+| 1-7 | フロント型をbatch対応に更新 | ✅ | `StudyLogFromAPI` 型定義 |
+| 1-8 | 手動QA（混在データ、並び順） | ✅ | 生徒リフレクト確認済み（バッチ/単独/混在OK） |
 
 ### Phase 2: 応援送信画面
 
@@ -396,3 +396,4 @@ export function groupLogsByBatch<TLog extends StudyLogWithBatch>(
 | 2024-12-03 | フィードバック反映: 並び順をlogged_atに統一、スコープ整理（8画面）、集約方式明記、テスト計画強化、承認ポイント追加 |
 | 2024-12-03 | 安全性向上: 日時比較をDate使用に変更、代表日付ルール明記、紐付けルール明記、型設計の必須/任意整理、API件数上限追加 |
 | 2024-12-03 | Phase 0完了: 型定義(0-1)、ユーティリティ作成(0-2)、ダッシュボードリファクタ完了。単体テスト(0-3)はフレームワーク未導入のためBLOCKED |
+| 2024-12-03 | Phase 1実装: API全4関数にbatch_id追加、StudyHistoryグループ化表示完了、EncouragementHistoryは「同時記録」バッジ表示（メッセージ自体のグループ化は不要と判断）、sortBy=session整合修正 |
