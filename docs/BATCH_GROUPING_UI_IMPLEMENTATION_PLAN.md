@@ -342,10 +342,10 @@ export function groupLogsByBatch<TLog extends StudyLogWithBatch>(
 
 | ID | タスク | Status | Note |
 |----|--------|--------|------|
-| 0-1 | 型定義・インタフェース設計 | ⬜ | |
-| 0-2 | 生徒ダッシュボード実装を移設 | ⬜ | |
-| 0-3 | ユーティリティ単体テスト | ⬜ | |
-| 0-4 | JSDoc/使用ガイド追記 | ⬜ | |
+| 0-1 | 型定義・インタフェース設計 | ✅ | `lib/types/batch-grouping.ts`, `lib/constants/api-limits.ts` |
+| 0-2 | 生徒ダッシュボード実装を移設 | ✅ | `lib/utils/batch-grouping.ts`, `dashboard-client.tsx`リファクタ完了 |
+| 0-3 | ユーティリティ単体テスト | ⏸️ | テストフレームワーク未導入のため保留。将来Jest/Vitest導入時に追加 |
+| 0-4 | JSDoc/使用ガイド追記 | ✅ | ユーティリティファイルにJSDoc完備 |
 
 ### Phase 1: リフレクト画面
 
@@ -395,3 +395,4 @@ export function groupLogsByBatch<TLog extends StudyLogWithBatch>(
 | 2024-12-03 | 初版作成 |
 | 2024-12-03 | フィードバック反映: 並び順をlogged_atに統一、スコープ整理（8画面）、集約方式明記、テスト計画強化、承認ポイント追加 |
 | 2024-12-03 | 安全性向上: 日時比較をDate使用に変更、代表日付ルール明記、紐付けルール明記、型設計の必須/任意整理、API件数上限追加 |
+| 2024-12-03 | Phase 0完了: 型定義(0-1)、ユーティリティ作成(0-2)、ダッシュボードリファクタ完了。単体テスト(0-3)はフレームワーク未導入のためBLOCKED |

@@ -15,6 +15,8 @@ import { UserProfileProvider, useUserProfile } from "@/lib/hooks/use-user-profil
 import { hexWithAlpha, isThemeActive } from "@/lib/utils/theme-color"
 import { StreakCard } from "@/components/streak-card"
 import { useStudentDashboard, type StudentDashboardData as SWRDashboardData } from "@/lib/hooks/use-student-dashboard"
+import { groupLogsByBatch, getEntryLoggedAt, calculateSummary, calculateAccuracy } from "@/lib/utils/batch-grouping"
+import type { StudyLogWithBatch, GroupedLogEntry, FeedbackMaps } from "@/lib/types/batch-grouping"
 
 interface DashboardData {
   userName: string
@@ -1069,42 +1071,23 @@ const RecentLearningHistoryCard = ({
 
   const safeLogs = Array.isArray(logs) ? logs : []
 
-  // batch_idでログをグループ化
-  const batchGroups = new Map<string, typeof safeLogs>()
-  const standaloneLogs: typeof safeLogs = []
-
-  safeLogs.forEach((log) => {
-    if (log.batch_id) {
-      const group = batchGroups.get(log.batch_id) || []
-      group.push(log)
-      batchGroups.set(log.batch_id, group)
-    } else {
-      standaloneLogs.push(log)
+  // ダッシュボード用の拡張ログ型（リレーション情報含む）
+  type DashboardLog = StudyLogWithBatch & {
+    study_sessions?: {
+      session_number?: number
+      start_date?: string
+      end_date?: string
     }
-  })
-
-  // グループ化されたエントリを作成
-  type BatchEntry = {
-    type: "batch"
-    batchId: string
-    logs: typeof safeLogs
-    coachFeedback: string
-    studentRecordTime: string
-    session: string
-    reflection: string
+    subjects?: {
+      name?: string
+    }
+    study_content_types?: {
+      content_name?: string
+    }
   }
 
-  type SingleEntry = {
-    type: "single"
-    log: typeof safeLogs[0]
-    coachFeedback: string
-    studentRecordTime: string
-    session: string
-  }
-
-  type HistoryEntry = BatchEntry | SingleEntry
-
-  const formatSession = (log: typeof safeLogs[0]) => {
+  // セッション表示フォーマット
+  const formatSession = (log: DashboardLog) => {
     if (log.study_sessions) {
       const sessionNum = log.study_sessions.session_number || log.session_id || 0
       if (log.study_sessions.start_date && log.study_sessions.end_date) {
@@ -1119,40 +1102,35 @@ const RecentLearningHistoryCard = ({
     return `第${log.session_id || 0}回`
   }
 
-  const historyEntries: HistoryEntry[] = []
+  // 共通ユーティリティでbatch_idグループ化（logged_at降順でソート済み）
+  const feedbackMaps: FeedbackMaps = { batchFeedbacks, legacyFeedbacks }
+  const groupedEntries = groupLogsByBatch<DashboardLog>(safeLogs as DashboardLog[], feedbackMaps)
 
-  // バッチグループをエントリに変換
-  batchGroups.forEach((batchLogs, batchId) => {
-    const latestLog = batchLogs[0] // logged_at降順でソート済み
-    historyEntries.push({
-      type: "batch",
-      batchId,
-      logs: batchLogs,
-      coachFeedback: batchFeedbacks[batchId] || "",
-      studentRecordTime: formatDate(latestLog.logged_at),
-      session: formatSession(latestLog),
-      reflection: latestLog.reflection_text || "",
-    })
-  })
+  // 表示用に追加情報を付与
+  type DisplayEntry = GroupedLogEntry<DashboardLog> & {
+    studentRecordTime: string
+    session: string
+    reflection?: string
+  }
 
-  // 単独ログをエントリに変換
-  standaloneLogs.forEach((log) => {
-    historyEntries.push({
-      type: "single",
-      log,
-      coachFeedback: legacyFeedbacks[log.id] || "",
-      studentRecordTime: formatDate(log.logged_at),
-      session: formatSession(log),
-    })
-  })
-
-  // 日付順でソート（最新が先頭）
-  historyEntries.sort((a, b) => {
-    const getLoggedAt = (entry: HistoryEntry) => {
-      if (entry.type === "batch") return entry.logs[0].logged_at
-      return entry.log.logged_at
+  const historyEntries: DisplayEntry[] = groupedEntries.map((entry) => {
+    if (entry.type === "batch") {
+      // バッチ内の最新ログを取得（ユーティリティでソート済み、latestLoggedAtと一致するログ）
+      const latestLog = entry.logs.reduce((latest, log) =>
+        new Date(log.logged_at).getTime() > new Date(latest.logged_at).getTime() ? log : latest
+      )
+      return {
+        ...entry,
+        studentRecordTime: formatDate(entry.latestLoggedAt),
+        session: formatSession(latestLog),
+        reflection: latestLog.reflection_text || "",
+      }
     }
-    return new Date(getLoggedAt(b)).getTime() - new Date(getLoggedAt(a)).getTime()
+    return {
+      ...entry,
+      studentRecordTime: formatDate(entry.log.logged_at),
+      session: formatSession(entry.log),
+    }
   })
 
   const displayedEntries = showAll ? historyEntries : historyEntries.slice(0, 5)
