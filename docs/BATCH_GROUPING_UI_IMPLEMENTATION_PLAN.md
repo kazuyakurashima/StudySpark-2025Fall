@@ -187,6 +187,15 @@ export type GroupedLogEntry<TLog extends StudyLogWithBatch> =
 - 応援履歴など用途によっては `reflection_text` や `session_id` が不要/欠落する場合があるため、任意フィールドとするか用途別に型を分ける
 - ジェネリクス `<TLog extends StudyLogWithBatch>` で拡張可能に設計
 
+### 実装時の注意点
+
+| 項目 | 対応方針 |
+|------|---------|
+| subjects配列の重複排除 | `Array.from(new Set(groupLogs.map(l => l.subject)))` で生成 |
+| Dateパース失敗時 | `Number.isNaN(timestamp)` なら `Number.NEGATIVE_INFINITY` でソート末尾に |
+| フィードバックマップの空値 | `batchFeedbacks[batchId] ?? null` で統一（undefinedと空文字を区別しない） |
+| API件数上限の定数化 | `lib/constants/api-limits.ts` に定数定義、コードとドキュメントで共有 |
+
 ### グループ化関数
 
 ```typescript
