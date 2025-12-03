@@ -15,6 +15,8 @@
 |------|------|
 | グループ単位 | `batch_id` があればバッチ単位、無ければ `study_log_id` 単独 |
 | 並び順 | グループ内の `max(logged_at)` で降順ソート（既存ダッシュボード実装に統一） |
+| 代表日付 | バッチ内で `max(logged_at)` を持つログの `study_date` を使用（並び順と整合） |
+| 日時比較 | `new Date(logged_at).getTime()` で比較（ISO 8601形式前提、文字列比較は避ける） |
 | 科目表示 | バッチ内の科目名をカンマ区切りで表示（例: 算数, 国語, 理科） |
 | 問題数/正答数 | 科目ごとに個別表示。任意で「合計: X問/Y正答」を1行追記可（後付け） |
 | コーチフィードバック | バッチ全体で1件 |
@@ -25,9 +27,9 @@
 | 項目 | 仕様 |
 |------|------|
 | 選択単位 | バッチ（`batch_id`）または単独ログ（`batch_id` が無い場合） |
-| 表示内容 | バッチ内の科目一覧と代表時間/日付を表示 |
-| 紐付け | バッチ内の代表1件（最初のログ）に応援を紐付け |
-| 将来拡張 | 必要に応じて「バッチ選択→科目絞り込み」の二段階UIを追加可 |
+| 表示内容 | バッチ内の科目一覧と代表時間/日付（`max(logged_at)`のログから取得）を表示 |
+| 紐付けルール | バッチ内で `max(logged_at)` を持つログ（最新）に応援を紐付け。サーバー側も同一ルールで保存 |
+| 将来拡張 | 必要に応じて「バッチ選択→科目絞り込み」の二段階UIを追加可。判断タイミング: Phase 2完了後のユーザーフィードバック時 |
 
 ### 応援履歴
 
@@ -64,8 +66,19 @@
 ### 集約方式の選定理由
 
 - 全画面で**フロント集約**を採用
-- 理由: 件数が少ない（最大50件程度）、柔軟性が高い、DBスキーマ変更不要
-- 将来: 大量データが発生した場合はDB側 `GROUP BY COALESCE(batch_id, id)` への移行を検討
+- 理由: 件数が少ない、柔軟性が高い、DBスキーマ変更不要
+
+### API件数上限
+
+| 画面 | 上限 | 備考 |
+|------|------|------|
+| ダッシュボード（生徒/保護者） | 10件 | 直近の学習履歴 |
+| リフレクト学習履歴 | 50件 | ページネーション検討時に拡張 |
+| リフレクト応援履歴 | 50件 | 同上 |
+| 指導者生徒詳細 | 50件 | 同上 |
+| 応援送信（学習記録選択） | 30件 | 未応援のみ表示 |
+
+- **移行判断**: 上限を超えるデータが発生した場合、DB側 `GROUP BY COALESCE(batch_id, id)` への移行を検討
 
 ---
 
@@ -123,7 +136,10 @@
 /** グループキー（batch_id or study_log_id as fallback） */
 export type BatchGroupKey = string
 
-/** 個別の学習ログ（batch_id付き） */
+/**
+ * 個別の学習ログ（batch_id付き）- 基本型
+ * 必須フィールドのみ。用途別に拡張して使用する。
+ */
 export interface StudyLogWithBatch {
   id: number
   batch_id: string | null
@@ -134,7 +150,15 @@ export interface StudyLogWithBatch {
   logged_at: string
   correct_count: number
   total_problems: number
-  reflection_text: string | null
+  reflection_text?: string | null  // 任意（応援履歴では不要な場合あり）
+}
+
+/**
+ * 応援履歴用の学習ログ型
+ * 応援メッセージ経由で取得する際、一部フィールドが欠落する可能性があるため別定義
+ */
+export interface EncouragementStudyLog extends Omit<StudyLogWithBatch, 'reflection_text' | 'session_id'> {
+  session_id?: number  // 任意
 }
 
 /** バッチグループ */
@@ -144,6 +168,7 @@ export interface BatchGroup<TLog extends StudyLogWithBatch> {
   logs: TLog[]
   subjects: string[]
   latestLoggedAt: string
+  studyDate: string  // max(logged_at)のログから取得
   summary?: {
     totalQuestions?: number
     totalCorrect?: number
@@ -155,6 +180,12 @@ export type GroupedLogEntry<TLog extends StudyLogWithBatch> =
   | { type: "batch"; batchId: string; logs: TLog[]; coachFeedback: string | null; latestLoggedAt: string; studyDate: string }
   | { type: "single"; log: TLog; coachFeedback: string | null }
 ```
+
+### 型設計の注意点
+
+- `StudyLogWithBatch` は基本型として最小限のフィールドを定義
+- 応援履歴など用途によっては `reflection_text` や `session_id` が不要/欠落する場合があるため、任意フィールドとするか用途別に型を分ける
+- ジェネリクス `<TLog extends StudyLogWithBatch>` で拡張可能に設計
 
 ### グループ化関数
 
@@ -189,6 +220,11 @@ export function groupLogsByBatch<TLog extends StudyLogWithBatch>(
 ### 実装パターン
 
 ```typescript
+/** 日時文字列をタイムスタンプに変換（比較用） */
+function toTimestamp(dateStr: string): number {
+  return new Date(dateStr).getTime()
+}
+
 export function groupLogsByBatch<TLog extends StudyLogWithBatch>(
   logs: TLog[],
   batchFeedbacks: Record<string, string>,
@@ -212,17 +248,17 @@ export function groupLogsByBatch<TLog extends StudyLogWithBatch>(
 
   // バッチグループをエントリに変換
   batchGroups.forEach((groupLogs, batchId) => {
-    const latestLoggedAt = groupLogs.reduce(
-      (max, log) => (log.logged_at > max ? log.logged_at : max),
-      groupLogs[0].logged_at
+    // max(logged_at) を持つログを特定（Date比較）
+    const latestLog = groupLogs.reduce((latest, log) =>
+      toTimestamp(log.logged_at) > toTimestamp(latest.logged_at) ? log : latest
     )
     entries.push({
       type: "batch",
       batchId,
       logs: groupLogs,
       coachFeedback: batchFeedbacks[batchId] || null,
-      latestLoggedAt,
-      studyDate: groupLogs[0].study_date,
+      latestLoggedAt: latestLog.logged_at,
+      studyDate: latestLog.study_date,  // max(logged_at)のログから取得
     })
   })
 
@@ -235,11 +271,11 @@ export function groupLogsByBatch<TLog extends StudyLogWithBatch>(
     })
   })
 
-  // logged_at降順でソート
+  // logged_at降順でソート（Date比較）
   return entries.sort((a, b) => {
-    const aTime = a.type === "batch" ? a.latestLoggedAt : a.log.logged_at
-    const bTime = b.type === "batch" ? b.latestLoggedAt : b.log.logged_at
-    return bTime.localeCompare(aTime)
+    const aTime = a.type === "batch" ? toTimestamp(a.latestLoggedAt) : toTimestamp(a.log.logged_at)
+    const bTime = b.type === "batch" ? toTimestamp(b.latestLoggedAt) : toTimestamp(b.log.logged_at)
+    return bTime - aTime  // 降順
   })
 }
 ```
@@ -349,3 +385,4 @@ export function groupLogsByBatch<TLog extends StudyLogWithBatch>(
 |------|------|
 | 2024-12-03 | 初版作成 |
 | 2024-12-03 | フィードバック反映: 並び順をlogged_atに統一、スコープ整理（8画面）、集約方式明記、テスト計画強化、承認ポイント追加 |
+| 2024-12-03 | 安全性向上: 日時比較をDate使用に変更、代表日付ルール明記、紐付けルール明記、型設計の必須/任意整理、API件数上限追加 |
