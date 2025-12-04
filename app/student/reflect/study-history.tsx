@@ -251,20 +251,25 @@ export function StudyHistory({ viewerRole = "student", studentId }: StudyHistory
                 >
                   <div className="flex items-start justify-between gap-4 mb-2">
                     <div className="flex-1">
-                      {/* バッチの場合は複数科目を表示 */}
+                      {/* バッチの場合は複数科目を表示（重複排除済み） */}
                       {isBatch ? (
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <Layers className="h-4 w-4 text-muted-foreground" />
-                          {entry.logs.map((log, idx) => (
-                            <span key={log.id} className="flex items-center gap-1">
-                              <span
-                                className="inline-block w-3 h-3 rounded-full"
-                                style={{ backgroundColor: log.subjects?.color_code || "#666" }}
-                              ></span>
-                              <span className="font-semibold text-sm">{log.subjects?.name}</span>
-                              {idx < entry.logs.length - 1 && <span className="text-muted-foreground">·</span>}
-                            </span>
-                          ))}
+                          {entry.subjects.map((subjectName, idx) => {
+                            // 該当科目のログから色情報を取得
+                            const logWithColor = entry.logs.find(log => log.subjects?.name === subjectName)
+                            const colorCode = logWithColor?.subjects?.color_code || "#666"
+                            return (
+                              <span key={subjectName} className="flex items-center gap-1">
+                                <span
+                                  className="inline-block w-3 h-3 rounded-full"
+                                  style={{ backgroundColor: colorCode }}
+                                ></span>
+                                <span className="font-semibold text-sm">{subjectName}</span>
+                                {idx < entry.subjects.length - 1 && <span className="text-muted-foreground">·</span>}
+                              </span>
+                            )
+                          })}
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 mb-1">
