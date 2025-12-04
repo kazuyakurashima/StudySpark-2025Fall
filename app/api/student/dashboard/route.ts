@@ -91,7 +91,7 @@ export async function GET() {
         ? { message: "", createdAt: null, error: coachMsg.error }
         : { message: coachMsg?.message || "今日も一緒に頑張ろう！", createdAt: coachMsg?.createdAt || null },
       streak: streakResult?.error
-        ? { streak: 0, maxStreak: 0, lastStudyDate: null, todayStudied: false, state: "reset" as const, error: streakResult.error }
+        ? { streak: 0, maxStreak: 0, lastStudyDate: null, todayStudied: false, state: "reset" as const, totalDays: 0, error: streakResult.error }
         : {
             streak: typeof streakResult?.streak === "number" ? streakResult.streak : 0,
             maxStreak: typeof streakResult?.maxStreak === "number" ? streakResult.maxStreak : 0,
@@ -99,6 +99,8 @@ export async function GET() {
             todayStudied: streakResult?.todayStudied || false,
             // Server Action returns "streakState", but client expects "state"
             state: streakResult?.streakState || "reset",
+            // Phase 1: 累積学習日数
+            totalDays: typeof streakResult?.totalDays === "number" ? streakResult.totalDays : 0,
           },
       recentLogs: logsResult?.error
         ? { logs: [], batchFeedbacks: {}, legacyFeedbacks: {}, error: logsResult.error }

@@ -74,6 +74,7 @@ export default async function StudentDashboard() {
     lastStudyDate: streakResult?.lastStudyDate || null,
     todayStudied: streakResult?.todayStudied || false,
     streakState: streakResult?.streakState || "reset",
+    totalDays: typeof streakResult?.totalDays === "number" ? streakResult.totalDays : 0,
     recentLogs: Array.isArray(logsResult?.logs) ? logsResult.logs : [],
     batchFeedbacks: logsResult?.batchFeedbacks || {},
     legacyFeedbacks: logsResult?.legacyFeedbacks || {},

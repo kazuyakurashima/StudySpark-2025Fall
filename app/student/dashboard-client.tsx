@@ -28,6 +28,8 @@ interface DashboardData {
   lastStudyDate: string | null
   todayStudied: boolean
   streakState: "active" | "grace" | "warning" | "reset"
+  /** 累積学習日数（Phase 1: モチベーション機能） */
+  totalDays: number
   recentLogs: any[]
   batchFeedbacks: Record<string, string>
   legacyFeedbacks: Record<number, string>
@@ -93,6 +95,7 @@ function transformSSRtoSWRData(ssrData: DashboardData): Partial<SWRDashboardData
       lastStudyDate: ssrData.lastStudyDate,
       todayStudied: ssrData.todayStudied,
       state: ssrData.streakState,
+      totalDays: ssrData.totalDays,
     },
     recentLogs: { logs: ssrData.recentLogs, batchFeedbacks: ssrData.batchFeedbacks, legacyFeedbacks: ssrData.legacyFeedbacks },
     recentMessages: { messages: ssrData.recentMessages },
@@ -1642,6 +1645,7 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
   const lastStudyDate = swrData?.streak?.lastStudyDate ?? initialData.lastStudyDate
   const todayStudied = swrData?.streak?.todayStudied ?? initialData.todayStudied
   const streakState = swrData?.streak?.state ?? initialData.streakState
+  const totalDays = swrData?.streak?.totalDays ?? initialData.totalDays
   const recentLogs = swrData?.recentLogs?.logs ?? initialData.recentLogs
   const batchFeedbacks = swrData?.recentLogs?.batchFeedbacks ?? initialData.batchFeedbacks
   const legacyFeedbacks = swrData?.recentLogs?.legacyFeedbacks ?? initialData.legacyFeedbacks
@@ -1836,6 +1840,7 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
               todayStudied={todayStudied}
               streakState={streakState}
               themeColor={themeColor}
+              totalDays={totalDays}
             />
             <LearningHistoryCalendar calendarData={calendarData} />
             <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} sessionNumber={sessionNumber} />
@@ -1965,6 +1970,7 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
                 todayStudied={todayStudied}
                 streakState={streakState}
                 themeColor={themeColor}
+                totalDays={totalDays}
               />
               <LearningHistoryCalendar calendarData={calendarData} />
               <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} sessionNumber={sessionNumber} />

@@ -14,6 +14,8 @@ interface StreakCardProps {
   themeColor?: string
   viewMode?: "student" | "parent"
   studentName?: string
+  /** 累積学習日数（Phase 1: モチベーション機能） */
+  totalDays?: number
 }
 
 /**
@@ -139,7 +141,8 @@ export function StreakCard({
   streakState,
   themeColor = "default",
   viewMode = "student",
-  studentName
+  studentName,
+  totalDays = 0
 }: StreakCardProps) {
   // 現在の時刻を取得（JST）
   const now = new Date()
@@ -278,6 +281,12 @@ export function StreakCard({
                 {streakState === "grace" ? "昨日まで継続中！" : "学習継続中！"}
               </p>
             )}
+            {/* 累積日数（active/grace時は控えめに表示） */}
+            {totalDays > 0 && streakState !== "reset" && viewMode === "student" && (
+              <p className="text-xs text-slate-500 mt-1">
+                📚 累計 {totalDays} 日
+              </p>
+            )}
           </div>
         </div>
 
@@ -333,15 +342,36 @@ export function StreakCard({
             </div>
           )}
 
-          {/* リセット時のセルフコンパッション */}
-          {streakState === "reset" && maxStreak > 0 && viewMode === "student" && (
+          {/* リセット時のセルフコンパッション + 累積日数 */}
+          {streakState === "reset" && viewMode === "student" && (
             <div className="mt-3 text-sm text-slate-600 leading-relaxed bg-purple-50/50 p-3 rounded-lg border border-purple-200/50">
-              <div className="flex items-center gap-2 mb-1">
-                <Trophy className="h-4 w-4 text-purple-600" />
-                <span className="font-semibold text-purple-800">これまでの最高記録</span>
-              </div>
-              <span className="font-bold text-2xl text-purple-700">{maxStreak}</span>
-              <span className="text-purple-600 ml-1">日連続</span>
+              {/* 累積日数（消えない実績） */}
+              {totalDays > 0 && (
+                <div className="mb-3 pb-3 border-b border-purple-200/50">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">📚</span>
+                    <span className="font-semibold text-purple-800">累計学習日数</span>
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="font-bold text-3xl text-purple-700">{totalDays}</span>
+                    <span className="text-purple-600">日</span>
+                  </div>
+                  <p className="mt-1 text-xs text-purple-600">
+                    この記録は消えません！
+                  </p>
+                </div>
+              )}
+              {/* 最高記録 */}
+              {maxStreak > 0 && (
+                <>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Trophy className="h-4 w-4 text-purple-600" />
+                    <span className="font-semibold text-purple-800">これまでの最高記録</span>
+                  </div>
+                  <span className="font-bold text-2xl text-purple-700">{maxStreak}</span>
+                  <span className="text-purple-600 ml-1">日連続</span>
+                </>
+              )}
               <p className="mt-2 text-slate-600">
                 また新しい記録を作ろう！
               </p>

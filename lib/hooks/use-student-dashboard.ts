@@ -21,6 +21,8 @@ export interface StudentDashboardData {
     lastStudyDate: string | null
     todayStudied: boolean
     state: "active" | "grace" | "warning" | "reset"
+    /** 累積学習日数（Phase 1: モチベーション機能） */
+    totalDays?: number
     error?: string
   }
   recentLogs: {
@@ -116,7 +118,7 @@ export function useStudentDashboard(fallbackData?: Partial<StudentDashboardData>
         ? {
             profile: { nickname: "学習者", avatarId: "student1", themeColor: "default" },
             aiCoachMessage: { message: "", createdAt: null },
-            streak: { streak: 0, maxStreak: 0, lastStudyDate: null, todayStudied: false, state: "reset" as const },
+            streak: { streak: 0, maxStreak: 0, lastStudyDate: null, todayStudied: false, state: "reset" as const, totalDays: 0 },
             recentLogs: { logs: [], batchFeedbacks: {}, legacyFeedbacks: {} },
             recentMessages: { messages: [] },
             lastLoginInfo: null,

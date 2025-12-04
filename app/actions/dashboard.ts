@@ -561,6 +561,8 @@ async function getUpcomingTestForCoach(studentId: string) {
 /**
  * 連続学習日数を計算（グレースピリオド対応版）
  * DBの students テーブルから最新のstreak情報を取得
+ *
+ * @returns streak情報（totalDays=累積学習日数を含む）
  */
 export async function getStudyStreak() {
   try {
@@ -623,12 +625,17 @@ export async function getStudyStreak() {
       displayStreak = 0
     }
 
+    // 累積学習日数を取得（Phase 1: モチベーション機能）
+    const { getTotalDays } = await import("@/lib/utils/streak-helpers")
+    const totalDays = await getTotalDays(student.id)
+
     return {
       streak: displayStreak,
       maxStreak,
       lastStudyDate,
       todayStudied,
       streakState,
+      totalDays,
     }
   } catch (error) {
     console.error("Get study streak error:", error)
