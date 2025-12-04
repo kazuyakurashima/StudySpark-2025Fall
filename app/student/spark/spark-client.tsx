@@ -491,10 +491,7 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
               newDetails[matchingContent.id] = log.correct_count
             }
 
-            // Set reflection if available (only once)
-            if (log.reflection_text && !reflection) {
-              setReflection(log.reflection_text)
-            }
+            // 振り返りテキストは既存データから読み込まない（毎回新規入力）
           }
 
           if (Object.keys(newDetails).length > 0) {
