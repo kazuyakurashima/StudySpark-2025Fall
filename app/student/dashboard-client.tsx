@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useMemo } from "react"
+import React, { useState, useEffect, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -17,6 +17,7 @@ import { StreakCard } from "@/components/streak-card"
 import { useStudentDashboard, type StudentDashboardData as SWRDashboardData } from "@/lib/hooks/use-student-dashboard"
 import { groupLogsByBatch, getRepresentativeLog, calculateSummary, calculateAccuracy } from "@/lib/utils/batch-grouping"
 import type { StudyLogWithBatch, GroupedLogEntry, FeedbackMaps } from "@/lib/types/batch-grouping"
+import { trackStreakCardView } from "@/app/actions/streak-events"
 
 interface DashboardData {
   userName: string
@@ -1702,6 +1703,21 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [])
+
+  // 📊 イベント計測: StreakCard表示を記録（セッションごとに1回）
+  const hasTrackedStreakView = useRef(false)
+  useEffect(() => {
+    // 初回マウント時に1回だけ記録（サイレントエラー）
+    if (!hasTrackedStreakView.current && isHydrated && totalDays >= 0) {
+      hasTrackedStreakView.current = true
+      const state = streakState === "warning" ? "reset" : streakState // warning は reset として扱う
+      trackStreakCardView({
+        streak: studyStreak,
+        totalDays,
+        state: state as "active" | "grace" | "reset",
+      }).catch(() => {}) // サイレントエラー
+    }
+  }, [isHydrated, studyStreak, totalDays, streakState])
 
   // 🚀 SWR: recentMessagesをSWRデータと同期
   useEffect(() => {
