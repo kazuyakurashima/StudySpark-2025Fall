@@ -31,6 +31,16 @@ import type {
 } from "@/lib/types/batch-grouping"
 
 /**
+ * ソートオプション
+ */
+export interface SortOptions {
+  /** ソート基準: 日時 or セッション */
+  sortBy?: "date" | "session"
+  /** ソート順序: 昇順 or 降順 */
+  sortOrder?: "asc" | "desc"
+}
+
+/**
  * 日時文字列をタイムスタンプに変換（比較用）
  *
  * @param dateStr - ISO 8601形式の日時文字列
@@ -46,9 +56,18 @@ function toTimestamp(dateStr: string): number {
  *
  * @param logs - 学習ログ配列
  * @returns 重複排除された科目名配列（順序維持）
+ *
+ * @description
+ * log.subject（文字列）または log.subjects?.name（リレーションオブジェクト）の
+ * いずれかから科目名を取得します。APIによって返却形式が異なるため両方に対応。
  */
 function getUniqueSubjects<TLog extends StudyLogWithBatch>(logs: TLog[]): string[] {
-  return Array.from(new Set(logs.map((log) => log.subject)))
+  return Array.from(new Set(logs.map((log) => {
+    // log.subject（文字列）を優先、なければ log.subjects?.name（リレーション）を使用
+    if (log.subject) return log.subject
+    const subjects = (log as any).subjects
+    return subjects?.name || ""
+  }).filter(Boolean)))
 }
 
 /**
@@ -68,7 +87,7 @@ function getLatestLog<TLog extends StudyLogWithBatch>(logs: TLog[]): TLog {
  *
  * @description
  * 同一batch_idを持つログをグループ化し、batch_idがnullのログは単独エントリとして扱う。
- * 結果はlogged_at降順でソートされる。
+ * 結果は指定されたソート順でソートされる（デフォルト: logged_at降順）。
  *
  * グループ化ルール:
  * - batch_idがある場合: 同一batch_idのログをまとめてバッチエントリに
@@ -80,7 +99,8 @@ function getLatestLog<TLog extends StudyLogWithBatch>(logs: TLog[]): TLog {
  *
  * @param logs - 学習ログ配列
  * @param feedbackMaps - フィードバックマップ（batch_id用とlegacy用）
- * @returns グループ化されたエントリ配列（logged_at降順）
+ * @param sortOptions - ソートオプション（省略時: date降順）
+ * @returns グループ化されたエントリ配列
  *
  * @example
  * ```typescript
@@ -102,8 +122,10 @@ function getLatestLog<TLog extends StudyLogWithBatch>(logs: TLog[]): TLog {
  */
 export function groupLogsByBatch<TLog extends StudyLogWithBatch>(
   logs: TLog[],
-  feedbackMaps: FeedbackMaps
+  feedbackMaps: FeedbackMaps,
+  sortOptions?: SortOptions
 ): GroupedLogEntry<TLog>[] {
+  const { sortBy = "date", sortOrder = "desc" } = sortOptions || {}
   const { batchFeedbacks, legacyFeedbacks } = feedbackMaps
 
   // 入力が空または無効な場合は空配列を返す
@@ -152,13 +174,22 @@ export function groupLogsByBatch<TLog extends StudyLogWithBatch>(
     entries.push(singleEntry)
   })
 
-  // logged_at降順でソート（Date比較）
+  // ソート順の符号: 降順なら -1、昇順なら 1
+  const orderMultiplier = sortOrder === "desc" ? -1 : 1
+
+  // ソート処理
   return entries.sort((a, b) => {
-    const aTime =
-      a.type === "batch" ? toTimestamp(a.latestLoggedAt) : toTimestamp(a.log.logged_at)
-    const bTime =
-      b.type === "batch" ? toTimestamp(b.latestLoggedAt) : toTimestamp(b.log.logged_at)
-    return bTime - aTime // 降順
+    if (sortBy === "session") {
+      // セッションIDでソート（バッチの場合は代表ログのsession_id）
+      const aSessionId = a.type === "batch" ? getLatestLog(a.logs).session_id : a.log.session_id
+      const bSessionId = b.type === "batch" ? getLatestLog(b.logs).session_id : b.log.session_id
+      return (aSessionId - bSessionId) * orderMultiplier
+    } else {
+      // logged_atでソート（デフォルト）
+      const aTime = a.type === "batch" ? toTimestamp(a.latestLoggedAt) : toTimestamp(a.log.logged_at)
+      const bTime = b.type === "batch" ? toTimestamp(b.latestLoggedAt) : toTimestamp(b.log.logged_at)
+      return (aTime - bTime) * orderMultiplier
+    }
   })
 }
 

@@ -254,17 +254,74 @@ export async function getStudentLearningHistory(studentId: string, limit = 20) {
     return { error: "この生徒にアクセスする権限がありません" }
   }
 
-  // 学習履歴を取得
+  // 学習履歴を取得（batch_idとリレーション情報を含む）
   const { data: studyLogs, error: logsError } = await supabase
     .from("study_logs")
-    .select("*")
+    .select(`
+      id,
+      student_id,
+      session_id,
+      logged_at,
+      study_date,
+      correct_count,
+      total_problems,
+      reflection_text,
+      understanding_level,
+      batch_id,
+      created_at,
+      subjects (name, color_code),
+      study_content_types (content_name),
+      study_sessions (session_number, start_date, end_date)
+    `)
     .eq("student_id", studentId)
-    .order("created_at", { ascending: false })
-    .limit(limit)
+    .order("study_date", { ascending: false })
+    .order("logged_at", { ascending: false })
+    .limit(limit * 4) // バッチグループ化のため多めに取得
 
   if (logsError) {
     console.error("Failed to fetch study logs:", logsError)
     return { error: "学習履歴の取得に失敗しました" }
+  }
+
+  if (!studyLogs || studyLogs.length === 0) {
+    return { studyLogs: [], batchFeedbacks: {}, legacyFeedbacks: {} }
+  }
+
+  // batch_idを収集（NULL以外）
+  const batchIds = [...new Set(studyLogs.map(log => log.batch_id).filter((id): id is string => id !== null))]
+
+  // batch_idがあるものはbatch単位でフィードバック取得
+  let batchFeedbacks: Record<string, string> = {}
+  if (batchIds.length > 0) {
+    const { data: feedbacks, error: feedbackError } = await supabase
+      .from("coach_feedbacks")
+      .select("batch_id, feedback_text")
+      .in("batch_id", batchIds)
+
+    if (!feedbackError && feedbacks) {
+      feedbacks.forEach(f => {
+        if (f.batch_id) {
+          batchFeedbacks[f.batch_id] = f.feedback_text
+        }
+      })
+    }
+  }
+
+  // batch_idがNULLのログ用にstudy_log_idベースでフィードバック取得（レガシー対応）
+  const legacyLogIds = studyLogs.filter(log => log.batch_id === null).map(log => log.id)
+  let legacyFeedbacks: Record<number, string> = {}
+  if (legacyLogIds.length > 0) {
+    const { data: legacyFb, error: legacyError } = await supabase
+      .from("coach_feedbacks")
+      .select("study_log_id, feedback_text")
+      .in("study_log_id", legacyLogIds)
+      .is("batch_id", null)
+
+    if (!legacyError && legacyFb) {
+      legacyFb.forEach(f => {
+        legacyFeedbacks[f.study_log_id] = f.feedback_text
+      })
+    }
   }
 
   // 指導者からの応援メッセージを取得
@@ -275,18 +332,23 @@ export async function getStudentLearningHistory(studentId: string, limit = 20) {
     .eq("sender_role", "coach")
     .in("related_study_log_id", studyLogIds)
 
-  // 学習履歴に応援メッセージを紐付け
+  // 学習履歴に応援メッセージを紐付け（フロント互換のためsubject/reflection/total_questionsを追加）
   const logsWithEncouragement = studyLogs.map((log) => {
     const encouragement = encouragements?.find((e) => e.related_study_log_id === log.id)
     return {
       ...log,
+      // フロント互換フィールド
+      subject: (log.subjects as any)?.name || "",
+      reflection: log.reflection_text,
+      total_questions: log.total_problems,
+      // 応援メッセージ情報
       hasCoachResponse: !!encouragement,
       coachMessage: encouragement?.message || "",
       encouragementId: encouragement?.id || null,
     }
   })
 
-  return { studyLogs: logsWithEncouragement }
+  return { studyLogs: logsWithEncouragement, batchFeedbacks, legacyFeedbacks }
 }
 
 /**
@@ -365,7 +427,12 @@ export interface LearningRecordWithEncouragements {
   content: string
   totalQuestions: number
   correctCount: number
+  /** 記録時刻（logged_at）- バッチグループ化の基準 */
   timestamp: string
+  /** バッチID（同時保存されたログのグループ識別子、nullの場合は単独ログ） */
+  batchId: string | null
+  /** 学習日（YYYY-MM-DD形式） */
+  studyDate: string
   parentEncouragements: {
     id: string
     message: string
@@ -430,7 +497,7 @@ export async function getCoachStudentLearningRecords(limit = 50) {
 
   console.log("[getCoachStudentLearningRecords] Fetching logs for student IDs:", studentIds)
 
-  // 担当生徒の学習記録を取得
+  // 担当生徒の学習記録を取得（logged_at基準でソート）
   const { data: studyLogs, error: logsError } = await supabase
     .from("study_logs")
     .select(`
@@ -440,7 +507,9 @@ export async function getCoachStudentLearningRecords(limit = 50) {
       reflection_text,
       total_problems,
       correct_count,
-      created_at,
+      logged_at,
+      batch_id,
+      study_date,
       students (
         id,
         user_id,
@@ -453,7 +522,7 @@ export async function getCoachStudentLearningRecords(limit = 50) {
       )
     `)
     .in("student_id", studentIds)
-    .order("created_at", { ascending: false })
+    .order("logged_at", { ascending: false })
     .limit(limit)
 
   console.log("[getCoachStudentLearningRecords] Query error:", logsError)
@@ -539,7 +608,9 @@ export async function getCoachStudentLearningRecords(limit = 50) {
       content: log.reflection_text || "",
       totalQuestions: log.total_problems || 0,
       correctCount: log.correct_count || 0,
-      timestamp: log.created_at,
+      timestamp: log.logged_at,
+      batchId: log.batch_id || null,
+      studyDate: log.study_date || log.logged_at?.split("T")[0] || "",
       parentEncouragements: logEncouragements
         .filter((e) => e.sender_role === "parent")
         .map((e) => ({

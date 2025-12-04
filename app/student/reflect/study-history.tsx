@@ -280,7 +280,7 @@ export function StudyHistory({ viewerRole = "student", studentId }: StudyHistory
                       )}
                       <p className="text-xs text-muted-foreground">
                         {formatDate(loggedAt || representativeLog.study_date)} · {sessionDisplay}
-                        {isBatch && <span className="ml-2 text-primary">（{entry.logs.length}科目同時記録）</span>}
+                        {isBatch && <span className="ml-2 text-primary">（{entry.subjects.length}科目・{entry.logs.length}項目）</span>}
                       </p>
                     </div>
 

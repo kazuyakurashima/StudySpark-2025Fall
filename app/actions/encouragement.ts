@@ -409,6 +409,8 @@ export async function getAllStudyLogsForCoach(filters?: {
       correct_count,
       reflection_text,
       created_at,
+      logged_at,
+      batch_id,
       students(id, full_name, grade, profiles!students_user_id_fkey(avatar_id, nickname, custom_avatar_url)),
       study_sessions(session_number, grade),
       subjects(name),
@@ -433,9 +435,9 @@ export async function getAllStudyLogsForCoach(filters?: {
     }
   }
 
-  // ソート
+  // ソート（logged_atでソート - バッチグループ化と整合）
   const sortOrder = filters?.sortOrder || "desc"
-  query = query.order("study_date", { ascending: sortOrder === "asc" })
+  query = query.order("logged_at", { ascending: sortOrder === "asc" })
 
   const { data, error } = await query
 

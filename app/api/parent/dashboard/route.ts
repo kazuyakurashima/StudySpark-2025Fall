@@ -139,8 +139,12 @@ export async function GET(request: NextRequest) {
         ? { calendarData: {}, error: calendar.error }
         : { calendarData: calendar.calendarData },
       recentLogs: "error" in logsResult
-        ? { logs: [], error: logsResult.error }
-        : { logs: logsResult.logs },
+        ? { logs: [], batchFeedbacks: {}, legacyFeedbacks: {}, error: logsResult.error }
+        : {
+            logs: logsResult.logs,
+            batchFeedbacks: logsResult.batchFeedbacks,
+            legacyFeedbacks: logsResult.legacyFeedbacks,
+          },
       recentMessages: "error" in messagesResult
         ? { messages: [], error: messagesResult.error }
         : { messages: messagesResult.messages },

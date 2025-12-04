@@ -17,13 +17,23 @@ export interface Student {
 }
 
 export interface StudyLog {
-  id: string
-  created_at: string
-  subject: string
-  understanding_level: number
-  reflection: string | null
-  total_questions: number
+  id: number
+  student_id: number
+  session_id: number
+  logged_at: string
+  study_date: string
   correct_count: number
+  total_problems: number
+  total_questions: number // フロント互換
+  reflection_text: string | null
+  reflection: string | null // フロント互換
+  understanding_level: number
+  batch_id: string | null
+  created_at: string
+  subject: string // フロント互換（subjects.nameから取得）
+  subjects?: { name: string; color_code?: string }
+  study_content_types?: { content_name: string }
+  study_sessions?: { session_number: number; start_date: string; end_date: string }
   hasCoachResponse: boolean
   coachMessage: string
   encouragementId: string | null
@@ -33,6 +43,8 @@ export interface CoachStudentDetailData {
   student: Student | { error: string } | null
   studyLogs: {
     studyLogs: StudyLog[]
+    batchFeedbacks: Record<string, string>
+    legacyFeedbacks: Record<number, string>
     error?: string
   }
   fetchedAt: number
@@ -84,6 +96,8 @@ export function useCoachStudentDetail(studentId: string | null) {
   const student = data?.student && !("error" in data.student) ? data.student : null
   const studentError = data?.student && "error" in data.student ? data.student.error : null
   const studyLogs = data?.studyLogs?.studyLogs || []
+  const batchFeedbacks = data?.studyLogs?.batchFeedbacks || {}
+  const legacyFeedbacks = data?.studyLogs?.legacyFeedbacks || {}
 
   return {
     data,
@@ -95,6 +109,8 @@ export function useCoachStudentDetail(studentId: string | null) {
     student,
     studentError,
     studyLogs,
+    batchFeedbacks,
+    legacyFeedbacks,
     // ユーティリティ: データが古いかどうか（5分以上経過）
     isStale: data ? Date.now() - data.fetchedAt > 5 * 60 * 1000 : true,
   }

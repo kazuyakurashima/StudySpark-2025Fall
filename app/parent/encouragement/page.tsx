@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ParentBottomNavigation } from "@/components/parent-bottom-navigation"
-import { Heart, Star, ThumbsUp, Sparkles, ChevronDown, ChevronUp, Loader2, MessageSquare } from "lucide-react"
+import { Heart, Star, ThumbsUp, Sparkles, ChevronDown, ChevronUp, Loader2, MessageSquare, Layers } from "lucide-react"
 import {
   getStudyLogsForEncouragement,
   sendQuickEncouragement,
@@ -20,6 +20,17 @@ import {
 } from "@/app/actions/encouragement"
 import type { QuickEncouragementType } from "@/lib/openai/prompts"
 import { useUserProfile } from "@/lib/hooks/use-user-profile"
+import { groupLogsByBatch, calculateSummary, calculateAccuracy, getRepresentativeLog } from "@/lib/utils/batch-grouping"
+import type { GroupedLogEntry, StudyLogWithBatch } from "@/lib/types/batch-grouping"
+
+// 応援用学習ログ型
+interface EncouragementLog extends StudyLogWithBatch {
+  subjects?: { name: string } | { name: string }[]
+  study_sessions?: { session_number: number } | { session_number: number }[]
+  study_content_types?: { content_name: string } | { content_name: string }[]
+  reflection_text?: string | null
+  encouragement_messages?: any[]
+}
 
 export default function ParentEncouragementPage() {
   const searchParams = useSearchParams()
@@ -29,7 +40,7 @@ export default function ParentEncouragementPage() {
   const childParam = searchParams.get("child")
 
   const [selectedChild, setSelectedChild] = useState<string | null>(null)
-  const [studyLogs, setStudyLogs] = useState<any[]>([])
+  const [entries, setEntries] = useState<GroupedLogEntry<EncouragementLog>[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -61,9 +72,8 @@ export default function ParentEncouragementPage() {
       const statusMap: { [childId: number]: boolean } = {}
 
       for (const child of children) {
-        const childIdNumber = parseInt(child.id, 10)
-        const level = await getDailySparkLevel(childIdNumber, profile.id)
-        statusMap[childIdNumber] = level === "parent" || level === "both"
+        const level = await getDailySparkLevel(child.id, profile.id)
+        statusMap[child.id] = level === "parent" || level === "both"
       }
 
       setEncouragementStatus(statusMap)
@@ -76,7 +86,7 @@ export default function ParentEncouragementPage() {
   useEffect(() => {
     if (childParam && children && children.length > 0) {
       const childId = parseInt(childParam, 10)
-      const child = children.find(c => parseInt(c.id) === childId)
+      const child = children.find(c => c.id === childId)
       if (child) {
         setProviderChildId(childId)
       }
@@ -89,16 +99,16 @@ export default function ParentEncouragementPage() {
 
     if (providerSelectedChildId !== null) {
       // プロバイダーから取得したIDで子どもを選択
-      const child = children.find(c => parseInt(c.id) === providerSelectedChildId)
+      const child = children.find(c => c.id === providerSelectedChildId)
       if (child) {
-        console.log('[応援機能] プロバイダーから子どもを選択:', child.full_name, child.id)
-        setSelectedChild(child.id)
+        console.log('[応援機能] プロバイダーから子どもを選択:', child.nickname, child.id)
+        setSelectedChild(String(child.id))
       }
     } else if (!selectedChild) {
       // プロバイダーにまだ値がない場合で、selectedChildもない場合は最初の子どもを設定
-      const firstChildId = parseInt(children[0].id, 10)
-      console.log('[応援機能] デフォルトで最初の子供を設定:', children[0].full_name, children[0].id, firstChildId)
-      setSelectedChild(children[0].id)
+      const firstChildId = children[0].id
+      console.log('[応援機能] デフォルトで最初の子供を設定:', children[0].nickname, children[0].id, firstChildId)
+      setSelectedChild(String(children[0].id))
       setProviderChildId(firstChildId)
     }
   }, [providerSelectedChildId, children, selectedChild, setProviderChildId])
@@ -108,6 +118,9 @@ export default function ParentEncouragementPage() {
       loadStudyLogs(true)
     }
   }, [selectedChild, filters])
+
+  // 生ログ数（ページネーション用）
+  const [rawLogCount, setRawLogCount] = useState(0)
 
   const loadStudyLogs = async (reset = true) => {
     if (!selectedChild) {
@@ -121,12 +134,12 @@ export default function ParentEncouragementPage() {
       setLoadingMore(true)
     }
 
-    const offset = reset ? 0 : studyLogs.length
+    const offset = reset ? 0 : rawLogCount
     console.log('[応援機能] 学習記録を取得中...', { selectedChild, filters, offset, reset })
 
     const result = await getStudyLogsForEncouragement(selectedChild, {
       ...filters,
-      limit: 10,
+      limit: 30, // バッチグループ化を考慮して多めに取得
       offset,
     })
 
@@ -135,10 +148,36 @@ export default function ParentEncouragementPage() {
     if (result.success) {
       console.log('[応援機能] ログ数:', result.logs.length, '総数:', result.totalCount)
 
+      // ログにsubjectフィールドを追加（groupLogsByBatchが必要とする）
+      const logsWithSubject = result.logs.map((log: any) => ({
+        ...log,
+        subject: Array.isArray(log.subjects) ? log.subjects[0]?.name : log.subjects?.name || "不明",
+      }))
+
+      // ソートオプション
+      const sortOptions = { sortBy: filters.sortBy, sortOrder: filters.sortOrder }
+
       if (reset) {
-        setStudyLogs(result.logs)
+        // バッチグループ化
+        const grouped = groupLogsByBatch(logsWithSubject as EncouragementLog[], {
+          batchFeedbacks: {},
+          legacyFeedbacks: {},
+        }, sortOptions)
+        setEntries(grouped)
+        setRawLogCount(result.logs.length)
       } else {
-        setStudyLogs(prev => [...prev, ...result.logs])
+        // 追加読み込み: 既存ログ + 新規ログを結合してから再グループ化
+        setEntries((prev) => {
+          const existingLogs = prev.flatMap((entry) =>
+            entry.type === "batch" ? entry.logs : [entry.log]
+          )
+          const allLogs = [...existingLogs, ...logsWithSubject] as EncouragementLog[]
+          return groupLogsByBatch(allLogs, {
+            batchFeedbacks: {},
+            legacyFeedbacks: {},
+          }, sortOptions)
+        })
+        setRawLogCount((prev) => prev + result.logs.length)
       }
       setTotalCount(result.totalCount)
       setHasMore(result.hasMore)
@@ -280,7 +319,7 @@ export default function ParentEncouragementPage() {
             {/* 総件数表示 */}
             {totalCount > 0 && (
               <div className="text-xs text-slate-600 mt-3">
-                全{totalCount}件中 {studyLogs.length}件を表示
+                全{totalCount}件中 {rawLogCount}件を表示（{entries.length}グループ）
               </div>
             )}
           </CardContent>
@@ -292,7 +331,7 @@ export default function ParentEncouragementPage() {
           <div className="flex justify-center items-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        ) : studyLogs.length === 0 ? (
+        ) : entries.length === 0 ? (
           <Card>
             <CardContent className="p-8 text-center text-slate-600">
               <p>該当する学習記録がありません</p>
@@ -300,103 +339,83 @@ export default function ParentEncouragementPage() {
           </Card>
         ) : (
           <>
-          {studyLogs.map((log) => {
-            const isExpanded = expandedCards.has(log.id)
-            const accuracy = log.total_problems > 0 ? Math.round((log.correct_count / log.total_problems) * 100) : 0
-            const hasEncouragement =
-              Array.isArray(log.encouragement_messages) && log.encouragement_messages.length > 0
+          {entries.map((entry) => {
+            // エントリから情報を取得
+            const isBatch = entry.type === "batch"
+            const representativeLog = getRepresentativeLog(entry)
+            const summary = calculateSummary(entry)
+            const accuracy = calculateAccuracy(summary.totalQuestions, summary.totalCorrect)
+            const entryKey = isBatch ? `batch-${entry.batchId}` : `single-${entry.log.id}`
+            const isExpanded = expandedCards.has(entryKey)
+
+            // 応援済み判定（どれか1つでも応援があれば応援済み）
+            const hasEncouragement = isBatch
+              ? entry.logs.some(log => Array.isArray(log.encouragement_messages) && log.encouragement_messages.length > 0)
+              : Array.isArray(representativeLog.encouragement_messages) && representativeLog.encouragement_messages.length > 0
+
+            // 代表ログID（応援送信用）
+            const representativeLogId = String(representativeLog.id)
+
+            // 科目表示
+            const subjectName = isBatch
+              ? entry.subjects.join(" · ")
+              : (Array.isArray(representativeLog.subjects) ? representativeLog.subjects[0]?.name : representativeLog.subjects?.name) || "科目不明"
+
+            // 日付表示
+            const displayDate = isBatch
+              ? new Date(entry.latestLoggedAt).toLocaleDateString("ja-JP")
+              : new Date(representativeLog.logged_at || representativeLog.study_date).toLocaleDateString("ja-JP")
+
+            // セッション番号
+            const sessionNum = Array.isArray(representativeLog.study_sessions)
+              ? representativeLog.study_sessions[0]?.session_number
+              : representativeLog.study_sessions?.session_number || 0
 
             return (
-              <Card key={log.id} className={hasEncouragement ? "border-green-200 bg-green-50" : ""}>
+              <Card key={entryKey} className={hasEncouragement ? "border-green-200 bg-green-50" : ""}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <CardTitle className="text-lg">
-                        {Array.isArray(log.subjects) ? log.subjects[0]?.name : log.subjects?.name || "科目不明"}
-                      </CardTitle>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {isBatch && (
+                        <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
+                          <Layers className="h-3 w-3 mr-1" />
+                          {entry.subjects.length}科目
+                        </Badge>
+                      )}
+                      <CardTitle className="text-lg">{subjectName}</CardTitle>
                       {hasEncouragement && (
                         <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
                           応援済み
                         </Badge>
                       )}
                     </div>
-                    <div className="text-sm text-slate-600">
-                      {new Date(log.study_date).toLocaleDateString("ja-JP")}
+                    <div className="text-right">
+                      <div className="text-sm text-slate-600">{displayDate}</div>
+                      <div className="text-lg font-semibold text-primary">{accuracy}%</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-4 text-sm text-slate-600 mt-2">
-                    <span>
-                      第
-                      {Array.isArray(log.study_sessions)
-                        ? log.study_sessions[0]?.session_number
-                        : log.study_sessions?.session_number || "?"}
-                      回
+                    <span>第{sessionNum}回</span>
+                    <span className="text-xs">
+                      {summary.totalCorrect}/{summary.totalQuestions}問
                     </span>
-                    <span className="font-semibold text-primary">正答率 {accuracy}%</span>
                   </div>
                 </CardHeader>
 
                 <CardContent className="space-y-4">
-                  {/* 応援済みメッセージ表示 - ホーム機能と同じフォーマット */}
-                  {hasEncouragement && log.encouragement_messages && log.encouragement_messages.length > 0 && (
-                    <div className="space-y-3">
-                      {log.encouragement_messages.map((msg: any, msgIndex: number) => {
-                        const getAvatarSrc = (avatarId: string | null | undefined) => {
-                          if (!avatarId) return null
-                          if (avatarId.startsWith("http")) return avatarId
-
-                          // 保護者アバター
-                          const parentAvatarMap: Record<string, string> = {
-                            "parent1": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent1-HbhESuJlC27LuGOGupullRXyEUzFLy.png",
-                            "parent2": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent2-zluk4uVJLfzP8dBe0I7v5fVGSn5QfU.png",
-                            "parent3": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent3-EzBDrjsFP5USAgnSPTXjcdNeq1bzSm.png",
-                            "parent4": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent4-YHYTNRnNQ7bRb6aAfTNEFMozjGRlZq.png",
-                            "parent5": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent5-dGCLocpgcZw4lXWRiPmTHkXURBXXoH.png",
-                            "parent6": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent6-gKoeUywhHoKWJ4BPEk69iW6idztaLl.png",
-                          }
-                          if (parentAvatarMap[avatarId]) return parentAvatarMap[avatarId]
-
-                          return `/avatars/${avatarId}.png`
-                        }
-
-                        const senderName = msg.sender_profile?.nickname || msg.sender_profile?.display_name || "送信者"
-                        const senderAvatar = msg.sender_profile?.avatar_id
-                        const sentAt = new Date(msg.sent_at).toLocaleString("ja-JP", {
-                          month: "numeric",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit"
-                        })
-
+                  {/* バッチの場合は科目別内訳 */}
+                  {isBatch && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {entry.logs.map((log) => {
+                        const logAccuracy = log.total_problems > 0
+                          ? Math.round((log.correct_count / log.total_problems) * 100)
+                          : 0
+                        const logSubject = Array.isArray(log.subjects) ? log.subjects[0]?.name : log.subjects?.name
                         return (
-                          <div
-                            key={msgIndex}
-                            className="bg-white/90 backdrop-blur-sm rounded-xl p-5 border border-pink-100 shadow-lg hover:shadow-xl transition-all duration-300"
-                          >
-                            <div className="flex items-start gap-4">
-                              <Avatar className="h-12 w-12 border-3 border-pink-200 flex-shrink-0 shadow-md">
-                                <AvatarImage src={getAvatarSrc(senderAvatar) || "/placeholder.svg"} alt={senderName} />
-                                <AvatarFallback className="bg-pink-100 text-pink-700 font-bold text-lg">
-                                  {senderName.charAt(0)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1 space-y-3">
-                                <div className="flex items-center gap-3 flex-wrap">
-                                  <span className="font-bold text-slate-800 text-lg">{senderName}</span>
-                                  <span className="text-sm text-slate-600 bg-slate-100 px-2 py-1 rounded-full">
-                                    {sentAt}
-                                  </span>
-                                  <div className="flex items-center gap-1">
-                                    <Heart className="h-4 w-4 text-pink-500" />
-                                    <span className="text-xs text-pink-600 font-medium">応援</span>
-                                  </div>
-                                </div>
-                                <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-4 rounded-xl border border-pink-100">
-                                  <p className="text-base leading-relaxed text-slate-700 font-medium">
-                                    {msg.message}
-                                  </p>
-                                </div>
-                              </div>
+                          <div key={log.id} className="text-xs p-2 bg-muted/50 rounded border">
+                            <div className="font-medium">{logSubject}</div>
+                            <div className="text-muted-foreground">
+                              {logAccuracy}% ({log.correct_count}/{log.total_problems})
                             </div>
                           </div>
                         )
@@ -404,62 +423,86 @@ export default function ParentEncouragementPage() {
                     </div>
                   )}
 
-                  {/* クイック応援ボタン + AI応援ボタン - 常に表示 */}
+                  {/* 応援済みメッセージ表示 */}
+                  {hasEncouragement && (
+                    <div className="space-y-3">
+                      {(isBatch ? entry.logs : [representativeLog]).flatMap((log) =>
+                        (log.encouragement_messages || []).map((msg: any, msgIndex: number) => {
+                          const getAvatarSrc = (avatarId: string | null | undefined) => {
+                            if (!avatarId) return null
+                            if (avatarId.startsWith("http")) return avatarId
+                            const parentAvatarMap: Record<string, string> = {
+                              "parent1": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent1-HbhESuJlC27LuGOGupullRXyEUzFLy.png",
+                              "parent2": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent2-zluk4uVJLfzP8dBe0I7v5fVGSn5QfU.png",
+                              "parent3": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent3-EzBDrjsFP5USAgnSPTXjcdNeq1bzSm.png",
+                              "parent4": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent4-YHYTNRnNQ7bRb6aAfTNEFMozjGRlZq.png",
+                              "parent5": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent5-dGCLocpgcZw4lXWRiPmTHkXURBXXoH.png",
+                              "parent6": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent6-gKoeUywhHoKWJ4BPEk69iW6idztaLl.png",
+                            }
+                            if (parentAvatarMap[avatarId]) return parentAvatarMap[avatarId]
+                            return `/avatars/${avatarId}.png`
+                          }
+                          const senderName = msg.sender_profile?.nickname || msg.sender_profile?.display_name || "送信者"
+                          const senderAvatar = msg.sender_profile?.avatar_id
+                          const sentAt = new Date(msg.sent_at).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })
+
+                          return (
+                            <div key={`${log.id}-${msgIndex}`} className="bg-white/90 backdrop-blur-sm rounded-xl p-5 border border-pink-100 shadow-lg">
+                              <div className="flex items-start gap-4">
+                                <Avatar className="h-12 w-12 border-3 border-pink-200 flex-shrink-0 shadow-md">
+                                  <AvatarImage src={getAvatarSrc(senderAvatar) || "/placeholder.svg"} alt={senderName} />
+                                  <AvatarFallback className="bg-pink-100 text-pink-700 font-bold text-lg">{senderName.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 space-y-3">
+                                  <div className="flex items-center gap-3 flex-wrap">
+                                    <span className="font-bold text-slate-800 text-lg">{senderName}</span>
+                                    <span className="text-sm text-slate-600 bg-slate-100 px-2 py-1 rounded-full">{sentAt}</span>
+                                    <div className="flex items-center gap-1">
+                                      <Heart className="h-4 w-4 text-pink-500" />
+                                      <span className="text-xs text-pink-600 font-medium">応援</span>
+                                    </div>
+                                  </div>
+                                  <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-4 rounded-xl border border-pink-100">
+                                    <p className="text-base leading-relaxed text-slate-700 font-medium">{msg.message}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })
+                      )}
+                    </div>
+                  )}
+
+                  {/* クイック応援ボタン（未応援の場合のみ） */}
                   {!hasEncouragement && (
                     <div className="space-y-2.5">
                       <Button
-                        onClick={() => handleQuickEncouragement(log.id, "heart")}
-                        className="group relative w-full py-3 px-4 rounded-xl text-sm overflow-hidden
-                          bg-gradient-to-br from-rose-50 via-pink-50 to-rose-100
-                          hover:from-rose-100 hover:via-pink-100 hover:to-rose-200
-                          text-rose-700 border border-rose-200/50 shadow-sm hover:shadow-md
-                          transform hover:scale-[1.02] active:scale-[0.98]
-                          transition-all duration-300 ease-out
-                          flex items-center justify-center gap-2"
+                        onClick={() => handleQuickEncouragement(representativeLogId, "heart")}
+                        className="group relative w-full py-3 px-4 rounded-xl text-sm overflow-hidden bg-gradient-to-br from-rose-50 via-pink-50 to-rose-100 hover:from-rose-100 hover:via-pink-100 hover:to-rose-200 text-rose-700 border border-rose-200/50 shadow-sm hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 ease-out flex items-center justify-center gap-2"
                       >
                         <Heart className="h-4 w-4 group-hover:scale-110 transition-transform duration-300 fill-rose-500" />
                         <span>がんばったね</span>
                       </Button>
                       <Button
-                        onClick={() => handleQuickEncouragement(log.id, "star")}
-                        className="group relative w-full py-3 px-4 rounded-xl text-sm overflow-hidden
-                          bg-gradient-to-br from-amber-50 via-yellow-50 to-amber-100
-                          hover:from-amber-100 hover:via-yellow-100 hover:to-amber-200
-                          text-amber-700 border border-amber-200/50 shadow-sm hover:shadow-md
-                          transform hover:scale-[1.02] active:scale-[0.98]
-                          transition-all duration-300 ease-out
-                          flex items-center justify-center gap-2"
+                        onClick={() => handleQuickEncouragement(representativeLogId, "star")}
+                        className="group relative w-full py-3 px-4 rounded-xl text-sm overflow-hidden bg-gradient-to-br from-amber-50 via-yellow-50 to-amber-100 hover:from-amber-100 hover:via-yellow-100 hover:to-amber-200 text-amber-700 border border-amber-200/50 shadow-sm hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 ease-out flex items-center justify-center gap-2"
                       >
                         <span className="text-lg group-hover:scale-110 transition-transform duration-300">⭐</span>
                         <span>すごい！</span>
                       </Button>
                       <Button
-                        onClick={() => handleQuickEncouragement(log.id, "thumbsup")}
-                        className="group relative w-full py-3 px-4 rounded-xl text-sm overflow-hidden
-                          bg-gradient-to-br from-sky-50 via-blue-50 to-sky-100
-                          hover:from-sky-100 hover:via-blue-100 hover:to-sky-200
-                          text-sky-700 border border-sky-200/50 shadow-sm hover:shadow-md
-                          transform hover:scale-[1.02] active:scale-[0.98]
-                          transition-all duration-300 ease-out
-                          flex items-center justify-center gap-2"
+                        onClick={() => handleQuickEncouragement(representativeLogId, "thumbsup")}
+                        className="group relative w-full py-3 px-4 rounded-xl text-sm overflow-hidden bg-gradient-to-br from-sky-50 via-blue-50 to-sky-100 hover:from-sky-100 hover:via-blue-100 hover:to-sky-200 text-sky-700 border border-sky-200/50 shadow-sm hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 ease-out flex items-center justify-center gap-2"
                       >
                         <span className="text-lg group-hover:scale-110 transition-transform duration-300">👍</span>
                         <span>よくできました</span>
                       </Button>
-                      {/* AI応援ボタン - デフォルト表示 */}
                       <Button
-                        onClick={() => handleOpenAIDialog(log.id)}
-                        className="group relative w-full py-3.5 px-4 rounded-xl text-sm overflow-hidden
-                          bg-gradient-to-br from-violet-50 via-purple-50 to-violet-100
-                          hover:from-violet-100 hover:via-purple-100 hover:to-violet-200
-                          text-violet-700 border border-violet-200/50 shadow-sm hover:shadow-md
-                          transform hover:scale-[1.02] active:scale-[0.98]
-                          transition-all duration-300 ease-out
-                          flex items-center justify-center gap-2"
+                        onClick={() => handleOpenAIDialog(representativeLogId)}
+                        className="group relative w-full py-3.5 px-4 rounded-xl text-sm overflow-hidden bg-gradient-to-br from-violet-50 via-purple-50 to-violet-100 hover:from-violet-100 hover:via-purple-100 hover:to-violet-200 text-violet-700 border border-violet-200/50 shadow-sm hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 ease-out flex items-center justify-center gap-2"
                       >
-                        {/* シマー効果 */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent
-                          translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000 ease-in-out" />
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000 ease-in-out" />
                         <Sparkles className="h-4 w-4 relative z-10 group-hover:rotate-12 group-hover:scale-110 transition-all duration-300 fill-violet-500" />
                         <span className="relative z-10 tracking-wide">AI応援メッセージ</span>
                       </Button>
@@ -467,44 +510,46 @@ export default function ParentEncouragementPage() {
                   )}
 
                   {/* 詳細表示切り替えボタン */}
-                  <Button variant="ghost" onClick={() => toggleCard(log.id)} className="w-full">
+                  <Button variant="ghost" onClick={() => toggleCard(entryKey)} className="w-full">
                     {isExpanded ? (
-                      <>
-                        <ChevronUp className="h-4 w-4 mr-1" />
-                        詳細を閉じる
-                      </>
+                      <><ChevronUp className="h-4 w-4 mr-1" />詳細を閉じる</>
                     ) : (
-                      <>
-                        <ChevronDown className="h-4 w-4 mr-1" />
-                        詳細を表示
-                      </>
+                      <><ChevronDown className="h-4 w-4 mr-1" />詳細を表示</>
                     )}
                   </Button>
 
                   {/* 詳細表示（展開時） */}
                   {isExpanded && (
                     <div className="space-y-4 pt-4 border-t">
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="text-slate-600">学習内容:</span>
-                          <p className="font-medium">
-                            {Array.isArray(log.study_content_types)
-                              ? log.study_content_types[0]?.content_name
-                              : log.study_content_types?.content_name || "不明"}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-slate-600">正答数:</span>
-                          <p className="font-medium">
-                            {log.correct_count} / {log.total_problems}問
-                          </p>
-                        </div>
-                      </div>
-
-                      {log.reflection_text && (
-                        <div className="text-sm">
-                          <span className="text-slate-600">今日の振り返り:</span>
-                          <p className="mt-1 p-3 bg-slate-50 rounded-lg">{log.reflection_text}</p>
+                      {isBatch ? (
+                        entry.logs.map((log) => (
+                          <div key={log.id} className="text-sm space-y-2 p-3 bg-muted/30 rounded">
+                            <div className="font-medium">{Array.isArray(log.subjects) ? log.subjects[0]?.name : log.subjects?.name}</div>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div><span className="text-slate-600">学習内容:</span> {Array.isArray(log.study_content_types) ? log.study_content_types[0]?.content_name : log.study_content_types?.content_name || "不明"}</div>
+                              <div><span className="text-slate-600">正答:</span> {log.correct_count}/{log.total_problems}問</div>
+                            </div>
+                            {log.reflection_text && (
+                              <div className="text-xs"><span className="text-slate-600">振り返り:</span><p className="mt-1 p-2 bg-background rounded">{log.reflection_text}</p></div>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-slate-600">学習内容:</span>
+                            <p className="font-medium">{Array.isArray(representativeLog.study_content_types) ? representativeLog.study_content_types[0]?.content_name : representativeLog.study_content_types?.content_name || "不明"}</p>
+                          </div>
+                          <div>
+                            <span className="text-slate-600">正答数:</span>
+                            <p className="font-medium">{representativeLog.correct_count} / {representativeLog.total_problems}問</p>
+                          </div>
+                          {representativeLog.reflection_text && (
+                            <div className="col-span-2 text-sm">
+                              <span className="text-slate-600">今日の振り返り:</span>
+                              <p className="mt-1 p-3 bg-slate-50 rounded-lg">{representativeLog.reflection_text}</p>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -517,23 +562,8 @@ export default function ParentEncouragementPage() {
           {/* さらに表示ボタン */}
           {hasMore && (
             <div className="flex justify-center pt-4">
-              <Button
-                onClick={() => loadStudyLogs(false)}
-                disabled={loadingMore}
-                variant="outline"
-                className="w-full max-w-md py-3"
-              >
-                {loadingMore ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    読み込み中...
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="h-4 w-4 mr-2" />
-                    さらに表示（次の10件）
-                  </>
-                )}
+              <Button onClick={() => loadStudyLogs(false)} disabled={loadingMore} variant="outline" className="w-full max-w-md py-3">
+                {loadingMore ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />読み込み中...</>) : (<><ChevronDown className="h-4 w-4 mr-2" />さらに表示</>)}
               </Button>
             </div>
           )}

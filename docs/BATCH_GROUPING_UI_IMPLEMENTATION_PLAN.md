@@ -364,19 +364,19 @@ export function groupLogsByBatch<TLog extends StudyLogWithBatch>(
 
 | ID | タスク | Status | Note |
 |----|--------|--------|------|
-| 2-1 | 保護者応援ページ バッチ対応 | ⬜ | |
-| 2-2 | 指導者応援ページ バッチ対応 | ⬜ | |
-| 2-3 | バッチ選択UI共通化 | ⬜ | |
-| 2-4 | 選択動作テスト | ⬜ | |
+| 2-1 | 保護者応援ページ バッチ対応 | ✅ | `groupLogsByBatch` 適用、バッチ表示・内訳グリッド実装、型エラー修正（ChildProfile.id→number） |
+| 2-2 | 指導者応援ページ バッチ対応 | ✅ | `useMemo` + `groupLogsByBatch` 適用、SWRフック連携 |
+| 2-3 | バッチ選択UI共通化 | ✅ | `components/encouragement/study-log-card.tsx` 作成（viewerRole対応） |
+| 2-4 | 選択動作テスト | ✅ | ビルド成功確認、sortBy/sortOrder整合修正完了 |
 
 ### Phase 3: 指導者画面
 
 | ID | タスク | Status | Note |
 |----|--------|--------|------|
-| 3-1 | getStudentDetail() batch対応 | ⬜ | |
-| 3-2 | 型定義更新 | ⬜ | |
-| 3-3 | 生徒詳細ページ グループ化適用 | ⬜ | |
-| 3-4 | 手動QA（混在データ、並び順） | ⬜ | |
+| 3-1 | getStudentLearningHistory() batch対応 | ✅ | `batch_id`取得、`coach_feedbacks`からbatch/legacy両方のフィードバック取得 |
+| 3-2 | 型定義更新 | ✅ | `StudyLog`型に`batch_id`追加、`CoachStudentDetailData`にfeedbackMaps追加 |
+| 3-3 | 生徒詳細ページ グループ化適用 | ✅ | `groupLogsByBatch`適用、バッチ/単独エントリの表示分岐実装 |
+| 3-4 | 手動QA（混在データ、並び順） | ⬜ | 実機確認待ち |
 
 ---
 
@@ -397,3 +397,8 @@ export function groupLogsByBatch<TLog extends StudyLogWithBatch>(
 | 2024-12-03 | 安全性向上: 日時比較をDate使用に変更、代表日付ルール明記、紐付けルール明記、型設計の必須/任意整理、API件数上限追加 |
 | 2024-12-03 | Phase 0完了: 型定義(0-1)、ユーティリティ作成(0-2)、ダッシュボードリファクタ完了。単体テスト(0-3)はフレームワーク未導入のためBLOCKED |
 | 2024-12-03 | Phase 1実装: API全4関数にbatch_id追加、StudyHistoryグループ化表示完了、EncouragementHistoryは「同時記録」バッジ表示（メッセージ自体のグループ化は不要と判断）、sortBy=session整合修正 |
+| 2024-12-03 | Phase 2完了: 保護者/指導者応援ページにバッチ対応適用、共通カードコンポーネント作成、RPC関数にbatch_id/logged_at追加（マイグレーション作成）、sortBy/sortOrder整合修正（SortOptionsパラメータ追加） |
+| 2024-12-03 | 保護者ダッシュボード追加対応: `RecentLearningHistoryCard`にbatch_id対応追加（API route/フック型/クライアント表示）、`use-parent-dashboard`フックにfeedbackMaps追加 |
+| 2024-12-03 | Phase 3実装完了: `getStudentLearningHistory()`にbatch_id/feedbackMaps追加、`use-coach-student-detail`フック型更新、生徒詳細ページ(`/coach/student/[id]`)にグループ化表示適用。手動QA(3-4)のみ残 |
+| 2024-12-03 | 指導者ホームページ追加対応: `LearningRecordWithEncouragements`型にbatchId/studyDate追加、`getCoachStudentLearningRecords()`にbatch_id/study_date取得追加、`coach-home-client.tsx`にバッチグループ化ロジック実装（`groupRecordsByBatch`関数追加、Layersアイコン表示、科目別内訳グリッド） |
+| 2024-12-04 | logged_at整合性修正: `getCoachStudentLearningRecords()`のソート/取得カラムを`created_at`から`logged_at`に変更。計画通り全画面で`logged_at`基準に統一 |

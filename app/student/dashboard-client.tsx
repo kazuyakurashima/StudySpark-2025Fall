@@ -1196,9 +1196,10 @@ const RecentLearningHistoryCard = ({
                     <div className="space-y-4">
                       <div className="flex items-center justify-between flex-wrap gap-2">
                         <div className="flex items-center gap-3 flex-wrap">
-                          {entry.logs.map((log) => (
-                            <Badge key={log.id} className={`text-sm px-3 py-1 border font-medium ${getSubjectColor(log.subjects?.name || "")}`}>
-                              {log.subjects?.name || "不明"}
+                          {/* 科目をユニークにして表示（共通ユーティリティで重複排除済み） */}
+                          {entry.subjects.map((subjectName) => (
+                            <Badge key={subjectName} className={`text-sm px-3 py-1 border font-medium ${getSubjectColor(subjectName)}`}>
+                              {subjectName}
                             </Badge>
                           ))}
                           <span className="text-sm text-slate-600 bg-slate-100 px-3 py-1 rounded-full font-medium">

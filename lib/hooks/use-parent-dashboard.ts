@@ -39,6 +39,8 @@ export interface ParentDashboardData {
   }
   recentLogs: {
     logs: any[]
+    batchFeedbacks: Record<string, string>
+    legacyFeedbacks: Record<number, string>
     error?: string
   }
   recentMessages: {
@@ -108,7 +110,7 @@ export function useParentDashboard(
         todayProgress: { todayProgress: [] },
         weeklyProgress: { progress: [], sessionNumber: null },
         calendar: { calendarData: {} },
-        recentLogs: { logs: [] },
+        recentLogs: { logs: [], batchFeedbacks: {}, legacyFeedbacks: {} },
         recentMessages: { messages: [] },
         reflection: { completed: false },
         fetchedAt: Date.now(),

@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import CoachBottomNavigation from "@/components/coach-bottom-navigation"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
-import { Heart, Star, ThumbsUp, Sparkles, MessageSquare, ChevronDown, ChevronUp, Loader2, AlertTriangle, RefreshCw } from "lucide-react"
+import { Heart, Star, ThumbsUp, Sparkles, MessageSquare, ChevronDown, ChevronUp, Loader2, AlertTriangle, RefreshCw, Layers } from "lucide-react"
 import {
   sendCoachQuickEncouragement,
   generateCoachAIEncouragement,
@@ -23,6 +23,28 @@ import {
   useCoachInactiveStudents,
   type StudyLogsFilters,
 } from "@/lib/hooks/use-coach-encouragement"
+import { groupLogsByBatch, calculateSummary, calculateAccuracy, getRepresentativeLog } from "@/lib/utils/batch-grouping"
+import type { GroupedLogEntry, StudyLogWithBatch } from "@/lib/types/batch-grouping"
+import { useMemo } from "react"
+
+// 指導者応援用学習ログ型
+interface CoachEncouragementLog extends StudyLogWithBatch {
+  students?: {
+    id: string
+    full_name: string
+    grade?: number
+    profiles?: {
+      avatar_id?: string | null
+      nickname?: string | null
+      custom_avatar_url?: string | null
+    }
+  } | { id: string; full_name: string; grade?: number; profiles?: any }[]
+  subjects?: { name: string } | { name: string }[]
+  study_sessions?: { session_number: number; grade?: number } | { session_number: number; grade?: number }[]
+  study_content_types?: { content_name: string } | { content_name: string }[]
+  reflection_text?: string | null
+  encouragement_messages?: any[]
+}
 
 export default function CoachEncouragementPage() {
   const [activeTab, setActiveTab] = useState<"encouragement" | "inactive">("encouragement")
@@ -51,6 +73,23 @@ export default function CoachEncouragementPage() {
     isValidating: inactiveValidating,
     mutate: mutateInactive,
   } = useCoachInactiveStudents(inactiveThreshold)
+
+  // 学習ログをバッチグループ化
+  const groupedEntries = useMemo(() => {
+    if (!studyLogs || studyLogs.length === 0) return []
+
+    // subjectフィールドを追加（groupLogsByBatchが必要とする）
+    const logsWithSubject = studyLogs.map((log: any) => ({
+      ...log,
+      subject: Array.isArray(log.subjects) ? log.subjects[0]?.name : log.subjects?.name || "不明",
+    })) as CoachEncouragementLog[]
+
+    // ソートオプション（sortBy は "date" 固定、sortOrder は filters から取得）
+    return groupLogsByBatch(logsWithSubject, {
+      batchFeedbacks: {},
+      legacyFeedbacks: {},
+    }, { sortBy: "date", sortOrder: filters.sortOrder })
+  }, [studyLogs, filters.sortOrder])
 
   // AI応援ダイアログ状態
   const [aiDialogOpen, setAiDialogOpen] = useState<{ studentId: string; logId: string } | null>(null)
@@ -216,14 +255,25 @@ export default function CoachEncouragementPage() {
               <div className="flex justify-center items-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
-            ) : studyLogs.length === 0 ? (
+            ) : groupedEntries.length === 0 ? (
               <Card><CardContent className="p-8 text-center text-slate-600"><p>該当する学習記録がありません</p></CardContent></Card>
             ) : (
-              studyLogs.map((log) => {
-                const isExpanded = expandedCards.has(log.id)
-                const accuracy = log.total_problems > 0 ? Math.round((log.correct_count / log.total_problems) * 100) : 0
-                const hasCoachEncouragement = Array.isArray(log.encouragement_messages) && log.encouragement_messages.some((msg: any) => msg.sender_role === "coach")
-                const student = Array.isArray(log.students) ? log.students[0] : log.students
+              groupedEntries.map((entry) => {
+                // エントリから情報を取得
+                const isBatch = entry.type === "batch"
+                const representativeLog = getRepresentativeLog(entry)
+                const summary = calculateSummary(entry)
+                const accuracy = calculateAccuracy(summary.totalQuestions, summary.totalCorrect)
+                const entryKey = isBatch ? `batch-${entry.batchId}` : `single-${entry.log.id}`
+                const isExpanded = expandedCards.has(entryKey)
+
+                // 指導者応援済み判定
+                const hasCoachEncouragement = isBatch
+                  ? entry.logs.some(log => Array.isArray(log.encouragement_messages) && log.encouragement_messages.some((msg: any) => msg.sender_role === "coach"))
+                  : Array.isArray(representativeLog.encouragement_messages) && representativeLog.encouragement_messages.some((msg: any) => msg.sender_role === "coach")
+
+                // 生徒情報（代表ログから取得）
+                const student = Array.isArray(representativeLog.students) ? representativeLog.students[0] : representativeLog.students
                 const profile = student?.profiles
                 const fullName = student?.full_name || "生徒"
                 const nickname = profile?.nickname
@@ -232,8 +282,27 @@ export default function CoachEncouragementPage() {
                 const customAvatarUrl = profile?.custom_avatar_url
                 const avatarSrc = customAvatarUrl || (avatarId ? getAvatarById(avatarId)?.src || "/placeholder.svg" : "/placeholder.svg")
 
+                // 科目表示
+                const subjectName = isBatch
+                  ? entry.subjects.join(" · ")
+                  : (Array.isArray(representativeLog.subjects) ? representativeLog.subjects[0]?.name : representativeLog.subjects?.name) || "科目不明"
+
+                // 代表ログID（応援送信用）
+                const representativeLogId = String(representativeLog.id)
+                const studentId = String(student?.id || representativeLog.student_id)
+
+                // 日付表示
+                const displayDate = isBatch
+                  ? new Date(entry.latestLoggedAt).toLocaleDateString("ja-JP")
+                  : new Date(representativeLog.logged_at || representativeLog.study_date).toLocaleDateString("ja-JP")
+
+                // セッション番号
+                const sessionNum = Array.isArray(representativeLog.study_sessions)
+                  ? representativeLog.study_sessions[0]?.session_number
+                  : representativeLog.study_sessions?.session_number || 0
+
                 return (
-                  <Card key={log.id} className={hasCoachEncouragement ? "border-green-200 bg-green-50" : ""}>
+                  <Card key={entryKey} className={hasCoachEncouragement ? "border-green-200 bg-green-50" : ""}>
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -242,84 +311,122 @@ export default function CoachEncouragementPage() {
                             <AvatarFallback>{fullName?.[0] || "生"}</AvatarFallback>
                           </Avatar>
                           <div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <CardTitle className="text-base">{displayName}</CardTitle>
                               {student?.grade && <Badge variant="outline" className="text-xs">小{student.grade}</Badge>}
+                              {isBatch && (
+                                <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
+                                  <Layers className="h-3 w-3 mr-1" />{entry.subjects.length}科目
+                                </Badge>
+                              )}
                               {hasCoachEncouragement && <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">応援済み</Badge>}
                             </div>
                             <div className="text-xs text-slate-600 mt-1">
-                              {Array.isArray(log.subjects) ? log.subjects[0]?.name : log.subjects?.name || "科目不明"} · 第{Array.isArray(log.study_sessions) ? log.study_sessions[0]?.session_number : log.study_sessions?.session_number || "?"}回
+                              {subjectName} · 第{sessionNum}回
                             </div>
                           </div>
                         </div>
-                        <div className="text-sm text-slate-600">{new Date(log.study_date).toLocaleDateString("ja-JP")}</div>
-                      </div>
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="text-sm font-semibold text-primary">正答率 {accuracy}%</span>
+                        <div className="text-right">
+                          <div className="text-sm text-slate-600">{displayDate}</div>
+                          <div className="text-lg font-semibold text-primary">{accuracy}%</div>
+                          <div className="text-xs text-slate-500">{summary.totalCorrect}/{summary.totalQuestions}問</div>
+                        </div>
                       </div>
                     </CardHeader>
 
                     <CardContent className="space-y-4">
+                      {/* バッチの場合は科目別内訳 */}
+                      {isBatch && (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          {entry.logs.map((log) => {
+                            const logAccuracy = log.total_problems > 0 ? Math.round((log.correct_count / log.total_problems) * 100) : 0
+                            const logSubject = Array.isArray(log.subjects) ? log.subjects[0]?.name : log.subjects?.name
+                            return (
+                              <div key={log.id} className="text-xs p-2 bg-muted/50 rounded border">
+                                <div className="font-medium">{logSubject}</div>
+                                <div className="text-muted-foreground">{logAccuracy}% ({log.correct_count}/{log.total_problems})</div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+
+                      {/* クイック応援ボタン */}
                       {!hasCoachEncouragement && (
                         <div className="flex gap-2">
-                          <Button variant="outline" size="sm" onClick={() => handleQuickEncouragement(student.id, log.id, "heart")} className="flex-1 border-pink-300 text-pink-700 hover:bg-pink-50">
+                          <Button variant="outline" size="sm" onClick={() => handleQuickEncouragement(studentId, representativeLogId, "heart")} className="flex-1 border-pink-300 text-pink-700 hover:bg-pink-50">
                             <Heart className="h-4 w-4 mr-1" />頑張ったね
                           </Button>
-                          <Button variant="outline" size="sm" onClick={() => handleQuickEncouragement(student.id, log.id, "star")} className="flex-1 border-yellow-300 text-yellow-700 hover:bg-yellow-50">
+                          <Button variant="outline" size="sm" onClick={() => handleQuickEncouragement(studentId, representativeLogId, "star")} className="flex-1 border-yellow-300 text-yellow-700 hover:bg-yellow-50">
                             <Star className="h-4 w-4 mr-1" />すごい！
                           </Button>
-                          <Button variant="outline" size="sm" onClick={() => handleQuickEncouragement(student.id, log.id, "thumbsup")} className="flex-1 border-blue-300 text-blue-700 hover:bg-blue-50">
+                          <Button variant="outline" size="sm" onClick={() => handleQuickEncouragement(studentId, representativeLogId, "thumbsup")} className="flex-1 border-blue-300 text-blue-700 hover:bg-blue-50">
                             <ThumbsUp className="h-4 w-4 mr-1" />よくできました
                           </Button>
                         </div>
                       )}
 
-                      <Button variant="ghost" onClick={() => toggleCard(log.id)} className="w-full">
+                      <Button variant="ghost" onClick={() => toggleCard(entryKey)} className="w-full">
                         {isExpanded ? (<><ChevronUp className="h-4 w-4 mr-1" />詳細を閉じる</>) : (<><ChevronDown className="h-4 w-4 mr-1" />詳細を表示</>)}
                       </Button>
 
                       {isExpanded && (
                         <div className="space-y-4 pt-4 border-t">
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <span className="text-slate-600">学習内容:</span>
-                              <p className="font-medium">
-                                {Array.isArray(log.study_content_types)
-                                  ? log.study_content_types[0]?.content_name
-                                  : log.study_content_types?.content_name || "不明"}
-                              </p>
+                          {/* 詳細表示 */}
+                          {isBatch ? (
+                            entry.logs.map((log) => (
+                              <div key={log.id} className="text-sm space-y-2 p-3 bg-muted/30 rounded">
+                                <div className="font-medium">{Array.isArray(log.subjects) ? log.subjects[0]?.name : log.subjects?.name}</div>
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                  <div><span className="text-slate-600">学習内容:</span> {Array.isArray(log.study_content_types) ? log.study_content_types[0]?.content_name : log.study_content_types?.content_name || "不明"}</div>
+                                  <div><span className="text-slate-600">正答:</span> {log.correct_count}/{log.total_problems}問</div>
+                                </div>
+                                {log.reflection_text && (
+                                  <div className="text-xs"><span className="text-slate-600">振り返り:</span><p className="mt-1 p-2 bg-background rounded">{log.reflection_text}</p></div>
+                                )}
+                              </div>
+                            ))
+                          ) : (
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <span className="text-slate-600">学習内容:</span>
+                                <p className="font-medium">{Array.isArray(representativeLog.study_content_types) ? representativeLog.study_content_types[0]?.content_name : representativeLog.study_content_types?.content_name || "不明"}</p>
+                              </div>
+                              <div><span className="text-slate-600">正答数:</span><p className="font-medium">{representativeLog.correct_count} / {representativeLog.total_problems}問</p></div>
+                              {representativeLog.reflection_text && (
+                                <div className="col-span-2 text-sm"><span className="text-slate-600">今日の振り返り:</span><p className="mt-1 p-3 bg-slate-50 rounded-lg">{representativeLog.reflection_text}</p></div>
+                              )}
                             </div>
-                            <div><span className="text-slate-600">正答数:</span><p className="font-medium">{log.correct_count} / {log.total_problems}問</p></div>
-                          </div>
-
-                          {log.reflection_text && (
-                            <div className="text-sm"><span className="text-slate-600">今日の振り返り:</span><p className="mt-1 p-3 bg-slate-50 rounded-lg">{log.reflection_text}</p></div>
                           )}
 
-                          {Array.isArray(log.encouragement_messages) && log.encouragement_messages.length > 0 && (
+                          {/* 応援履歴 */}
+                          {(isBatch ? entry.logs : [representativeLog]).some(log => Array.isArray(log.encouragement_messages) && log.encouragement_messages.length > 0) && (
                             <div className="text-sm"><span className="text-slate-600">応援履歴:</span>
                               <div className="mt-2 space-y-2">
-                                {log.encouragement_messages.map((msg: any, idx: number) => (
-                                  <div key={idx} className={`p-3 rounded-lg ${msg.sender_role === "coach" ? "bg-green-50 border border-green-200" : "bg-pink-50 border border-pink-200"}`}>
-                                    <div className="flex items-center justify-between mb-1">
-                                      <Badge variant="outline" className={msg.sender_role === "coach" ? "bg-green-100 text-green-700 border-green-300" : "bg-pink-100 text-pink-700 border-pink-300"}>
-                                        {msg.sender_role === "coach" ? "指導者" : "保護者"}
-                                      </Badge>
-                                      <span className="text-xs text-slate-500">{new Date(msg.created_at).toLocaleString("ja-JP")}</span>
+                                {(isBatch ? entry.logs : [representativeLog]).flatMap((log) =>
+                                  (log.encouragement_messages || []).map((msg: any, idx: number) => (
+                                    <div key={`${log.id}-${idx}`} className={`p-3 rounded-lg ${msg.sender_role === "coach" ? "bg-green-50 border border-green-200" : "bg-pink-50 border border-pink-200"}`}>
+                                      <div className="flex items-center justify-between mb-1">
+                                        <Badge variant="outline" className={msg.sender_role === "coach" ? "bg-green-100 text-green-700 border-green-300" : "bg-pink-100 text-pink-700 border-pink-300"}>
+                                          {msg.sender_role === "coach" ? "指導者" : "保護者"}
+                                        </Badge>
+                                        <span className="text-xs text-slate-500">{new Date(msg.created_at).toLocaleString("ja-JP")}</span>
+                                      </div>
+                                      <p className="text-sm">{msg.message}</p>
                                     </div>
-                                    <p className="text-sm">{msg.message}</p>
-                                  </div>
-                                ))}
+                                  ))
+                                )}
                               </div>
                             </div>
                           )}
 
+                          {/* AI/カスタム応援ボタン */}
                           {!hasCoachEncouragement && (
                             <div className="flex gap-2">
-                              <Button variant="outline" onClick={() => handleOpenAIDialog(student.id, log.id)} className="flex-1 border-purple-300 text-purple-700 hover:bg-purple-50">
+                              <Button variant="outline" onClick={() => handleOpenAIDialog(studentId, representativeLogId)} className="flex-1 border-purple-300 text-purple-700 hover:bg-purple-50">
                                 <Sparkles className="h-4 w-4 mr-1" />AI応援
                               </Button>
-                              <Button variant="outline" onClick={() => setCustomDialogOpen({ studentId: student.id, logId: log.id })} className="flex-1 border-slate-300 text-slate-700 hover:bg-slate-50">
+                              <Button variant="outline" onClick={() => setCustomDialogOpen({ studentId, logId: representativeLogId })} className="flex-1 border-slate-300 text-slate-700 hover:bg-slate-50">
                                 <MessageSquare className="h-4 w-4 mr-1" />カスタム応援
                               </Button>
                             </div>

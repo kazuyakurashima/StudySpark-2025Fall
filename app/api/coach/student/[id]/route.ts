@@ -53,8 +53,12 @@ export async function GET(
         ? { error: detailResult.error }
         : detailResult?.student || null,
       studyLogs: historyResult?.error
-        ? { studyLogs: [], error: historyResult.error }
-        : { studyLogs: historyResult?.studyLogs || [] },
+        ? { studyLogs: [], batchFeedbacks: {}, legacyFeedbacks: {}, error: historyResult.error }
+        : {
+            studyLogs: historyResult?.studyLogs || [],
+            batchFeedbacks: historyResult?.batchFeedbacks || {},
+            legacyFeedbacks: historyResult?.legacyFeedbacks || {},
+          },
       fetchedAt: Date.now(),
     }
 

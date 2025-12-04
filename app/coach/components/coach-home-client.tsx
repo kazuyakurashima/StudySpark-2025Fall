@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -21,6 +21,7 @@ import {
   Target,
   RefreshCw,
   Loader2,
+  Layers,
 } from "lucide-react"
 import { CoachBottomNavigation } from "@/components/coach-bottom-navigation"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
@@ -29,6 +30,81 @@ import { sendEncouragementToStudent } from "@/app/actions/coach"
 import type { LearningRecordWithEncouragements, InactiveStudentData } from "@/app/actions/coach"
 import { PastExamSummaryList } from "./past-exam-summary-list"
 import { useCoachDashboard, type CoachDashboardData } from "@/lib/hooks/use-coach-dashboard"
+
+/**
+ * バッチグループ化されたエントリ型
+ */
+type GroupedRecordEntry = {
+  type: "batch"
+  batchId: string
+  records: LearningRecordWithEncouragements[]
+  subjects: string[]
+  latestTimestamp: string
+  totalQuestions: number
+  totalCorrect: number
+  representativeRecord: LearningRecordWithEncouragements
+} | {
+  type: "single"
+  record: LearningRecordWithEncouragements
+}
+
+/**
+ * レコードをbatchIdでグループ化
+ */
+function groupRecordsByBatch(records: LearningRecordWithEncouragements[]): GroupedRecordEntry[] {
+  const batchGroups = new Map<string, LearningRecordWithEncouragements[]>()
+  const standaloneRecords: LearningRecordWithEncouragements[] = []
+
+  records.forEach((record) => {
+    if (record.batchId) {
+      const group = batchGroups.get(record.batchId) || []
+      group.push(record)
+      batchGroups.set(record.batchId, group)
+    } else {
+      standaloneRecords.push(record)
+    }
+  })
+
+  const entries: GroupedRecordEntry[] = []
+
+  // バッチグループをエントリに変換
+  batchGroups.forEach((groupRecords, batchId) => {
+    // 最新のタイムスタンプを持つレコードを代表とする
+    const sortedRecords = [...groupRecords].sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    )
+    const representativeRecord = sortedRecords[0]
+    const subjects = Array.from(new Set(groupRecords.map((r) => r.subject)))
+    const totalQuestions = groupRecords.reduce((sum, r) => sum + r.totalQuestions, 0)
+    const totalCorrect = groupRecords.reduce((sum, r) => sum + r.correctCount, 0)
+
+    entries.push({
+      type: "batch",
+      batchId,
+      records: groupRecords,
+      subjects,
+      latestTimestamp: representativeRecord.timestamp,
+      totalQuestions,
+      totalCorrect,
+      representativeRecord,
+    })
+  })
+
+  // 単独レコードをエントリに変換
+  standaloneRecords.forEach((record) => {
+    entries.push({
+      type: "single",
+      record,
+    })
+  })
+
+  // タイムスタンプで降順ソート
+  return entries.sort((a, b) => {
+    const aTime = a.type === "batch" ? new Date(a.latestTimestamp).getTime() : new Date(a.record.timestamp).getTime()
+    const bTime = b.type === "batch" ? new Date(b.latestTimestamp).getTime() : new Date(b.record.timestamp).getTime()
+    return bTime - aTime
+  })
+}
 
 interface CoachHomeClientProps {
   initialRecords: LearningRecordWithEncouragements[]
@@ -60,7 +136,7 @@ export function CoachHomeClient({ initialRecords, initialInactiveStudents }: Coa
   const [subjectFilter, setSubjectFilter] = useState("all")
   const [encouragementFilter, setEncouragementFilter] = useState("all")
   const [inactiveThreshold, setInactiveThreshold] = useState("7")
-  const [selectedRecord, setSelectedRecord] = useState<LearningRecordWithEncouragements | null>(null)
+  const [selectedEntry, setSelectedEntry] = useState<GroupedRecordEntry | null>(null)
   const [encouragementType, setEncouragementType] = useState<"stamp" | "ai" | "custom">("stamp")
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([])
   const [customMessage, setCustomMessage] = useState("")
@@ -77,19 +153,23 @@ export function CoachHomeClient({ initialRecords, initialInactiveStudents }: Coa
     return avatar?.src || "/placeholder.svg"
   }
 
-  const generateAISuggestions = (record: LearningRecordWithEncouragements) => {
+  const generateAISuggestions = (entry: GroupedRecordEntry) => {
+    const record = entry.type === "batch" ? entry.representativeRecord : entry.record
     const nickname = record.studentNickname || record.studentName
+    const subjects = entry.type === "batch" ? entry.subjects.join("・") : record.subject
     setAiSuggestions([
-      `${nickname}さん、${record.subject}の学習お疲れさまでした！とても良い取り組みですね。`,
+      `${nickname}さん、${subjects}の学習お疲れさまでした！とても良い取り組みですね。`,
       `${record.content.substring(0, 20)}...という振り返り、素晴らしいです。この調子で頑張りましょう！`,
-      `${record.subject}の理解が深まっていますね。次のステップも一緒に頑張りましょう！`,
+      `${subjects}の理解が深まっていますね。次のステップも一緒に頑張りましょう！`,
     ])
   }
 
   const handleSendEncouragement = async (
-    record: LearningRecordWithEncouragements,
+    entry: GroupedRecordEntry,
     content: string,
   ) => {
+    // 代表レコードを取得（応援メッセージの紐付け先）
+    const record = entry.type === "batch" ? entry.representativeRecord : entry.record
     const result = await sendEncouragementToStudent(record.studentId, record.id, content)
     if (result.error) {
       alert(`エラー: ${result.error}`)
@@ -99,7 +179,7 @@ export function CoachHomeClient({ initialRecords, initialInactiveStudents }: Coa
       // SWRデータを再取得
       mutate()
     }
-    setSelectedRecord(null)
+    setSelectedEntry(null)
     setCustomMessage("")
     setEditingMessage("")
     setAiSuggestions([])
@@ -150,26 +230,33 @@ export function CoachHomeClient({ initialRecords, initialInactiveStudents }: Coa
     return date.toLocaleDateString()
   }
 
-  const filteredRecords = records.filter((record) => {
-    if (gradeFilter !== "all" && record.grade !== gradeFilter) return false
-    if (subjectFilter !== "all" && record.subject !== subjectFilter) return false
-    if (encouragementFilter === "coach" && record.coachEncouragements.length === 0) return true
-    if (encouragementFilter === "parent" && record.parentEncouragements.length === 0) return true
-    if (
-      encouragementFilter === "none" &&
-      record.coachEncouragements.length === 0 &&
-      record.parentEncouragements.length === 0
-    )
+  // レコードをフィルタリングしてからバッチグループ化
+  const groupedEntries = useMemo(() => {
+    // まず個別レコードをフィルタリング
+    const filteredRecords = records.filter((record) => {
+      if (gradeFilter !== "all" && record.grade !== gradeFilter) return false
+      if (subjectFilter !== "all" && record.subject !== subjectFilter) return false
+      if (encouragementFilter === "coach" && record.coachEncouragements.length === 0) return true
+      if (encouragementFilter === "parent" && record.parentEncouragements.length === 0) return true
+      if (
+        encouragementFilter === "none" &&
+        record.coachEncouragements.length === 0 &&
+        record.parentEncouragements.length === 0
+      )
+        return true
+      if (
+        encouragementFilter !== "all" &&
+        encouragementFilter !== "coach" &&
+        encouragementFilter !== "parent" &&
+        encouragementFilter !== "none"
+      )
+        return false
       return true
-    if (
-      encouragementFilter !== "all" &&
-      encouragementFilter !== "coach" &&
-      encouragementFilter !== "parent" &&
-      encouragementFilter !== "none"
-    )
-      return false
-    return true
-  })
+    })
+
+    // フィルタリング後にバッチグループ化
+    return groupRecordsByBatch(filteredRecords)
+  }, [records, gradeFilter, subjectFilter, encouragementFilter])
 
   const filteredInactiveStudents = inactiveStudents.filter((student) => {
     const threshold = Number.parseInt(inactiveThreshold)
@@ -303,251 +390,317 @@ export function CoachHomeClient({ initialRecords, initialInactiveStudents }: Coa
 
             {/* Learning Records List */}
             <div className="space-y-4">
-              {filteredRecords.length === 0 ? (
+              {groupedEntries.length === 0 ? (
                 <Card>
                   <CardContent className="p-8 text-center">
                     <p className="text-muted-foreground">学習記録がありません</p>
                   </CardContent>
                 </Card>
               ) : (
-                filteredRecords.map((record) => (
-                  <Card
-                    key={record.id}
-                    className="hover:shadow-md transition-shadow duration-200 border-l-4 border-l-primary"
-                  >
-                    <CardContent className="p-4 md:p-6">
-                      <div className="space-y-4">
-                        {/* Student Info */}
-                        <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-12 w-12 border-2 border-border">
-                              <AvatarImage
-                                src={getAvatarSrc(record.studentAvatar, record.studentCustomAvatarUrl)}
-                                alt={record.studentName}
-                              />
-                              <AvatarFallback>{record.studentName.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <div className="font-semibold text-base md:text-lg">{record.studentName}</div>
-                              {record.studentNickname && (
-                                <div className="text-sm text-muted-foreground">ニックネーム: {record.studentNickname}</div>
-                              )}
-                              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                <Badge variant="secondary">{record.grade}</Badge>
-                                <Badge variant="outline">{record.subject}</Badge>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-sm text-muted-foreground flex items-center gap-1">
-                            <Clock className="h-4 w-4" />
-                            {formatTimestamp(record.timestamp)}
-                          </div>
-                        </div>
+                groupedEntries.map((entry) => {
+                  // エントリから情報を抽出
+                  const isBatch = entry.type === "batch"
+                  const representativeRecord = isBatch ? entry.representativeRecord : entry.record
+                  const entryKey = isBatch ? `batch-${entry.batchId}` : `single-${entry.record.id}`
+                  const subjects = isBatch ? entry.subjects.join(" · ") : representativeRecord.subject
+                  const totalQuestions = isBatch ? entry.totalQuestions : representativeRecord.totalQuestions
+                  const totalCorrect = isBatch ? entry.totalCorrect : representativeRecord.correctCount
+                  const timestamp = isBatch ? entry.latestTimestamp : representativeRecord.timestamp
+                  const accuracy = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0
 
-                        {/* Learning Content */}
-                        <div className="bg-muted rounded-lg p-4">
-                          <p className="text-sm leading-relaxed">
-                            {record.content || `${record.subject}を学習しました（正答: ${record.correctCount}/${record.totalQuestions}）`}
-                          </p>
-                        </div>
+                  // 応援メッセージを集約
+                  const allRecords = isBatch ? entry.records : [entry.record]
+                  const allParentEncouragements = allRecords.flatMap((r) => r.parentEncouragements)
+                  const allCoachEncouragements = allRecords.flatMap((r) => r.coachEncouragements)
 
-                        {/* Encouragements */}
-                        <div className="space-y-3">
-                          {/* Parent Encouragements */}
-                          {record.parentEncouragements.length > 0 && (
-                            <div className="space-y-2">
-                              <div className="text-sm font-medium text-muted-foreground">保護者の応援</div>
-                              {record.parentEncouragements.map((enc) => (
-                                <div
-                                  key={enc.id}
-                                  className="flex items-start gap-2 bg-green-50 dark:bg-green-950 rounded-lg p-3"
-                                >
-                                  <Avatar className="h-8 w-8">
-                                    <AvatarFallback>{enc.senderName.charAt(0)}</AvatarFallback>
-                                  </Avatar>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-medium">{enc.senderName}</div>
-                                    <div className="text-sm break-words">{enc.message}</div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                  // 選択中のエントリかどうか
+                  const isSelectedEntry = selectedEntry && (
+                    (isBatch && selectedEntry.type === "batch" && selectedEntry.batchId === entry.batchId) ||
+                    (!isBatch && selectedEntry.type === "single" && selectedEntry.record.id === entry.record.id)
+                  )
 
-                          {/* Coach Encouragements */}
-                          {record.coachEncouragements.length > 0 && (
-                            <div className="space-y-2">
-                              <div className="text-sm font-medium text-muted-foreground">指導者の応援</div>
-                              {record.coachEncouragements.map((enc) => (
-                                <div
-                                  key={enc.id}
-                                  className="flex items-start gap-2 bg-blue-50 dark:bg-blue-950 rounded-lg p-3"
-                                >
-                                  <Avatar className="h-8 w-8">
-                                    <AvatarFallback>{enc.senderName.charAt(0)}</AvatarFallback>
-                                  </Avatar>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-medium">{enc.senderName}</div>
-                                    <div className="text-sm break-words">{enc.message}</div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Encouragement Actions */}
-                        {selectedRecord?.id === record.id ? (
-                          <div className="space-y-4 border-t pt-4">
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                              <Button
-                                variant={encouragementType === "stamp" ? "default" : "outline"}
-                                size="lg"
-                                onClick={() => setEncouragementType("stamp")}
-                                className="flex items-center justify-center gap-2 h-14 bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white border-0"
-                              >
-                                <Heart className="h-5 w-5" />
-                                <span className="font-medium">スタンプ</span>
-                              </Button>
-                              <Button
-                                variant={encouragementType === "ai" ? "default" : "outline"}
-                                size="lg"
-                                onClick={() => {
-                                  setEncouragementType("ai")
-                                  generateAISuggestions(record)
-                                }}
-                                className="flex items-center justify-center gap-2 h-14 bg-gradient-to-r from-pink-400 to-pink-500 hover:from-pink-500 hover:to-pink-600 text-white border-0"
-                              >
-                                <Sparkles className="h-5 w-5" />
-                                <span className="font-medium">AI提案</span>
-                              </Button>
-                              <Button
-                                variant={encouragementType === "custom" ? "default" : "outline"}
-                                size="lg"
-                                onClick={() => setEncouragementType("custom")}
-                                className="flex items-center justify-center gap-2 h-14 bg-gradient-to-r from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white border-0"
-                              >
-                                <Send className="h-5 w-5" />
-                                <span className="font-medium">個別作成</span>
-                              </Button>
-                            </div>
-
-                            {encouragementType === "stamp" && (
-                              <div className="flex flex-wrap gap-2">
-                                {stamps.map((stamp) => (
-                                  <Button
-                                    key={stamp}
-                                    variant="outline"
-                                    size="lg"
-                                    onClick={() => handleSendEncouragement(record, stamp)}
-                                    className="text-2xl hover:scale-110 transition-transform"
-                                  >
-                                    {stamp}
-                                  </Button>
-                                ))}
-                              </div>
-                            )}
-
-                            {encouragementType === "ai" && aiSuggestions.length > 0 && (
-                              <div className="space-y-2">
-                                {aiSuggestions.map((suggestion, index) => (
-                                  <div key={index} className="flex flex-col sm:flex-row items-start gap-2">
-                                    <Button
-                                      variant="outline"
-                                      className="flex-1 text-left h-auto py-3 hover:bg-accent w-full bg-transparent"
-                                      onClick={() => setEditingMessage(suggestion)}
-                                    >
-                                      {suggestion}
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      onClick={() => handleSendEncouragement(record, suggestion)}
-                                      className="w-full sm:w-auto"
-                                    >
-                                      <Send className="h-4 w-4 sm:mr-0 mr-2" />
-                                      <span className="sm:hidden">送信</span>
-                                    </Button>
-                                  </div>
-                                ))}
-                                {editingMessage && (
-                                  <div className="space-y-2">
-                                    <Textarea
-                                      value={editingMessage}
-                                      onChange={(e) => setEditingMessage(e.target.value)}
-                                      className="min-h-[100px]"
-                                      placeholder="メッセージを編集..."
-                                    />
-                                    <Button
-                                      onClick={() => handleSendEncouragement(record, editingMessage)}
-                                      className="w-full"
-                                    >
-                                      <Send className="h-4 w-4 mr-2" />
-                                      送信
-                                    </Button>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-
-                            {encouragementType === "custom" && (
-                              <div className="space-y-2">
-                                <Textarea
-                                  value={customMessage}
-                                  onChange={(e) => setCustomMessage(e.target.value)}
-                                  className="min-h-[100px]"
-                                  placeholder="応援メッセージを入力..."
+                  return (
+                    <Card
+                      key={entryKey}
+                      className="hover:shadow-md transition-shadow duration-200 border-l-4 border-l-primary"
+                    >
+                      <CardContent className="p-4 md:p-6">
+                        <div className="space-y-4">
+                          {/* Student Info */}
+                          <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-12 w-12 border-2 border-border">
+                                <AvatarImage
+                                  src={getAvatarSrc(representativeRecord.studentAvatar, representativeRecord.studentCustomAvatarUrl)}
+                                  alt={representativeRecord.studentName}
                                 />
+                                <AvatarFallback>{representativeRecord.studentName.charAt(0)}</AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <div className="font-semibold text-base md:text-lg">{representativeRecord.studentName}</div>
+                                {representativeRecord.studentNickname && (
+                                  <div className="text-sm text-muted-foreground">ニックネーム: {representativeRecord.studentNickname}</div>
+                                )}
+                                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                  <Badge variant="secondary">{representativeRecord.grade}</Badge>
+                                  {isBatch ? (
+                                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                                      <Layers className="h-3 w-3 mr-1" />
+                                      {entry.subjects.length}科目
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline">{subjects}</Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-sm text-muted-foreground flex items-center gap-1">
+                              <Clock className="h-4 w-4" />
+                              {formatTimestamp(timestamp)}
+                            </div>
+                          </div>
+
+                          {/* バッチの場合は科目別内訳を表示 */}
+                          {isBatch && (
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                              {entry.records.map((rec) => {
+                                const recAccuracy = rec.totalQuestions > 0 ? Math.round((rec.correctCount / rec.totalQuestions) * 100) : 0
+                                return (
+                                  <div key={rec.id} className="text-xs p-2 bg-muted/50 rounded border">
+                                    <div className="font-medium">{rec.subject}</div>
+                                    <div className="text-muted-foreground">{recAccuracy}% ({rec.correctCount}/{rec.totalQuestions})</div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
+
+                          {/* Learning Content (代表レコードの振り返り) */}
+                          <div className="bg-muted rounded-lg p-4">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-sm font-medium">{subjects}</span>
+                              <span className="text-sm text-primary font-semibold">{accuracy}%</span>
+                              <span className="text-xs text-muted-foreground">({totalCorrect}/{totalQuestions}問)</span>
+                            </div>
+                            <p className="text-sm leading-relaxed">
+                              {representativeRecord.content || `${subjects}を学習しました`}
+                            </p>
+                          </div>
+
+                          {/* Encouragements */}
+                          <div className="space-y-3">
+                            {/* Parent Encouragements */}
+                            {allParentEncouragements.length > 0 && (
+                              <div className="space-y-2">
+                                <div className="text-sm font-medium text-muted-foreground">保護者の応援</div>
+                                {allParentEncouragements.map((enc) => (
+                                  <div
+                                    key={enc.id}
+                                    className="flex items-start gap-2 bg-green-50 dark:bg-green-950 rounded-lg p-3"
+                                  >
+                                    <Avatar className="h-8 w-8">
+                                      <AvatarFallback>{enc.senderName.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-sm font-medium">{enc.senderName}</div>
+                                      <div className="text-sm break-words">{enc.message}</div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Coach Encouragements */}
+                            {allCoachEncouragements.length > 0 && (
+                              <div className="space-y-2">
+                                <div className="text-sm font-medium text-muted-foreground">指導者の応援</div>
+                                {allCoachEncouragements.map((enc) => (
+                                  <div
+                                    key={enc.id}
+                                    className="flex items-start gap-2 bg-blue-50 dark:bg-blue-950 rounded-lg p-3"
+                                  >
+                                    <Avatar className="h-8 w-8">
+                                      <AvatarFallback>{enc.senderName.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-sm font-medium">{enc.senderName}</div>
+                                      <div className="text-sm break-words">{enc.message}</div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Encouragement Actions */}
+                          {isSelectedEntry ? (
+                            <div className="space-y-4 border-t pt-4">
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 <Button
-                                  onClick={() => handleSendEncouragement(record, customMessage)}
-                                  className="w-full"
-                                  disabled={!customMessage.trim()}
+                                  variant={encouragementType === "stamp" ? "default" : "outline"}
+                                  size="lg"
+                                  onClick={() => setEncouragementType("stamp")}
+                                  className="flex items-center justify-center gap-2 h-14 bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white border-0"
                                 >
-                                  <Send className="h-4 w-4 mr-2" />
-                                  送信
+                                  <Heart className="h-5 w-5" />
+                                  <span className="font-medium">スタンプ</span>
+                                </Button>
+                                <Button
+                                  variant={encouragementType === "ai" ? "default" : "outline"}
+                                  size="lg"
+                                  onClick={() => {
+                                    setEncouragementType("ai")
+                                    generateAISuggestions(entry)
+                                  }}
+                                  className="flex items-center justify-center gap-2 h-14 bg-gradient-to-r from-pink-400 to-pink-500 hover:from-pink-500 hover:to-pink-600 text-white border-0"
+                                >
+                                  <Sparkles className="h-5 w-5" />
+                                  <span className="font-medium">AI提案</span>
+                                </Button>
+                                <Button
+                                  variant={encouragementType === "custom" ? "default" : "outline"}
+                                  size="lg"
+                                  onClick={() => setEncouragementType("custom")}
+                                  className="flex items-center justify-center gap-2 h-14 bg-gradient-to-r from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white border-0"
+                                >
+                                  <Send className="h-5 w-5" />
+                                  <span className="font-medium">個別作成</span>
                                 </Button>
                               </div>
-                            )}
 
-                            <Button variant="ghost" size="sm" onClick={() => setSelectedRecord(null)}>
-                              キャンセル
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex flex-wrap gap-2">
-                            <Button onClick={() => setSelectedRecord(record)} className="flex-1 sm:flex-none">
-                              <Heart className="h-4 w-4 mr-2" />
-                              応援する
-                            </Button>
-                            <Button variant="outline" onClick={() => toggleRecordExpansion(record.id)}>
-                              {expandedRecords.has(record.id) ? (
-                                <>
-                                  <ChevronUp className="h-4 w-4 mr-2" />
-                                  閉じる
-                                </>
-                              ) : (
-                                <>
-                                  <ChevronDown className="h-4 w-4 mr-2" />
-                                  詳細
-                                </>
+                              {encouragementType === "stamp" && (
+                                <div className="flex flex-wrap gap-2">
+                                  {stamps.map((stamp) => (
+                                    <Button
+                                      key={stamp}
+                                      variant="outline"
+                                      size="lg"
+                                      onClick={() => handleSendEncouragement(entry, stamp)}
+                                      className="text-2xl hover:scale-110 transition-transform"
+                                    >
+                                      {stamp}
+                                    </Button>
+                                  ))}
+                                </div>
                               )}
-                            </Button>
-                          </div>
-                        )}
 
-                        {/* Expanded Details */}
-                        {expandedRecords.has(record.id) && (
-                          <div className="border-t pt-4 space-y-2">
-                            <div className="text-sm font-medium">学習詳細</div>
-                            <div className="text-sm text-muted-foreground">
-                              正答率: {record.totalQuestions > 0 ? Math.round((record.correctCount / record.totalQuestions) * 100) : 0}%
-                              ({record.correctCount}/{record.totalQuestions}問)
+                              {encouragementType === "ai" && aiSuggestions.length > 0 && (
+                                <div className="space-y-2">
+                                  {aiSuggestions.map((suggestion, index) => (
+                                    <div key={index} className="flex flex-col sm:flex-row items-start gap-2">
+                                      <Button
+                                        variant="outline"
+                                        className="flex-1 text-left h-auto py-3 hover:bg-accent w-full bg-transparent"
+                                        onClick={() => setEditingMessage(suggestion)}
+                                      >
+                                        {suggestion}
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleSendEncouragement(entry, suggestion)}
+                                        className="w-full sm:w-auto"
+                                      >
+                                        <Send className="h-4 w-4 sm:mr-0 mr-2" />
+                                        <span className="sm:hidden">送信</span>
+                                      </Button>
+                                    </div>
+                                  ))}
+                                  {editingMessage && (
+                                    <div className="space-y-2">
+                                      <Textarea
+                                        value={editingMessage}
+                                        onChange={(e) => setEditingMessage(e.target.value)}
+                                        className="min-h-[100px]"
+                                        placeholder="メッセージを編集..."
+                                      />
+                                      <Button
+                                        onClick={() => handleSendEncouragement(entry, editingMessage)}
+                                        className="w-full"
+                                      >
+                                        <Send className="h-4 w-4 mr-2" />
+                                        送信
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {encouragementType === "custom" && (
+                                <div className="space-y-2">
+                                  <Textarea
+                                    value={customMessage}
+                                    onChange={(e) => setCustomMessage(e.target.value)}
+                                    className="min-h-[100px]"
+                                    placeholder="応援メッセージを入力..."
+                                  />
+                                  <Button
+                                    onClick={() => handleSendEncouragement(entry, customMessage)}
+                                    className="w-full"
+                                    disabled={!customMessage.trim()}
+                                  >
+                                    <Send className="h-4 w-4 mr-2" />
+                                    送信
+                                  </Button>
+                                </div>
+                              )}
+
+                              <Button variant="ghost" size="sm" onClick={() => setSelectedEntry(null)}>
+                                キャンセル
+                              </Button>
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
+                          ) : (
+                            <div className="flex flex-wrap gap-2">
+                              <Button onClick={() => setSelectedEntry(entry)} className="flex-1 sm:flex-none">
+                                <Heart className="h-4 w-4 mr-2" />
+                                応援する
+                              </Button>
+                              <Button variant="outline" onClick={() => toggleRecordExpansion(entryKey)}>
+                                {expandedRecords.has(entryKey) ? (
+                                  <>
+                                    <ChevronUp className="h-4 w-4 mr-2" />
+                                    閉じる
+                                  </>
+                                ) : (
+                                  <>
+                                    <ChevronDown className="h-4 w-4 mr-2" />
+                                    詳細
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          )}
+
+                          {/* Expanded Details */}
+                          {expandedRecords.has(entryKey) && (
+                            <div className="border-t pt-4 space-y-2">
+                              <div className="text-sm font-medium">学習詳細</div>
+                              {isBatch ? (
+                                <div className="space-y-3">
+                                  {entry.records.map((rec) => (
+                                    <div key={rec.id} className="p-3 bg-muted/30 rounded space-y-1">
+                                      <div className="flex items-center justify-between">
+                                        <span className="font-medium text-sm">{rec.subject}</span>
+                                        <span className="text-sm text-primary">
+                                          {rec.totalQuestions > 0 ? Math.round((rec.correctCount / rec.totalQuestions) * 100) : 0}%
+                                          ({rec.correctCount}/{rec.totalQuestions}問)
+                                        </span>
+                                      </div>
+                                      {rec.content && <p className="text-xs text-muted-foreground">{rec.content}</p>}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="text-sm text-muted-foreground">
+                                  正答率: {accuracy}% ({totalCorrect}/{totalQuestions}問)
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })
               )}
             </div>
           </TabsContent>
