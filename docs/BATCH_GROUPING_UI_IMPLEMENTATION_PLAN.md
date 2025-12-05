@@ -389,6 +389,73 @@ export function groupLogsByBatch<TLog extends StudyLogWithBatch>(
 
 ---
 
+## バグ修正: 未応援フィルターのバッチ対応
+
+### 問題
+
+保護者/指導者の応援画面で「未応援」フィルターを適用しても、応援済みバッチ内の一部ログが表示され続ける。
+
+### 原因
+
+RPC関数 `get_study_logs_for_encouragement` の未応援判定が**ログ単位**で行われている。
+
+```sql
+-- 現行: 各ログ個別にチェック
+AND NOT EXISTS (
+  SELECT 1 FROM public.encouragement_messages em
+  WHERE em.related_study_log_id = sl.id
+)
+```
+
+バッチ記録では応援は**代表ログ1件**にのみ紐付けられるため、残りのログは未応援と判定される。
+
+例: バッチ (ID: 101, 102, 103, 104) に応援が `related_study_log_id = 101` で保存された場合
+- ログ101 → 応援済み（フィルターで除外）
+- ログ102, 103, 104 → 未応援扱い（誤ってフィルターを通過）
+
+### 修正方針
+
+未応援判定を**バッチ単位**に変更する。
+
+```sql
+-- 修正案: バッチ単位でチェック
+AND NOT EXISTS (
+  SELECT 1 FROM public.encouragement_messages em
+  JOIN public.study_logs sl2 ON em.related_study_log_id = sl2.id
+  WHERE
+    -- バッチの場合: 同じbatch_id内のどれかに応援があれば応援済み
+    (sl.batch_id IS NOT NULL AND sl2.batch_id = sl.batch_id)
+    -- 単独ログの場合: 従来通り
+    OR (sl.batch_id IS NULL AND em.related_study_log_id = sl.id)
+)
+```
+
+### 実装上の注意点
+
+| 項目 | 対応 |
+|------|------|
+| NULL安全 | `batch_id IS NOT NULL` と `batch_id IS NULL` の両ケースを明示 |
+| パフォーマンス | `study_logs.batch_id` と `encouragement_messages.related_study_log_id` のインデックスで対応可能 |
+| 将来拡張 | `related_batch_id` カラム追加時は、そちらを優先する判定に切り替え |
+
+### 影響範囲
+
+| 対象 | ファイル |
+|------|---------|
+| RPC関数 | `supabase/migrations/20251203000001_update_encouragement_rpc_batch.sql` |
+| 適用先 | 保護者応援ページ、指導者応援ページ |
+
+### テストケース
+
+| ケース | 期待結果 |
+|--------|---------|
+| バッチ記録（4科目）に応援送信 → 未応援フィルター | バッチ全体が非表示 |
+| 単独記録に応援送信 → 未応援フィルター | 該当ログが非表示 |
+| バッチと単独の混在 → 未応援フィルター | 応援済みのみ非表示 |
+| 全表示フィルター | 全件表示（変更なし） |
+
+---
+
 ## 変更履歴
 
 | 日付 | 内容 |
@@ -404,3 +471,4 @@ export function groupLogsByBatch<TLog extends StudyLogWithBatch>(
 | 2024-12-03 | 指導者ホームページ追加対応: `LearningRecordWithEncouragements`型にbatchId/studyDate追加、`getCoachStudentLearningRecords()`にbatch_id/study_date取得追加、`coach-home-client.tsx`にバッチグループ化ロジック実装（`groupRecordsByBatch`関数追加、Layersアイコン表示、科目別内訳グリッド） |
 | 2024-12-04 | logged_at整合性修正: `getCoachStudentLearningRecords()`のソート/取得カラムを`created_at`から`logged_at`に変更。計画通り全画面で`logged_at`基準に統一 |
 | 2024-12-05 | 振り返り表示修正: `components/encouragement/study-log-card.tsx` バッチ詳細表示で振り返りテキストが科目数分重複表示されていた問題を修正。バッチ全体で1回のみ表示するように変更 |
+| 2024-12-05 | 未応援フィルター修正: `get_study_logs_for_encouragement` RPC関数の応援済み/未応援判定をバッチ単位に変更。応援済みバッチ内のログが「未応援」フィルターで表示され続ける問題を解消 |
