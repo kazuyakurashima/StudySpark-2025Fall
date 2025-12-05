@@ -1118,9 +1118,9 @@ async function sendWeeklyBadgeNotifications() {
 | タスク | 担当 | 状態 | 期限 |
 |--------|------|------|------|
 | 0-1. 現状確認SQL実行・結果保存 | - | 未着手 | - |
-| 0-2. user_eventsテーブル作成 | - | 未着手 | - |
+| 0-2. user_eventsテーブル作成 | - | ✅完了 | 2025-12-05 |
 | 0-3. praise_hintsテーブル作成 | - | 未着手 | - |
-| 0-4. recordEventヘルパー実装 | - | 未着手 | - |
+| 0-4. recordEventヘルパー実装 | - | ✅完了 | 2025-12-05 |
 | 0-5. streak_resume判定実装 | - | 未着手 | - |
 | 0-6. ベースラインKPI記録 | - | 未着手 | - |
 
@@ -1128,9 +1128,9 @@ async function sendWeeklyBadgeNotifications() {
 
 | タスク | 担当 | 状態 | 期限 |
 |--------|------|------|------|
-| 1-1. getStudyStreak修正 | - | 未着手 | - |
-| 1-2. StreakCard UI修正 | - | 未着手 | - |
-| 1-3. イベント記録実装 | - | 未着手 | - |
+| 1-1. getStudyStreak修正 | - | ✅完了 | 2025-12-05 |
+| 1-2. StreakCard UI修正 | - | ✅完了 | 2025-12-05 |
+| 1-3. イベント記録実装 | - | ✅完了 | 2025-12-05 |
 | 1-4. 生徒ヒアリング | - | 未着手 | - |
 | 1-5. 効果測定SQL実行 | - | 未着手 | - |
 
@@ -1176,9 +1176,10 @@ async function sendWeeklyBadgeNotifications() {
 - [Duolingo調査結果](./AI_COACH_MESSAGE_UX_ANALYSIS.md)
 - [StreakCard実装](../components/streak-card.tsx)
 - [既存のAIコーチメッセージ](../lib/openai/coach-message.ts)
+- [応援機能バッチ対応改善計画](./ENCOURAGEMENT_BATCH_IMPROVEMENT_PLAN.md) ← Phase 2関連
 
 ---
 
 **作成日**: 2025-12-05
 **最終更新**: 2025-12-05
-**ステータス**: 計画策定完了、Phase 0 着手待ち
+**ステータス**: Phase 0-1 完了、本番デプロイ済み、データ収集中
