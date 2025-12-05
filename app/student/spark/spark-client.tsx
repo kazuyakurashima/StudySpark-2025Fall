@@ -722,7 +722,8 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
         } else {
           // エラー時はフォールバックを表示
           setCoachFeedback(feedbackResult.fallbackFeedback)
-          setFeedbackSavedToDb(false)
+          // canRetry=false はフォールバックがDB保存済みを意味する
+          setFeedbackSavedToDb(!feedbackResult.canRetry)
           setFeedbackCanRetry(feedbackResult.canRetry)
         }
       } else {

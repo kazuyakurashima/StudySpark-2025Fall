@@ -10,11 +10,26 @@ import crypto from "crypto"
 /**
  * キャッシュキーを生成
  * 同一状況を識別するためのハッシュ
+ * バッチ応援対応: 科目数・平均正答率・問題数を丸めてキー化
  */
 function generateCacheKey(context: EncouragementContext, promptVersion: string = "v1.0"): string {
   const keyData = {
     senderRole: context.senderRole,
-    recentPerformance: context.recentPerformance
+    // バッチ応援の場合
+    batchPerformance: context.batchPerformance
+      ? {
+          subjectCount: context.batchPerformance.subjectCount,
+          // 正答率を10%刻みで丸める
+          accuracyRange: Math.floor(context.batchPerformance.averageAccuracy / 10) * 10,
+          // 問題数を10問刻みで丸める
+          problemCountRange: Math.floor(context.batchPerformance.totalProblems / 10) * 10,
+          // 最高/挑戦科目の有無
+          hasBestSubject: !!context.batchPerformance.bestSubject,
+          hasChallengeSubject: !!context.batchPerformance.challengeSubject,
+        }
+      : null,
+    // 単一科目の場合（後方互換）
+    recentPerformance: context.recentPerformance && !context.batchPerformance
       ? {
           subject: context.recentPerformance.subject,
           // 正答率を10%刻みで丸める（80% → 80, 75% → 70）

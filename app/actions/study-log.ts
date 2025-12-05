@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import crypto from "crypto"
+import { checkAndRecordStreakResume, determineStreakState, type StreakState } from "@/lib/utils/streak-helpers"
 
 export type StudyLogInput = {
   session_id: number
@@ -100,6 +101,27 @@ export async function saveStudyLog(logs: StudyLogInput[]): Promise<SaveStudyLogR
 
     // Import date utility
     const { getTodayJST } = await import("@/lib/utils/date-jst")
+    const todayJST = getTodayJST()
+
+    // ========================================
+    // streak_resume判定: 保存前にストリーク状態を取得
+    // ========================================
+    let previousStreakState: StreakState = "reset"
+    try {
+      // 最終学習日を取得
+      const { data: lastLog } = await supabase
+        .from("study_logs")
+        .select("study_date")
+        .eq("student_id", student.id)
+        .order("study_date", { ascending: false })
+        .limit(1)
+        .single()
+
+      previousStreakState = determineStreakState(lastLog?.study_date || null, todayJST)
+    } catch (error) {
+      // エラー時はresetとみなす（streak_resume記録はスキップされる可能性あり）
+      console.warn("[saveStudyLog] Failed to get previous streak state:", error)
+    }
 
     // 【セーフガード】session_id混在チェック（全ログが同一session_idであること）
     const sessionIds = new Set(logs.map(log => log.session_id))
@@ -281,6 +303,16 @@ export async function saveStudyLog(logs: StudyLogInput[]): Promise<SaveStudyLogR
 
     revalidatePath("/student")
     revalidatePath("/student/spark")
+
+    // ========================================
+    // streak_resume判定: reset状態から記録した場合にイベント記録
+    // ========================================
+    // 非同期で実行（メイン処理をブロックしない）
+    checkAndRecordStreakResume(user.id, student.id, previousStreakState, todayJST)
+      .catch((error) => {
+        // サイレントエラー（streak_resumeの記録失敗はユーザー体験に影響しない）
+        console.error("[saveStudyLog] Failed to record streak_resume:", error)
+      })
 
     // コーチフィードバック生成に必要な情報を返す
     return {

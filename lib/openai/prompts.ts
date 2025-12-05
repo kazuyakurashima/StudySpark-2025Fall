@@ -12,16 +12,40 @@
  * - 挑戦を価値あるものとして扱う
  */
 
+/**
+ * 科目別統計（バッチ応援用）
+ */
+export interface SubjectStats {
+  name: string
+  totalProblems: number
+  correctCount: number
+  accuracy: number
+}
+
 export interface EncouragementContext {
   studentName: string
   senderRole: "parent" | "coach"
   senderName: string
+  /** 単一科目の場合の情報（後方互換） */
   recentPerformance?: {
     subject: string
     accuracy: number
     problemCount: number
     sessionNumber: number
     date: string
+  }
+  /** バッチ応援の場合の情報（新規追加） */
+  batchPerformance?: {
+    isBatch: boolean
+    subjects: string[]
+    subjectCount: number
+    totalProblems: number
+    totalCorrect: number
+    averageAccuracy: number
+    bestSubject?: SubjectStats
+    challengeSubject?: SubjectStats
+    studyDate: string
+    sessionNumber: number
   }
   weeklyTrend?: "improving" | "stable" | "challenging"
   studyStreak?: number
@@ -61,6 +85,13 @@ export function getEncouragementSystemPrompt(role: "parent" | "coach"): string {
 【文字数】50〜150文字程度
 【トーン】温かく、前向きで、安心感のある
 
+【複数科目まとめ記録（バッチ）の場合】
+- 科目数に言及する（「4科目も記録したね！」「今日はたくさん取り組んだね！」）
+- 特に頑張った科目（正答率が高い/問題数が多い）に触れる
+- 挑戦した科目（正答率が低くても取り組んだ科目）を称える
+- 全体の努力量を称賛する（「合計○問も解いたね」）
+- 科目を並べすぎず、1〜2科目に絞って具体的に言及
+
 **重要**: 応援メッセージは3案を生成してください。それぞれ異なる視点（努力・成長・挑戦）で作成してください。`
 }
 
@@ -68,7 +99,7 @@ export function getEncouragementSystemPrompt(role: "parent" | "coach"): string {
  * 応援メッセージ生成のユーザープロンプト
  */
 export function getEncouragementUserPrompt(context: EncouragementContext): string {
-  const { studentName, senderName, recentPerformance, weeklyTrend, studyStreak } = context
+  const { studentName, senderName, recentPerformance, batchPerformance, weeklyTrend, studyStreak } = context
 
   let prompt = `【生徒情報】
 名前: ${studentName}さん
@@ -79,7 +110,29 @@ ${senderName}
 【学習状況】
 `
 
-  if (recentPerformance) {
+  // バッチ応援の場合（優先）
+  if (batchPerformance && batchPerformance.isBatch) {
+    prompt += `今回の記録（複数科目まとめ記録）:
+- 科目: ${batchPerformance.subjects.join("・")}（${batchPerformance.subjectCount}科目）
+- 第${batchPerformance.sessionNumber}回
+- 合計問題数: ${batchPerformance.totalProblems}問
+- 平均正答率: ${batchPerformance.averageAccuracy}%
+- 記録日: ${batchPerformance.studyDate}
+`
+
+    if (batchPerformance.bestSubject) {
+      prompt += `
+特に頑張った科目: ${batchPerformance.bestSubject.name}（正答率${batchPerformance.bestSubject.accuracy}%）`
+    }
+
+    if (batchPerformance.challengeSubject) {
+      prompt += `
+挑戦した科目: ${batchPerformance.challengeSubject.name}（正答率${batchPerformance.challengeSubject.accuracy}%）`
+    }
+    prompt += "\n"
+  }
+  // 単一科目の場合（後方互換）
+  else if (recentPerformance) {
     prompt += `最新の記録:
 - 科目: ${recentPerformance.subject}
 - 第${recentPerformance.sessionNumber}回

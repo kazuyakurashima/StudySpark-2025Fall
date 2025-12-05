@@ -243,26 +243,35 @@ export function StudyLogCard({
           <div className="space-y-4 pt-4 border-t">
             {/* 学習内容・振り返り */}
             {isBatch ? (
-              entry.logs.map((log) => (
-                <div key={log.id} className="text-sm space-y-2 p-3 bg-muted/30 rounded">
-                  <div className="font-medium">{log.subjects?.name}</div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <span className="text-slate-600">学習内容:</span>{" "}
-                      {log.study_content_types?.content_name || "不明"}
-                    </div>
-                    <div>
-                      <span className="text-slate-600">正答:</span> {log.correct_count}/{log.total_problems}問
+              <>
+                {/* 科目別の学習内容 */}
+                {entry.logs.map((log) => (
+                  <div key={log.id} className="text-sm space-y-2 p-3 bg-muted/30 rounded">
+                    <div className="font-medium">{log.subjects?.name}</div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-slate-600">学習内容:</span>{" "}
+                        {log.study_content_types?.content_name || "不明"}
+                      </div>
+                      <div>
+                        <span className="text-slate-600">正答:</span> {log.correct_count}/{log.total_problems}問
+                      </div>
                     </div>
                   </div>
-                  {log.reflection_text && (
-                    <div className="text-xs">
-                      <span className="text-slate-600">振り返り:</span>
-                      <p className="mt-1 p-2 bg-background rounded">{log.reflection_text}</p>
+                ))}
+                {/* 振り返りはバッチ全体で1回だけ表示
+                    現データモデルでは全ログに同一テキストが保存されるため、最初の1件を採用。
+                    将来科目別振り返りを導入する場合は batch_reflections テーブル新設を検討 */}
+                {(() => {
+                  const batchReflection = entry.logs.find((log) => log.reflection_text)?.reflection_text
+                  return batchReflection ? (
+                    <div className="p-3 bg-muted/30 rounded">
+                      <span className="text-slate-600 text-xs">今回の振り返り:</span>
+                      <p className="mt-1 p-2 bg-background rounded text-sm">{batchReflection}</p>
                     </div>
-                  )}
-                </div>
-              ))
+                  ) : null
+                })()}
+              </>
             ) : (
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>

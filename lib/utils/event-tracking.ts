@@ -218,16 +218,28 @@ export async function recordPraiseHintNgReport(
 
 /**
  * 応援メッセージ送信イベント
+ * バッチ応援対応: is_batch, subjects情報を追加
  */
 export async function recordEncouragementSent(
   userId: string,
   userRole: "parent" | "coach",
   recipientStudentId: number,
-  messageLength: number
+  messageLength: number,
+  batchInfo?: {
+    isBatch: boolean
+    subjects: string[]
+    subjectCount: number
+    supportType: "quick" | "ai" | "custom"
+  }
 ) {
   return recordEvent(userId, userRole, "encouragement_sent", {
     recipient_student_id: recipientStudentId,
     message_length: messageLength,
+    // バッチ応援情報
+    is_batch: batchInfo?.isBatch ?? false,
+    subjects: batchInfo?.subjects ?? [],
+    subject_count: batchInfo?.subjectCount ?? 1,
+    support_type: batchInfo?.supportType ?? "custom",
   })
 }
 

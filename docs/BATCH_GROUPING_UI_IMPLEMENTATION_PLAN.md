@@ -19,6 +19,7 @@
 | 日時比較 | `new Date(logged_at).getTime()` で比較（ISO 8601形式前提、文字列比較は避ける） |
 | 科目表示 | バッチ内の科目名をカンマ区切りで表示（例: 算数, 国語, 理科） |
 | 問題数/正答数 | 科目ごとに個別表示。任意で「合計: X問/Y正答」を1行追記可（後付け） |
+| 振り返りテキスト | バッチ全体で1件表示。`entry.logs.find(log => log.reflection_text)` で最初に見つかった1件を採用（現データモデル: 全ログに同一テキストが保存）。将来科目別振り返りを導入する場合は `batch_reflections` テーブル新設を検討 |
 | コーチフィードバック | バッチ全体で1件 |
 | レガシーログ | `batch_id` がnullの旧ログは従来通り1カード。混在時もソートルールは同一 |
 
@@ -402,3 +403,4 @@ export function groupLogsByBatch<TLog extends StudyLogWithBatch>(
 | 2024-12-03 | Phase 3実装完了: `getStudentLearningHistory()`にbatch_id/feedbackMaps追加、`use-coach-student-detail`フック型更新、生徒詳細ページ(`/coach/student/[id]`)にグループ化表示適用。手動QA(3-4)のみ残 |
 | 2024-12-03 | 指導者ホームページ追加対応: `LearningRecordWithEncouragements`型にbatchId/studyDate追加、`getCoachStudentLearningRecords()`にbatch_id/study_date取得追加、`coach-home-client.tsx`にバッチグループ化ロジック実装（`groupRecordsByBatch`関数追加、Layersアイコン表示、科目別内訳グリッド） |
 | 2024-12-04 | logged_at整合性修正: `getCoachStudentLearningRecords()`のソート/取得カラムを`created_at`から`logged_at`に変更。計画通り全画面で`logged_at`基準に統一 |
+| 2024-12-05 | 振り返り表示修正: `components/encouragement/study-log-card.tsx` バッチ詳細表示で振り返りテキストが科目数分重複表示されていた問題を修正。バッチ全体で1回のみ表示するように変更 |

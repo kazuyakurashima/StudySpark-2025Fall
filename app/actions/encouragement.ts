@@ -1,8 +1,10 @@
 "use server"
 
 import { createClient, createAdminClient } from "@/lib/supabase/server"
-import { generateEncouragementMessages, type EncouragementContext } from "@/lib/openai/encouragement"
-import { QUICK_ENCOURAGEMENT_TEMPLATES, type QuickEncouragementType } from "@/lib/openai/prompts"
+import { generateEncouragementMessages } from "@/lib/openai/encouragement"
+import { QUICK_ENCOURAGEMENT_TEMPLATES, type QuickEncouragementType, type EncouragementContext } from "@/lib/openai/prompts"
+import { getBatchContext } from "@/lib/utils/batch-context"
+import { recordEncouragementSent } from "@/lib/utils/event-tracking"
 
 /**
  * 学習記録一覧を取得（応援機能用）- RPC版
@@ -131,6 +133,7 @@ export async function getStudyLogsForEncouragement(
 
 /**
  * クイック応援メッセージを送信
+ * イベント計測対応: バッチ情報を含めて記録
  */
 export async function sendQuickEncouragement(
   studentId: string,
@@ -164,11 +167,32 @@ export async function sendQuickEncouragement(
     return { success: false as const, error: "応援メッセージの送信に失敗しました" }
   }
 
+  // イベント計測（バッチ情報を含む）
+  const batchContext = await getBatchContext(studyLogId)
+  await recordEncouragementSent(
+    user.id,
+    "parent",
+    parseInt(studentId),
+    message.length,
+    batchContext ? {
+      isBatch: batchContext.isBatch,
+      subjects: batchContext.subjects,
+      subjectCount: batchContext.subjectCount,
+      supportType: "quick",
+    } : {
+      isBatch: false,
+      subjects: [],
+      subjectCount: 1,
+      supportType: "quick",
+    }
+  )
+
   return { success: true as const }
 }
 
 /**
  * AI応援メッセージを生成
+ * バッチ応援対応: 複数科目まとめ記録の場合、全科目の情報を使用
  */
 export async function generateAIEncouragement(studentId: string, studyLogId: string) {
   const supabase = await createClient()
@@ -209,39 +233,46 @@ export async function generateAIEncouragement(studentId: string, studyLogId: str
     .eq("id", studentId)
     .single()
 
-  // 学習記録を取得（Admin client使用）
-  const { data: studyLog } = await adminClient
-    .from("study_logs")
-    .select(`
-      study_date,
-      total_problems,
-      correct_count,
-      study_sessions(session_number),
-      subjects(name)
-    `)
-    .eq("id", studyLogId)
-    .single()
-
-  if (!studentData || !studyLog) {
-    return { success: false as const, error: "データ取得に失敗しました" }
+  if (!studentData) {
+    return { success: false as const, error: "生徒情報が見つかりません" }
   }
 
-  const accuracy =
-    studyLog.total_problems > 0 ? Math.round((studyLog.correct_count / studyLog.total_problems) * 100) : 0
+  // バッチコンテキストを取得（複数科目まとめ記録対応）
+  const batchContext = await getBatchContext(studyLogId)
 
+  if (!batchContext) {
+    return { success: false as const, error: "学習記録の取得に失敗しました" }
+  }
+
+  // コンテキストを構築
   const context: EncouragementContext = {
     studentName: studentData.full_name || "お子さん",
     senderRole: "parent",
     senderName: parentProfile?.display_name || "保護者",
-    recentPerformance: {
-      subject: Array.isArray(studyLog.subjects) ? studyLog.subjects[0]?.name : studyLog.subjects?.name || "不明",
-      accuracy,
-      problemCount: studyLog.total_problems,
-      sessionNumber: Array.isArray(studyLog.study_sessions)
-        ? studyLog.study_sessions[0]?.session_number
-        : studyLog.study_sessions?.session_number || 0,
-      date: studyLog.study_date || "",
-    },
+  }
+
+  // バッチの場合はbatchPerformanceを使用、単一の場合はrecentPerformanceを使用
+  if (batchContext.isBatch) {
+    context.batchPerformance = {
+      isBatch: true,
+      subjects: batchContext.subjects,
+      subjectCount: batchContext.subjectCount,
+      totalProblems: batchContext.totalProblems,
+      totalCorrect: batchContext.totalCorrect,
+      averageAccuracy: batchContext.averageAccuracy,
+      bestSubject: batchContext.bestSubject,
+      challengeSubject: batchContext.challengeSubject,
+      studyDate: batchContext.studyDate,
+      sessionNumber: batchContext.sessionNumber,
+    }
+  } else {
+    context.recentPerformance = {
+      subject: batchContext.subjects[0] || "不明",
+      accuracy: batchContext.averageAccuracy,
+      problemCount: batchContext.totalProblems,
+      sessionNumber: batchContext.sessionNumber,
+      date: batchContext.studyDate,
+    }
   }
 
   const result = await generateEncouragementMessages(context)
@@ -250,17 +281,32 @@ export async function generateAIEncouragement(studentId: string, studyLogId: str
     return { success: false as const, error: result.error }
   }
 
-  return { success: true as const, messages: result.messages }
+  return {
+    success: true as const,
+    messages: result.messages,
+    // イベント計測用のメタデータ
+    meta: {
+      isBatch: batchContext.isBatch,
+      subjects: batchContext.subjects,
+      subjectCount: batchContext.subjectCount,
+    },
+  }
 }
 
 /**
  * AI/カスタム応援メッセージを送信
+ * イベント計測対応: バッチ情報を含めて記録
  */
 export async function sendCustomEncouragement(
   studentId: string,
   studyLogId: string | null,
   message: string,
-  supportType: "ai" | "custom"
+  supportType: "ai" | "custom",
+  meta?: {
+    isBatch: boolean
+    subjects: string[]
+    subjectCount: number
+  }
 ) {
   const supabase = await createClient()
 
@@ -295,6 +341,33 @@ export async function sendCustomEncouragement(
     console.error("Error sending custom encouragement:", error)
     return { success: false as const, error: "応援メッセージの送信に失敗しました" }
   }
+
+  // イベント計測（バッチ情報を含む）
+  // metaがない場合でもstudyLogIdがあればバッチ情報を取得
+  let batchInfo = meta
+  if (!batchInfo && studyLogId) {
+    const batchContext = await getBatchContext(studyLogId)
+    if (batchContext) {
+      batchInfo = {
+        isBatch: batchContext.isBatch,
+        subjects: batchContext.subjects,
+        subjectCount: batchContext.subjectCount,
+      }
+    }
+  }
+
+  await recordEncouragementSent(
+    user.id,
+    "parent",
+    parseInt(studentId),
+    message.trim().length,
+    {
+      isBatch: batchInfo?.isBatch ?? false,
+      subjects: batchInfo?.subjects ?? [],
+      subjectCount: batchInfo?.subjectCount ?? 1,
+      supportType,
+    }
+  )
 
   return { success: true as const }
 }
@@ -520,6 +593,7 @@ export async function getInactiveStudents(daysThreshold: 3 | 5 | 7 = 7) {
 
 /**
  * 指導者からクイック応援を送信
+ * イベント計測対応: バッチ情報を含めて記録
  */
 export async function sendCoachQuickEncouragement(studentId: string, studyLogId: string, quickType: QuickEncouragementType) {
   const supabase = await createClient()
@@ -548,11 +622,32 @@ export async function sendCoachQuickEncouragement(studentId: string, studyLogId:
     return { success: false as const, error: "応援メッセージの送信に失敗しました" }
   }
 
+  // イベント計測（バッチ情報を含む）
+  const batchContext = await getBatchContext(studyLogId)
+  await recordEncouragementSent(
+    user.id,
+    "coach",
+    parseInt(studentId),
+    message.length,
+    batchContext ? {
+      isBatch: batchContext.isBatch,
+      subjects: batchContext.subjects,
+      subjectCount: batchContext.subjectCount,
+      supportType: "quick",
+    } : {
+      isBatch: false,
+      subjects: [],
+      subjectCount: 1,
+      supportType: "quick",
+    }
+  )
+
   return { success: true as const }
 }
 
 /**
- * 指導者からAI応援メッセージを生成
+ * 指導者向けAI応援メッセージを生成
+ * バッチ応援対応: 複数科目まとめ記録の場合、全科目の情報を使用
  */
 export async function generateCoachAIEncouragement(studentId: string, studyLogId: string) {
   const supabase = await createClient()
@@ -571,39 +666,46 @@ export async function generateCoachAIEncouragement(studentId: string, studyLogId
   // 生徒情報を取得
   const { data: studentData } = await supabase.from("students").select("id, full_name").eq("id", studentId).single()
 
-  // 学習記録を取得
-  const { data: studyLog } = await supabase
-    .from("study_logs")
-    .select(`
-      study_date,
-      total_problems,
-      correct_count,
-      study_sessions(session_number),
-      subjects(name)
-    `)
-    .eq("id", studyLogId)
-    .single()
-
-  if (!studentData || !studyLog) {
-    return { success: false as const, error: "データ取得に失敗しました" }
+  if (!studentData) {
+    return { success: false as const, error: "生徒情報が見つかりません" }
   }
 
-  const accuracy =
-    studyLog.total_problems > 0 ? Math.round((studyLog.correct_count / studyLog.total_problems) * 100) : 0
+  // バッチコンテキストを取得（複数科目まとめ記録対応）
+  const batchContext = await getBatchContext(studyLogId)
 
+  if (!batchContext) {
+    return { success: false as const, error: "学習記録の取得に失敗しました" }
+  }
+
+  // コンテキストを構築
   const context: EncouragementContext = {
     studentName: studentData.full_name || "生徒",
     senderRole: "coach",
     senderName: (coachData?.profiles as any)?.display_name || "指導者",
-    recentPerformance: {
-      subject: Array.isArray(studyLog.subjects) ? studyLog.subjects[0]?.name : studyLog.subjects?.name || "不明",
-      accuracy,
-      problemCount: studyLog.total_problems,
-      sessionNumber: Array.isArray(studyLog.study_sessions)
-        ? studyLog.study_sessions[0]?.session_number
-        : studyLog.study_sessions?.session_number || 0,
-      date: studyLog.study_date || "",
-    },
+  }
+
+  // バッチの場合はbatchPerformanceを使用、単一の場合はrecentPerformanceを使用
+  if (batchContext.isBatch) {
+    context.batchPerformance = {
+      isBatch: true,
+      subjects: batchContext.subjects,
+      subjectCount: batchContext.subjectCount,
+      totalProblems: batchContext.totalProblems,
+      totalCorrect: batchContext.totalCorrect,
+      averageAccuracy: batchContext.averageAccuracy,
+      bestSubject: batchContext.bestSubject,
+      challengeSubject: batchContext.challengeSubject,
+      studyDate: batchContext.studyDate,
+      sessionNumber: batchContext.sessionNumber,
+    }
+  } else {
+    context.recentPerformance = {
+      subject: batchContext.subjects[0] || "不明",
+      accuracy: batchContext.averageAccuracy,
+      problemCount: batchContext.totalProblems,
+      sessionNumber: batchContext.sessionNumber,
+      date: batchContext.studyDate,
+    }
   }
 
   const result = await generateEncouragementMessages(context)
@@ -612,17 +714,32 @@ export async function generateCoachAIEncouragement(studentId: string, studyLogId
     return { success: false as const, error: result.error }
   }
 
-  return { success: true as const, messages: result.messages }
+  return {
+    success: true as const,
+    messages: result.messages,
+    // イベント計測用のメタデータ
+    meta: {
+      isBatch: batchContext.isBatch,
+      subjects: batchContext.subjects,
+      subjectCount: batchContext.subjectCount,
+    },
+  }
 }
 
 /**
  * 指導者からAI/カスタム応援メッセージを送信
+ * イベント計測対応: バッチ情報を含めて記録
  */
 export async function sendCoachCustomEncouragement(
   studentId: string,
   studyLogId: string | null,
   message: string,
-  supportType: "ai" | "custom"
+  supportType: "ai" | "custom",
+  meta?: {
+    isBatch: boolean
+    subjects: string[]
+    subjectCount: number
+  }
 ) {
   const supabase = await createClient()
 
@@ -656,6 +773,33 @@ export async function sendCoachCustomEncouragement(
     console.error("Error sending coach custom encouragement:", error)
     return { success: false as const, error: "応援メッセージの送信に失敗しました" }
   }
+
+  // イベント計測（バッチ情報を含む）
+  // metaがない場合でもstudyLogIdがあればバッチ情報を取得
+  let batchInfo = meta
+  if (!batchInfo && studyLogId) {
+    const batchContext = await getBatchContext(studyLogId)
+    if (batchContext) {
+      batchInfo = {
+        isBatch: batchContext.isBatch,
+        subjects: batchContext.subjects,
+        subjectCount: batchContext.subjectCount,
+      }
+    }
+  }
+
+  await recordEncouragementSent(
+    user.id,
+    "coach",
+    parseInt(studentId),
+    message.trim().length,
+    {
+      isBatch: batchInfo?.isBatch ?? false,
+      subjects: batchInfo?.subjects ?? [],
+      subjectCount: batchInfo?.subjectCount ?? 1,
+      supportType,
+    }
+  )
 
   return { success: true as const }
 }

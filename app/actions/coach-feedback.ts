@@ -9,7 +9,7 @@ import crypto from "crypto"
 // 定数
 // ============================================================================
 const PROMPT_VERSION = "v1.0"
-const GENERATION_TIMEOUT_MS = 3000
+const GENERATION_TIMEOUT_MS = 5000 // 3秒→5秒に延長（バッチコンテキスト対応）
 
 // ============================================================================
 // 型定義
@@ -260,9 +260,10 @@ export async function generateCoachFeedback(
   const allClientIdsInBatch = clientStudyLogIds.every(id => batchLogIds.has(id))
 
   if (!allClientIdsInBatch) {
-    console.error("Client studyLogIds mismatch with batch:", {
+    console.error("[Coach Feedback] Validation failed - studyLogIds mismatch:", {
       clientIds: clientStudyLogIds,
       batchIds: Array.from(batchLogIds),
+      batchId: clientBatchId,
     })
     return {
       success: false,
@@ -274,7 +275,11 @@ export async function generateCoachFeedback(
 
   // 全ログが同一student_id か検証
   if (!batchLogs.every(log => log.student_id === verifiedStudentId)) {
-    console.error("Batch logs ownership mismatch")
+    console.error("[Coach Feedback] Validation failed - student ownership mismatch:", {
+      verifiedStudentId,
+      batchStudentIds: batchLogs.map(log => log.student_id),
+      batchId: clientBatchId,
+    })
     return {
       success: false,
       error: "権限エラー: この学習記録へのアクセス権がありません",
@@ -285,9 +290,10 @@ export async function generateCoachFeedback(
 
   // 全ログが同一session_id か検証（エラーにする）
   if (!batchLogs.every(log => log.session_id === clientSessionId)) {
-    console.error("Session ID inconsistency in batch:", {
+    console.error("[Coach Feedback] Validation failed - session inconsistency:", {
+      clientSessionId,
       batchId: clientBatchId,
-      sessions: batchLogs.map(log => log.session_id),
+      batchSessionIds: batchLogs.map(log => log.session_id),
     })
     return {
       success: false,
@@ -476,19 +482,53 @@ export async function generateCoachFeedback(
     const isAborted = error instanceof Error && error.name === "AbortError"
     const errorMessage = error instanceof Error ? error.message : "Unknown error"
 
-    console.error("Coach feedback generation error:", errorMessage)
+    // 詳細なエラーログ
+    console.error("[Coach Feedback] Generation failed:", {
+      isTimeout: isAborted,
+      error: errorMessage,
+      batchId: verifiedBatchId,
+      studentId: verifiedStudentId,
+      subjectCount: data.subjects.length,
+    })
 
     trace?.update({
       metadata: { error: errorMessage, isTimeout: isAborted },
     })
+
+    // フォールバックメッセージをDBに保存を試みる
+    const fallbackMessage = getFallbackFeedback(data)
+    let savedFallbackToDb = false
+
+    try {
+      const { error: fallbackInsertError } = await adminClient.from("coach_feedbacks").insert({
+        batch_id: verifiedBatchId,
+        study_log_id: representativeStudyLogId,
+        student_id: verifiedStudentId,
+        session_id: verifiedSessionId,
+        feedback_text: fallbackMessage,
+        prompt_version: `${PROMPT_VERSION}-fallback`,
+        prompt_hash: null,
+        langfuse_trace_id: trace?.id || null,
+      })
+
+      if (!fallbackInsertError) {
+        savedFallbackToDb = true
+        console.log("[Coach Feedback] Fallback message saved to DB")
+      } else if (fallbackInsertError.code !== "23505") {
+        // UNIQUE違反以外のエラーをログ
+        console.error("[Coach Feedback] Failed to save fallback:", fallbackInsertError)
+      }
+    } catch (saveError) {
+      console.error("[Coach Feedback] Exception saving fallback:", saveError)
+    }
 
     return {
       success: false,
       error: isAborted
         ? "コーチメッセージの生成がタイムアウトしました"
         : "コーチメッセージの生成に失敗しました",
-      fallbackFeedback: getFallbackFeedback(data),
-      canRetry: true,
+      fallbackFeedback: fallbackMessage,
+      canRetry: !savedFallbackToDb, // DB保存成功ならリトライ不要
     }
   } finally {
     await flushLangfuse()
@@ -755,15 +795,47 @@ async function generateLegacyFeedback(
     const isAborted = error instanceof Error && error.name === "AbortError"
     const errorMessage = error instanceof Error ? error.message : "Unknown error"
 
-    console.error("Legacy coach feedback generation error:", errorMessage)
+    // 詳細なエラーログ
+    console.error("[Coach Feedback Legacy] Generation failed:", {
+      isTimeout: isAborted,
+      error: errorMessage,
+      studentId: verifiedStudentId,
+      studyLogId: representativeStudyLogId,
+      subjectCount: data.subjects.length,
+    })
+
+    // フォールバックメッセージをDBに保存を試みる
+    const fallbackMessage = getFallbackFeedback(data)
+    let savedFallbackToDb = false
+
+    try {
+      const { error: fallbackInsertError } = await adminClient.from("coach_feedbacks").insert({
+        study_log_id: representativeStudyLogId,
+        student_id: verifiedStudentId,
+        session_id: clientSessionId,
+        feedback_text: fallbackMessage,
+        prompt_version: `${PROMPT_VERSION}-fallback`,
+        prompt_hash: null,
+        langfuse_trace_id: trace?.id || null,
+      })
+
+      if (!fallbackInsertError) {
+        savedFallbackToDb = true
+        console.log("[Coach Feedback Legacy] Fallback message saved to DB")
+      } else if (fallbackInsertError.code !== "23505") {
+        console.error("[Coach Feedback Legacy] Failed to save fallback:", fallbackInsertError)
+      }
+    } catch (saveError) {
+      console.error("[Coach Feedback Legacy] Exception saving fallback:", saveError)
+    }
 
     return {
       success: false,
       error: isAborted
         ? "コーチメッセージの生成がタイムアウトしました"
         : "コーチメッセージの生成に失敗しました",
-      fallbackFeedback: getFallbackFeedback(data),
-      canRetry: true,
+      fallbackFeedback: fallbackMessage,
+      canRetry: !savedFallbackToDb,
     }
   } finally {
     await flushLangfuse()
