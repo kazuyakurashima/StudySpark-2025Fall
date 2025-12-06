@@ -9,7 +9,17 @@ import crypto from "crypto"
 // 定数
 // ============================================================================
 const PROMPT_VERSION = "v1.0"
-const GENERATION_TIMEOUT_MS = 5000 // 3秒→5秒に延長（バッチコンテキスト対応）
+const BASE_TIMEOUT_MS = 5000 // 基本タイムアウト
+const TIMEOUT_PER_SUBJECT_MS = 500 // 科目あたりの追加時間
+
+/**
+ * 科目数に応じた動的タイムアウト計算
+ * 基本5秒 + 科目数×0.5秒（最大8秒）
+ */
+function getTimeoutMs(subjectCount: number): number {
+  const dynamicTimeout = BASE_TIMEOUT_MS + (subjectCount * TIMEOUT_PER_SUBJECT_MS)
+  return Math.min(dynamicTimeout, 8000) // 最大8秒
+}
 
 // ============================================================================
 // 型定義
@@ -368,7 +378,8 @@ export async function generateCoachFeedback(
   })
 
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), GENERATION_TIMEOUT_MS)
+  const timeoutMs = getTimeoutMs(data.subjects.length)
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
   try {
     const openai = getOpenAIClient()
@@ -377,6 +388,7 @@ export async function generateCoachFeedback(
     const promptHash = getPromptHash(systemPrompt, userPrompt)
 
     // デバッグログ: reflectionTextがプロンプトに含まれているか確認
+    console.log("[Coach Feedback] Timeout:", timeoutMs, "ms for", data.subjects.length, "subjects")
     console.log("[Coach Feedback] reflectionText received:", data.reflectionText || "(empty)")
     console.log("[Coach Feedback] userPrompt:", userPrompt)
 
@@ -514,9 +526,19 @@ export async function generateCoachFeedback(
       if (!fallbackInsertError) {
         savedFallbackToDb = true
         console.log("[Coach Feedback] Fallback message saved to DB")
-      } else if (fallbackInsertError.code !== "23505") {
-        // UNIQUE違反以外のエラーをログ
-        console.error("[Coach Feedback] Failed to save fallback:", fallbackInsertError)
+      } else if (fallbackInsertError.code === "23505") {
+        // UNIQUE違反 - 既存フィードバックがある（並行リクエストなど）
+        // 既存を返すため savedToDb = true とみなす
+        console.log("[Coach Feedback] Fallback insert UNIQUE conflict - existing feedback found")
+        savedFallbackToDb = true
+      } else {
+        // その他のエラーをログ
+        console.error("[Coach Feedback] Failed to save fallback:", {
+          code: fallbackInsertError.code,
+          message: fallbackInsertError.message,
+          details: fallbackInsertError.details,
+          hint: fallbackInsertError.hint,
+        })
       }
     } catch (saveError) {
       console.error("[Coach Feedback] Exception saving fallback:", saveError)
@@ -709,13 +731,16 @@ async function generateLegacyFeedback(
   })
 
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), GENERATION_TIMEOUT_MS)
+  const timeoutMs = getTimeoutMs(data.subjects.length)
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
   try {
     const openai = getOpenAIClient()
     const systemPrompt = getSystemPrompt()
     const userPrompt = getUserPrompt(data)
     const promptHash = getPromptHash(systemPrompt, userPrompt)
+
+    console.log("[Coach Feedback Legacy] Timeout:", timeoutMs, "ms for", data.subjects.length, "subjects")
 
     const generation = trace?.generation({
       name: "generate-feedback-legacy",
@@ -822,8 +847,17 @@ async function generateLegacyFeedback(
       if (!fallbackInsertError) {
         savedFallbackToDb = true
         console.log("[Coach Feedback Legacy] Fallback message saved to DB")
-      } else if (fallbackInsertError.code !== "23505") {
-        console.error("[Coach Feedback Legacy] Failed to save fallback:", fallbackInsertError)
+      } else if (fallbackInsertError.code === "23505") {
+        // UNIQUE違反 - 既存フィードバックがある
+        console.log("[Coach Feedback Legacy] Fallback insert UNIQUE conflict - existing feedback found")
+        savedFallbackToDb = true
+      } else {
+        console.error("[Coach Feedback Legacy] Failed to save fallback:", {
+          code: fallbackInsertError.code,
+          message: fallbackInsertError.message,
+          details: fallbackInsertError.details,
+          hint: fallbackInsertError.hint,
+        })
       }
     } catch (saveError) {
       console.error("[Coach Feedback Legacy] Exception saving fallback:", saveError)

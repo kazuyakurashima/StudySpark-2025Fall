@@ -147,6 +147,7 @@ export default function ParentGoalNaviPage() {
   }, [providerSelectedChildId, children, selectedChildId, setProviderChildId])
 
   // 全ての子供の今日の応援状況をチェック
+  // ページ表示時にも再取得（他ページで応援送信後の反映のため）
   useEffect(() => {
     const checkEncouragementStatus = async () => {
       if (children.length === 0) return
@@ -175,7 +176,21 @@ export default function ParentGoalNaviPage() {
       setEncouragementStatus(statusMap)
     }
 
+    // 初回実行
     checkEncouragementStatus()
+
+    // ページがフォーカスされた時に再チェック（他ページで応援送信後の更新用）
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        checkEncouragementStatus()
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+    }
   }, [children])
 
   // 選択された子どものデータを読み込み

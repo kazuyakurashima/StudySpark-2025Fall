@@ -64,6 +64,7 @@ export default function ParentEncouragementPage() {
   const [editingMessage, setEditingMessage] = useState("")
 
   // Daily Spark の応援状態をチェック
+  // ページ表示時にも再取得（他ページで応援送信後の反映のため）
   useEffect(() => {
     const checkEncouragementStatus = async () => {
       if (!children || children.length === 0 || !profile?.id) return
@@ -79,7 +80,21 @@ export default function ParentEncouragementPage() {
       setEncouragementStatus(statusMap)
     }
 
+    // 初回実行
     checkEncouragementStatus()
+
+    // ページがフォーカスされた時に再チェック（他ページで応援送信後の更新用）
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        checkEncouragementStatus()
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+    }
   }, [children, profile?.id])
 
   // URL パラメータの child ID をプロバイダーに反映（初回のみ）
