@@ -12,7 +12,7 @@ import { Slider } from "@/components/ui/slider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import ParentBottomNavigation from "@/components/parent-bottom-navigation"
-import { Calendar, Flag, Target, PartyPopper, Eye, Users, FileText } from "lucide-react"
+import { Calendar, Flag, Target, PartyPopper, Eye, Users, FileText, AlertCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
   getParentChildren,
@@ -82,6 +82,7 @@ export default function ParentGoalNaviPage() {
   const [selectedGoal, setSelectedGoal] = useState<TestGoal | null>(null)
   const [activeTab, setActiveTab] = useState<"input" | "result" | "test" | "pastexam">("test")
   const [loading, setLoading] = useState(true)
+  const [dataError, setDataError] = useState<string | null>(null)
   const [encouragementStatus, setEncouragementStatus] = useState<{ [childId: number]: boolean }>({})
 
   // 子ども一覧を読み込み（選択は別のuseEffectで処理）
@@ -201,7 +202,10 @@ export default function ParentGoalNaviPage() {
         return
       }
 
-      console.log('🔍 [ゴールナビ] 子どものテストデータを読み込み中:', selectedChildId)
+      // エラー状態をリセット
+      setDataError(null)
+
+      console.log('🔍 [ゴールナビ] 子どものテストデータを読み込み中:', selectedChildId, 'type:', typeof selectedChildId)
 
       // studentIdを使って生徒のデータを取得
       const [testsData, goalsData, resultsData] = await Promise.all([
@@ -210,9 +214,26 @@ export default function ParentGoalNaviPage() {
         getAllTestResultsForStudent(selectedChildId)
       ])
 
-      console.log('🔍 [ゴールナビ] 利用可能なテスト:', testsData.tests?.length || 0)
-      console.log('🔍 [ゴールナビ] 設定済みの目標:', goalsData.goals?.length || 0)
-      console.log('🔍 [ゴールナビ] 入力済みの結果:', resultsData.results?.length || 0)
+      // エラーログを詳細に出力
+      if (testsData.error) {
+        console.error('🔍 [ゴールナビ] テスト取得エラー:', testsData.error)
+      }
+      if (goalsData.error) {
+        console.error('🔍 [ゴールナビ] 目標取得エラー:', goalsData.error)
+      }
+      if (resultsData.error) {
+        console.error('🔍 [ゴールナビ] 結果取得エラー:', resultsData.error)
+      }
+
+      console.log('🔍 [ゴールナビ] 利用可能なテスト:', testsData.tests?.length || 0, testsData.error ? `(エラー: ${testsData.error})` : '')
+      console.log('🔍 [ゴールナビ] 設定済みの目標:', goalsData.goals?.length || 0, goalsData.error ? `(エラー: ${goalsData.error})` : '')
+      console.log('🔍 [ゴールナビ] 入力済みの結果:', resultsData.results?.length || 0, resultsData.error ? `(エラー: ${resultsData.error})` : '')
+
+      // エラーがあればUIに表示
+      if (testsData.error || goalsData.error || resultsData.error) {
+        const errors = [testsData.error, goalsData.error, resultsData.error].filter(Boolean)
+        setDataError(`データの取得に失敗しました: ${errors.join(', ')}`)
+      }
 
       if (testsData.tests) {
         setAvailableTests(testsData.tests)
@@ -280,6 +301,18 @@ export default function ParentGoalNaviPage() {
         />
 
       <div className="max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+        {/* エラー表示 */}
+        {dataError && (
+          <Card className="border-red-200 bg-red-50">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-2 text-red-600">
+                <AlertCircle className="h-5 w-5" />
+                <span className="text-sm">{dataError}</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* タブコンテンツ */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "input" | "result" | "test" | "pastexam")}>
           <TabsList className="grid w-full grid-cols-4">

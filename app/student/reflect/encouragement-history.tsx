@@ -13,6 +13,7 @@ import {
 import { getEncouragementHistory } from "@/app/actions/reflect"
 import { getChildEncouragementHistory } from "@/app/actions/parent"
 import { Heart, ChevronDown, ChevronUp, Layers } from "lucide-react"
+import { getAvatarUrl } from "@/lib/utils/avatar"
 
 interface EncouragementHistoryProps {
   viewerRole?: "student" | "parent"
@@ -93,34 +94,6 @@ export function EncouragementHistory({
       newExpanded.add(id)
     }
     setExpandedIds(newExpanded)
-  }
-
-  const getAvatarUrl = (avatar: string | null | undefined) => {
-    if (!avatar) {
-      // avatar_id が未設定の場合、保護者デフォルトアバターを使用
-      return "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent1-HbhESuJlC27LuGOGupullRXyEUzFLy.png"
-    }
-
-    if (avatar.startsWith("http")) {
-      return avatar
-    }
-
-    // 保護者アバター（parent1-6）のURL対応
-    const parentAvatarMap: Record<string, string> = {
-      "parent1": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent1-HbhESuJlC27LuGOGupullRXyEUzFLy.png",
-      "parent2": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent2-zluk4uVJLfzP8dBe0I7v5fVGSn5QfU.png",
-      "parent3": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent3-EzBDrjsFP5USAgnSPTXjcdNeq1bzSm.png",
-      "parent4": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent4-YHYTNRnNQ7bRb6aAfTNEFMozjGRlZq.png",
-      "parent5": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent5-dGCLocpgcZw4lXWRiPmTHkXURBXXoH.png",
-      "parent6": "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/parent6-gKoeUywhHoKWJ4BPEk69iW6idztaLl.png",
-    }
-
-    if (parentAvatarMap[avatar]) {
-      return parentAvatarMap[avatar]
-    }
-
-    // 生徒アバター（従来通り）
-    return `/avatars/${avatar}.png`
   }
 
   return (
@@ -236,7 +209,7 @@ export function EncouragementHistory({
                   {/* 常に表示される部分 */}
                   <div className="flex items-start gap-3 mb-3">
                     <img
-                      src={getAvatarUrl(message.sender_profile?.avatar_id)}
+                      src={getAvatarUrl(message.sender_profile?.avatar_id, message.sender_role)}
                       alt="avatar"
                       className="w-12 h-12 rounded-full border-2 border-white shadow-md"
                     />
