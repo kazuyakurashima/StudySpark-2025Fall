@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic"
 export const revalidate = 0
 
 interface PageProps {
-  params: Promise<{ id: string }>
+  params: { id: string }
 }
 
 /**
@@ -17,7 +17,7 @@ interface PageProps {
  * - 他タブはクライアント側でSWR lazy load
  */
 export default async function StudentDetailPage({ params }: PageProps) {
-  const { id: studentId } = await params
+  const studentId = params.id
   const supabase = await createClient()
 
   // 認証チェック

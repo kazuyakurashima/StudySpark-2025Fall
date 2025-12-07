@@ -3,17 +3,16 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Target, Loader2, TrendingUp, TrendingDown, Minus, BookOpen } from "lucide-react"
+import { Target, Loader2, CheckCircle2, XCircle, Clock } from "lucide-react"
 import { getAllTestGoalsForStudent, getAllTestResultsForStudent } from "@/app/actions/goal"
 import { mergeGoalsAndResults } from "@/lib/utils/goal-result-merger"
 import type { TestGoal, TestResult, MergedTestRecord } from "@/lib/types/goal"
 
 interface GoalTabProps {
   studentId: string
-  studentGrade: string
 }
 
-export function GoalTab({ studentId, studentGrade }: GoalTabProps) {
+export function GoalTab({ studentId }: GoalTabProps) {
   const [records, setRecords] = useState<MergedTestRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -48,20 +47,32 @@ export function GoalTab({ studentId, studentGrade }: GoalTabProps) {
     fetchData()
   }, [studentId])
 
-  const getTestDateLabel = (testDate: string): string => {
-    const today = new Date()
-    const date = new Date(testDate)
-    today.setHours(0, 0, 0, 0)
-    date.setHours(0, 0, 0, 0)
-    return date >= today ? "次回" : "直近"
+  // テストが未来か過去かを判定（JST基準）
+  const getTestStatus = (testDate: string): "upcoming" | "past" => {
+    // testDateはYYYY-MM-DD形式なのでJSTとして解釈
+    const testDateJST = new Date(testDate + "T00:00:00+09:00")
+    const nowJST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Tokyo" }))
+    nowJST.setHours(0, 0, 0, 0)
+    return testDateJST >= nowJST ? "upcoming" : "past"
   }
 
-  const getDeviationTrend = (goal: number | null, result: number | null) => {
-    if (goal === null || result === null) return null
-    const diff = result - goal
-    if (diff > 2) return { icon: TrendingUp, color: "text-green-600", label: `+${diff.toFixed(1)}` }
-    if (diff < -2) return { icon: TrendingDown, color: "text-red-600", label: diff.toFixed(1) }
-    return { icon: Minus, color: "text-gray-500", label: "±0" }
+  // コース表示用のフォーマット
+  const formatCourseClass = (course: string | null, classNum: number | null): string => {
+    if (!course) return "-"
+    if (classNum !== null) return `${course}コース ${classNum}組`
+    return `${course}コース`
+  }
+
+  // 達成状況のアイコンとスタイル
+  const getAchievementDisplay = (record: MergedTestRecord) => {
+    if (record.isAchieved === null) {
+      // 結果未入力
+      return null
+    }
+    if (record.isAchieved) {
+      return { icon: CheckCircle2, color: "text-green-600", bg: "bg-green-50", label: "達成" }
+    }
+    return { icon: XCircle, color: "text-red-600", bg: "bg-red-50", label: "未達成" }
   }
 
   if (isLoading) {
@@ -100,8 +111,9 @@ export function GoalTab({ studentId, studentGrade }: GoalTabProps) {
           ) : (
             <div className="space-y-4">
               {records.map((record) => {
-                const trend = getDeviationTrend(record.goalDeviation, record.resultDeviation)
-                const TrendIcon = trend?.icon
+                const testStatus = getTestStatus(record.testDate)
+                const achievement = getAchievementDisplay(record)
+                const AchievementIcon = achievement?.icon
 
                 return (
                   <div
@@ -112,22 +124,21 @@ export function GoalTab({ studentId, studentGrade }: GoalTabProps) {
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-semibold">{record.testName}</span>
-                          <Badge variant="outline" className="text-xs">
-                            {getTestDateLabel(record.testDate)}
+                          <Badge
+                            variant={testStatus === "upcoming" ? "default" : "secondary"}
+                            className="text-xs"
+                          >
+                            {testStatus === "upcoming" ? "次回" : "過去"}
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          {new Date(record.testDate).toLocaleDateString("ja-JP", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })}
+                          {record.testDateFormatted}
                         </p>
                       </div>
-                      {trend && TrendIcon && (
-                        <div className={`flex items-center gap-1 ${trend.color}`}>
-                          <TrendIcon className="h-4 w-4" />
-                          <span className="text-sm font-medium">{trend.label}</span>
+                      {achievement && AchievementIcon && (
+                        <div className={`flex items-center gap-1 px-2 py-1 rounded ${achievement.bg} ${achievement.color}`}>
+                          <AchievementIcon className="h-4 w-4" />
+                          <span className="text-sm font-medium">{achievement.label}</span>
                         </div>
                       )}
                     </div>
@@ -135,9 +146,9 @@ export function GoalTab({ studentId, studentGrade }: GoalTabProps) {
                     <div className="grid grid-cols-2 gap-4">
                       {/* 目標 */}
                       <div className="p-3 bg-blue-50 rounded-lg">
-                        <div className="text-xs text-blue-600 mb-1">目標偏差値</div>
-                        <div className="text-2xl font-bold text-blue-700">
-                          {record.goalDeviation !== null ? record.goalDeviation.toFixed(1) : "-"}
+                        <div className="text-xs text-blue-600 mb-1">目標</div>
+                        <div className="text-lg font-bold text-blue-700">
+                          {formatCourseClass(record.goalCourse, record.goalClass)}
                         </div>
                         {record.goalThoughts && (
                           <p className="text-xs text-blue-600 mt-2 line-clamp-2">
@@ -148,35 +159,30 @@ export function GoalTab({ studentId, studentGrade }: GoalTabProps) {
 
                       {/* 結果 */}
                       <div className="p-3 bg-green-50 rounded-lg">
-                        <div className="text-xs text-green-600 mb-1">結果偏差値</div>
-                        <div className="text-2xl font-bold text-green-700">
-                          {record.resultDeviation !== null ? record.resultDeviation.toFixed(1) : "-"}
-                        </div>
-                        {record.resultRegisteredAt && (
-                          <p className="text-xs text-green-600 mt-2">
-                            {new Date(record.resultRegisteredAt).toLocaleDateString("ja-JP")}登録
-                          </p>
+                        <div className="text-xs text-green-600 mb-1">結果</div>
+                        {record.resultCourse ? (
+                          <>
+                            <div className="text-lg font-bold text-green-700">
+                              {formatCourseClass(record.resultCourse, record.resultClass)}
+                            </div>
+                            {record.resultRegisteredAt && (
+                              <p className="text-xs text-green-600 mt-2">
+                                {new Date(record.resultRegisteredAt + "T00:00:00+09:00").toLocaleDateString("ja-JP", {
+                                  timeZone: "Asia/Tokyo",
+                                  month: "numeric",
+                                  day: "numeric",
+                                })}登録
+                              </p>
+                            )}
+                          </>
+                        ) : (
+                          <div className="flex items-center gap-1 text-muted-foreground">
+                            <Clock className="h-4 w-4" />
+                            <span className="text-sm">未入力</span>
+                          </div>
                         )}
                       </div>
                     </div>
-
-                    {/* 科目別結果（あれば） */}
-                    {record.subjectDeviations && Object.keys(record.subjectDeviations).length > 0 && (
-                      <div className="mt-3 pt-3 border-t">
-                        <div className="flex items-center gap-2 mb-2">
-                          <BookOpen className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm font-medium">科目別偏差値</span>
-                        </div>
-                        <div className="grid grid-cols-4 gap-2">
-                          {Object.entries(record.subjectDeviations).map(([subject, value]) => (
-                            <div key={subject} className="text-center p-2 bg-gray-50 rounded">
-                              <div className="text-xs text-muted-foreground">{subject}</div>
-                              <div className="font-semibold">{value?.toFixed(1) || "-"}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )
               })}

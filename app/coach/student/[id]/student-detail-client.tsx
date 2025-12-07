@@ -287,7 +287,7 @@ export function StudentDetailClient({ studentId, initialData }: StudentDetailCli
 
           {/* 目標タブ（SWR lazy load） */}
           <TabsContent value="goal" className="mt-4">
-            <GoalTab studentId={studentId} studentGrade={student.grade} />
+            <GoalTab studentId={studentId} />
           </TabsContent>
 
           {/* 応援タブ（SWR lazy load） */}

@@ -5,6 +5,40 @@
 import type { TestGoal, TestResult, MergedTestRecord } from "@/lib/types/goal"
 
 /**
+ * コースの順位（S > C > B > A）
+ * 高い方が良い
+ */
+const COURSE_ORDER: Record<string, number> = {
+  S: 4,
+  C: 3,
+  B: 2,
+  A: 1,
+}
+
+/**
+ * 日付をJST形式でフォーマット
+ */
+function formatDateJST(dateString: string): string {
+  // YYYY-MM-DD形式の日付をJSTとして解釈
+  const date = new Date(dateString + "T00:00:00+09:00")
+  return date.toLocaleDateString("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    month: "numeric",
+    day: "numeric",
+  })
+}
+
+/**
+ * 結果コースが目標コース以上かどうかを判定
+ */
+function checkAchievement(goalCourse: string | null, resultCourse: string | null): boolean | null {
+  if (!goalCourse || !resultCourse) return null
+  const goalRank = COURSE_ORDER[goalCourse] ?? 0
+  const resultRank = COURSE_ORDER[resultCourse] ?? 0
+  return resultRank >= goalRank
+}
+
+/**
  * テスト目標とテスト結果を test_schedule_id でマージする
  *
  * @param goals - getAllTestGoalsForStudent の結果
@@ -19,52 +53,53 @@ export function mergeGoalsAndResults(
 
   // 目標を先に登録
   goals.forEach((goal) => {
-    const scheduleId = goal.test_schedule_id.toString()
+    const scheduleId = String(goal.test_schedule_id)
+    const testDate = goal.test_schedules?.test_date || ""
     scheduleMap.set(scheduleId, {
       scheduleId,
-      testName: goal.test_schedules?.test_name || "不明なテスト",
-      testDate: goal.test_schedules?.test_date || "",
-      goalDeviation: goal.target_deviation,
-      goalThoughts: goal.thoughts,
+      testName: goal.test_schedules?.test_types?.name || "不明なテスト",
+      testDate,
+      testDateFormatted: testDate ? formatDateJST(testDate) : "",
+      goalCourse: goal.target_course,
+      goalClass: goal.target_class,
+      goalThoughts: goal.goal_thoughts,
       goalCreatedAt: goal.created_at,
-      resultDeviation: null,
+      resultCourse: null,
+      resultClass: null,
       resultRegisteredAt: null,
-      subjectDeviations: null,
+      isAchieved: null,
     })
   })
 
   // 結果を追加（既存のエントリにマージ or 新規作成）
   results.forEach((result) => {
-    const scheduleId = result.test_schedule_id.toString()
+    const scheduleId = String(result.test_schedule_id)
     const existing = scheduleMap.get(scheduleId)
 
     if (existing) {
       // 既存のエントリに結果をマージ
-      existing.resultDeviation = result.four_subject_deviation
-      existing.resultRegisteredAt = result.created_at
-      existing.subjectDeviations = {
-        算数: result.math_deviation,
-        国語: result.japanese_deviation,
-        理科: result.science_deviation,
-        社会: result.social_deviation,
-      }
+      existing.resultCourse = result.result_course
+      existing.resultClass = result.result_class
+      existing.resultRegisteredAt = result.result_entered_at
+      existing.isAchieved = checkAchievement(existing.goalCourse, result.result_course)
     } else {
-      // 結果のみのエントリを作成
+      // 結果のみのエントリを作成（目標がない場合）
+      const testDate = result.test_schedules?.test_date || ""
+      // 結果に付随する目標情報があればそれを使う
+      const goalFromResult = result.goal
       scheduleMap.set(scheduleId, {
         scheduleId,
-        testName: result.test_schedules?.test_name || "不明なテスト",
-        testDate: result.test_schedules?.test_date || "",
-        goalDeviation: null,
-        goalThoughts: null,
+        testName: result.test_schedules?.test_types?.name || "不明なテスト",
+        testDate,
+        testDateFormatted: testDate ? formatDateJST(testDate) : "",
+        goalCourse: goalFromResult?.target_course || null,
+        goalClass: goalFromResult?.target_class || null,
+        goalThoughts: goalFromResult?.goal_thoughts || null,
         goalCreatedAt: null,
-        resultDeviation: result.four_subject_deviation,
-        resultRegisteredAt: result.created_at,
-        subjectDeviations: {
-          算数: result.math_deviation,
-          国語: result.japanese_deviation,
-          理科: result.science_deviation,
-          社会: result.social_deviation,
-        },
+        resultCourse: result.result_course,
+        resultClass: result.result_class,
+        resultRegisteredAt: result.result_entered_at,
+        isAchieved: checkAchievement(goalFromResult?.target_course || null, result.result_course),
       })
     }
   })
