@@ -1,627 +1,164 @@
-"use client"
+import { redirect, notFound } from "next/navigation"
+import { createClient } from "@/lib/supabase/server"
+import { StudentDetailClient } from "./student-detail-client"
 
-import { useState } from "react"
-import { useParams, useRouter } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, Send, Bot, TrendingUp, Calendar, BookOpen, Target, MessageSquare, Sparkles, FileText, RefreshCw, Loader2 } from "lucide-react"
-import { sendEncouragementToStudent } from "@/app/actions/coach"
-import { UserProfileHeader } from "@/components/common/user-profile-header"
-import { CoachPastExamViewer } from "@/app/coach/components/past-exam-viewer"
-import { useCoachStudentDetail, type StudyLog } from "@/lib/hooks/use-coach-student-detail"
-import { getAvatarById } from "@/lib/constants/avatars"
-import { groupLogsByBatch, getRepresentativeLog, calculateSummary, calculateAccuracy, type FeedbackMaps, type StudyLogWithBatch, type GroupedLogEntry } from "@/lib/utils/batch-grouping"
+// 動的レンダリング必須（セッション依存）
+export const dynamic = "force-dynamic"
+export const revalidate = 0
 
-interface AIMessage {
-  type: "celebrate" | "insight" | "nextstep"
-  title: string
-  message: string
+interface PageProps {
+  params: Promise<{ id: string }>
 }
 
-export default function StudentDetailPage() {
-  const params = useParams()
-  const router = useRouter()
-  const studentId = params.id as string
+/**
+ * 生徒詳細ページ（Server Component）
+ * - 認証・権限チェック
+ * - 概要タブ用の初期データをSSRで取得
+ * - 他タブはクライアント側でSWR lazy load
+ */
+export default async function StudentDetailPage({ params }: PageProps) {
+  const { id: studentId } = await params
+  const supabase = await createClient()
 
-  // SWRでデータを管理
-  const { student, studyLogs, batchFeedbacks, legacyFeedbacks, isLoading, isValidating, mutate } = useCoachStudentDetail(studentId)
+  // 認証チェック
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  const [activeTab, setActiveTab] = useState("all")
-  const [selectedEntry, setSelectedEntry] = useState<GroupedLogEntry<StudyLogWithBatch> | null>(null)
-  const [aiMessages, setAiMessages] = useState<AIMessage[]>([])
-  const [isGeneratingAI, setIsGeneratingAI] = useState(false)
-  const [customMessage, setCustomMessage] = useState("")
-
-  // batch_idでグループ化
-  const feedbackMaps: FeedbackMaps = { batchFeedbacks, legacyFeedbacks }
-  const groupedLogs = groupLogsByBatch(
-    studyLogs.map((log) => ({
-      ...log,
-      total_problems: log.total_questions,
-      reflection_text: log.reflection,
-    })) as StudyLogWithBatch[],
-    feedbackMaps
-  )
-
-  // 未応援エントリかどうか判定
-  const isUnrespondedEntry = (entry: GroupedLogEntry<StudyLogWithBatch>): boolean => {
-    if (entry.type === "batch") {
-      return !entry.coachFeedback
-    }
-    // single entry - check hasCoachResponse from original log
-    const originalLog = studyLogs.find((l) => l.id === entry.log.id)
-    return originalLog ? !originalLog.hasCoachResponse : true
+  if (!user) {
+    redirect("/")
   }
 
-  // 未応援エントリのみフィルタ
-  const unrespondedEntries = groupedLogs.filter(isUnrespondedEntry)
+  // ロールチェック
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single()
 
-  const getUnderstandingEmoji = (level: number) => {
-    if (level >= 4) return "😄バッチリ理解"
-    if (level === 3) return "😐ふつう"
-    return "😟ちょっと不安"
+  if (!profile || profile.role !== "coach") {
+    redirect("/")
   }
 
-  const getSubjectLabel = (subject: string) => {
-    const subjectMap: Record<string, string> = {
-      math: "算数",
-      japanese: "国語",
-      science: "理科",
-      social: "社会",
-    }
-    return subjectMap[subject] || subject
+  // コーチIDを取得
+  const { data: coach } = await supabase
+    .from("coaches")
+    .select("id")
+    .eq("user_id", user.id)
+    .single()
+
+  if (!coach) {
+    redirect("/coach")
   }
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleString("ja-JP", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    })
+  // この生徒が自分の担当かチェック
+  const { data: relation } = await supabase
+    .from("coach_student_relations")
+    .select("id")
+    .eq("coach_id", coach.id)
+    .eq("student_id", studentId)
+    .single()
+
+  if (!relation) {
+    notFound()
   }
 
-  const getHoursAgo = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-    return diffHours
+  // 生徒の基本情報を取得（概要タブ用SSRデータ）
+  const { data: student, error: studentError } = await supabase
+    .from("students")
+    .select(`
+      id,
+      user_id,
+      full_name,
+      nickname,
+      grade,
+      course,
+      profiles!students_user_id_fkey (
+        avatar_id,
+        custom_avatar_url
+      )
+    `)
+    .eq("id", studentId)
+    .single()
+
+  if (studentError || !student) {
+    notFound()
   }
 
-  const generateAIMessages = async (entry: GroupedLogEntry<StudyLogWithBatch>) => {
-    setIsGeneratingAI(true)
-    setSelectedEntry(entry)
+  // 直近の学習状況を取得
+  const today = new Date()
+  const weekAgo = new Date(today)
+  weekAgo.setDate(weekAgo.getDate() - 7)
 
-    // 代表ログを取得
-    const representativeLog = getRepresentativeLog(entry)
-    const originalLog = studyLogs.find((l) => l.id === representativeLog.id)
-    const { totalQuestions, totalCorrect } = calculateSummary(entry)
+  const { data: recentLogs } = await supabase
+    .from("study_logs")
+    .select(`
+      id,
+      study_date,
+      correct_count,
+      total_problems,
+      subjects (name)
+    `)
+    .eq("student_id", studentId)
+    .gte("study_date", weekAgo.toISOString().split("T")[0])
+    .order("study_date", { ascending: false })
+    .limit(20)
 
-    // 科目名取得
-    const subjectName =
-      entry.type === "batch"
-        ? entry.subjects.map(getSubjectLabel).join("・")
-        : getSubjectLabel(entry.log.subject)
+  // 学習サマリーを計算
+  const totalQuestions = recentLogs?.reduce((sum, log) => sum + (log.total_problems || 0), 0) || 0
+  const totalCorrect = recentLogs?.reduce((sum, log) => sum + (log.correct_count || 0), 0) || 0
+  const recentAccuracy = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0
+  const studyDaysCount = new Set(recentLogs?.map((log) => log.study_date)).size
 
-    try {
-      const response = await fetch("/api/coach/encouragement-suggestions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          studentName: student?.nickname || student?.full_name || "",
-          subject: subjectName,
-          understandingLevel: originalLog?.understanding_level || 3,
-          reflection: originalLog?.reflection || "",
-          correctRate: calculateAccuracy(totalQuestions, totalCorrect),
-          streak: student?.streak || 0,
-        }),
-      })
+  // 連続学習日数を計算
+  const { data: allLogs } = await supabase
+    .from("study_logs")
+    .select("study_date")
+    .eq("student_id", studentId)
+    .order("study_date", { ascending: false })
+    .limit(100)
 
-      const data = await response.json()
+  let streak = 0
+  if (allLogs && allLogs.length > 0) {
+    const uniqueDates = [...new Set(allLogs.map((log) => log.study_date))].sort().reverse()
+    const todayStr = today.toISOString().split("T")[0]
+    const yesterdayStr = new Date(today.getTime() - 86400000).toISOString().split("T")[0]
 
-      if (data.error || !response.ok) {
-        console.error("AI生成エラー:", data.error)
-        // フォールバック：簡易的なメッセージを生成
-        const studentName = student?.nickname || student?.full_name || ""
-        setAiMessages([
-          {
-            type: "celebrate",
-            title: "成果を称える",
-            message: `${studentName}さん、${subjectName}の学習お疲れさまでした！継続して頑張っている姿勢が素晴らしいです。`,
-          },
-          {
-            type: "insight",
-            title: "学習への気づき",
-            message: `「${originalLog?.reflection || ""}」という振り返り、とても良い観察ですね。この調子で自分の学習を見つめ続けてください。`,
-          },
-          {
-            type: "nextstep",
-            title: "次のステップ提案",
-            message: `${studentName}さんの${subjectName}の取り組み、継続できていますね。次も同じペースで頑張りましょう。`,
-          },
-        ])
-      } else {
-        setAiMessages(data.suggestions || [])
+    // 今日または昨日から始まるかチェック
+    if (uniqueDates[0] === todayStr || uniqueDates[0] === yesterdayStr) {
+      streak = 1
+      let currentDate = new Date(uniqueDates[0])
+
+      for (let i = 1; i < uniqueDates.length; i++) {
+        const prevDate = new Date(currentDate.getTime() - 86400000)
+        if (uniqueDates[i] === prevDate.toISOString().split("T")[0]) {
+          streak++
+          currentDate = prevDate
+        } else {
+          break
+        }
       }
-    } catch (error) {
-      console.error("AI生成エラー:", error)
-      // エラー時のフォールバック
-      setAiMessages([
-        {
-          type: "celebrate",
-          title: "成果を称える",
-          message: `学習お疲れさまでした！継続して頑張っている姿勢が素晴らしいです。`,
-        },
-      ])
     }
-
-    setIsGeneratingAI(false)
   }
 
-  const sendMessage = async (message: string) => {
-    if (!selectedEntry || !student) return
-
-    // 代表ログを取得
-    const representativeLog = getRepresentativeLog(selectedEntry)
-    const result = await sendEncouragementToStudent(student.id, representativeLog.id, message)
-
-    if (result.error) {
-      alert(`エラー: ${result.error}`)
-      return
-    }
-
-    alert(`${student.nickname || student.full_name}さんに応援メッセージを送信しました！`)
-
-    // SWRデータを再取得
-    mutate()
-
-    setSelectedEntry(null)
-    setAiMessages([])
-    setCustomMessage("")
+  // 初期データを構築
+  const initialData = {
+    student: {
+      id: String(student.id),
+      full_name: student.full_name,
+      nickname: student.nickname,
+      grade: student.grade,
+      course: student.course,
+      avatar_id: (student.profiles as { avatar_id?: string | null })?.avatar_id || null,
+      custom_avatar_url: (student.profiles as { custom_avatar_url?: string | null })?.custom_avatar_url || null,
+    },
+    summary: {
+      streak,
+      studyDaysThisWeek: studyDaysCount,
+      recentAccuracy,
+      totalQuestionsThisWeek: totalQuestions,
+    },
   }
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">読み込み中...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!student) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-lg text-muted-foreground">生徒が見つかりません</p>
-          <Button onClick={() => router.back()} className="mt-4">
-            戻る
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-20">
-      <UserProfileHeader />
-      {/* Header */}
-      <div className="bg-card/80 backdrop-blur-sm border-b border-border/50 p-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" onClick={() => router.back()}>
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <Avatar className="h-12 w-12">
-                <AvatarImage src={student.custom_avatar_url || (student.avatar_id ? getAvatarById(student.avatar_id)?.src || "/placeholder.svg" : "/placeholder.svg")} alt={student.full_name} />
-                <AvatarFallback>{student.full_name.charAt(0)}</AvatarFallback>
-              </Avatar>
-              <div>
-                <h1 className="text-xl font-bold text-foreground">{student.full_name}</h1>
-                <p className="text-sm text-muted-foreground">
-                  ニックネーム: {student.nickname || "未設定"} | {student.grade} | {student.course || "未設定"}コース
-                </p>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => mutate()}
-              disabled={isValidating}
-              className="flex items-center gap-2"
-            >
-              {isValidating ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
-              <span className="hidden sm:inline">更新</span>
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto p-4 space-y-6">
-        {/* Student Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Target className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{student.streak}</div>
-                  <div className="text-sm text-muted-foreground">連続日数</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{student.weekRing}</div>
-                  <div className="text-sm text-muted-foreground">今週の学習</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <BookOpen className="h-5 w-5 text-purple-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{student.recentScore}%</div>
-                  <div className="text-sm text-muted-foreground">最新スコア</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                  <MessageSquare className="h-5 w-5 text-orange-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{unrespondedEntries.length}</div>
-                  <div className="text-sm text-muted-foreground">未応援</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Learning History Tabs */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-primary" />
-              学習履歴
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList>
-                <TabsTrigger value="all">全履歴 ({groupedLogs.length})</TabsTrigger>
-                <TabsTrigger value="unresponded" className="relative">
-                  未応援 ({unrespondedEntries.length})
-                  {unrespondedEntries.length > 0 && (
-                    <Badge className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5">
-                      {unrespondedEntries.length}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="all" className="space-y-4 mt-4">
-                {groupedLogs.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">学習履歴がありません</div>
-                ) : (
-                  <div className="space-y-3">
-                    {groupedLogs.map((entry) => {
-                      const isUnresponded = isUnrespondedEntry(entry)
-                      const { totalQuestions, totalCorrect } = calculateSummary(entry)
-                      const accuracy = calculateAccuracy(totalQuestions, totalCorrect)
-
-                      if (entry.type === "batch") {
-                        // バッチエントリ（複数科目を同時に登録）
-                        const representativeLog = getRepresentativeLog(entry)
-                        const originalLog = studyLogs.find((l) => l.id === representativeLog.id)
-                        return (
-                          <div
-                            key={entry.batchId}
-                            className={`p-4 rounded-lg border-2 transition-all ${
-                              isUnresponded
-                                ? "border-l-4 border-l-orange-500 bg-orange-50"
-                                : "border-border bg-background"
-                            }`}
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                  {entry.subjects.map((subject) => (
-                                    <Badge key={subject} className="bg-blue-100 text-blue-800">
-                                      {getSubjectLabel(subject)}
-                                    </Badge>
-                                  ))}
-                                  <span className="text-sm text-muted-foreground">{formatDate(entry.latestLoggedAt)}</span>
-                                  <span className="text-xs text-muted-foreground">{getHoursAgo(entry.latestLoggedAt)}時間前</span>
-                                </div>
-                                <div className="mb-2">
-                                  {originalLog && (
-                                    <span className="text-lg mr-2">{getUnderstandingEmoji(originalLog.understanding_level)}</span>
-                                  )}
-                                  <span className="text-sm text-muted-foreground">
-                                    合計正答率: {accuracy}% ({totalCorrect}/{totalQuestions}問)
-                                  </span>
-                                </div>
-                                {originalLog?.reflection && (
-                                  <p className="text-sm text-foreground mb-3">{originalLog.reflection}</p>
-                                )}
-                                {entry.coachFeedback && (
-                                  <div className="bg-blue-50 border-l-4 border-l-blue-500 p-3 rounded">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <Bot className="h-4 w-4 text-blue-600" />
-                                      <span className="text-sm font-medium text-blue-800">指導者からの応援</span>
-                                    </div>
-                                    <p className="text-sm text-blue-700">{entry.coachFeedback}</p>
-                                  </div>
-                                )}
-                              </div>
-                              {isUnresponded && (
-                                <Button size="sm" onClick={() => generateAIMessages(entry)} className="ml-4">
-                                  <Sparkles className="h-4 w-4 mr-1" />
-                                  応援する
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      } else {
-                        // 単独エントリ
-                        const originalLog = studyLogs.find((l) => l.id === entry.log.id)
-                        return (
-                          <div
-                            key={entry.log.id}
-                            className={`p-4 rounded-lg border-2 transition-all ${
-                              isUnresponded
-                                ? "border-l-4 border-l-orange-500 bg-orange-50"
-                                : "border-border bg-background"
-                            }`}
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-2">
-                                  <Badge className="bg-blue-100 text-blue-800">{getSubjectLabel(entry.log.subject)}</Badge>
-                                  <span className="text-sm text-muted-foreground">{formatDate(entry.log.logged_at)}</span>
-                                  <span className="text-xs text-muted-foreground">{getHoursAgo(entry.log.logged_at)}時間前</span>
-                                </div>
-                                <div className="mb-2">
-                                  {originalLog && (
-                                    <span className="text-lg mr-2">{getUnderstandingEmoji(originalLog.understanding_level)}</span>
-                                  )}
-                                  <span className="text-sm text-muted-foreground">
-                                    正答率: {accuracy}%
-                                  </span>
-                                </div>
-                                <p className="text-sm text-foreground mb-3">{originalLog?.reflection || "振り返りなし"}</p>
-                                {(entry.coachFeedback || originalLog?.hasCoachResponse) && (
-                                  <div className="bg-blue-50 border-l-4 border-l-blue-500 p-3 rounded">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <Bot className="h-4 w-4 text-blue-600" />
-                                      <span className="text-sm font-medium text-blue-800">指導者からの応援</span>
-                                    </div>
-                                    <p className="text-sm text-blue-700">{entry.coachFeedback || originalLog?.coachMessage}</p>
-                                  </div>
-                                )}
-                              </div>
-                              {isUnresponded && (
-                                <Button size="sm" onClick={() => generateAIMessages(entry)} className="ml-4">
-                                  <Sparkles className="h-4 w-4 mr-1" />
-                                  応援する
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      }
-                    })}
-                  </div>
-                )}
-              </TabsContent>
-
-              <TabsContent value="unresponded" className="space-y-4 mt-4">
-                {unrespondedEntries.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">未応援の学習履歴がありません</div>
-                ) : (
-                  <div className="space-y-3">
-                    {unrespondedEntries.map((entry) => {
-                      const { totalQuestions, totalCorrect } = calculateSummary(entry)
-                      const accuracy = calculateAccuracy(totalQuestions, totalCorrect)
-
-                      if (entry.type === "batch") {
-                        // バッチエントリ（複数科目を同時に登録）
-                        const representativeLog = getRepresentativeLog(entry)
-                        const originalLog = studyLogs.find((l) => l.id === representativeLog.id)
-                        return (
-                          <div key={entry.batchId} className="p-4 rounded-lg border-l-4 border-l-orange-500 bg-orange-50">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                  {entry.subjects.map((subject) => (
-                                    <Badge key={subject} className="bg-blue-100 text-blue-800">
-                                      {getSubjectLabel(subject)}
-                                    </Badge>
-                                  ))}
-                                  <span className="text-sm text-muted-foreground">{formatDate(entry.latestLoggedAt)}</span>
-                                  <span className="text-xs text-muted-foreground">{getHoursAgo(entry.latestLoggedAt)}時間前</span>
-                                </div>
-                                <div className="mb-2">
-                                  {originalLog && (
-                                    <span className="text-lg mr-2">{getUnderstandingEmoji(originalLog.understanding_level)}</span>
-                                  )}
-                                  <span className="text-sm text-muted-foreground">
-                                    合計正答率: {accuracy}% ({totalCorrect}/{totalQuestions}問)
-                                  </span>
-                                </div>
-                                {originalLog?.reflection && (
-                                  <p className="text-sm text-foreground">{originalLog.reflection}</p>
-                                )}
-                              </div>
-                              <Button size="sm" onClick={() => generateAIMessages(entry)} className="ml-4">
-                                <Sparkles className="h-4 w-4 mr-1" />
-                                応援する
-                              </Button>
-                            </div>
-                          </div>
-                        )
-                      } else {
-                        // 単独エントリ
-                        const originalLog = studyLogs.find((l) => l.id === entry.log.id)
-                        return (
-                          <div key={entry.log.id} className="p-4 rounded-lg border-l-4 border-l-orange-500 bg-orange-50">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-2">
-                                  <Badge className="bg-blue-100 text-blue-800">{getSubjectLabel(entry.log.subject)}</Badge>
-                                  <span className="text-sm text-muted-foreground">{formatDate(entry.log.logged_at)}</span>
-                                  <span className="text-xs text-muted-foreground">{getHoursAgo(entry.log.logged_at)}時間前</span>
-                                </div>
-                                <div className="mb-2">
-                                  {originalLog && (
-                                    <span className="text-lg mr-2">{getUnderstandingEmoji(originalLog.understanding_level)}</span>
-                                  )}
-                                  <span className="text-sm text-muted-foreground">
-                                    正答率: {accuracy}%
-                                  </span>
-                                </div>
-                                <p className="text-sm text-foreground">{originalLog?.reflection || "振り返りなし"}</p>
-                              </div>
-                              <Button size="sm" onClick={() => generateAIMessages(entry)} className="ml-4">
-                                <Sparkles className="h-4 w-4 mr-1" />
-                                応援する
-                              </Button>
-                            </div>
-                          </div>
-                        )
-                      }
-                    })}
-                  </div>
-                )}
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
-
-        {/* Past Exam Results - 小学6年生のみ表示 */}
-        {(student.grade === 6 || String(student.grade).includes("6")) && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-purple-600" />
-                過去問演習結果
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CoachPastExamViewer studentId={studentId} />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* AI Message Generation Modal */}
-        {selectedEntry && (
-          <Card className="border-2 border-primary">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bot className="h-5 w-5 text-primary" />
-                AI応援メッセージ生成
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                {selectedEntry.type === "batch"
-                  ? selectedEntry.subjects.map(getSubjectLabel).join("・")
-                  : getSubjectLabel(selectedEntry.log.subject)}
-                の学習記録に対する個別最適化された応援メッセージ
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {isGeneratingAI ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                  <p className="text-sm text-muted-foreground">AI応援メッセージを生成中...</p>
-                </div>
-              ) : aiMessages.length > 0 ? (
-                <div className="space-y-4">
-                  <h3 className="font-medium">3つの応援メッセージから選択してください：</h3>
-                  {aiMessages.map((msg, index) => (
-                    <div key={index} className="border rounded-lg p-4 hover:bg-accent/50 transition-colors">
-                      <div className="flex items-center justify-between mb-2">
-                        <Badge variant="outline" className="text-xs">
-                          {msg.type === "celebrate" && "🎉 成果を称える"}
-                          {msg.type === "insight" && "💡 学習への気づき"}
-                          {msg.type === "nextstep" && "🎯 次のステップ提案"}
-                        </Badge>
-                        <Button size="sm" onClick={() => sendMessage(msg.message)}>
-                          <Send className="h-4 w-4 mr-1" />
-                          送信
-                        </Button>
-                      </div>
-                      <p className="text-sm">{msg.message}</p>
-                    </div>
-                  ))}
-
-                  <div className="border-t pt-4">
-                    <h4 className="font-medium mb-2">カスタムメッセージ：</h4>
-                    <Textarea
-                      placeholder="独自の応援メッセージを入力..."
-                      value={customMessage}
-                      onChange={(e) => setCustomMessage(e.target.value)}
-                      className="mb-2"
-                    />
-                    <div className="flex justify-between">
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setSelectedEntry(null)
-                          setAiMessages([])
-                          setCustomMessage("")
-                        }}
-                      >
-                        キャンセル
-                      </Button>
-                      <Button onClick={() => sendMessage(customMessage)} disabled={!customMessage.trim()}>
-                        <Send className="h-4 w-4 mr-1" />
-                        カスタム送信
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-            </CardContent>
-          </Card>
-        )}
-      </div>
-    </div>
-  )
+  return <StudentDetailClient studentId={studentId} initialData={initialData} />
 }

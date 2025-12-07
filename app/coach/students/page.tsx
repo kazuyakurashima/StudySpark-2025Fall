@@ -1,44 +1,23 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Home, Flag, Map, BookOpen, Heart, MessageCircle, X, Users, Loader2, RefreshCw } from "lucide-react"
+import { ChevronRight, Users, Loader2, RefreshCw } from "lucide-react"
 import { CoachBottomNavigation } from "@/components/coach-bottom-navigation"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { useCoachStudents } from "@/lib/hooks/use-coach-students"
-import type { CoachStudent } from "@/app/actions/coach"
 import { getAvatarById } from "@/lib/constants/avatars"
 
 export default function StudentsListPage() {
   // SWRフックで生徒一覧を取得
   const { students, studentsError, isLoading, isValidating, mutate } = useCoachStudents()
 
-  const [selectedStudent, setSelectedStudent] = useState<CoachStudent | null>(null)
-  const [selectedView, setSelectedView] = useState<string | null>(null)
   const [gradeFilter, setGradeFilter] = useState<string>("all")
-
-  const actionButtons = [
-    { id: "home", label: "ホーム", icon: Home, description: "学習カレンダー、今日のミッション！、今週の進捗など" },
-    { id: "goal-navi", label: "ゴールナビ", icon: Flag, description: "テスト結果のみ閲覧" },
-    { id: "achievement-map", label: "達成マップ", icon: Map, description: "達成マップを閲覧" },
-    { id: "learning-history", label: "学習履歴", icon: BookOpen, description: "学習履歴を閲覧" },
-    { id: "encouragement-history", label: "応援履歴", icon: Heart, description: "応援履歴を閲覧" },
-    { id: "coaching-history", label: "コーチング履歴", icon: MessageCircle, description: "コーチング履歴を閲覧" },
-  ]
-
-  const handleActionClick = (student: CoachStudent, actionId: string) => {
-    setSelectedStudent(student)
-    setSelectedView(actionId)
-  }
-
-  const handleClose = () => {
-    setSelectedStudent(null)
-    setSelectedView(null)
-  }
 
   const filteredStudents = students.filter((student) => {
     if (gradeFilter === "all") return true
@@ -63,45 +42,6 @@ export default function StudentsListPage() {
             </CardContent>
           </Card>
         </div>
-        <CoachBottomNavigation />
-      </div>
-    )
-  }
-
-  if (selectedStudent && selectedView) {
-    return (
-      <div className="min-h-screen bg-background pb-20">
-        <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
-          {/* Header with Close Button */}
-          <Card className="border-l-4 border-l-primary">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-xl md:text-2xl font-bold mb-2">
-                    {selectedStudent.full_name}さんの{actionButtons.find((a) => a.id === selectedView)?.label}
-                  </h1>
-                  <p className="text-muted-foreground text-sm md:text-base">
-                    {actionButtons.find((a) => a.id === selectedView)?.description}
-                  </p>
-                </div>
-                <Button variant="ghost" size="icon" onClick={handleClose}>
-                  <X className="h-5 w-5" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Content Area */}
-          <Card>
-            <CardContent className="p-8 text-center">
-              <p className="text-muted-foreground">
-                ここに{selectedStudent.full_name}さんの{actionButtons.find((a) => a.id === selectedView)?.label}
-                が表示されます
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
         <CoachBottomNavigation />
       </div>
     )
@@ -186,23 +126,16 @@ export default function StudentsListPage() {
                         </div>
                       </div>
 
-                      {/* Action Buttons */}
-                      <div className="grid grid-cols-2 gap-2">
-                        {actionButtons.map((action) => {
-                          const Icon = action.icon
-                          return (
-                            <Button
-                              key={action.id}
-                              variant="outline"
-                              className="flex items-center gap-2 justify-start h-auto py-2 md:py-3 hover:bg-accent text-xs md:text-sm bg-transparent"
-                              onClick={() => handleActionClick(student, action.id)}
-                            >
-                              <Icon className="h-3 w-3 md:h-4 md:w-4 flex-shrink-0" />
-                              <span className="truncate">{action.label}</span>
-                            </Button>
-                          )
-                        })}
-                      </div>
+                      {/* Detail Link */}
+                      <Link href={`/coach/student/${student.id}`}>
+                        <Button
+                          variant="default"
+                          className="w-full flex items-center justify-center gap-2"
+                        >
+                          詳細を見る
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </Link>
                     </div>
                   </CardContent>
                 </Card>
