@@ -2,10 +2,11 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Progress } from "@/components/ui/progress"
 import {
   ArrowLeft,
   Target,
@@ -16,6 +17,8 @@ import {
   Loader2,
   Calendar,
   CheckCircle2,
+  Check,
+  ChevronRight,
 } from "lucide-react"
 import { getAvatarById } from "@/lib/constants/avatars"
 import { useCoachStudentDetail } from "@/lib/hooks/use-coach-student-detail"
@@ -23,6 +26,21 @@ import { useCoachStudentDetail } from "@/lib/hooks/use-coach-student-detail"
 // タブコンポーネント
 import { LearningTab } from "./tabs/learning-tab"
 import { EncouragementTab } from "./tabs/encouragement-tab"
+
+// 相対時間を計算するヘルパー
+function getRelativeTime(dateStr: string): string {
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+  if (diffHours < 1) return "たった今"
+  if (diffHours < 24) return `${diffHours}時間前`
+  if (diffDays === 1) return "昨日"
+  if (diffDays < 7) return `${diffDays}日前`
+  return date.toLocaleDateString("ja-JP", { month: "short", day: "numeric" })
+}
 
 interface StudentData {
   id: string
@@ -54,9 +72,12 @@ export function StudentDetailClient({ studentId, initialData }: StudentDetailCli
   const [activeTab, setActiveTab] = useState("overview")
 
   // SWRで詳細データを取得（学習タブ等で使用）
-  const { isValidating, mutate } = useCoachStudentDetail(studentId)
+  const { isValidating, mutate, studyLogs, isLoading } = useCoachStudentDetail(studentId)
 
   const { student, summary } = initialData
+
+  // 最近の学習（最新5件）
+  const recentLearning = studyLogs.slice(0, 5)
 
   const getAvatarSrc = () => {
     if (student.custom_avatar_url) return student.custom_avatar_url
@@ -190,6 +211,83 @@ export function StudentDetailClient({ studentId, initialData }: StudentDetailCli
                 </CardContent>
               </Card>
             </div>
+
+            {/* 最近の学習 */}
+            <Card className="shadow-sm">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base font-medium">最近の学習</CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-slate-500"
+                    onClick={() => setActiveTab("learning")}
+                  >
+                    すべて見る
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+                  </div>
+                ) : recentLearning.length === 0 ? (
+                  <div className="text-center py-8 text-slate-500 text-sm">
+                    まだ学習記録がありません
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {recentLearning.map((log) => {
+                      const accuracy = log.total_problems > 0
+                        ? Math.round((log.correct_count / log.total_problems) * 100)
+                        : 0
+                      return (
+                        <div
+                          key={log.id}
+                          className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm text-slate-900">
+                                {log.subject || log.subjects?.name || "科目不明"}
+                              </span>
+                              <span className="text-xs text-slate-400">
+                                {getRelativeTime(log.logged_at || log.created_at)}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Progress value={accuracy} className="h-1.5 flex-1 max-w-24" />
+                              <span className="text-xs text-slate-600 font-medium">{accuracy}%</span>
+                              <span className="text-xs text-slate-400">
+                                ({log.correct_count}/{log.total_problems}問)
+                              </span>
+                            </div>
+                          </div>
+                          {log.hasCoachResponse ? (
+                            <div className="flex items-center gap-1 text-emerald-600 ml-3">
+                              <Check className="h-4 w-4" />
+                              <span className="text-xs">済</span>
+                            </div>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="ml-3 h-8 text-xs"
+                              onClick={() => setActiveTab("encouragement")}
+                            >
+                              <Heart className="h-3 w-3 mr-1" />
+                              応援
+                            </Button>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
           </TabsContent>
 
