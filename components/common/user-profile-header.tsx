@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import Image from "next/image"
-import { LogOut, User, ChevronDown, Check, Users, GraduationCap, Heart } from "lucide-react"
+import Link from "next/link"
+import { LogOut, User, ChevronDown, Check, Users, GraduationCap, Heart, Settings, HelpCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { EditProfileModal } from "@/components/profile/edit-profile-modal"
@@ -240,6 +241,18 @@ export function UserProfileHeader({ encouragementStatus }: UserProfileHeaderProp
                       <GraduationCap className="w-4 h-4" />
                       コース選択
                     </button>
+                  )}
+
+                  {/* 設定（コーチのみ） */}
+                  {profile.role === "coach" && (
+                    <Link
+                      href="/coach/settings"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors"
+                    >
+                      <Settings className="w-4 h-4" />
+                      設定
+                    </Link>
                   )}
 
                   {/* ログアウト */}
