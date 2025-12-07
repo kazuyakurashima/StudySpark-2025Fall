@@ -70,10 +70,10 @@ export default async function StudentDetailPage({ params }: PageProps) {
       id,
       user_id,
       full_name,
-      nickname,
       grade,
       course,
       profiles!students_user_id_fkey (
+        nickname,
         avatar_id,
         custom_avatar_url
       )
@@ -146,7 +146,7 @@ export default async function StudentDetailPage({ params }: PageProps) {
     student: {
       id: String(student.id),
       full_name: student.full_name,
-      nickname: student.nickname,
+      nickname: (student.profiles as { nickname?: string | null })?.nickname || null,
       grade: student.grade,
       course: student.course,
       avatar_id: (student.profiles as { avatar_id?: string | null })?.avatar_id || null,
