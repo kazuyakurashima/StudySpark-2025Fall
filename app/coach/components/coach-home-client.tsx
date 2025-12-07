@@ -22,7 +22,11 @@ import {
   RefreshCw,
   Loader2,
   Layers,
+  Users,
+  ChevronRight,
+  CheckCircle2,
 } from "lucide-react"
+import Link from "next/link"
 import { CoachBottomNavigation } from "@/components/coach-bottom-navigation"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { getAvatarById } from "@/lib/constants/avatars"
@@ -292,6 +296,67 @@ export function CoachHomeClient({ initialRecords, initialInactiveStudents }: Coa
             </div>
           </CardContent>
         </Card>
+
+        {/* Quick Access Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* 要対応リスト */}
+          <Card className={`hover:shadow-md transition-shadow ${
+            filteredInactiveStudents.length > 0 ? "border-l-4 border-l-red-500" : "border-l-4 border-l-green-500"
+          }`}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {filteredInactiveStudents.length > 0 ? (
+                    <div className="p-2 rounded-full bg-red-100">
+                      <AlertTriangle className="h-5 w-5 text-red-600" />
+                    </div>
+                  ) : (
+                    <div className="p-2 rounded-full bg-green-100">
+                      <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="font-semibold">要対応</h3>
+                    {filteredInactiveStudents.length > 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        {filteredInactiveStudents.length}名の生徒が{inactiveThreshold}日以上未入力
+                      </p>
+                    ) : (
+                      <p className="text-sm text-green-600">全員順調です</p>
+                    )}
+                  </div>
+                </div>
+                {filteredInactiveStudents.length > 0 && (
+                  <Badge className="bg-red-500 text-white">
+                    {filteredInactiveStudents.length}
+                  </Badge>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 生徒一覧へのリンク */}
+          <Link href="/coach/students">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-primary h-full">
+              <CardContent className="p-4 h-full">
+                <div className="flex items-center justify-between h-full">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-primary/10">
+                      <Users className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">生徒一覧</h3>
+                      <p className="text-sm text-muted-foreground">
+                        全生徒の詳細情報を確認
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
 
         <Tabs defaultValue="encouragement" className="space-y-6">
           <TabsList className="bg-muted w-full md:w-auto grid grid-cols-3">

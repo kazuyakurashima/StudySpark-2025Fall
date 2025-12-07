@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation"
 import Link from "next/link"
-import { Home, Users, Heart, BarChart3 } from "lucide-react"
+import { Home, Target, Heart, BarChart3 } from "lucide-react"
 
 const tabs = [
   {
@@ -12,20 +12,20 @@ const tabs = [
     href: "/coach",
   },
   {
-    id: "students",
-    label: "生徒一覧",
-    icon: Users,
-    href: "/coach/students",
+    id: "goal",
+    label: "ゴールナビ",
+    icon: Target,
+    href: "/coach/goal",
   },
   {
     id: "encouragement",
-    label: "応援一覧",
+    label: "応援",
     icon: Heart,
     href: "/coach/encouragement",
   },
   {
     id: "analysis",
-    label: "分析機能",
+    label: "分析",
     icon: BarChart3,
     href: "/coach/analysis",
   },
@@ -40,7 +40,10 @@ export default function CoachBottomNavigation() {
       <div className="grid grid-cols-4 h-16">
         {tabs.map((tab) => {
           const Icon = tab.icon
-          const isActive = pathname === tab.href
+          // ホームは完全一致、他はプレフィックスマッチ
+          const isActive = tab.id === "home"
+            ? pathname === tab.href
+            : pathname.startsWith(tab.href)
 
           return (
             <Link
