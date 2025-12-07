@@ -89,12 +89,6 @@ export function LearningTab({ studentId }: LearningTabProps) {
     })
   }
 
-  const getUnderstandingEmoji = (level: number) => {
-    if (level >= 4) return "😄"
-    if (level === 3) return "😐"
-    return "😟"
-  }
-
   const generateAIMessages = async (entry: GroupedLogEntry<StudyLogWithBatch>) => {
     setIsGeneratingAI(true)
     setSelectedEntry(entry)
@@ -115,7 +109,7 @@ export function LearningTab({ studentId }: LearningTabProps) {
         body: JSON.stringify({
           studentName: student?.nickname || student?.full_name || "",
           subject: subjectName,
-          understandingLevel: originalLog?.understanding_level || 3,
+          understandingLevel: 3, // understanding_levelはDB未対応のため固定値
           reflection: originalLog?.reflection || "",
           correctRate: calculateAccuracy(totalQuestions, totalCorrect),
           streak: 0,
@@ -151,7 +145,7 @@ export function LearningTab({ studentId }: LearningTabProps) {
     if (!selectedEntry || !student) return
 
     const representativeLog = getRepresentativeLog(selectedEntry)
-    const result = await sendEncouragementToStudent(student.id, representativeLog.id, message)
+    const result = await sendEncouragementToStudent(String(student.id), String(representativeLog.id), message)
 
     if (result.error) {
       alert(`エラー: ${result.error}`)
@@ -248,11 +242,6 @@ export function LearningTab({ studentId }: LearningTabProps) {
                           </div>
 
                           <div className="mb-2">
-                            {originalLog && (
-                              <span className="text-lg mr-2">
-                                {getUnderstandingEmoji(originalLog.understanding_level)}
-                              </span>
-                            )}
                             <span className="text-sm text-muted-foreground">
                               正答率: {accuracy}% ({totalCorrect}/{totalQuestions}問)
                             </span>

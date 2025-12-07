@@ -27,7 +27,6 @@ export interface StudyLog {
   total_questions: number // フロント互換
   reflection_text: string | null
   reflection: string | null // フロント互換
-  understanding_level: number
   batch_id: string | null
   created_at: string
   subject: string // フロント互換（subjects.nameから取得）

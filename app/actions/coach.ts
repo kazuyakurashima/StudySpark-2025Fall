@@ -255,6 +255,9 @@ export async function getStudentLearningHistory(studentId: string, limit = 20) {
   }
 
   // 学習履歴を取得（batch_idとリレーション情報を含む）
+  // studentIdを数値に変換（DBのstudent_idがinteger型の場合）
+  const studentIdNum = parseInt(studentId, 10)
+
   const { data: studyLogs, error: logsError } = await supabase
     .from("study_logs")
     .select(`
@@ -266,14 +269,13 @@ export async function getStudentLearningHistory(studentId: string, limit = 20) {
       correct_count,
       total_problems,
       reflection_text,
-      understanding_level,
       batch_id,
       created_at,
       subjects (name, color_code),
       study_content_types (content_name),
       study_sessions (session_number, start_date, end_date)
     `)
-    .eq("student_id", studentId)
+    .eq("student_id", studentIdNum)
     .order("study_date", { ascending: false })
     .order("logged_at", { ascending: false })
     .limit(limit * 4) // バッチグループ化のため多めに取得

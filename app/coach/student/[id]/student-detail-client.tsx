@@ -72,7 +72,7 @@ export function StudentDetailClient({ studentId, initialData }: StudentDetailCli
   const [activeTab, setActiveTab] = useState("overview")
 
   // SWRで詳細データを取得（学習タブ等で使用）
-  const { isValidating, mutate, studyLogs, isLoading } = useCoachStudentDetail(studentId)
+  const { isValidating, mutate, studyLogs, isLoading, error } = useCoachStudentDetail(studentId)
 
   const { student, summary } = initialData
 
@@ -229,7 +229,11 @@ export function StudentDetailClient({ studentId, initialData }: StudentDetailCli
                 </div>
               </CardHeader>
               <CardContent className="pt-0">
-                {isLoading ? (
+                {error ? (
+                  <div className="text-center py-8 text-red-500 text-sm">
+                    データの取得に失敗しました: {error.message}
+                  </div>
+                ) : isLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
                   </div>

@@ -30,6 +30,15 @@ import type {
   FeedbackMaps,
 } from "@/lib/types/batch-grouping"
 
+// 型を再エクスポート
+export type {
+  StudyLogWithBatch,
+  GroupedLogEntry,
+  BatchLogEntry,
+  SingleLogEntry,
+  FeedbackMaps,
+}
+
 /**
  * ソートオプション
  */
