@@ -1,8 +1,9 @@
 # アバター表示 & ゴールナビ修正計画
 
 **作成日**: 2025-12-06
-**ブランチ**: `fix/parent-goal-and-avatar-display`
-**ステータス**: 実装中
+**ブランチ**: `fix/parent-goal-and-avatar-display` → mainマージ済み
+**ステータス**: ✅ 実装完了、動作確認待ち
+**最終更新**: 2025-12-07
 
 ---
 
@@ -163,7 +164,8 @@ SELECT * FROM parent_child_relations WHERE parent_id = '<parent_user_id>';
 | 3 | goal.ts アクション型確認 | `app/actions/goal.ts` | ✅ 完了（型は一貫していた） |
 | 4 | parent/goal/page.tsx 更新 | `app/parent/goal/page.tsx` | ✅ 完了 |
 | 5 | ビルド確認 | - | ✅ 完了 |
-| 6 | 動作確認 | - | 未着手 |
+| 6 | mainマージ・プッシュ | - | ✅ 完了 (2025-12-07) |
+| 7 | 動作確認 | - | ⏳ 待機中（ユーザーテスト待ち） |
 
 ---
 

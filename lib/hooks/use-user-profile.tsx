@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react"
+import { mutate } from "swr"
 import { UserProfile, UpdateProfileInput, ChildProfile } from "@/lib/types/profile"
 import { getProfile, updateProfileCustomization } from "@/app/actions/profile"
 import { getParentChildren } from "@/app/actions/parent-dashboard"
@@ -147,6 +148,13 @@ export function UserProfileProvider({
       if (result.success && result.profile) {
         // ローカル状態を即座に更新（楽観的更新）
         setProfile(result.profile)
+
+        // SWRキャッシュを無効化（ダッシュボードなど他のコンポーネントに反映）
+        // アバターやプロフィール情報を含む全ロールのダッシュボードAPIを再取得
+        mutate("/api/student/dashboard")
+        mutate("/api/parent/dashboard")
+        mutate("/api/coach/dashboard")
+
         return { success: true }
       } else {
         setError(result.error || "更新に失敗しました")
