@@ -152,7 +152,12 @@ export function UserProfileProvider({
         // SWRキャッシュを無効化（ダッシュボードなど他のコンポーネントに反映）
         // アバターやプロフィール情報を含む全ロールのダッシュボードAPIを再取得
         mutate("/api/student/dashboard")
-        mutate("/api/parent/dashboard")
+        // 保護者ダッシュボードはchildIdパラメータ付きのため、前方一致でマッチ
+        mutate(
+          (key) => typeof key === "string" && key.startsWith("/api/parent/dashboard"),
+          undefined,
+          { revalidate: true }
+        )
         mutate("/api/coach/dashboard")
 
         return { success: true }
