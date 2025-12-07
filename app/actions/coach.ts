@@ -662,6 +662,386 @@ export interface InactiveStudentData {
 /**
  * 未入力生徒一覧を取得
  */
+// ==================== 分析ページ用API ====================
+
+export type TrendType = "up" | "stable" | "down" | "insufficient"
+export type BinType = "excellent" | "good" | "improving" | "needs_support"
+
+export interface SubjectAverage {
+  subject: "算数" | "国語" | "理科" | "社会"
+  average: number
+  sampleSize: number
+  trend: TrendType
+  currentAvg: number | null
+  previousAvg: number | null
+}
+
+export interface DistributionBin {
+  bin: BinType
+  label: string
+  count: number
+  studentIds: string[]
+  color: string
+}
+
+export interface SubjectTrend {
+  subject: string
+  trend: TrendType
+  currentAvg: number | null
+  previousAvg: number | null
+  sampleSize: number
+}
+
+export interface StudentTrend {
+  studentId: string
+  studentName: string
+  nickname: string | null
+  avatarId: string | null
+  customAvatarUrl: string | null
+  grade: number
+  overallAccuracy: number | null
+  subjectTrends: SubjectTrend[]
+}
+
+export interface CoachAnalysisMeta {
+  totalStudents: number
+  periodStart: string
+  periodEnd: string
+  fetchedAt: number
+}
+
+export interface CoachAnalysisResult {
+  subjectAverages: SubjectAverage[]
+  distribution: DistributionBin[]
+  studentTrends: StudentTrend[]
+  meta: CoachAnalysisMeta
+  error?: string
+}
+
+/**
+ * 正答率からビンを判定（整数%で丸めてから判定）
+ */
+function getAccuracyBin(accuracy: number): BinType {
+  const rounded = Math.round(accuracy)
+  if (rounded >= 90) return "excellent"
+  if (rounded >= 70) return "good"
+  if (rounded >= 50) return "improving"
+  return "needs_support"
+}
+
+/**
+ * トレンドを計算（小数点1桁で比較、±5%閾値）
+ */
+function calculateTrend(currentAvg: number | null, previousAvg: number | null, currentCount: number, previousCount: number): TrendType {
+  // 各期間で3件以上必要
+  if (currentCount < 3 || previousCount < 3 || currentAvg === null || previousAvg === null) {
+    return "insufficient"
+  }
+
+  // 小数点1桁で差分を計算
+  const diff = Math.round((currentAvg - previousAvg) * 10) / 10
+
+  if (diff >= 5) return "up"
+  if (diff <= -5) return "down"
+  return "stable"
+}
+
+/**
+ * JST（Asia/Tokyo）で日付の開始時刻を取得
+ */
+function getJSTStartOfDay(date: Date): Date {
+  // JSTはUTC+9
+  const jstOffset = 9 * 60 * 60 * 1000
+  const utcTime = date.getTime()
+  const jstTime = new Date(utcTime + jstOffset)
+  jstTime.setUTCHours(0, 0, 0, 0)
+  return new Date(jstTime.getTime() - jstOffset)
+}
+
+/**
+ * 分析ページ用データ取得
+ * @param grade - 学年フィルタ（"5" | "6" | "all"）
+ * @returns 分析データ
+ */
+export async function getCoachAnalysisData(
+  grade: "5" | "6" | "all" = "all"
+): Promise<CoachAnalysisResult> {
+  const supabase = await createClient()
+  const now = new Date()
+  const fetchedAt = now.getTime()
+
+  // 期間設定（JSTで計算）
+  const periodEnd = getJSTStartOfDay(now)
+  periodEnd.setDate(periodEnd.getDate() + 1) // 今日の終わりまで
+
+  const periodStart = new Date(periodEnd)
+  periodStart.setDate(periodStart.getDate() - 14) // 14日前から
+
+  const midPoint = new Date(periodEnd)
+  midPoint.setDate(midPoint.getDate() - 7) // 7日前（前半/後半の境界）
+
+  // 空の結果
+  const emptyResult: CoachAnalysisResult = {
+    subjectAverages: [],
+    distribution: [
+      { bin: "excellent", label: "🌟 習熟", count: 0, studentIds: [], color: "emerald-500" },
+      { bin: "good", label: "✓ 順調", count: 0, studentIds: [], color: "blue-500" },
+      { bin: "improving", label: "📈 成長中", count: 0, studentIds: [], color: "amber-500" },
+      { bin: "needs_support", label: "💪 サポート", count: 0, studentIds: [], color: "red-500" },
+    ],
+    studentTrends: [],
+    meta: {
+      totalStudents: 0,
+      periodStart: periodStart.toISOString(),
+      periodEnd: periodEnd.toISOString(),
+      fetchedAt,
+    },
+  }
+
+  // 現在の指導者を取得
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { ...emptyResult, error: "認証が必要です" }
+  }
+
+  // 指導者IDを取得
+  const { data: coach, error: coachError } = await supabase
+    .from("coaches")
+    .select("id")
+    .eq("user_id", user.id)
+    .single()
+
+  if (coachError || !coach) {
+    return { ...emptyResult, error: "指導者情報が見つかりません" }
+  }
+
+  // 担当生徒を取得
+  const { data: relations, error: relationsError } = await supabase
+    .from("coach_student_relations")
+    .select(`
+      student_id,
+      students (
+        id,
+        user_id,
+        full_name,
+        grade
+      )
+    `)
+    .eq("coach_id", coach.id)
+
+  if (relationsError) {
+    console.error("Failed to fetch coach-student relations:", relationsError)
+    return { ...emptyResult, error: "担当生徒の取得に失敗しました" }
+  }
+
+  // 学年フィルタ適用
+  let students = relations
+    ?.map((rel: any) => rel.students)
+    .filter(Boolean) || []
+
+  if (grade !== "all") {
+    const gradeNum = parseInt(grade, 10)
+    students = students.filter((s: any) => s.grade === gradeNum)
+  }
+
+  if (students.length === 0) {
+    return {
+      ...emptyResult,
+      meta: { ...emptyResult.meta, totalStudents: 0 },
+    }
+  }
+
+  const studentIds = students.map((s: any) => s.id)
+
+  // 生徒のプロフィール情報を取得
+  const studentUserIds = students.map((s: any) => s.user_id).filter(Boolean)
+  let profilesMap: Record<string, { nickname: string | null; avatar_id: string | null; custom_avatar_url: string | null }> = {}
+
+  if (studentUserIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, nickname, avatar_id, custom_avatar_url")
+      .in("id", studentUserIds)
+
+    if (profiles) {
+      profilesMap = profiles.reduce((acc, profile) => {
+        acc[profile.id] = {
+          nickname: profile.nickname,
+          avatar_id: profile.avatar_id,
+          custom_avatar_url: profile.custom_avatar_url,
+        }
+        return acc
+      }, {} as typeof profilesMap)
+    }
+  }
+
+  // 14日間の学習記録を取得
+  const { data: studyLogs, error: logsError } = await supabase
+    .from("study_logs")
+    .select(`
+      id,
+      student_id,
+      correct_count,
+      total_problems,
+      logged_at,
+      subjects (name)
+    `)
+    .in("student_id", studentIds)
+    .gte("logged_at", periodStart.toISOString())
+    .lt("logged_at", periodEnd.toISOString())
+    .order("logged_at", { ascending: false })
+
+  if (logsError) {
+    console.error("Failed to fetch study logs:", logsError)
+    return { ...emptyResult, error: "学習記録の取得に失敗しました" }
+  }
+
+  const logs = studyLogs || []
+
+  // 科目リスト
+  const subjects = ["算数", "国語", "理科", "社会"] as const
+
+  // ========== 1. 科目別平均とトレンド ==========
+  const subjectAverages: SubjectAverage[] = subjects.map((subject) => {
+    const subjectLogs = logs.filter((log: any) => log.subjects?.name === subject)
+
+    // 直近7日と前7日に分割
+    const currentLogs = subjectLogs.filter((log: any) => new Date(log.logged_at) >= midPoint)
+    const previousLogs = subjectLogs.filter((log: any) => new Date(log.logged_at) < midPoint)
+
+    // 平均計算
+    const calcAvg = (logList: any[]) => {
+      if (logList.length === 0) return null
+      const total = logList.reduce((sum, log) => {
+        const rate = log.total_problems > 0 ? (log.correct_count / log.total_problems) * 100 : 0
+        return sum + rate
+      }, 0)
+      return Math.round((total / logList.length) * 10) / 10
+    }
+
+    const currentAvg = calcAvg(currentLogs)
+    const previousAvg = calcAvg(previousLogs)
+    const overallAvg = calcAvg(subjectLogs)
+
+    return {
+      subject,
+      average: overallAvg !== null ? Math.round(overallAvg) : 0,
+      sampleSize: subjectLogs.length,
+      trend: calculateTrend(currentAvg, previousAvg, currentLogs.length, previousLogs.length),
+      currentAvg,
+      previousAvg,
+    }
+  })
+
+  // ========== 2. 生徒分布 ==========
+  const distribution: DistributionBin[] = [
+    { bin: "excellent", label: "🌟 習熟", count: 0, studentIds: [], color: "emerald-500" },
+    { bin: "good", label: "✓ 順調", count: 0, studentIds: [], color: "blue-500" },
+    { bin: "improving", label: "📈 成長中", count: 0, studentIds: [], color: "amber-500" },
+    { bin: "needs_support", label: "💪 サポート", count: 0, studentIds: [], color: "red-500" },
+  ]
+
+  // 各生徒の総合正答率を計算してビンに分類
+  const studentAccuracies: Record<string, { total: number; correct: number }> = {}
+
+  for (const log of logs) {
+    const studentId = String(log.student_id)
+    if (!studentAccuracies[studentId]) {
+      studentAccuracies[studentId] = { total: 0, correct: 0 }
+    }
+    studentAccuracies[studentId].total += log.total_problems || 0
+    studentAccuracies[studentId].correct += log.correct_count || 0
+  }
+
+  for (const studentId of studentIds) {
+    const sid = String(studentId)
+    const acc = studentAccuracies[sid]
+    if (!acc || acc.total === 0) continue // データなしは除外
+
+    const accuracy = (acc.correct / acc.total) * 100
+    const bin = getAccuracyBin(accuracy)
+    const binItem = distribution.find((d) => d.bin === bin)
+    if (binItem) {
+      binItem.count++
+      binItem.studentIds.push(sid)
+    }
+  }
+
+  // ========== 3. 生徒別トレンド ==========
+  const studentTrends: StudentTrend[] = students.map((student: any) => {
+    const profile = profilesMap[student.user_id] || { nickname: null, avatar_id: null, custom_avatar_url: null }
+    const studentLogs = logs.filter((log: any) => log.student_id === student.id)
+
+    // 総合正答率
+    const totalAcc = studentAccuracies[String(student.id)]
+    const overallAccuracy = totalAcc && totalAcc.total > 0
+      ? Math.round((totalAcc.correct / totalAcc.total) * 100)
+      : null
+
+    // 科目別トレンド
+    const subjectTrends: SubjectTrend[] = subjects.map((subject) => {
+      const subjectLogs = studentLogs.filter((log: any) => log.subjects?.name === subject)
+      const currentLogs = subjectLogs.filter((log: any) => new Date(log.logged_at) >= midPoint)
+      const previousLogs = subjectLogs.filter((log: any) => new Date(log.logged_at) < midPoint)
+
+      const calcAvg = (logList: any[]) => {
+        if (logList.length === 0) return null
+        const total = logList.reduce((sum, log) => {
+          const rate = log.total_problems > 0 ? (log.correct_count / log.total_problems) * 100 : 0
+          return sum + rate
+        }, 0)
+        return Math.round((total / logList.length) * 10) / 10
+      }
+
+      const currentAvg = calcAvg(currentLogs)
+      const previousAvg = calcAvg(previousLogs)
+
+      return {
+        subject,
+        trend: calculateTrend(currentAvg, previousAvg, currentLogs.length, previousLogs.length),
+        currentAvg,
+        previousAvg,
+        sampleSize: subjectLogs.length,
+      }
+    })
+
+    return {
+      studentId: String(student.id),
+      studentName: student.full_name,
+      nickname: profile.nickname,
+      avatarId: profile.avatar_id,
+      customAvatarUrl: profile.custom_avatar_url,
+      grade: student.grade,
+      overallAccuracy,
+      subjectTrends,
+    }
+  })
+
+  // トレンドでソート（データありを優先、正答率降順）
+  studentTrends.sort((a, b) => {
+    // データなしは後ろ
+    if (a.overallAccuracy === null && b.overallAccuracy !== null) return 1
+    if (a.overallAccuracy !== null && b.overallAccuracy === null) return -1
+    // 正答率降順
+    return (b.overallAccuracy || 0) - (a.overallAccuracy || 0)
+  })
+
+  return {
+    subjectAverages,
+    distribution,
+    studentTrends,
+    meta: {
+      totalStudents: students.length,
+      periodStart: periodStart.toISOString(),
+      periodEnd: periodEnd.toISOString(),
+      fetchedAt,
+    },
+  }
+}
+
 export async function getInactiveStudents(thresholdDays = 7) {
   const supabase = await createClient()
 

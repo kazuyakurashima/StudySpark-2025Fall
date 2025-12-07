@@ -1,435 +1,499 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   BarChart3,
-  ChevronDown,
-  ChevronRight,
+  RefreshCw,
   Loader2,
   TrendingUp,
-  AlertCircle,
-  Calendar,
+  TrendingDown,
+  Minus,
+  HelpCircle,
   Users,
 } from "lucide-react"
+import Link from "next/link"
 import { CoachBottomNavigation } from "@/components/coach-bottom-navigation"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
-import { getCoachStudents, type CoachStudent } from "@/app/actions/coach"
-import {
-  generateWeeklyAnalysis,
-  getStoredWeeklyAnalysis,
-  getWeeklyAnalysisData,
-} from "@/app/actions/weekly-analysis"
+import { useCoachAnalysis, type GradeFilter } from "@/lib/hooks/use-coach-analysis"
+import { getAvatarById } from "@/lib/constants/avatars"
+import type { TrendType, DistributionBin, StudentTrend, SubjectAverage } from "@/app/actions/coach"
 
-interface WeeklyAnalysis {
-  id: string
-  student_id: string
-  week_start_date: string
-  week_end_date: string
-  strengths: string
-  challenges: string
-  advice: string
-  generated_at: string
-  generated_by_batch: boolean
+/**
+ * トレンドアイコンを取得
+ */
+function TrendIcon({ trend, className = "h-4 w-4" }: { trend: TrendType; className?: string }) {
+  switch (trend) {
+    case "up":
+      return <TrendingUp className={`${className} text-emerald-600`} />
+    case "down":
+      return <TrendingDown className={`${className} text-red-500`} />
+    case "stable":
+      return <Minus className={`${className} text-slate-500`} />
+    case "insufficient":
+      return <HelpCircle className={`${className} text-slate-400`} />
+  }
+}
+
+/**
+ * トレンドラベルを取得
+ */
+function getTrendLabel(trend: TrendType): string {
+  switch (trend) {
+    case "up":
+      return "上昇"
+    case "down":
+      return "下降"
+    case "stable":
+      return "安定"
+    case "insufficient":
+      return "データ不足"
+  }
+}
+
+/**
+ * 学年フィルタコンポーネント
+ */
+function GradeFilterButtons({
+  value,
+  onChange,
+  totalStudents,
+}: {
+  value: GradeFilter
+  onChange: (grade: GradeFilter) => void
+  totalStudents: number
+}) {
+  const filters: { value: GradeFilter; label: string }[] = [
+    { value: "all", label: "全体" },
+    { value: "5", label: "5年" },
+    { value: "6", label: "6年" },
+  ]
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-sm text-slate-500">{totalStudents}名</span>
+      <div className="flex gap-1">
+        {filters.map((filter) => (
+          <Button
+            key={filter.value}
+            variant={value === filter.value ? "default" : "outline"}
+            size="sm"
+            onClick={() => onChange(filter.value)}
+            className="px-3 h-8"
+          >
+            {filter.label}
+          </Button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * 科目別平均セクション
+ */
+function SubjectAveragesSection({ data }: { data: SubjectAverage[] }) {
+  if (data.length === 0) {
+    return (
+      <Card className="bg-white border-0 shadow-sm rounded-2xl">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-medium">学年平均（科目別）</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-slate-500 text-center py-4">
+            まだ学習記録がありません
+          </p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <Card className="bg-white border-0 shadow-sm rounded-2xl">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base font-medium">学年平均（科目別）</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {data.map((subject) => (
+            <div
+              key={subject.subject}
+              className="p-3 bg-slate-50 rounded-xl text-center"
+            >
+              <div className="text-sm font-medium text-slate-700 mb-1">
+                {subject.subject}
+              </div>
+              <div className="flex items-center justify-center gap-1.5">
+                <span className="text-2xl font-bold text-slate-900">
+                  {subject.average}%
+                </span>
+                <TrendIcon trend={subject.trend} />
+              </div>
+              <div className="text-xs text-slate-500 mt-1">
+                (n={subject.sampleSize})
+                {subject.sampleSize < 10 && (
+                  <span className="text-amber-600 ml-1">*</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        {data.some((s) => s.sampleSize < 10) && (
+          <p className="text-xs text-amber-600 mt-2">
+            * サンプル数が少ないため参考値
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+/**
+ * 生徒分布セクション
+ */
+function StudentDistributionSection({ data }: { data: DistributionBin[] }) {
+  const totalStudents = data.reduce((sum, bin) => sum + bin.count, 0)
+
+  if (totalStudents === 0) {
+    return (
+      <Card className="bg-white border-0 shadow-sm rounded-2xl">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-medium">生徒分布</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-slate-500 text-center py-4">
+            直近14日間の学習記録がありません
+          </p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const getColorClass = (bin: string) => {
+    switch (bin) {
+      case "excellent":
+        return "bg-emerald-500"
+      case "good":
+        return "bg-blue-500"
+      case "improving":
+        return "bg-amber-500"
+      case "needs_support":
+        return "bg-red-500"
+      default:
+        return "bg-slate-400"
+    }
+  }
+
+  const maxCount = Math.max(...data.map((d) => d.count))
+
+  return (
+    <Card className="bg-white border-0 shadow-sm rounded-2xl">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base font-medium">生徒分布</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {data.map((bin) => {
+            const percentage = maxCount > 0 ? (bin.count / maxCount) * 100 : 0
+            return (
+              <div key={bin.bin} className="flex items-center gap-3">
+                <div className="w-28 text-sm text-slate-700 flex-shrink-0">
+                  {bin.label}
+                </div>
+                <div className="flex-1 h-6 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full ${getColorClass(bin.bin)} rounded-full transition-all duration-500`}
+                    style={{ width: `${percentage}%` }}
+                  />
+                </div>
+                <div className="w-12 text-sm font-medium text-slate-900 text-right">
+                  {bin.count}名
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+/**
+ * 生徒別トレンドセクション
+ */
+function StudentTrendsSection({ data }: { data: StudentTrend[] }) {
+  if (data.length === 0) {
+    return (
+      <Card className="bg-white border-0 shadow-sm rounded-2xl">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-medium">生徒別トレンド</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-slate-500 text-center py-4">
+            担当生徒がいません
+          </p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const getAvatarSrc = (avatarId: string | null, customUrl: string | null) => {
+    if (customUrl) return customUrl
+    if (avatarId) {
+      const avatar = getAvatarById(avatarId)
+      return avatar?.src || "/placeholder.svg"
+    }
+    return "/placeholder.svg"
+  }
+
+  return (
+    <Card className="bg-white border-0 shadow-sm rounded-2xl">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base font-medium">生徒別トレンド</CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="divide-y divide-slate-100">
+          {data.map((student) => (
+            <Link
+              key={student.studentId}
+              href={`/coach/student/${student.studentId}`}
+              className="flex items-center gap-3 p-4 hover:bg-slate-50 transition-colors"
+            >
+              <Avatar className="h-10 w-10 flex-shrink-0">
+                <AvatarImage
+                  src={getAvatarSrc(student.avatarId, student.customAvatarUrl)}
+                  alt={student.studentName}
+                />
+                <AvatarFallback className="text-sm bg-slate-100">
+                  {student.studentName.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-slate-900 text-sm truncate">
+                    {student.nickname || student.studentName}
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    小{student.grade}
+                  </span>
+                  {student.overallAccuracy !== null && (
+                    <span className="text-xs text-slate-500 ml-auto">
+                      {student.overallAccuracy}%
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 mt-1">
+                  {student.subjectTrends.map((st) => (
+                    <div
+                      key={st.subject}
+                      className="flex items-center gap-0.5 text-xs text-slate-600"
+                      title={`${st.subject}: ${getTrendLabel(st.trend)}`}
+                    >
+                      <span className="text-slate-500">{st.subject.charAt(0)}</span>
+                      <TrendIcon trend={st.trend} className="h-3 w-3" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+/**
+ * スケルトンUI
+ */
+function AnalysisSkeleton() {
+  return (
+    <div className="space-y-4 animate-pulse">
+      <Card className="bg-white border-0 shadow-sm rounded-2xl">
+        <CardHeader className="pb-2">
+          <div className="h-5 w-32 bg-slate-200 rounded" />
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="p-3 bg-slate-100 rounded-xl h-20" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-white border-0 shadow-sm rounded-2xl">
+        <CardHeader className="pb-2">
+          <div className="h-5 w-24 bg-slate-200 rounded" />
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-6 bg-slate-100 rounded-full" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-white border-0 shadow-sm rounded-2xl">
+        <CardHeader className="pb-2">
+          <div className="h-5 w-32 bg-slate-200 rounded" />
+        </CardHeader>
+        <CardContent className="p-0">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center gap-3 p-4 border-b border-slate-100">
+              <div className="h-10 w-10 bg-slate-200 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-24 bg-slate-200 rounded" />
+                <div className="h-3 w-32 bg-slate-100 rounded" />
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  )
 }
 
 export default function AnalysisPage() {
-  const [students, setStudents] = useState<CoachStudent[]>([])
-  const [selectedStudentId, setSelectedStudentId] = useState<string>("")
-  const [selectedWeek, setSelectedWeek] = useState<Date>(getLastMonday())
-  const [analysis, setAnalysis] = useState<WeeklyAnalysis | null>(null)
-  const [analysisData, setAnalysisData] = useState<any>(null)
-  const [loading, setLoading] = useState(false)
-  const [generating, setGenerating] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({
-    strengths: true,
-    challenges: true,
-    advice: true,
-  })
+  const router = useRouter()
+  const searchParams = useSearchParams()
 
-  useEffect(() => {
-    async function loadStudents() {
-      const result = await getCoachStudents()
-      if (result.students) {
-        setStudents(result.students)
-        if (result.students.length > 0) {
-          setSelectedStudentId(result.students[0].id)
-        }
-      }
+  // URLから学年フィルタを取得
+  const gradeParam = searchParams.get("grade")
+  const initialGrade: GradeFilter =
+    gradeParam === "5" || gradeParam === "6" ? gradeParam : "all"
+
+  const [grade, setGrade] = useState<GradeFilter>(initialGrade)
+
+  // SWRフック
+  const {
+    subjectAverages,
+    distribution,
+    studentTrends,
+    meta,
+    isLoading,
+    isValidating,
+    mutate,
+    error,
+  } = useCoachAnalysis(grade)
+
+  // 学年フィルタ変更時にURLを更新
+  const handleGradeChange = (newGrade: GradeFilter) => {
+    setGrade(newGrade)
+    const params = new URLSearchParams(searchParams.toString())
+    if (newGrade === "all") {
+      params.delete("grade")
+    } else {
+      params.set("grade", newGrade)
     }
-    loadStudents()
-  }, [])
-
-  useEffect(() => {
-    if (!selectedStudentId) return
-
-    async function loadAnalysis() {
-      setLoading(true)
-      setError(null)
-
-      const weekEnd = new Date(selectedWeek)
-      weekEnd.setDate(weekEnd.getDate() + 6)
-
-      const storedResult = await getStoredWeeklyAnalysis(selectedStudentId, selectedWeek)
-
-      if (storedResult.error) {
-        setError(storedResult.error)
-      } else if (storedResult.analysis) {
-        setAnalysis(storedResult.analysis)
-      } else {
-        setAnalysis(null)
-      }
-
-      const dataResult = await getWeeklyAnalysisData(selectedStudentId, selectedWeek, weekEnd)
-
-      if (dataResult.error) {
-        setError(dataResult.error)
-      } else {
-        setAnalysisData(dataResult)
-      }
-
-      setLoading(false)
-    }
-
-    loadAnalysis()
-  }, [selectedStudentId, selectedWeek])
-
-  async function handleGenerateAnalysis() {
-    if (!selectedStudentId) return
-
-    setGenerating(true)
-    setError(null)
-
-    const weekEnd = new Date(selectedWeek)
-    weekEnd.setDate(weekEnd.getDate() + 6)
-
-    const result = await generateWeeklyAnalysis(selectedStudentId, selectedWeek, weekEnd)
-
-    if (result.error) {
-      setError(result.error)
-    } else if (result.analysis) {
-      setAnalysis(result.analysis)
-    }
-
-    setGenerating(false)
+    router.push(`/coach/analysis?${params.toString()}`, { scroll: false })
   }
 
-  const toggleSection = (section: string) => {
-    setExpandedSections((prev) => ({
-      ...prev,
-      [section]: !prev[section],
-    }))
-  }
+  // localStorageから学年フィルタを復元
+  useEffect(() => {
+    if (!gradeParam) {
+      const saved = localStorage.getItem("coach-analysis-grade")
+      if (saved === "5" || saved === "6") {
+        setGrade(saved)
+        router.push(`/coach/analysis?grade=${saved}`, { scroll: false })
+      }
+    }
+  }, [gradeParam, router])
 
-  const selectedStudent = students.find((s) => s.id === selectedStudentId)
-  const weekEnd = new Date(selectedWeek)
-  weekEnd.setDate(weekEnd.getDate() + 6)
+  // 学年フィルタをlocalStorageに保存
+  useEffect(() => {
+    localStorage.setItem("coach-analysis-grade", grade)
+  }, [grade])
+
+  const handleRefresh = () => {
+    mutate()
+  }
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-slate-50 pb-20">
       <UserProfileHeader />
-      <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
-        <Card className="border-l-4 border-l-primary">
-          <CardContent className="p-6">
-            <h1 className="text-2xl md:text-3xl font-bold mb-2 flex items-center gap-2">
-              <BarChart3 className="h-6 w-6 md:h-7 md:w-7" />
-              週次AI分析
+
+      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+              <BarChart3 className="h-6 w-6" />
+              分析
             </h1>
-            <p className="text-muted-foreground">生徒の学習状況を週単位で分析</p>
-          </CardContent>
-        </Card>
+            <p className="text-sm text-slate-500 mt-1">
+              直近14日間のデータ
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isValidating}
+            className="text-slate-500 hover:text-slate-900"
+          >
+            {isValidating ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
 
-        <Card>
-          <CardContent className="p-4 md:p-6 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  生徒選択
-                </label>
-                <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="生徒を選択" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {students.map((student) => (
-                      <SelectItem key={student.id} value={student.id}>
-                        {student.full_name} ({student.grade})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+        {/* Grade Filter */}
+        <div className="flex items-center justify-between">
+          <GradeFilterButtons
+            value={grade}
+            onChange={handleGradeChange}
+            totalStudents={meta?.totalStudents || 0}
+          />
+        </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  分析週選択
-                </label>
-                <Select
-                  value={selectedWeek.toISOString()}
-                  onValueChange={(value) => setSelectedWeek(new Date(value))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getLast4Mondays().map((monday) => (
-                      <SelectItem key={monday.toISOString()} value={monday.toISOString()}>
-                        {formatWeekRange(monday)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
+        {/* Error State */}
         {error && (
-          <Card className="border-destructive">
-            <CardContent className="p-4 flex items-center gap-2 text-destructive">
-              <AlertCircle className="h-5 w-5" />
-              <span>{error}</span>
-            </CardContent>
-          </Card>
-        )}
-
-        {loading && (
-          <Card>
-            <CardContent className="p-12 flex justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </CardContent>
-          </Card>
-        )}
-
-        {!loading && selectedStudent && (
-          <>
-            {!analysis && (
-              <Card>
-                <CardContent className="p-6 text-center space-y-4">
-                  <p className="text-muted-foreground">この週の分析はまだ生成されていません</p>
-                  <Button onClick={handleGenerateAnalysis} disabled={generating}>
-                    {generating ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        分析生成中...
-                      </>
-                    ) : (
-                      <>
-                        <TrendingUp className="mr-2 h-4 w-4" />
-                        AI分析を生成
-                      </>
-                    )}
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-
-            {analysis && (
-              <div className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-xl">
-                          {selectedStudent.full_name}さんの週次分析
-                        </CardTitle>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {formatWeekRange(selectedWeek)}
-                        </p>
-                      </div>
-                      <Badge variant={analysis.generated_by_batch ? "secondary" : "default"}>
-                        {analysis.generated_by_batch ? "自動生成" : "手動生成"}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                </Card>
-
-                <Card>
-                  <CardHeader
-                    className="cursor-pointer hover:bg-accent/50 transition-colors"
-                    onClick={() => toggleSection("strengths")}
-                  >
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-green-500" />
-                        強み・良かった点
-                      </CardTitle>
-                      {expandedSections.strengths ? (
-                        <ChevronDown className="h-5 w-5" />
-                      ) : (
-                        <ChevronRight className="h-5 w-5" />
-                      )}
-                    </div>
-                  </CardHeader>
-                  {expandedSections.strengths && (
-                    <CardContent>
-                      <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">
-                        {analysis.strengths}
-                      </p>
-                    </CardContent>
-                  )}
-                </Card>
-
-                <Card>
-                  <CardHeader
-                    className="cursor-pointer hover:bg-accent/50 transition-colors"
-                    onClick={() => toggleSection("challenges")}
-                  >
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-yellow-500" />
-                        課題・改善点
-                      </CardTitle>
-                      {expandedSections.challenges ? (
-                        <ChevronDown className="h-5 w-5" />
-                      ) : (
-                        <ChevronRight className="h-5 w-5" />
-                      )}
-                    </div>
-                  </CardHeader>
-                  {expandedSections.challenges && (
-                    <CardContent>
-                      <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">
-                        {analysis.challenges}
-                      </p>
-                    </CardContent>
-                  )}
-                </Card>
-
-                <Card>
-                  <CardHeader
-                    className="cursor-pointer hover:bg-accent/50 transition-colors"
-                    onClick={() => toggleSection("advice")}
-                  >
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-blue-500" />
-                        具体的アドバイス
-                      </CardTitle>
-                      {expandedSections.advice ? (
-                        <ChevronDown className="h-5 w-5" />
-                      ) : (
-                        <ChevronRight className="h-5 w-5" />
-                      )}
-                    </div>
-                  </CardHeader>
-                  {expandedSections.advice && (
-                    <CardContent>
-                      <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">
-                        {analysis.advice}
-                      </p>
-                    </CardContent>
-                  )}
-                </Card>
-
-                {analysisData && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">学習データサマリー</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div>
-                        <h4 className="font-semibold mb-2">学習実績</h4>
-                        <p className="text-sm text-muted-foreground">
-                          学習日数: {analysisData.study?.totalStudyDays}日
-                        </p>
-                        <div className="mt-2 space-y-1">
-                          {analysisData.study?.subjectSummary?.map((s: any) => (
-                            <div key={s.subject} className="text-sm flex justify-between">
-                              <span>{s.subject}</span>
-                              <span className="text-muted-foreground">
-                                正答率 {s.accuracy}% ({s.correctAnswers}/{s.totalProblems}問)
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div>
-                        <h4 className="font-semibold mb-2">応援状況</h4>
-                        <p className="text-sm text-muted-foreground">
-                          総数: {analysisData.encouragement?.stats?.total}件 (保護者:{" "}
-                          {analysisData.encouragement?.stats?.byRole.parent}件、指導者:{" "}
-                          {analysisData.encouragement?.stats?.byRole.coach}件)
-                        </p>
-                      </div>
-
-                      <div>
-                        <h4 className="font-semibold mb-2">振り返り・目標</h4>
-                        <p className="text-sm text-muted-foreground">
-                          振り返り: {analysisData.reflection?.reflections?.length || 0}回 | 目標設定:{" "}
-                          {analysisData.goal?.goals?.length || 0}回
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                <Card>
-                  <CardContent className="p-4 flex justify-center">
-                    <Button variant="outline" onClick={handleGenerateAnalysis} disabled={generating}>
-                      {generating ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          再生成中...
-                        </>
-                      ) : (
-                        <>
-                          <TrendingUp className="mr-2 h-4 w-4" />
-                          分析を再生成
-                        </>
-                      )}
-                    </Button>
-                  </CardContent>
-                </Card>
+          <Card className="bg-red-50 border-red-200 rounded-2xl">
+            <CardContent className="p-4 flex items-center gap-3">
+              <Users className="h-5 w-5 text-red-500" />
+              <div>
+                <p className="text-sm font-medium text-red-800">
+                  データの取得に失敗しました
+                </p>
+                <p className="text-xs text-red-600 mt-1">
+                  {error.message}
+                </p>
               </div>
-            )}
-          </>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                className="ml-auto"
+              >
+                再読み込み
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Loading State */}
+        {isLoading && <AnalysisSkeleton />}
+
+        {/* Content */}
+        {!isLoading && !error && (
+          <div className="space-y-4">
+            <SubjectAveragesSection data={subjectAverages} />
+            <StudentDistributionSection data={distribution} />
+            <StudentTrendsSection data={studentTrends} />
+          </div>
         )}
       </div>
 
       <CoachBottomNavigation />
     </div>
   )
-}
-
-function getLastMonday(): Date {
-  const today = new Date()
-  const day = today.getDay()
-  const diff = day === 0 ? -6 : 1 - day
-  const monday = new Date(today)
-  monday.setDate(today.getDate() + diff - 7)
-  monday.setHours(0, 0, 0, 0)
-  return monday
-}
-
-function getLast4Mondays(): Date[] {
-  const mondays: Date[] = []
-  let current = getLastMonday()
-
-  for (let i = 0; i < 4; i++) {
-    mondays.push(new Date(current))
-    current = new Date(current)
-    current.setDate(current.getDate() - 7)
-  }
-
-  return mondays
-}
-
-function formatWeekRange(monday: Date): string {
-  const sunday = new Date(monday)
-  sunday.setDate(monday.getDate() + 6)
-
-  const formatter = new Intl.DateTimeFormat("ja-JP", {
-    month: "numeric",
-    day: "numeric",
-  })
-
-  return `${formatter.format(monday)} 〜 ${formatter.format(sunday)}`
 }
