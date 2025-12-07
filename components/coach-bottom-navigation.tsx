@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation"
 import Link from "next/link"
-import { Home, Target, Heart, BarChart3 } from "lucide-react"
+import { Home, Heart, Settings } from "lucide-react"
 
 const tabs = [
   {
@@ -12,22 +12,16 @@ const tabs = [
     href: "/coach",
   },
   {
-    id: "goal",
-    label: "ゴールナビ",
-    icon: Target,
-    href: "/coach/goal",
-  },
-  {
     id: "encouragement",
     label: "応援",
     icon: Heart,
     href: "/coach/encouragement",
   },
   {
-    id: "analysis",
-    label: "分析",
-    icon: BarChart3,
-    href: "/coach/analysis",
+    id: "settings",
+    label: "設定",
+    icon: Settings,
+    href: "/coach/settings",
   },
 ]
 
@@ -37,7 +31,7 @@ export default function CoachBottomNavigation() {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-border z-50">
-      <div className="grid grid-cols-4 h-16">
+      <div className="grid grid-cols-3 h-16">
         {tabs.map((tab) => {
           const Icon = tab.icon
           // ホームは完全一致、他はプレフィックスマッチ
