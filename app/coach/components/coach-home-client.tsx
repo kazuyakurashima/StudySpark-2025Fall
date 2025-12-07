@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -34,6 +34,7 @@ import { sendEncouragementToStudent } from "@/app/actions/coach"
 import type { LearningRecordWithEncouragements, InactiveStudentData } from "@/app/actions/coach"
 import { PastExamSummaryList } from "./past-exam-summary-list"
 import { useCoachDashboard, type CoachDashboardData } from "@/lib/hooks/use-coach-dashboard"
+import { useCoachStudents } from "@/lib/hooks/use-coach-students"
 
 /**
  * バッチグループ化されたエントリ型
@@ -136,7 +137,28 @@ export function CoachHomeClient({ initialRecords, initialInactiveStudents }: Coa
   const { records, inactiveStudents, isValidating, mutate } = useCoachDashboard(
     transformSSRtoSWRData(initialRecords, initialInactiveStudents)
   )
+  // 生徒一覧データ
+  const { students, studentsError, isLoading: isStudentsLoading, isValidating: isStudentsValidating, mutate: mutateStudents } = useCoachStudents()
+  const [activeTab, setActiveTab] = useState("encouragement")
+
+  // タブ切り替え + スクロール
+  const handleTabChange = useCallback((tab: string) => {
+    setActiveTab(tab)
+    // 少し遅延させてからスクロール（タブ切り替え後に実行）
+    setTimeout(() => {
+      document.getElementById("coach-tabs")?.scrollIntoView({ behavior: "smooth", block: "start" })
+    }, 50)
+  }, [])
+
+  // キーボードイベントハンドラ（Enter/Space）
+  const handleCardKeyDown = useCallback((e: React.KeyboardEvent, action: () => void) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault()
+      action()
+    }
+  }, [])
   const [gradeFilter, setGradeFilter] = useState("all")
+  const [studentsGradeFilter, setStudentsGradeFilter] = useState("all")
   const [subjectFilter, setSubjectFilter] = useState("all")
   const [encouragementFilter, setEncouragementFilter] = useState("all")
   const [inactiveThreshold, setInactiveThreshold] = useState("7")
@@ -267,6 +289,12 @@ export function CoachHomeClient({ initialRecords, initialInactiveStudents }: Coa
     return student.daysInactive >= threshold
   })
 
+  // 生徒一覧タブ用のフィルタリング
+  const filteredStudents = students.filter((student) => {
+    if (studentsGradeFilter === "all") return true
+    return student.grade === studentsGradeFilter
+  })
+
   return (
     <div className="min-h-screen bg-background pb-20">
       <UserProfileHeader />
@@ -300,9 +328,16 @@ export function CoachHomeClient({ initialRecords, initialInactiveStudents }: Coa
         {/* Quick Access Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* 要対応リスト */}
-          <Card className={`hover:shadow-md transition-shadow ${
-            filteredInactiveStudents.length > 0 ? "border-l-4 border-l-red-500" : "border-l-4 border-l-green-500"
-          }`}>
+          <Card
+            className={`hover:shadow-md transition-shadow cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
+              filteredInactiveStudents.length > 0 ? "border-l-4 border-l-red-500" : "border-l-4 border-l-green-500"
+            }`}
+            onClick={() => handleTabChange("inactive")}
+            onKeyDown={(e) => handleCardKeyDown(e, () => handleTabChange("inactive"))}
+            role="button"
+            tabIndex={0}
+            aria-label="未入力生徒タブを表示"
+          >
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -335,54 +370,70 @@ export function CoachHomeClient({ initialRecords, initialInactiveStudents }: Coa
             </CardContent>
           </Card>
 
-          {/* 生徒一覧へのリンク */}
-          <Link href="/coach/students">
-            <Card className="hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-primary h-full">
-              <CardContent className="p-4 h-full">
-                <div className="flex items-center justify-between h-full">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-full bg-primary/10">
-                      <Users className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">生徒一覧</h3>
-                      <p className="text-sm text-muted-foreground">
-                        全生徒の詳細情報を確認
-                      </p>
-                    </div>
+          {/* 生徒一覧へのショートカット */}
+          <Card
+            className="hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-primary h-full focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+            onClick={() => handleTabChange("students")}
+            onKeyDown={(e) => handleCardKeyDown(e, () => handleTabChange("students"))}
+            role="button"
+            tabIndex={0}
+            aria-label="生徒一覧タブを表示"
+          >
+            <CardContent className="p-4 h-full">
+              <div className="flex items-center justify-between h-full">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-full bg-primary/10">
+                    <Users className="h-5 w-5 text-primary" />
                   </div>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <h3 className="font-semibold">生徒一覧</h3>
+                    <p className="text-sm text-muted-foreground">
+                      全生徒の詳細情報を確認
+                    </p>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
-          </Link>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        <Tabs defaultValue="encouragement" className="space-y-6">
-          <TabsList className="bg-muted w-full md:w-auto grid grid-cols-3">
+        <Tabs id="coach-tabs" value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="bg-muted w-full md:w-auto grid grid-cols-4">
             <TabsTrigger
               value="encouragement"
-              className="data-[state=active]:bg-background data-[state=active]:shadow-sm"
+              className="data-[state=active]:bg-background data-[state=active]:shadow-sm text-xs sm:text-sm"
             >
-              学習記録への応援
+              <span className="hidden sm:inline">学習記録への応援</span>
+              <span className="sm:hidden">応援</span>
             </TabsTrigger>
             <TabsTrigger
               value="inactive"
-              className="data-[state=active]:bg-background data-[state=active]:shadow-sm"
+              className="data-[state=active]:bg-background data-[state=active]:shadow-sm text-xs sm:text-sm"
             >
-              未入力生徒一覧
+              <span className="hidden sm:inline">未入力生徒</span>
+              <span className="sm:hidden">未入力</span>
               {filteredInactiveStudents.length > 0 && (
-                <Badge className="ml-2 bg-destructive text-destructive-foreground">
+                <Badge className="ml-1 sm:ml-2 bg-destructive text-destructive-foreground text-xs">
                   {filteredInactiveStudents.length}
                 </Badge>
               )}
             </TabsTrigger>
             <TabsTrigger
               value="pastexam"
-              className="data-[state=active]:bg-background data-[state=active]:shadow-sm"
+              className="data-[state=active]:bg-background data-[state=active]:shadow-sm text-xs sm:text-sm"
             >
-              <Target className="h-4 w-4 mr-1" />
-              過去問演習
+              <Target className="h-4 w-4 mr-1 hidden sm:inline" />
+              <span className="hidden sm:inline">過去問演習</span>
+              <span className="sm:hidden">過去問</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="students"
+              className="data-[state=active]:bg-background data-[state=active]:shadow-sm text-xs sm:text-sm"
+            >
+              <Users className="h-4 w-4 mr-1 hidden sm:inline" />
+              <span className="hidden sm:inline">生徒一覧</span>
+              <span className="sm:hidden">生徒</span>
             </TabsTrigger>
           </TabsList>
 
@@ -921,6 +972,130 @@ export function CoachHomeClient({ initialRecords, initialInactiveStudents }: Coa
           {/* Past Exam Summary Tab */}
           <TabsContent value="pastexam" className="space-y-4">
             <PastExamSummaryList />
+          </TabsContent>
+
+          {/* Students List Tab */}
+          <TabsContent value="students" className="space-y-4">
+            {/* Header with refresh */}
+            <Card className="border-l-4 border-l-primary">
+              <CardContent className="p-4 md:p-6">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h2 className="text-xl md:text-2xl font-bold mb-2 flex items-center gap-2">
+                      <Users className="h-5 w-5 md:h-6 md:w-6" />
+                      生徒一覧
+                    </h2>
+                    <p className="text-muted-foreground text-sm">各生徒の詳細情報を確認</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => mutateStudents()}
+                    disabled={isStudentsValidating}
+                    title="データを更新"
+                  >
+                    <RefreshCw className={`h-5 w-5 ${isStudentsValidating ? "animate-spin" : ""}`} />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Grade Filter */}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={studentsGradeFilter === "all" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStudentsGradeFilter("all")}
+              >
+                すべて
+              </Button>
+              <Button
+                variant={studentsGradeFilter === "小学5年" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStudentsGradeFilter("小学5年")}
+              >
+                小学5年
+              </Button>
+              <Button
+                variant={studentsGradeFilter === "小学6年" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStudentsGradeFilter("小学6年")}
+              >
+                小学6年
+              </Button>
+            </div>
+
+            {/* Loading State */}
+            {isStudentsLoading && (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            )}
+
+            {/* Error State */}
+            {studentsError && !isStudentsLoading && (
+              <Card className="border-destructive">
+                <CardContent className="p-6 text-center">
+                  <p className="text-destructive">{studentsError}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Students Grid */}
+            {!isStudentsLoading && !studentsError && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                {filteredStudents.map((student) => (
+                  <Link
+                    key={student.id}
+                    href={`/coach/student/${student.id}`}
+                    className="block focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-xl"
+                  >
+                    <Card className="hover:shadow-md transition-shadow duration-200 cursor-pointer h-full">
+                      <CardContent className="p-4 md:p-6">
+                        <div className="space-y-4">
+                          {/* Student Info */}
+                          <div className="flex items-center gap-3 md:gap-4">
+                            <Avatar className="h-14 w-14 md:h-16 md:w-16 border-2 border-border">
+                              <AvatarImage
+                                src={student.custom_avatar_url || (student.avatar_id ? getAvatarById(student.avatar_id)?.src || "/placeholder.svg" : "/placeholder.svg")}
+                                alt={student.full_name}
+                              />
+                              <AvatarFallback>{student.full_name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-semibold text-base md:text-lg truncate">{student.full_name}</div>
+                              {student.nickname && (
+                                <div className="text-sm text-muted-foreground truncate">
+                                  ニックネーム: {student.nickname}
+                                </div>
+                              )}
+                              <Badge variant="secondary" className="mt-1">
+                                {student.grade}
+                              </Badge>
+                            </div>
+                          </div>
+
+                          {/* Detail Link (visual indicator) */}
+                          <div className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium">
+                            詳細を見る
+                            <ChevronRight className="h-4 w-4" />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            )}
+
+            {/* Empty State */}
+            {!isStudentsLoading && !studentsError && filteredStudents.length === 0 && (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <p className="text-muted-foreground">該当する生徒がいません</p>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </div>

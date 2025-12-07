@@ -93,7 +93,7 @@ export async function getCoachStudents() {
       .map((student: any) => {
         const profile = profilesMap[student.user_id] || { nickname: null, avatar_id: null, custom_avatar_url: null }
         return {
-          id: student.id,
+          id: String(student.id),
           full_name: student.full_name,
           nickname: profile.nickname,
           avatar_id: profile.avatar_id,
