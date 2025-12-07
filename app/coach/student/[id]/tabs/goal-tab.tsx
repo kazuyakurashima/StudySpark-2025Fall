@@ -33,6 +33,11 @@ export function GoalTab({ studentId }: GoalTabProps) {
           return
         }
 
+        if (resultsResult.error) {
+          setError(resultsResult.error)
+          return
+        }
+
         const goals = (goalsResult.goals || []) as TestGoal[]
         const results = (resultsResult.results || []) as TestResult[]
         const merged = mergeGoalsAndResults(goals, results)
@@ -167,7 +172,7 @@ export function GoalTab({ studentId }: GoalTabProps) {
                             </div>
                             {record.resultRegisteredAt && (
                               <p className="text-xs text-green-600 mt-2">
-                                {new Date(record.resultRegisteredAt + "T00:00:00+09:00").toLocaleDateString("ja-JP", {
+                                {new Date(record.resultRegisteredAt).toLocaleDateString("ja-JP", {
                                   timeZone: "Asia/Tokyo",
                                   month: "numeric",
                                   day: "numeric",

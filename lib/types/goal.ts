@@ -4,7 +4,26 @@
  */
 
 /**
+ * Supabase JOINで返される test_types の型
+ */
+interface TestType {
+  id: number
+  name: string
+  grade: string
+}
+
+/**
+ * Supabase JOINで返される test_schedules の型
+ */
+interface TestSchedule {
+  id: number
+  test_date: string
+  test_types: TestType | TestType[]
+}
+
+/**
  * getAllTestGoalsForStudent の戻り値型
+ * Supabase の !inner join は配列またはオブジェクトを返す場合がある
  */
 export interface TestGoal {
   id: number
@@ -13,19 +32,12 @@ export interface TestGoal {
   target_class: number  // 組番号
   goal_thoughts: string | null
   created_at: string
-  test_schedules: {
-    id: number
-    test_date: string
-    test_types: {
-      id: number
-      name: string
-      grade: string
-    }
-  }
+  test_schedules: TestSchedule | TestSchedule[]
 }
 
 /**
  * getAllTestResultsForStudent の戻り値型
+ * Supabase の !inner join は配列またはオブジェクトを返す場合がある
  */
 export interface TestResult {
   id: number
@@ -33,7 +45,7 @@ export interface TestResult {
   test_schedule_id: number
   result_course: string | null  // S, A, B, C
   result_class: number | null   // 組番号
-  result_entered_at: string | null
+  result_entered_at: string | null  // ISO 8601 タイムスタンプ
   created_at: string
   // スコア系（詳細入力時のみ）
   math_score?: number | null
@@ -47,15 +59,7 @@ export interface TestResult {
   science_deviation?: number | null
   social_deviation?: number | null
   total_deviation?: number | null
-  test_schedules: {
-    id: number
-    test_date: string
-    test_types: {
-      id: number
-      name: string
-      grade: string
-    }
-  }
+  test_schedules: TestSchedule | TestSchedule[]
   goal: {
     id: number
     target_course: string

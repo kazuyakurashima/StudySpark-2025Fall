@@ -16,7 +16,17 @@ const COURSE_ORDER: Record<string, number> = {
 }
 
 /**
- * 日付をJST形式でフォーマット
+ * Supabase JOINの結果から最初の要素を取得するヘルパー
+ * 配列の場合は最初の要素、オブジェクトの場合はそのまま返す
+ */
+function unwrapFirst<T>(value: T | T[] | null | undefined): T | null {
+  if (value === null || value === undefined) return null
+  if (Array.isArray(value)) return value[0] || null
+  return value
+}
+
+/**
+ * 日付をJST形式でフォーマット（YYYY-MM-DD → M月D日）
  */
 function formatDateJST(dateString: string): string {
   // YYYY-MM-DD形式の日付をJSTとして解釈
@@ -26,6 +36,14 @@ function formatDateJST(dateString: string): string {
     month: "numeric",
     day: "numeric",
   })
+}
+
+/**
+ * 日付文字列をJST基準でDateオブジェクトに変換
+ */
+function parseAsJST(dateString: string): Date {
+  // YYYY-MM-DD形式の日付をJSTとして解釈
+  return new Date(dateString + "T00:00:00+09:00")
 }
 
 /**
@@ -54,10 +72,13 @@ export function mergeGoalsAndResults(
   // 目標を先に登録
   goals.forEach((goal) => {
     const scheduleId = String(goal.test_schedule_id)
-    const testDate = goal.test_schedules?.test_date || ""
+    const schedule = unwrapFirst(goal.test_schedules)
+    const testTypes = schedule ? unwrapFirst(schedule.test_types) : null
+    const testDate = schedule?.test_date || ""
+
     scheduleMap.set(scheduleId, {
       scheduleId,
-      testName: goal.test_schedules?.test_types?.name || "不明なテスト",
+      testName: testTypes?.name || "不明なテスト",
       testDate,
       testDateFormatted: testDate ? formatDateJST(testDate) : "",
       goalCourse: goal.target_course,
@@ -84,12 +105,15 @@ export function mergeGoalsAndResults(
       existing.isAchieved = checkAchievement(existing.goalCourse, result.result_course)
     } else {
       // 結果のみのエントリを作成（目標がない場合）
-      const testDate = result.test_schedules?.test_date || ""
+      const schedule = unwrapFirst(result.test_schedules)
+      const testTypes = schedule ? unwrapFirst(schedule.test_types) : null
+      const testDate = schedule?.test_date || ""
       // 結果に付随する目標情報があればそれを使う
       const goalFromResult = result.goal
+
       scheduleMap.set(scheduleId, {
         scheduleId,
-        testName: result.test_schedules?.test_types?.name || "不明なテスト",
+        testName: testTypes?.name || "不明なテスト",
         testDate,
         testDateFormatted: testDate ? formatDateJST(testDate) : "",
         goalCourse: goalFromResult?.target_course || null,
@@ -104,8 +128,10 @@ export function mergeGoalsAndResults(
     }
   })
 
-  // テスト日降順でソート
-  return Array.from(scheduleMap.values()).sort(
-    (a, b) => new Date(b.testDate).getTime() - new Date(a.testDate).getTime()
-  )
+  // テスト日降順でソート（JST基準）
+  return Array.from(scheduleMap.values()).sort((a, b) => {
+    const dateA = a.testDate ? parseAsJST(a.testDate).getTime() : 0
+    const dateB = b.testDate ? parseAsJST(b.testDate).getTime() : 0
+    return dateB - dateA
+  })
 }
