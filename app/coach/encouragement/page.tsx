@@ -569,7 +569,7 @@ export default function CoachEncouragementPage() {
         </div>
       )}
 
-      <CoachBottomNavigation activeTab="encouragement" />
+      <CoachBottomNavigation />
     </div>
   )
 }
