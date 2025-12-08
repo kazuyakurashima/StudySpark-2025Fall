@@ -1,8 +1,8 @@
 # Phase 6: クラス内テスト機能（算数プリント・漢字テスト）
 
 **期間:** 4-6週間（Phase 1-3）
-**進捗:** 0% (0/72タスク完了)
-**状態:** ⏳ 設計完了
+**進捗:** 0% (0/78タスク完了)
+**状態:** ⏳ 設計完了（v2: 計算仕様・監査機能追加）
 **ブランチ:** `feature/class-assessment`
 
 ---
@@ -38,9 +38,17 @@
 |------|---------|------|
 | **マスタ連携** | FK制約で厳密に紐付け | データ整合性を担保、満点等はマスタから取得 |
 | **attempt_number上限** | 算数:1-2、漢字:1（再提出は別レコード） | CHECK制約で入力ミス防止 |
-| **前回比の定義** | 同テスト種別 × 同attempt_number の直近 | 公平な比較のため |
-| **クラス平均の定義** | 同学年の全生徒 | 保護者向け参考指標 |
+| **前回比の定義** | 同テスト種別 × 同attempt_number の直近（再提出・欠席除外） | 公平な比較のため |
+| **クラス平均の定義** | 同マスタ × 通常提出のみ（**日付問わず**、欠席/再提出除外） | 「テスト全体の平均」として公平 |
+| **再提出回数** | 1回のみ（同一テストにつき） | ユニーク制約で担保 |
+| **欠席表現** | status ENUM('completed', 'absent', 'not_submitted') | 欠席/未提出/完了を明確に区別 |
+| **初回欠席→補習** | 補習を**通常提出**扱い（is_resubmission=false） | 初回未受験なので「再」提出ではない |
 | **代行修正** | 管理者ロールで他コーチの入力を修正可 | 運用柔軟性を確保 |
+| **値の固定** | 入力時点のmax_score/gradeをレコードに保存 | 将来のマスタ変更で過去データの%が変わらないように |
+| **固定値の不変** | max_score_at_submission / grade_at_submission はUPDATE不可 | 入力時点の値を永続的に保持 |
+| **学年整合チェック** | grade_at_submissionとマスタ学年で比較（現学年は参照しない） | 進級後の補填登録にも対応 |
+| **修正監査** | 管理者修正時はmodified_byに記録 | 誰が修正したか追跡可能 |
+| **マスタ不変** | assessment_mastersは作成後の更新禁止 | 既存レコードとの整合性を担保 |
 
 ### テーブル: `assessment_masters`（マスタデータ）
 
@@ -79,6 +87,9 @@ CREATE INDEX idx_assessment_masters_type_grade ON assessment_masters(assessment_
 ### テーブル: `class_assessments`
 
 ```sql
+-- ★ ステータスENUM型を先に作成
+CREATE TYPE assessment_status AS ENUM ('completed', 'absent', 'not_submitted');
+
 CREATE TABLE class_assessments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
@@ -88,25 +99,54 @@ CREATE TABLE class_assessments (
   -- ★ マスタ参照（FK制約で厳密に紐付け）
   master_id UUID NOT NULL REFERENCES assessment_masters(id),
 
-  -- 得点（max_scoreはマスタから取得、ここにはscoreのみ保存）
-  score INTEGER NOT NULL CHECK (score >= 0),
+  -- ★ ステータス（完了/欠席/未提出）
+  -- completed: 得点入力済み
+  -- absent: 欠席（補習対象）
+  -- not_submitted: 未提出（指導者がまだ入力していない）
+  status assessment_status NOT NULL DEFAULT 'not_submitted',
 
-  -- 実施日
+  -- 得点（status='completed'のときのみ有効値、それ以外はNULL）
+  score INTEGER CHECK (score >= 0),
+
+  -- ★ statusとscoreの整合性チェック
+  CONSTRAINT score_status_consistency CHECK (
+    (status = 'completed' AND score IS NOT NULL) OR
+    (status IN ('absent', 'not_submitted') AND score IS NULL)
+  ),
+
+  -- ★ 入力時点の値を固定（将来のマスタ変更で過去データの%が変わらないように）
+  max_score_at_submission INTEGER NOT NULL CHECK (max_score_at_submission > 0),
+  grade_at_submission VARCHAR(10) NOT NULL CHECK (grade_at_submission IN ('5年', '6年')),
+
+  -- 実施日（テスト実施予定日）
+  -- ★ status='not_submitted'の場合も必須（予定日を記録）
+  -- ★ status='absent'の場合は欠席した日を記録
+  -- ★ status='completed'の場合は実際に受験した日を記録
   assessment_date DATE NOT NULL,
 
   -- 再提出フラグ（通常提出:false、再提出:true）
+  -- ★ 再提出は1回のみ許可（下記ユニーク制約で担保）
+  -- ★ 初回欠席→補習は通常提出扱い（is_resubmission=false）
   is_resubmission BOOLEAN NOT NULL DEFAULT false,
+
+  -- ★ is_resubmissionとstatusの組み合わせ制約
+  -- 再提出は必ずcompleted（欠席/未提出の再提出は論理的に不整合）
+  CONSTRAINT resubmission_must_be_completed CHECK (
+    is_resubmission = false OR status = 'completed'
+  ),
 
   -- 監査情報
   grader_id UUID NOT NULL REFERENCES auth.users(id), -- 入力した指導者
+  modified_by UUID REFERENCES auth.users(id),        -- ★ 管理者が修正した場合に記録
   source VARCHAR(20) NOT NULL DEFAULT 'manual' CHECK (source IN ('manual', 'import')),
 
   -- タイムスタンプ
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 
-  -- 一意制約（同一生徒・同一マスタ・同一日・同一提出種別の重複防止）
-  UNIQUE (student_id, master_id, assessment_date, is_resubmission)
+  -- ★ 一意制約: 同一生徒・同一マスタにつき、通常提出1回＋再提出1回のみ許可
+  -- assessment_dateを除外することで、再提出が1回のみに制限される
+  UNIQUE (student_id, master_id, is_resubmission)
 );
 
 -- インデックス
@@ -114,43 +154,75 @@ CREATE INDEX idx_class_assessments_student_date ON class_assessments(student_id,
 CREATE INDEX idx_class_assessments_master ON class_assessments(master_id);
 CREATE INDEX idx_class_assessments_grader ON class_assessments(grader_id);
 
--- 得点がmax_scoreを超えないことを保証するトリガー
-CREATE OR REPLACE FUNCTION check_score_not_exceeds_max()
+-- ★ 統合トリガー: 入力値設定 + バリデーションを1つの関数で実行
+-- （トリガー実行順序問題を回避するため統合）
+--
+-- 処理順序:
+-- INSERT時:
+--   1. マスタからmax_score, gradeを取得してコピー（自動設定）
+--   2. scoreがmax_score_at_submissionを超えていないかチェック
+-- UPDATE時:
+--   1. master_id / max_score_at_submission / grade_at_submission 不変チェック
+--   2. scoreがmax_score_at_submissionを超えていないかチェック
+--
+CREATE OR REPLACE FUNCTION process_assessment_insert()
 RETURNS TRIGGER AS $$
 DECLARE
   v_max_score INTEGER;
-BEGIN
-  SELECT max_score INTO v_max_score FROM assessment_masters WHERE id = NEW.master_id;
-  IF NEW.score > v_max_score THEN
-    RAISE EXCEPTION 'Score (%) exceeds max_score (%)', NEW.score, v_max_score;
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_check_score
-BEFORE INSERT OR UPDATE ON class_assessments
-FOR EACH ROW EXECUTE FUNCTION check_score_not_exceeds_max();
-
--- 学年整合性チェック（生徒の学年とマスタの学年が一致することを確認）
-CREATE OR REPLACE FUNCTION check_grade_consistency()
-RETURNS TRIGGER AS $$
-DECLARE
-  v_student_grade VARCHAR(10);
   v_master_grade VARCHAR(10);
 BEGIN
-  SELECT grade INTO v_student_grade FROM students WHERE id = NEW.student_id;
-  SELECT grade INTO v_master_grade FROM assessment_masters WHERE id = NEW.master_id;
-  IF v_student_grade != v_master_grade THEN
-    RAISE EXCEPTION 'Grade mismatch: student (%) vs master (%)', v_student_grade, v_master_grade;
+  -- ★ UPDATE時: 不変フィールドのチェック
+  IF TG_OP = 'UPDATE' THEN
+    -- master_id変更禁止
+    IF OLD.master_id != NEW.master_id THEN
+      RAISE EXCEPTION 'master_id cannot be changed after insert. Create a new record instead.';
+    END IF;
+
+    -- ★ max_score_at_submission 変更禁止（入力時点の値を保持）
+    IF OLD.max_score_at_submission != NEW.max_score_at_submission THEN
+      RAISE EXCEPTION 'max_score_at_submission cannot be changed after insert.';
+    END IF;
+
+    -- ★ grade_at_submission 変更禁止（入力時点の値を保持）
+    IF OLD.grade_at_submission != NEW.grade_at_submission THEN
+      RAISE EXCEPTION 'grade_at_submission cannot be changed after insert.';
+    END IF;
   END IF;
+
+  -- INSERT時のみ: マスタから値を取得してコピー
+  IF TG_OP = 'INSERT' THEN
+    SELECT max_score, grade INTO v_max_score, v_master_grade
+    FROM assessment_masters WHERE id = NEW.master_id;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Master not found: %', NEW.master_id;
+    END IF;
+
+    -- 入力時点の値を固定（マスタからコピー）
+    -- ★ これによりマスタの将来の変更が過去データに影響しない
+    NEW.max_score_at_submission := v_max_score;
+    NEW.grade_at_submission := v_master_grade;
+  END IF;
+
+  -- 得点チェック（status='completed'の場合のみ、INSERT/UPDATE共通）
+  IF NEW.status = 'completed' THEN
+    IF NEW.score IS NULL THEN
+      RAISE EXCEPTION 'Score is required when status is completed';
+    END IF;
+    IF NEW.score > NEW.max_score_at_submission THEN
+      RAISE EXCEPTION 'Score (%) exceeds max_score_at_submission (%)',
+        NEW.score, NEW.max_score_at_submission;
+    END IF;
+  END IF;
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_check_grade_consistency
+-- ★ 単一のトリガーで全処理を実行（順序問題を回避）
+CREATE TRIGGER trg_process_assessment
 BEFORE INSERT OR UPDATE ON class_assessments
-FOR EACH ROW EXECUTE FUNCTION check_grade_consistency();
+FOR EACH ROW EXECUTE FUNCTION process_assessment_insert();
 ```
 
 ### RLSポリシー
@@ -160,10 +232,30 @@ FOR EACH ROW EXECUTE FUNCTION check_grade_consistency();
 ALTER TABLE class_assessments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE assessment_masters ENABLE ROW LEVEL SECURITY;
 
--- assessment_masters: 全ユーザー閲覧可（マスタデータ）
+-- ===== assessment_masters（マスタデータ） =====
+
+-- 全ユーザー閲覧可
 CREATE POLICY "masters_select_all" ON assessment_masters
   FOR SELECT TO authenticated
   USING (true);
+
+-- ★ マスタ登録は管理者のみ（運用時にシード投入）
+CREATE POLICY "masters_insert_admin_only" ON assessment_masters
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+
+-- ★ マスタ更新は禁止（RLSポリシーなし = 更新不可）
+-- 理由: 既存のclass_assessmentsレコードのmax_score_at_submission/grade_at_submissionと
+--       整合性が取れなくなるため
+-- 修正が必要な場合は、新しいマスタレコードを作成し、既存レコードは維持する
+
+-- ★ マスタ削除も禁止（参照整合性のため）
+-- class_assessmentsからFKで参照されているため、DELETEは自動的に失敗する
 
 -- ===== class_assessments =====
 
@@ -218,6 +310,8 @@ CREATE POLICY "coaches_delete_own" ON class_assessments
   USING (grader_id = auth.uid());
 
 -- ★ 管理者: 全データの閲覧・更新・削除（代行修正用）
+-- ★ 重要: 管理者はgrader_idチェックをバイパスして他コーチの入力を修正可能
+-- ★ 修正時はmodified_byに管理者のUIDを記録すること（アプリ側で実装）
 CREATE POLICY "admin_all" ON class_assessments
   FOR ALL TO authenticated
   USING (
@@ -232,6 +326,36 @@ CREATE POLICY "admin_all" ON class_assessments
       WHERE id = auth.uid() AND role = 'admin'
     )
   );
+
+-- ★ 管理者修正時のmodified_by自動設定トリガー
+CREATE OR REPLACE FUNCTION set_modified_by_on_admin_update()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_is_admin BOOLEAN;
+BEGIN
+  -- 現在のユーザーがadminロールか確認
+  SELECT EXISTS (
+    SELECT 1 FROM profiles
+    WHERE id = auth.uid() AND role = 'admin'
+  ) INTO v_is_admin;
+
+  -- ★ adminロールでのUPDATEは常にmodified_byを設定
+  -- （grader_idを自分に変更した場合も監査漏れを防止）
+  IF v_is_admin THEN
+    NEW.modified_by := auth.uid();
+  -- 非adminの場合は、grader_id以外のユーザーが更新した場合のみ記録
+  ELSIF auth.uid() != OLD.grader_id THEN
+    NEW.modified_by := auth.uid();
+  END IF;
+
+  NEW.updated_at := now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_set_modified_by
+BEFORE UPDATE ON class_assessments
+FOR EACH ROW EXECUTE FUNCTION set_modified_by_on_admin_update();
 ```
 
 #### 権限マトリクス
@@ -240,8 +364,17 @@ CREATE POLICY "admin_all" ON class_assessments
 |--------|--------|--------|--------|--------|------|
 | 生徒 | ○（自分のみ） | × | × | × | 閲覧専用 |
 | 保護者 | ○（子どものみ） | × | × | × | 閲覧専用 |
-| 指導者 | ○（担当生徒） | ○（担当生徒） | ○（自分入力分） | ○（自分入力分） | 入力者として記録 |
-| 管理者 | ○（全て） | ○（全て） | ○（全て） | ○（全て） | 代行修正可 |
+| 指導者 | ○（担当生徒） | ○（担当生徒） | ○（自分入力分） | ○（自分入力分） | 入力者として記録（grader_id） |
+| 管理者 | ○（全て） | ○（全て） | ○（全て） | ○（全て） | 代行修正可（modified_byに記録）|
+
+#### 管理者修正フロー
+
+```
+1. 管理者が他コーチの入力を修正
+2. RLSのadmin_allポリシーでgrader_idチェックをバイパス
+3. トリガーでmodified_by = auth.uid() を自動設定
+4. 監査ログとして「誰が」「いつ」修正したか追跡可能
+```
 
 ### 型定義
 
@@ -250,6 +383,9 @@ CREATE POLICY "admin_all" ON class_assessments
 
 export type AssessmentType = 'math_print' | 'kanji_test'
 export type AssessmentSource = 'manual' | 'import'
+
+// ★ ステータス型（欠席/未提出/完了を明確に区別）
+export type AssessmentStatus = 'completed' | 'absent' | 'not_submitted'
 
 // マスタデータ
 export interface AssessmentMaster {
@@ -269,10 +405,17 @@ export interface ClassAssessment {
   id: string
   student_id: number
   master_id: string
-  score: number
+  // ★ ステータス（欠席/未提出/完了）
+  status: AssessmentStatus
+  // ★ 得点（status='completed'のときのみ有効、それ以外はnull）
+  score: number | null
+  // ★ 入力時点の固定値（将来のマスタ変更で過去データの%が変わらない）
+  max_score_at_submission: number
+  grade_at_submission: '5年' | '6年'
   assessment_date: string // YYYY-MM-DD
   is_resubmission: boolean
   grader_id: string
+  modified_by?: string  // ★ 管理者が修正した場合に記録
   source: AssessmentSource
   created_at: string
   updated_at: string
@@ -285,18 +428,20 @@ export interface ClassAssessmentWithMaster extends ClassAssessment {
 
 // 前回比・行動提案付きの結果
 export interface AssessmentWithContext extends ClassAssessmentWithMaster {
-  // 計算フィールド
-  percentage: number           // score / master.max_score * 100
+  // ★ 計算フィールド（入力時点の固定値を使用）
+  percentage: number           // score / max_score_at_submission * 100
 
-  // ★ 前回比（同種別・同attempt_number の直近と比較）
+  // ★ 前回比（同種別・同attempt_number の直近と比較、再提出除外）
   previous_score?: number      // 前回の得点
   previous_percentage?: number // 前回の正答率
   change?: number              // 前回比（得点差）
   change_label?: string        // 「前回比(算数プリント1回目)」
 
-  // ★ クラス平均（同学年全体）
-  grade_average?: number       // 同学年平均点
-  grade_average_percentage?: number // 同学年平均正答率
+  // ★ クラス平均（同マスタ × 提出済み全件、日付問わず）
+  // ★ 除外: 欠席(absent)、未提出(not_submitted)、再提出(is_resubmission=true)
+  class_average?: number       // 提出済み平均点
+  class_average_percentage?: number // 提出済み平均正答率
+  class_average_count?: number // 平均算出に使用した人数（提出済み人数）
 
   // 行動提案（AI生成 or テンプレート）
   action_suggestion?: string   // 「まちがえた問題をもう一度ノートに解いてみよう」
@@ -315,10 +460,12 @@ export interface AssessmentSummary {
 export interface BatchAssessmentInput {
   student_id: number
   master_id: string
-  score: number | null  // null = 欠席/未提出
+  // ★ ステータスで状態を明示（completed/absent/not_submitted）
+  status: AssessmentStatus
+  // ★ 得点（status='completed'のときのみ必須）
+  score: number | null
   assessment_date: string
   is_resubmission: boolean
-  is_absent?: boolean   // 欠席フラグ（UIのみで使用、DBには保存しない）
 }
 ```
 
@@ -632,6 +779,14 @@ export function AssessmentResultCard({
 
 ### UXパターン
 
+#### 計算仕様サマリー
+
+| 計算項目 | 対象データ | 除外条件 | 備考 |
+|---------|-----------|---------|------|
+| **正答率(%)** | score / max_score_at_submission × 100 | status != 'completed' | 入力時点の固定値を使用 |
+| **前回比** | 同種別 × 同attempt_number の直近 | 再提出・status != 'completed' | 初回は「初めての記録」表示 |
+| **クラス平均** | 同マスタ × 通常提出（**日付問わず**） | 再提出・status != 'completed' | 「テスト全体の平均」として公平 |
+
 #### 前回比の計算ロジック
 
 ```typescript
@@ -677,26 +832,39 @@ function getPreviousComparison(
 
 ```typescript
 /**
- * 同学年平均を計算
+ * ★ 同マスタ（テスト）の平均を計算
+ *
+ * 対象: 同マスタ × 通常提出 × status='completed'
+ * 除外: 再提出(is_resubmission=true)、欠席/未提出(status != 'completed')
+ *
+ * ★ 日付フィルタなし: 同じテストを受けた全生徒の平均
+ * これにより「テスト全体の平均」として公平な比較が可能
+ *
+ * @param masterId - マスタID
+ * @returns { average, percentage, count } - 平均点、正答率、人数
  */
 async function getGradeAverage(
-  masterId: string,
-  assessmentDate: string
-): Promise<{ average: number; count: number }> {
+  masterId: string
+): Promise<{ average: number; percentage: number; count: number }> {
   const { data } = await supabase
     .from('class_assessments')
-    .select('score, master:assessment_masters!inner(grade, max_score)')
+    .select('score, max_score_at_submission')
     .eq('master_id', masterId)
-    .eq('assessment_date', assessmentDate)
-    .eq('is_resubmission', false)
+    .eq('status', 'completed')       // ★ 完了のみ（欠席/未提出除外）
+    .eq('is_resubmission', false)    // ★ 再提出は除外
+    // ★ 日付フィルタなし: 同マスタの全通常提出を対象
 
   if (!data || data.length === 0) {
-    return { average: 0, count: 0 }
+    return { average: 0, percentage: 0, count: 0 }
   }
 
-  const total = data.reduce((sum, a) => sum + a.score, 0)
+  // score is guaranteed non-null when status='completed'
+  const totalScore = data.reduce((sum, a) => sum + (a.score ?? 0), 0)
+  const totalMaxScore = data.reduce((sum, a) => sum + a.max_score_at_submission, 0)
+
   return {
-    average: Math.round(total / data.length),
+    average: Math.round(totalScore / data.length),
+    percentage: Math.round((totalScore / totalMaxScore) * 100),
     count: data.length
   }
 }
@@ -767,12 +935,13 @@ function getActionSuggestion(
 
 #### 空・欠損時の表示
 
-| 状態 | 表示内容 |
-|------|---------|
-| 初回テスト前 | 「まだテスト結果がありません。先生が入力すると表示されます」 |
-| データあり・前回比なし | 前回比矢印を非表示、「初めての記録です！」と表示 |
-| 欠席/未提出 | 「このテストは欠席しました」（灰色表示） |
-| 全員欠席（平均計算不可） | 「クラス平均: データなし」 |
+| 状態 | status値 | 表示内容 |
+|------|----------|---------|
+| 初回テスト前 | レコードなし | 「まだテスト結果がありません。先生が入力すると表示されます」 |
+| データあり・前回比なし | `completed` | 前回比矢印を非表示、「初めての記録です！」と表示 |
+| 欠席 | `absent` | 「このテストは欠席しました」（灰色表示、補習対象を示唆） |
+| 未提出 | `not_submitted` | 「結果がまだ入力されていません」（灰色表示） |
+| 全員欠席/未提出（平均計算不可） | 全て`absent`/`not_submitted` | 「平均: まだ提出者がいません」 |
 
 ```tsx
 // 空状態コンポーネント
@@ -861,6 +1030,59 @@ function EncouragementCTA({ assessmentId, studentId, onSent }: EncouragementCTAP
 
 ---
 
+## 欠席→補習のハンドリング
+
+### 基本ルール
+
+| シナリオ | status | is_resubmission | 説明 |
+|---------|--------|-----------------|------|
+| **通常受験** | `completed` | `false` | 正規の実施日に受験 |
+| **欠席登録** | `absent` | `false` | 欠席を記録（補習対象） |
+| **補習受験（初回欠席後）** | `completed` | `false` | ★ 通常提出扱い（再提出ではない） |
+| **再提出（低得点後）** | `completed` | `true` | 通常受験後の再チャレンジ |
+
+### 重要なポイント
+
+1. **初回欠席→補習は「再提出」ではない**
+   - 初回を受けていないので、補習が実質的に「初回」扱い
+   - `is_resubmission = false` で登録
+   - クラス平均計算に含まれる
+
+2. **通常受験→再提出のみ「再提出」扱い**
+   - 一度受験して低得点だった場合の再チャレンジ
+   - `is_resubmission = true` で登録
+   - クラス平均計算から除外
+
+### 運用フロー
+
+```
+【ケース1: 通常受験】
+1. 指導者が結果入力（status=completed, is_resubmission=false）
+2. 生徒・保護者に表示、クラス平均に含む
+
+【ケース2: 欠席→補習】
+1. 欠席時: 指導者が欠席登録（status=absent, is_resubmission=false）
+2. 補習後: 欠席レコードを更新（status=completed, score=XX）
+   ★ is_resubmissionは変えない（falseのまま）
+3. クラス平均に含む（通常提出扱いのため）
+
+【ケース3: 低得点→再提出】
+1. 通常受験: 指導者が結果入力（status=completed, is_resubmission=false）
+2. 再提出後: 新規レコード作成（status=completed, is_resubmission=true）
+3. 再提出はクラス平均から除外
+```
+
+### UI表示の違い
+
+| 状態 | バッジ色 | アイコン | 平均比較 |
+|------|---------|---------|---------|
+| 通常受験（completed, false） | 青/橙 | なし | 表示 |
+| 欠席（absent） | 灰色 | ⚠️ | 非表示 |
+| 補習（completed, false, 欠席更新後） | 青/橙 | 📝「補習」 | 表示 |
+| 再提出（completed, true） | 青/橙 | 🔄「再」 | 非表示（参考値のみ） |
+
+---
+
 ## 応援機能統合
 
 ### データモデル拡張
@@ -921,17 +1143,170 @@ ${assessmentContext.score}点/${assessmentContext.maxScore}点を取りました
 
 ---
 
+## マスタデータ仕様
+
+### 漢字テスト（kanji_test）
+
+| 項目 | 値 |
+|------|-----|
+| **max_score** | 10（固定） |
+| **attempt_number** | 1（週1回のみ） |
+| **対象回次** | 第1回〜第19回（5年生） |
+
+### 算数プリント（math_print）- 5年生
+
+**注意:** 満点（max_score）は回次・実施順ごとに異なる。問題数 = 満点。
+
+| 回次 | ① 1回目 | ② 2回目 | タイトル |
+|------|---------|---------|----------|
+| 第1回 | 44 | 22 | 比の利用 |
+| 第2回 | 32 | 41 | 平面図形と比 |
+| 第3回 | 22 | 23 | 平面図形と比 |
+| 第4回 | 21 | 40 | つるかめ算の応用・年齢算 |
+| 第5回 | **欠落** | **欠落** | — |
+| 第6回 | 21 | 37 | 速さと比 |
+| 第7回 | 18 | 12 | 旅人算と比 |
+| 第8回 | 18 | 24 | 平面図形と比 |
+| 第9回 | 15 | 18 | 図形の移動・円の転がり移動 |
+| 第10回 | **欠落** | **欠落** | — |
+| 第11回 | 24 | 23 | 仕事に関する問題 |
+| 第12回 | 27 | 20 | 水深の変化と比 |
+| 第13回 | 28 | 26 | 整数の分解と構成 |
+| 第14回 | 21 | 14 | 直方体・立方体の切断 |
+| 第15回 | **欠落** | **欠落** | — |
+| 第16回 | 25 | 23 | 濃さと比 |
+| 第17回 | 14 | 16 | いろいろな立体の求積 |
+| 第18回 | 28 | 32 | いろいろな速さの問題 |
+| 第19回 | **欠落** | **欠落** | — |
+
+**欠落回次:** 第5回、第10回、第15回、第19回（テストなし）
+
+### シードデータSQL例
+
+```sql
+-- 5年生 漢字テスト（max_score=10固定）
+INSERT INTO assessment_masters (assessment_type, grade, session_number, attempt_number, max_score, description)
+SELECT 'kanji_test', '5年', n, 1, 10, '第' || n || '回 漢字テスト'
+FROM generate_series(1, 19) AS n
+WHERE n NOT IN (5, 10, 15, 19);  -- 欠落回次を除外
+
+-- 5年生 算数プリント（max_scoreは回次ごとに異なる）
+INSERT INTO assessment_masters (assessment_type, grade, session_number, attempt_number, max_score, description)
+VALUES
+  -- 第1回
+  ('math_print', '5年', 1, 1, 44, '第1回① 比の利用'),
+  ('math_print', '5年', 1, 2, 22, '第1回② 比の利用'),
+  -- 第2回
+  ('math_print', '5年', 2, 1, 32, '第2回① 平面図形と比'),
+  ('math_print', '5年', 2, 2, 41, '第2回② 平面図形と比'),
+  -- 第3回
+  ('math_print', '5年', 3, 1, 22, '第3回① 平面図形と比'),
+  ('math_print', '5年', 3, 2, 23, '第3回② 平面図形と比'),
+  -- 第4回
+  ('math_print', '5年', 4, 1, 21, '第4回① つるかめ算の応用'),
+  ('math_print', '5年', 4, 2, 40, '第4回② つるかめ算の応用・年齢算'),
+  -- 第5回: 欠落
+  -- 第6回
+  ('math_print', '5年', 6, 1, 21, '第6回① 速さと比'),
+  ('math_print', '5年', 6, 2, 37, '第6回② 速さと比'),
+  -- 第7回
+  ('math_print', '5年', 7, 1, 18, '第7回① 旅人算と比'),
+  ('math_print', '5年', 7, 2, 12, '第7回② 旅人算と比'),
+  -- 第8回
+  ('math_print', '5年', 8, 1, 18, '第8回① 平面図形と比'),
+  ('math_print', '5年', 8, 2, 24, '第8回② 平面図形と比'),
+  -- 第9回
+  ('math_print', '5年', 9, 1, 15, '第9回① 図形の移動'),
+  ('math_print', '5年', 9, 2, 18, '第9回② 円の転がり移動'),
+  -- 第10回: 欠落
+  -- 第11回
+  ('math_print', '5年', 11, 1, 24, '第11回① 仕事に関する問題'),
+  ('math_print', '5年', 11, 2, 23, '第11回② 仕事に関する問題'),
+  -- 第12回
+  ('math_print', '5年', 12, 1, 27, '第12回① 水深の変化と比'),
+  ('math_print', '5年', 12, 2, 20, '第12回② 水深の変化と比'),
+  -- 第13回
+  ('math_print', '5年', 13, 1, 28, '第13回① 整数の分解と構成'),
+  ('math_print', '5年', 13, 2, 26, '第13回② 整数の分解と構成'),
+  -- 第14回
+  ('math_print', '5年', 14, 1, 21, '第14回① 直方体・立方体の切断'),
+  ('math_print', '5年', 14, 2, 14, '第14回② 直方体・立方体の切断'),
+  -- 第15回: 欠落
+  -- 第16回
+  ('math_print', '5年', 16, 1, 25, '第16回① 濃さと比'),
+  ('math_print', '5年', 16, 2, 23, '第16回② 濃さと比'),
+  -- 第17回
+  ('math_print', '5年', 17, 1, 14, '第17回① いろいろな立体の求積'),
+  ('math_print', '5年', 17, 2, 16, '第17回② いろいろな立体の求積'),
+  -- 第18回
+  ('math_print', '5年', 18, 1, 28, '第18回① いろいろな速さの問題'),
+  ('math_print', '5年', 18, 2, 32, '第18回② いろいろな速さの問題');
+  -- 第19回: 欠落
+```
+
+### 6年生データ（TODO）
+
+6年生の算数プリント・漢字テストのmax_scoreデータは別途提供待ち。
+
+---
+
+## タスク優先順位・並行可能性
+
+### 依存関係図
+
+```
+P6-1 データベース設計
+  │
+  ├──→ P6-2 Server Actions
+  │       │
+  │       ├──→ P6-3 指導者バッチ入力 ─────┐
+  │       │                              │
+  │       ├──→ P6-4 生徒閲覧 ────────────┼──→ Phase 6.1 完了
+  │       │                              │
+  │       └──→ P6-5 保護者閲覧 ───────────┘
+  │
+  └──→ P6-6 指導者分析（P6-2完了後に着手可）
+```
+
+### 並行可能性マトリクス
+
+| フェーズ | タスク | 並行可否 | 前提条件 |
+|---------|--------|---------|---------|
+| P6-1 | DB設計・マイグレーション | **単独必須** | なし（最優先） |
+| P6-2 | Server Actions | **単独必須** | P6-1完了 |
+| P6-3 | 指導者バッチ入力 | **並行可** | P6-2完了 |
+| P6-4 | 生徒閲覧 | **並行可** | P6-2完了（P6-3と並行可） |
+| P6-5 | 保護者閲覧 | **並行可** | P6-2完了（P6-3, P6-4と並行可） |
+| P6-6 | 指導者分析 | 後発 | P6-2完了（Phase 6.2以降に実施推奨） |
+
+### 推奨実装順序
+
+```
+Week 1: P6-1（DB設計）→ P6-2（Server Actions前半）
+Week 2: P6-2（Server Actions後半）→ P6-3（バッチ入力UI）
+Week 3: P6-3, P6-4, P6-5 を並行実装
+Week 4: 統合テスト、P6-6（分析）着手
+```
+
+---
+
 ## タスク一覧
 
-### P6-1: データベース設計・マイグレーション ⏳ 未着手 (0/14完了)
+### P6-1: データベース設計・マイグレーション ⏳ 未着手 (0/18完了)
 
 **目標:** クラス内テストを管理するテーブルを設計・作成
 
 - [ ] `assessment_masters` マスタテーブル作成（FK参照元を先に作成）
 - [ ] `class_assessments` テーブル作成（master_id FK付き）
+- [ ] `max_score_at_submission`カラム追加（入力時点の満点固定）
+- [ ] `grade_at_submission`カラム追加（入力時点の学年固定）
+- [ ] `modified_by`カラム追加（管理者修正監査用）
 - [ ] マイグレーションファイル作成
-- [ ] 得点上限チェックトリガー作成（score <= max_score）
+- [ ] 得点上限チェックトリガー作成（score <= max_score_at_submission）
+- [ ] 入力時値固定トリガー作成（max_score, gradeをマスタからコピー）
 - [ ] 学年整合性チェックトリガー作成（student.grade == master.grade）
+- [ ] 管理者修正監査トリガー作成（modified_by自動設定）
+- [ ] 再提出ユニーク制約（同一マスタにつき1回のみ）
 - [ ] RLSポリシー実装（生徒/保護者=SELECT、指導者=担当生徒、管理者=ALL）
 - [ ] インデックス最適化
 - [ ] 型定義作成 (`lib/types/class-assessment.ts`)
@@ -1121,5 +1496,18 @@ if (ASSESSMENT_ENABLED_GRADES.includes(student.grade)) {
 
 ---
 
-**最終更新:** 2025年12月9日（設計レビュー反映）
+**最終更新:** 2025年12月9日（設計レビューv6反映: 監査トリガー改善）
 **更新者:** Claude Code
+
+---
+
+## 変更履歴
+
+| 日付 | バージョン | 変更内容 |
+|------|-----------|---------|
+| 2025-12-09 | v6 | admin監査漏れ修正（adminロールは常にmodified_by設定）、冗長な学年整合チェック削除 |
+| 2025-12-09 | v5 | max_score_at_submission / grade_at_submission のUPDATE時変更禁止チェック追加（トリガー強化） |
+| 2025-12-09 | v4 | is_resubmission+status組み合わせ制約追加、master_id変更禁止（トリガー）、UPDATE時grade整合チェックスキップ、assessment_date用途明記、マスタ更新禁止ポリシー追加、UI用語統一 |
+| 2025-12-09 | v3 | status ENUM追加（completed/absent/not_submitted）、トリガー統合（順序問題修正）、学年整合チェック修正（grade_at_submission使用）、クラス平均計算修正（日付フィルタ削除）、欠席→補習ハンドリング追加 |
+| 2025-12-09 | v2 | max_score_at_submission/grade_at_submission追加、modified_by監査、再提出制限(1回)、計算仕様明文化、タスク優先順位追加 |
+| 2025-12-09 | v1 | 初版作成（マスタFK設計、RLS、UXパターン） |
