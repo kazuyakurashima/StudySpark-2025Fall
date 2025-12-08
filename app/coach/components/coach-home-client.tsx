@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -13,6 +13,8 @@ import {
   Loader2,
   Clock,
 } from "lucide-react"
+
+type GradeFilter = "all" | "5" | "6"
 import Link from "next/link"
 import { CoachBottomNavigation } from "@/components/coach-bottom-navigation"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
@@ -47,6 +49,23 @@ export function CoachHomeClient({ initialRecords, initialInactiveStudents }: Coa
   )
   // 生徒一覧データ
   const { students, isLoading: isStudentsLoading, isValidating: isStudentsValidating, mutate: mutateStudents } = useCoachStudents()
+
+  // 学年フィルタの状態
+  const [gradeFilter, setGradeFilter] = useState<GradeFilter>("all")
+
+  // 学年でフィルタリングされた生徒
+  const filteredStudents = useMemo(() => {
+    if (gradeFilter === "all") return students
+    // grade が "小5" や "小6" の形式と仮定
+    return students.filter((s) => s.grade?.includes(gradeFilter))
+  }, [students, gradeFilter])
+
+  // 学年ごとの生徒数
+  const gradeCount = useMemo(() => {
+    const grade5 = students.filter((s) => s.grade?.includes("5")).length
+    const grade6 = students.filter((s) => s.grade?.includes("6")).length
+    return { grade5, grade6, total: students.length }
+  }, [students])
 
   // 7日以上未入力の生徒
   const alertStudents = useMemo(() =>
@@ -150,16 +169,53 @@ export function CoachHomeClient({ initialRecords, initialInactiveStudents }: Coa
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-900">担当生徒</h2>
-            <span className="text-sm text-slate-500">{students.length}名</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-500">{filteredStudents.length}名</span>
+              <div className="flex gap-1">
+                <Button
+                  variant={gradeFilter === "all" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setGradeFilter("all")}
+                  className="px-3 h-8 text-xs"
+                >
+                  全体
+                  <span className="ml-1 text-xs opacity-70">({gradeCount.total})</span>
+                </Button>
+                <Button
+                  variant={gradeFilter === "5" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setGradeFilter("5")}
+                  className="px-3 h-8 text-xs"
+                >
+                  5年
+                  <span className="ml-1 text-xs opacity-70">({gradeCount.grade5})</span>
+                </Button>
+                <Button
+                  variant={gradeFilter === "6" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setGradeFilter("6")}
+                  className="px-3 h-8 text-xs"
+                >
+                  6年
+                  <span className="ml-1 text-xs opacity-70">({gradeCount.grade6})</span>
+                </Button>
+              </div>
+            </div>
           </div>
 
           {isStudentsLoading ? (
             <div className="flex justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
             </div>
+          ) : filteredStudents.length === 0 ? (
+            <Card className="bg-white border-0 shadow-sm rounded-2xl">
+              <CardContent className="py-12 text-center">
+                <p className="text-slate-500">該当する生徒がいません</p>
+              </CardContent>
+            </Card>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {students.map((student) => {
+              {filteredStudents.map((student) => {
                 const status = getStudentStatus(student.id)
                 return (
                   <Link

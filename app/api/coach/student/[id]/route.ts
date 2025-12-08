@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/route"
 import { getStudentDetail, getStudentLearningHistory } from "@/app/actions/coach"
 
 export const dynamic = "force-dynamic"
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic"
  * 生徒詳細と学習履歴を並列取得して返す
  */
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {

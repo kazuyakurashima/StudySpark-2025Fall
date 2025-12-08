@@ -54,6 +54,18 @@ export interface CoachStudentDetailData {
  */
 const fetcher = async (url: string): Promise<CoachStudentDetailData> => {
   const res = await fetch(url)
+
+  // Content-Typeをチェック
+  const contentType = res.headers.get("content-type")
+  if (!contentType || !contentType.includes("application/json")) {
+    console.error("[useCoachStudentDetail] Non-JSON response:", {
+      url,
+      status: res.status,
+      contentType,
+    })
+    throw new Error(`APIエラー: ${res.status} ${res.statusText}`)
+  }
+
   if (!res.ok) {
     const error = await res.json()
     throw new Error(error.error || "データの取得に失敗しました")

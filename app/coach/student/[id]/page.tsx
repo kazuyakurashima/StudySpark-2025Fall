@@ -1,6 +1,7 @@
 import { redirect, notFound } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { StudentDetailClient } from "./student-detail-client"
+import { getTodayJST, getDateJST, getYesterdayJST } from "@/lib/utils/date-jst"
 
 // 動的レンダリング必須（セッション依存）
 export const dynamic = "force-dynamic"
@@ -85,10 +86,9 @@ export default async function StudentDetailPage({ params }: PageProps) {
     notFound()
   }
 
-  // 直近の学習状況を取得
-  const today = new Date()
-  const weekAgo = new Date(today)
-  weekAgo.setDate(weekAgo.getDate() - 7)
+  // 直近の学習状況を取得（JST基準）
+  const todayJST = getTodayJST()
+  const weekAgoJST = getDateJST(-7)
 
   const { data: recentLogs } = await supabase
     .from("study_logs")
@@ -100,7 +100,7 @@ export default async function StudentDetailPage({ params }: PageProps) {
       subjects (name)
     `)
     .eq("student_id", studentId)
-    .gte("study_date", weekAgo.toISOString().split("T")[0])
+    .gte("study_date", weekAgoJST)
     .order("study_date", { ascending: false })
     .limit(20)
 
@@ -121,19 +121,24 @@ export default async function StudentDetailPage({ params }: PageProps) {
   let streak = 0
   if (allLogs && allLogs.length > 0) {
     const uniqueDates = [...new Set(allLogs.map((log) => log.study_date))].sort().reverse()
-    const todayStr = today.toISOString().split("T")[0]
-    const yesterdayStr = new Date(today.getTime() - 86400000).toISOString().split("T")[0]
+    const yesterdayJST = getYesterdayJST()
 
-    // 今日または昨日から始まるかチェック
-    if (uniqueDates[0] === todayStr || uniqueDates[0] === yesterdayStr) {
+    // 今日または昨日から始まるかチェック（JST基準）
+    if (uniqueDates[0] === todayJST || uniqueDates[0] === yesterdayJST) {
       streak = 1
-      let currentDate = new Date(uniqueDates[0])
 
       for (let i = 1; i < uniqueDates.length; i++) {
-        const prevDate = new Date(currentDate.getTime() - 86400000)
-        if (uniqueDates[i] === prevDate.toISOString().split("T")[0]) {
+        // 連続する日付かチェック（YYYY-MM-DD形式で比較）
+        const currentDate = uniqueDates[i - 1]
+        const prevDate = uniqueDates[i]
+
+        // 1日差かどうかを確認
+        const current = new Date(`${currentDate}T12:00:00+09:00`)
+        const prev = new Date(`${prevDate}T12:00:00+09:00`)
+        const diffDays = Math.round((current.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24))
+
+        if (diffDays === 1) {
           streak++
-          currentDate = prevDate
         } else {
           break
         }
