@@ -1,361 +1,521 @@
 # Phase 6: クラス内テスト機能（算数プリント・漢字テスト）
 
 **期間:** 4-6週間（Phase 1-3）
-**進捗:** 0% (0/47タスク完了)
-**状態:** ⏳ 未着手
+**進捗:** 0% (0/52タスク完了)
+**状態:** ⏳ 設計中
 **ブランチ:** `feature/class-assessment`
 
 ---
 
 ## 概要
 
-塾の算数プリントと漢字テストの結果をStudySparkに取り込み、生徒・保護者・指導者が閲覧・応援できる機能を実装する。
+塾の算数プリントと漢字テストの採点結果をStudySparkに取り込み、生徒・保護者・指導者が閲覧・応援できる機能を実装する。
 
-**主な目的:**
-1. 日々の学習成果をより包括的に可視化
-2. プリント・漢字テストへの応援メッセージ送信を可能に
-3. 指導者の分析機能強化
+### 基本方針
 
-**設計ドキュメント:** `docs/CLASS-ASSESSMENT-DESIGN.md`（別途作成予定）
+| 項目 | 決定事項 |
+|------|---------|
+| **データ入力者** | 指導者のみ（生徒・保護者は閲覧専用） |
+| **入力方式** | 指導者用バッチ入力画面を優先実装 |
+| **生徒体験** | 「先生の採点結果」として表示、編集UIなし |
+| **教育設計** | 点数だけでなく「次の一歩」を毎回提示 |
+
+### 設計原則（UX/教育効果）
+
+1. **役割分離の明示**: 「先生入力」「生徒・保護者は閲覧のみ」をUI文言で明確化
+2. **行動を促すコピー**: 点数表示と同時に具体的な次の学習行動を提案
+3. **成功体験の強調**: 高得点時は祝福演出、低得点時は励ましをデフォルト表示
+4. **文脈付きカード**: 前回比矢印、満点/得点をセット表示
+5. **ペルソナ別情報量**: 各ロールで必要な情報のみ表示
 
 ---
 
-## 依存関係
+## データモデル設計
+
+### テーブル: `class_assessments`
+
+```sql
+CREATE TABLE class_assessments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- 対象生徒
+  student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+
+  -- テスト種別
+  assessment_type VARCHAR(20) NOT NULL CHECK (assessment_type IN ('math_print', 'kanji_test')),
+
+  -- 回次情報（重複防止の複合キー要素）
+  grade VARCHAR(10) NOT NULL,              -- '5年' or '6年'
+  session_number INTEGER NOT NULL,         -- 学習回番号（第1回〜）
+  attempt_number INTEGER NOT NULL DEFAULT 1, -- 週内の実施順（算数: 1-2, 漢字: 1）
+
+  -- 得点
+  score INTEGER NOT NULL CHECK (score >= 0),
+  max_score INTEGER NOT NULL CHECK (max_score > 0),
+
+  -- 実施日
+  assessment_date DATE NOT NULL,
+
+  -- 監査情報
+  grader_id UUID NOT NULL REFERENCES auth.users(id), -- 入力した指導者
+  source VARCHAR(20) NOT NULL DEFAULT 'manual' CHECK (source IN ('manual', 'import')),
+
+  -- タイムスタンプ
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  -- 一意制約（同一生徒・同一テスト・同一回・同一実施順の重複防止）
+  UNIQUE (student_id, assessment_type, session_number, attempt_number, assessment_date)
+);
+
+-- インデックス
+CREATE INDEX idx_class_assessments_student_date ON class_assessments(student_id, assessment_date DESC);
+CREATE INDEX idx_class_assessments_type_session ON class_assessments(assessment_type, session_number);
+CREATE INDEX idx_class_assessments_grader ON class_assessments(grader_id);
+```
+
+### テーブル: `assessment_masters`（マスタデータ）
+
+```sql
+CREATE TABLE assessment_masters (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  assessment_type VARCHAR(20) NOT NULL,
+  grade VARCHAR(10) NOT NULL,
+  session_number INTEGER NOT NULL,
+  attempt_number INTEGER NOT NULL DEFAULT 1,
+
+  -- メタ情報
+  default_max_score INTEGER NOT NULL,      -- デフォルト満点
+  scheduled_date DATE,                      -- 予定実施日（オプション）
+  description VARCHAR(200),                 -- 説明（例: 「第10回 分数の計算」）
+
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  UNIQUE (assessment_type, grade, session_number, attempt_number)
+);
+```
+
+### RLSポリシー
+
+```sql
+-- 生徒: 自分のデータのみ閲覧（SELECT only）
+CREATE POLICY "students_select_own" ON class_assessments
+  FOR SELECT TO authenticated
+  USING (
+    student_id IN (
+      SELECT id FROM students WHERE user_id = auth.uid()
+    )
+  );
+
+-- 保護者: 子どものデータのみ閲覧（SELECT only）
+CREATE POLICY "parents_select_children" ON class_assessments
+  FOR SELECT TO authenticated
+  USING (
+    student_id IN (
+      SELECT student_id FROM parent_child_relations
+      WHERE parent_id IN (SELECT id FROM parents WHERE user_id = auth.uid())
+    )
+  );
+
+-- 指導者: 担当生徒のデータを閲覧・入力・更新・削除
+CREATE POLICY "coaches_all_assigned" ON class_assessments
+  FOR ALL TO authenticated
+  USING (
+    student_id IN (
+      SELECT student_id FROM coach_student_relations
+      WHERE coach_id IN (SELECT id FROM coaches WHERE user_id = auth.uid())
+    )
+  )
+  WITH CHECK (
+    student_id IN (
+      SELECT student_id FROM coach_student_relations
+      WHERE coach_id IN (SELECT id FROM coaches WHERE user_id = auth.uid())
+    )
+    AND grader_id = auth.uid()
+  );
+```
+
+### 型定義
+
+```typescript
+// lib/types/class-assessment.ts
+
+export type AssessmentType = 'math_print' | 'kanji_test'
+export type AssessmentSource = 'manual' | 'import'
+
+export interface ClassAssessment {
+  id: string
+  student_id: number
+  assessment_type: AssessmentType
+  grade: string
+  session_number: number
+  attempt_number: number
+  score: number
+  max_score: number
+  assessment_date: string // YYYY-MM-DD
+  grader_id: string
+  source: AssessmentSource
+  created_at: string
+  updated_at: string
+}
+
+export interface AssessmentWithContext extends ClassAssessment {
+  // 計算フィールド
+  percentage: number           // score / max_score * 100
+  previous_score?: number      // 前回の得点
+  previous_percentage?: number // 前回の正答率
+  change?: number              // 前回比（ポイント差）
+  class_average?: number       // クラス平均（指導者のみ）
+
+  // 行動提案（AI生成 or テンプレート）
+  action_suggestion?: string   // 「次は漢字テストの復習を15分」など
+}
+
+export interface AssessmentSummary {
+  assessment_type: AssessmentType
+  total_count: number
+  average_percentage: number
+  recent_trend: 'up' | 'stable' | 'down'
+  best_score: number
+  latest_score: number
+}
+```
+
+---
+
+## UI/UX設計
+
+### 生徒向け画面
+
+#### ダッシュボード表示
 
 ```
-P6-1 (DB設計) ← P6-2 (Server Actions) ← P6-3 (生徒UI)
-                                       ← P6-4 (保護者UI)
-                                       ← P6-5 (指導者UI)
-P6-3, P6-4, P6-5 ← P6-6 (応援機能統合)
+┌─────────────────────────────────────────────┐
+│  📝 先生からの採点結果                        │
+├─────────────────────────────────────────────┤
+│  ┌───────────────────────────────────────┐  │
+│  │ 算数プリント 第10回-1                    │  │
+│  │ ━━━━━━━━━━━━━━━━━━━━━ 85点/100点      │  │
+│  │ ↑ +5点 前回より成長！                   │  │
+│  │                                         │  │
+│  │ 💡 次の一歩: まちがえた問題を           │  │
+│  │    もう一度ノートに解いてみよう          │  │
+│  └───────────────────────────────────────┘  │
+│                                             │
+│  ┌───────────────────────────────────────┐  │
+│  │ 漢字テスト 第10回                       │  │
+│  │ ━━━━━━━━━━━━━━━━ 72点/100点           │  │
+│  │ → 前回と同じくらい                      │  │
+│  │                                         │
+│  │ 💡 次の一歩: まちがえた漢字を           │  │
+│  │    3回ずつ書いて覚えよう                │  │
+│  └───────────────────────────────────────┘  │
+└─────────────────────────────────────────────┘
+```
+
+#### 設計ポイント
+
+| 要素 | 実装 | 教育効果 |
+|------|------|---------|
+| タイトル | 「先生からの採点結果」 | 入力者の明示 |
+| 前回比矢印 | ↑↓→ + 点数差 | 成長実感 |
+| 行動提案 | 💡アイコン + 具体的行動 | 次の学習行動を促進 |
+| 色分け | 算数=青系、漢字=橙系 | 科目の即時認識 |
+| 高得点時 | 🎉バッジ表示 | 成功体験の強調 |
+| 低得点時 | 励ましコピー | セルフコンパッション |
+
+#### 履歴画面（グラフ）
+
+- **棒グラフ優先**: 折れ線より直感的（小学生向け）
+- **目標ライン表示**: 80点ラインを点線で表示
+- **前回比バッジ**: 各回に ↑↓→ を表示
+
+### 保護者向け画面
+
+#### ダッシュボード表示
+
+```
+┌─────────────────────────────────────────────┐
+│  📊 ○○くんのテスト結果                       │
+├─────────────────────────────────────────────┤
+│  今週の結果                                  │
+│  ┌─────────────────┐ ┌─────────────────┐   │
+│  │ 算数プリント     │ │ 漢字テスト       │   │
+│  │ 85点 ↑          │ │ 72点 →          │   │
+│  │ 安定して成長中   │ │ コツコツ継続中   │   │
+│  │ [ねぎらう]       │ │ [ねぎらう]       │   │
+│  └─────────────────┘ └─────────────────┘   │
+│                                             │
+│  📈 推移（直近5回）                          │
+│  ┌───────────────────────────────────────┐  │
+│  │ 100┤     ■                             │  │
+│  │  80┤ ■ ■   ■ ■  ←目標ライン          │  │
+│  │  60┤                                   │  │
+│  │    └─┴─┴─┴─┴─┴                        │  │
+│  │      6  7  8  9 10 回                  │  │
+│  └───────────────────────────────────────┘  │
+└─────────────────────────────────────────────┘
+```
+
+#### 設計ポイント
+
+| 要素 | 実装 | 効果 |
+|------|------|------|
+| サマリーカード | 最新結果 + トレンド | 全体把握 |
+| [ねぎらう]ボタン | ワンタップ応援 | 行動への障壁低減 |
+| 推移グラフ | 棒グラフ + 目標ライン | 安定性の可視化 |
+| 文言 | 「安定して成長中」「コツコツ継続中」 | ポジティブフレーミング |
+
+### 指導者向け画面
+
+#### バッチ入力画面（優先実装）
+
+```
+┌─────────────────────────────────────────────┐
+│  📝 テスト結果入力                           │
+├─────────────────────────────────────────────┤
+│  テスト種別: [算数プリント ▼]               │
+│  学習回: [第10回 ▼]  実施順: [1回目 ▼]     │
+│  実施日: [2024-12-09]                       │
+├─────────────────────────────────────────────┤
+│  生徒名          得点    /満点    状態      │
+│  ────────────────────────────────────────   │
+│  田中 太郎       [85 ]   /100    ✓入力済    │
+│  鈴木 花子       [72 ]   /100    ✓入力済    │
+│  佐藤 健         [   ]   /100    ○未入力    │
+│  山田 美咲       欠席     -       ─欠席     │
+├─────────────────────────────────────────────┤
+│  入力済: 2/4名  未入力: 1名  欠席: 1名      │
+│                                             │
+│  [下書き保存]              [確定して保存]   │
+└─────────────────────────────────────────────┘
+```
+
+#### 分析ビュー
+
+- クラス平均・分布表示
+- 未提出/欠席検知
+- 生徒ごとの推移比較
+
+---
+
+## 応援機能統合
+
+### データモデル拡張
+
+```sql
+-- 既存テーブルにカラム追加
+ALTER TABLE encouragement_messages
+ADD COLUMN related_assessment_id UUID REFERENCES class_assessments(id);
+
+-- related_study_log_id と related_assessment_id は排他的
+-- (どちらか一方のみ値を持つ)
+```
+
+### 応援UI統合
+
+テスト結果カードに応援CTAを常設:
+
+```
+┌───────────────────────────────────────┐
+│ 算数プリント 第10回-1                  │
+│ 85点/100点 ↑+5点                      │
+├───────────────────────────────────────┤
+│ [❤️ ねぎらう] [💬 アドバイス]         │
+└───────────────────────────────────────┘
+```
+
+送信後は小さなスタンプ/吹き出しで可視化:
+
+```
+┌───────────────────────────────────────┐
+│ 算数プリント 第10回-1                  │
+│ 85点/100点 ↑+5点                      │
+├───────────────────────────────────────┤
+│ 💬 ママより: がんばったね！           │
+└───────────────────────────────────────┘
+```
+
+### AIプロンプト調整
+
+テスト結果コンテキストを考慮したプロンプト:
+
+```typescript
+const assessmentContext = {
+  type: 'math_print',
+  score: 85,
+  maxScore: 100,
+  change: +5,
+  trend: 'improving',
+  actionSuggestion: 'まちがえた問題をもう一度解く'
+}
+
+// プロンプトに追加
+`生徒は${assessmentContext.type === 'math_print' ? '算数プリント' : '漢字テスト'}で
+${assessmentContext.score}点/${assessmentContext.maxScore}点を取りました。
+前回より${assessmentContext.change > 0 ? `${assessmentContext.change}点アップ` : `${Math.abs(assessmentContext.change)}点ダウン`}しています。
+この結果に対する励ましのメッセージを生成してください。`
 ```
 
 ---
 
 ## タスク一覧
 
-### P6-1: データベース設計・マイグレーション ⏳ 未着手 (0/8完了)
+### P6-1: データベース設計・マイグレーション ⏳ 未着手 (0/10完了)
 
 **目標:** クラス内テストを管理するテーブルを設計・作成
 
-- [ ] 設計ドキュメント作成 (`docs/CLASS-ASSESSMENT-DESIGN.md`)
-  - 対応要件: 新規機能設計
-  - 内容: テーブル設計、型定義、API設計、UX設計
-  - 検証: 関係者レビュー完了
-
-- [ ] `class_assessments` テーブル設計
-  - 対応要件: データモデル
-  - カラム:
-    - `id` (UUID, PK)
-    - `student_id` (INT, FK → students.id)
-    - `assessment_type` ('math_print' | 'kanji_test')
-    - `grade` (VARCHAR) - 学年
-    - `session_number` (INT) - 学習回番号
-    - `score` (NUMERIC) - 得点
-    - `max_score` (NUMERIC) - 満点
-    - `assessment_date` (DATE) - テスト実施日
-    - `created_at`, `updated_at` (TIMESTAMP)
-  - 検証: ER図更新、既存テーブルとの整合性確認
-
-- [ ] `assessment_instances` テーブル設計（オプション）
-  - 対応要件: マスターデータ管理
-  - 内容: テスト回ごとのメタ情報（実施日、満点など）
-  - 検証: 必要性の判断、シンプル設計の場合はスキップ
-
+- [ ] `class_assessments` テーブル設計（上記スキーマ）
+- [ ] `assessment_masters` マスタテーブル設計
 - [ ] マイグレーションファイル作成
-  - ファイル: `supabase/migrations/YYYYMMDD000001_create_class_assessments.sql`
-  - 内容: テーブル作成、インデックス、制約
-  - 検証: ローカル環境でマイグレーション成功
-
-- [ ] RLSポリシー実装
-  - 対応要件: セキュリティ
-  - ポリシー:
-    - 生徒: 自分のデータのみCRUD
-    - 保護者: 子どものデータ閲覧のみ
-    - 指導者: 担当生徒のデータ閲覧のみ
-  - 検証: 権限テスト実施
-
+- [ ] RLSポリシー実装（生徒=SELECT、指導者=ALL）
+- [ ] インデックス最適化
 - [ ] 型定義作成 (`lib/types/class-assessment.ts`)
-  - 内容: TypeScript型定義、Zod スキーマ
-  - 検証: 型チェック通過
+- [ ] Zodスキーマ作成（バリデーション用）
+- [ ] シードデータ作成（マスタ + デモデータ）
+- [ ] 5年生用feature flag実装
+- [ ] P6-1 総合テスト（RLS動作確認含む）
 
-- [ ] シードデータ作成（開発用）
-  - ファイル: `supabase/seed-class-assessments.sql`
-  - 内容: デモユーザー用のサンプルデータ
-  - 検証: ローカル環境でデータ確認
+### P6-2: Server Actions実装 ⏳ 未着手 (0/10完了)
 
-- [ ] P6-1 総合テスト
-  - 検証項目:
-    - マイグレーション適用成功
-    - RLSポリシー動作確認
-    - シードデータ投入成功
-  - テストスクリプト: `scripts/test/test-class-assessment-db.ts`
-
----
-
-### P6-2: Server Actions実装 ⏳ 未着手 (0/9完了)
-
-**目標:** クラス内テストのCRUD操作を実装
+**目標:** クラス内テストのCRUD操作を実装（指導者のみ書き込み可）
 
 - [ ] `app/actions/class-assessment.ts` 作成
-  - 対応要件: データアクセス層
-  - 検証: ファイル作成、基本構造実装
-
-- [ ] `saveClassAssessment()` 実装
-  - 内容: テスト結果の保存（新規/更新）
-  - パラメータ: `{ studentId, type, sessionNumber, score, maxScore, date }`
-  - 検証: 保存成功、重複チェック
-
-- [ ] `getClassAssessments()` 実装
-  - 内容: 生徒のテスト結果一覧取得
-  - パラメータ: `{ studentId, type?, sessionNumber?, limit?, offset? }`
-  - 検証: フィルタ動作確認
-
-- [ ] `getClassAssessmentSummary()` 実装
-  - 内容: 集計データ取得（平均点、推移など）
-  - パラメータ: `{ studentId, type, period? }`
-  - 検証: 集計ロジック確認
-
+- [ ] `saveClassAssessment()` 実装（単一入力）
+- [ ] `saveBatchAssessments()` 実装（バッチ入力）
+- [ ] `getClassAssessments()` 実装（一覧取得）
+- [ ] `getAssessmentWithContext()` 実装（前回比・行動提案付き）
+- [ ] `getAssessmentSummary()` 実装（集計データ）
 - [ ] `deleteClassAssessment()` 実装
-  - 内容: テスト結果の削除
-  - パラメータ: `{ assessmentId }`
-  - 検証: 削除成功、権限チェック
-
-- [ ] `getRecentAssessments()` 実装
-  - 内容: 直近のテスト結果取得（ダッシュボード用）
-  - パラメータ: `{ studentId, limit? }`
-  - 検証: 最新順ソート確認
-
-- [ ] `getAssessmentsForEncouragement()` 実装
-  - 内容: 応援機能用のテスト結果取得（応援状況付き）
-  - パラメータ: `{ studentId, hasEncouragement?, limit? }`
-  - 検証: 応援フィルタ動作確認
-
-- [ ] API Route作成 (`app/api/class-assessment/route.ts`)
-  - 内容: SWR用エンドポイント
-  - 検証: GET/POSTレスポンス確認
-
+- [ ] `generateActionSuggestion()` 実装（行動提案生成）
+- [ ] API Route作成 (`/api/class-assessment`)
 - [ ] P6-2 総合テスト
-  - 検証項目:
-    - 全Server Actions動作確認
-    - エラーハンドリング確認
-    - 権限チェック確認
-  - テストスクリプト: `scripts/test/test-class-assessment-actions.ts`
 
----
+### P6-3: 指導者バッチ入力画面 ⏳ 未着手 (0/8完了)
 
-### P6-3: 生徒向けUI実装 ⏳ 未着手 (0/8完了)
+**目標:** 指導者が効率的にテスト結果を入力できる画面
 
-**目標:** 生徒がテスト結果を入力・閲覧できる画面を実装
-
-- [ ] 入力画面デザイン検討
-  - 対応要件: UX設計
-  - オプション:
-    - A案: スパーク画面に統合（タブ追加）
-    - B案: 独立ページ `/student/assessment`
-    - C案: ダッシュボードにクイック入力
-  - 検証: ユーザーフィードバック
-
-- [ ] テスト結果入力フォーム実装
-  - ファイル: `app/student/assessment/page.tsx` または統合先
-  - UI要素:
-    - テストタイプ選択（算数プリント/漢字テスト）
-    - 学習回選択
-    - 得点入力
-    - 日付入力（デフォルト今日）
-  - 検証: フォームバリデーション動作
-
-- [ ] SWRフック作成 (`lib/hooks/use-class-assessments.ts`)
-  - 内容: テスト結果のフェッチ・キャッシュ管理
-  - 検証: データ取得・更新動作確認
-
-- [ ] 入力完了フィードバック実装
-  - 内容: 成功メッセージ、アニメーション
-  - 検証: UX確認
-
-- [ ] ダッシュボードへの表示追加
-  - ファイル: `app/student/page.tsx` (dashboard-client)
-  - 内容: 直近のテスト結果カード表示
-  - 検証: レイアウト確認
-
-- [ ] テスト結果履歴画面実装
-  - 内容: 過去のテスト結果一覧・グラフ表示
-  - ファイル: `app/student/assessment/history/page.tsx`
-  - 検証: ページネーション・フィルタ動作
-
-- [ ] 進捗グラフ実装（Recharts）
-  - 内容: 得点推移の折れ線グラフ
-  - 検証: グラフ表示確認
-
+- [ ] バッチ入力ページ作成 (`/coach/assessment/input`)
+- [ ] テスト種別・回次選択UI
+- [ ] 生徒一覧テーブル（得点入力フィールド）
+- [ ] 欠席/未提出マーク機能
+- [ ] 入力状況サマリー表示
+- [ ] 下書き保存機能
+- [ ] 確定保存＋バリデーション
 - [ ] P6-3 総合テスト
-  - 検証項目:
-    - 入力フロー動作確認
-    - ダッシュボード表示確認
-    - 履歴・グラフ表示確認
-  - テスト環境: デモユーザーで実施
 
----
+### P6-4: 生徒閲覧画面 ⏳ 未着手 (0/8完了)
 
-### P6-4: 保護者向けUI実装 ⏳ 未着手 (0/6完了)
+**目標:** 生徒が「先生からの採点結果」を閲覧できる画面
 
-**目標:** 保護者が子どものテスト結果を閲覧できる画面を実装
-
-- [ ] ダッシュボードへの表示追加
-  - ファイル: `app/parent/page.tsx` (dashboard-client)
-  - 内容: 子どもの直近テスト結果表示
-  - 検証: レイアウト確認
-
-- [ ] 詳細閲覧画面実装
-  - ファイル: `app/parent/assessment/page.tsx`
-  - 内容: テスト結果一覧・グラフ表示
-  - 検証: データ表示確認
-
-- [ ] フィルタ機能実装
-  - 内容: テストタイプ、期間でフィルタ
-  - 検証: フィルタ動作確認
-
-- [ ] 子ども選択機能（複数子どもの場合）
-  - 内容: 子どもの切り替えUI
-  - 検証: 複数子どもがいる保護者で確認
-
-- [ ] 進捗グラフ表示
-  - 内容: 生徒画面と同様のグラフ
-  - 検証: グラフ表示確認
-
+- [ ] ダッシュボードへの結果カード追加
+- [ ] 前回比矢印表示（↑↓→）
+- [ ] 行動提案表示（💡アイコン）
+- [ ] 高得点時の祝福演出
+- [ ] 低得点時の励ましコピー
+- [ ] 履歴ページ作成（棒グラフ）
+- [ ] 目標ライン表示（80点）
 - [ ] P6-4 総合テスト
-  - 検証項目:
-    - データ閲覧動作確認
-    - 複数子どもの切り替え確認
-    - グラフ表示確認
 
----
+### P6-5: 保護者閲覧・応援画面 ⏳ 未着手 (0/8完了)
 
-### P6-5: 指導者向けUI実装 ⏳ 未着手 (0/7完了)
+**目標:** 保護者が子どもの結果を閲覧し、応援できる画面
 
-**目標:** 指導者が担当生徒のテスト結果を閲覧・分析できる画面を実装
-
-- [ ] 生徒詳細タブへの追加
-  - ファイル: `app/coach/student/[id]/tabs/assessment-tab.tsx`
-  - 内容: 個別生徒のテスト結果タブ
-  - 検証: タブ切り替え動作確認
-
-- [ ] 生徒一覧でのサマリー表示
-  - ファイル: `app/coach/components/coach-home-client.tsx`
-  - 内容: 直近のテスト結果サマリー
-  - 検証: カード表示確認
-
-- [ ] 分析ページへの統合
-  - ファイル: `app/coach/analysis/page.tsx`
-  - 内容: クラス全体のテスト結果分析
-  - 検証: 集計データ表示確認
-
-- [ ] バッチ入力機能検討
-  - 対応要件: 運用効率化
-  - 内容: 複数生徒のテスト結果を一括入力
-  - 検証: 必要性の判断、Phase 2以降でも可
-
-- [ ] 比較グラフ実装
-  - 内容: 生徒間比較、クラス平均との比較
-  - 検証: グラフ表示確認
-
-- [ ] エクスポート機能（オプション）
-  - 内容: CSVダウンロード
-  - 検証: ファイル出力確認
-
+- [ ] ダッシュボードへのサマリーカード追加
+- [ ] [ねぎらう]ワンタップCTA実装
+- [ ] 推移グラフ表示（棒グラフ + 目標ライン）
+- [ ] トレンド文言表示（「安定して成長中」等）
+- [ ] 応援送信後の可視化（吹き出し表示）
+- [ ] 複数子どもの切り替え対応
+- [ ] 応援履歴表示
 - [ ] P6-5 総合テスト
-  - 検証項目:
-    - 個別生徒データ表示確認
-    - 分析機能動作確認
-    - 比較グラフ表示確認
 
----
+### P6-6: 指導者分析・応援画面 ⏳ 未着手 (0/8完了)
 
-### P6-6: 応援機能統合 ⏳ 未着手 (0/9完了)
+**目標:** 指導者が分析・応援できる画面
 
-**目標:** テスト結果への応援メッセージ送信を可能にする
-
-- [ ] `encouragement_messages` テーブル拡張検討
-  - 対応要件: データモデル
-  - 内容: `related_assessment_id` カラム追加 or 既存構造活用
-  - 検証: 設計レビュー
-
-- [ ] マイグレーション作成（必要な場合）
-  - ファイル: `supabase/migrations/YYYYMMDD_add_assessment_encouragement.sql`
-  - 検証: マイグレーション成功
-
-- [ ] Server Actions拡張
-  - ファイル: `app/actions/encouragement.ts`
-  - 内容: テスト結果への応援送信機能追加
-  - 検証: 送信成功
-
-- [ ] 保護者応援画面でテスト結果表示
-  - ファイル: `app/parent/encouragement/page.tsx`
-  - 内容: テスト結果カード追加、応援送信UI
-  - 検証: UI表示・送信動作確認
-
-- [ ] 指導者応援画面でテスト結果表示
-  - ファイル: `app/coach/encouragement/page.tsx`
-  - 内容: テスト結果カード追加、応援送信UI
-  - 検証: UI表示・送信動作確認
-
-- [ ] 生徒画面で応援受信表示
-  - ファイル: `app/student/encouragement/page.tsx`
-  - 内容: テスト結果への応援を表示
-  - 検証: 応援表示確認
-
-- [ ] AI応援プロンプト調整
-  - ファイル: `lib/openai/prompts.ts`
-  - 内容: テスト結果コンテキストを考慮したプロンプト
-  - 検証: AI生成文の品質確認
-
-- [ ] フィルタ機能拡張
-  - 内容: 応援フィルタに「テスト結果」追加
-  - 検証: フィルタ動作確認
-
+- [ ] 生徒詳細タブへの追加（assessment-tab）
+- [ ] クラス平均・分布表示
+- [ ] 未提出/欠席検知アラート
+- [ ] 生徒間比較グラフ
+- [ ] 応援送信機能（結果カードから）
+- [ ] 分析ページへの統合
+- [ ] 応援履歴表示
 - [ ] P6-6 総合テスト
-  - 検証項目:
-    - 保護者からの応援送信確認
-    - 指導者からの応援送信確認
-    - 生徒での応援受信確認
-    - AI応援生成品質確認
-
----
-
-## DoD (Definition of Done)
-
-Phase 6完了の条件:
-
-### Phase 6.1 (MVP)
-- [ ] 生徒がテスト結果を入力できる
-- [ ] 生徒ダッシュボードにテスト結果が表示される
-- [ ] 保護者が子どものテスト結果を閲覧できる
-- [ ] RLSポリシーで適切なアクセス制御が機能
-
-### Phase 6.2 (応援統合)
-- [ ] 保護者がテスト結果に応援メッセージを送信できる
-- [ ] 指導者がテスト結果に応援メッセージを送信できる
-- [ ] 生徒がテスト結果への応援を受信・閲覧できる
-
-### Phase 6.3 (分析強化)
-- [ ] 指導者分析画面でテスト結果を確認できる
-- [ ] 進捗グラフが正しく表示される
-- [ ] エクスポート機能が動作する（オプション）
 
 ---
 
 ## フェーズ分け計画
 
-### Phase 6.1: MVP（2週間）
-- P6-1: データベース設計・マイグレーション
-- P6-2: Server Actions実装
-- P6-3: 生徒向けUI実装（入力・閲覧）
+### Phase 6.1: MVP（2-3週間）
+
+**スコープ:** 指導者入力 + 生徒・保護者閲覧
+
+| タスク | 優先度 |
+|--------|-------|
+| P6-1: DB設計・マイグレーション | 必須 |
+| P6-2: Server Actions | 必須 |
+| P6-3: 指導者バッチ入力 | 必須 |
+| P6-4: 生徒閲覧（基本） | 必須 |
+| P6-5: 保護者閲覧（基本） | 必須 |
+
+**DoD:**
+- [ ] 指導者がバッチ入力でテスト結果を登録できる
+- [ ] 生徒が「先生からの採点結果」を閲覧できる
+- [ ] 保護者が子どものテスト結果を閲覧できる
+- [ ] 前回比・行動提案が表示される
+- [ ] RLSで適切なアクセス制御が機能
 
 ### Phase 6.2: 応援統合（1-2週間）
-- P6-4: 保護者向けUI実装
-- P6-6: 応援機能統合
 
-### Phase 6.3: 分析強化（1-2週間）
-- P6-5: 指導者向けUI実装
-- グラフ・エクスポート機能
+**スコープ:** テスト結果への応援機能
+
+| タスク | 優先度 |
+|--------|-------|
+| 応援テーブル拡張 | 必須 |
+| 保護者応援CTA | 必須 |
+| 指導者応援CTA | 必須 |
+| AI応援プロンプト調整 | 必須 |
+| 応援表示（吹き出し） | 必須 |
+
+**DoD:**
+- [ ] 保護者がテスト結果に応援を送信できる
+- [ ] 指導者がテスト結果に応援を送信できる
+- [ ] 生徒が応援を受信・閲覧できる
+- [ ] AI生成応援がテスト結果を考慮している
+
+### Phase 6.3: 分析強化（1週間）
+
+**スコープ:** 指導者向け分析機能
+
+| タスク | 優先度 |
+|--------|-------|
+| クラス平均・分布表示 | 必須 |
+| 未提出検知 | 必須 |
+| 生徒間比較 | オプション |
+
+---
+
+## ロールアウト計画
+
+### 5年生先行（2024年12月〜）
+
+```typescript
+// feature flag
+const ASSESSMENT_ENABLED_GRADES = ['5年']
+
+// 使用例
+if (ASSESSMENT_ENABLED_GRADES.includes(student.grade)) {
+  // テスト結果表示
+}
+```
+
+### 6年生展開（2025年2月〜）
+
+- 受験終了後に有効化
+- assessment_mastersに6年生用データ追加
+- feature flag更新: `['5年', '6年']`
 
 ---
 
@@ -363,29 +523,20 @@ Phase 6完了の条件:
 
 | リスク | 発生確率 | 影響度 | 対策 | 状態 |
 |--------|---------|--------|------|------|
-| 入力UIの複雑化によるUX低下 | 中 | 高 | シンプルな入力フローを優先、段階的機能追加 | ⏳ 監視中 |
-| 既存応援機能との統合複雑性 | 中 | 中 | 既存パターンを活用、batch_id構造の踏襲 | ⏳ 監視中 |
-| データ量増加によるパフォーマンス | 低 | 中 | インデックス最適化、ページネーション | ⏳ 監視中 |
-| 学年別ロールアウトの複雑性 | 低 | 低 | feature flagで制御 | ⏳ 監視中 |
-
----
-
-## 将来拡張（Phase 7以降）
-
-- [ ] PDF OCR自動取り込み機能
-- [ ] 6年生向け機能（2025年2月〜）
-- [ ] 塾システムとのAPI連携
-- [ ] 目標設定機能（テスト目標点数）
+| 指導者の入力負荷 | 中 | 高 | バッチ入力UIの最適化、将来的なOCR導入 | ⏳ 監視中 |
+| データ信頼性 | 低 | 高 | 指導者のみ入力、監査ログ | ✅ 対策済 |
+| 既存応援機能へのリグレッション | 中 | 中 | 段階的統合、テスト充実 | ⏳ 監視中 |
+| スケジュール遅延 | 中 | 中 | MVPスコープを明確化、優先度付け | ✅ 対策済 |
 
 ---
 
 ## 参照ドキュメント
 
+- `docs/01-Concept.md` - セルフコンパッション・成長マインドセット
 - `docs/03-Requirements-Student.md` - 生徒機能仕様
 - `docs/04-Requirements-Parent.md` - 保護者機能仕様
 - `docs/05-Requirements-Coach.md` - 指導者機能仕様
 - `docs/tasks/P2-encouragement.md` - 応援機能タスク（参考）
-- `docs/COACH-UI-REDESIGN.md` - 指導者UI改善（参考）
 
 ---
 
