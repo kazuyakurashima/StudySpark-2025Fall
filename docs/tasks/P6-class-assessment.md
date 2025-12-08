@@ -186,54 +186,256 @@ export interface AssessmentSummary {
 
 ## UI/UX設計
 
-### 生徒向け画面
+### 既存UIとの整合性ガイドライン
 
-#### ダッシュボード表示
+#### 使用コンポーネント（既存パターン準拠）
+
+| 要素 | 使用コンポーネント | インポート元 |
+|------|-------------------|-------------|
+| カード | `Card`, `CardHeader`, `CardContent` | `@/components/ui/card` |
+| バッジ | `Badge` | `@/components/ui/badge` |
+| プログレスバー | `Progress` | `@/components/ui/progress` |
+| アイコン | Lucide React | `lucide-react` |
+| ボタン | `Button` | `@/components/ui/button` |
+
+#### 色定義（Tailwind標準色）
+
+| テスト種別 | Badge色 | 背景色 |
+|-----------|---------|--------|
+| 算数プリント | `bg-blue-100 text-blue-800` | `bg-blue-50` |
+| 漢字テスト | `bg-orange-100 text-orange-800` | `bg-orange-50` |
+
+#### 前回比アイコン（Lucide React）
+
+```tsx
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
+
+// 使用例
+{change > 0 && <TrendingUp className="h-4 w-4 text-emerald-600" />}
+{change < 0 && <TrendingDown className="h-4 w-4 text-red-500" />}
+{change === 0 && <Minus className="h-4 w-4 text-slate-400" />}
+```
+
+#### レスポンシブ設計
+
+| ブレークポイント | レイアウト |
+|----------------|-----------|
+| デフォルト（モバイル） | 1列、`px-4` |
+| `sm:` | 2列グリッド |
+| `md:` | `max-w-4xl mx-auto` |
+
+---
+
+### ダッシュボード配置順
+
+#### 生徒ダッシュボード
+
+```
+1. UserProfileHeader（固定）
+2. AIコーチメッセージ
+3. StreakCard（連続学習）
+4. 📝 先生からの採点結果 ← 新規追加
+5. TodayMissionCard
+6. カレンダー
+7. WeeklyProgress
+8. 応援メッセージ
+9. 学習履歴
+```
+
+#### 保護者ダッシュボード
+
+```
+1. UserProfileHeader + 子ども切り替え
+2. AI生成ステータス
+3. StreakCard
+4. 📊 テスト結果サマリー ← 新規追加
+5. カレンダー
+6. WeeklyProgress
+7. 応援メッセージ
+```
+
+#### 指導者ダッシュボード
+
+```
+1. UserProfileHeader
+2. アラートバナー（7日以上未入力）
+3. 担当生徒グリッド
+4. 最近の学習記録
+5. 📝 テスト結果入力へのリンク ← 新規追加
+```
+
+---
+
+### コンポーネント設計
+
+#### AssessmentResultCard（生徒・保護者共通）
+
+```tsx
+// components/assessment/assessment-result-card.tsx
+
+import { Card, CardHeader, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
+import { TrendingUp, TrendingDown, Minus, Lightbulb } from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+interface AssessmentResultCardProps {
+  type: 'math_print' | 'kanji_test'
+  sessionNumber: number
+  attemptNumber?: number
+  score: number
+  maxScore: number
+  change?: number
+  actionSuggestion?: string
+  showEncouragementCTA?: boolean
+  onEncourage?: () => void
+}
+
+export function AssessmentResultCard({
+  type,
+  sessionNumber,
+  attemptNumber = 1,
+  score,
+  maxScore,
+  change,
+  actionSuggestion,
+  showEncouragementCTA,
+  onEncourage,
+}: AssessmentResultCardProps) {
+  const percentage = Math.round((score / maxScore) * 100)
+  const isHighScore = percentage >= 80
+
+  return (
+    <Card className="rounded-xl shadow-sm border">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Badge className={cn(
+              "text-xs",
+              type === 'math_print'
+                ? "bg-blue-100 text-blue-800 border-blue-200"
+                : "bg-orange-100 text-orange-800 border-orange-200"
+            )}>
+              {type === 'math_print' ? '算数プリント' : '漢字テスト'}
+            </Badge>
+            <span className="text-sm text-slate-600">
+              第{sessionNumber}回{attemptNumber > 1 ? `-${attemptNumber}` : ''}
+            </span>
+          </div>
+          {change !== undefined && (
+            <div className="flex items-center gap-1">
+              {change > 0 && <TrendingUp className="h-4 w-4 text-emerald-600" />}
+              {change < 0 && <TrendingDown className="h-4 w-4 text-red-500" />}
+              {change === 0 && <Minus className="h-4 w-4 text-slate-400" />}
+              <span className={cn(
+                "text-sm font-medium",
+                change > 0 ? "text-emerald-600" : change < 0 ? "text-red-500" : "text-slate-500"
+              )}>
+                {change > 0 ? `+${change}` : change}点
+              </span>
+            </div>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {/* スコア表示 */}
+        <div className="flex items-center gap-4">
+          <div className="text-2xl font-bold">
+            {score}
+            <span className="text-base text-slate-500 font-normal">/{maxScore}</span>
+          </div>
+          <Progress
+            value={percentage}
+            className={cn(
+              "flex-1 h-2",
+              type === 'math_print' ? "[&>div]:bg-blue-500" : "[&>div]:bg-orange-500"
+            )}
+          />
+        </div>
+
+        {/* 前回比メッセージ */}
+        {change !== undefined && change !== 0 && (
+          <p className="text-sm text-slate-600">
+            {change > 0
+              ? `前回より${change}点アップ！成長してるね`
+              : `前回より${Math.abs(change)}点。次は挽回しよう！`}
+          </p>
+        )}
+
+        {/* 高得点時の祝福 */}
+        {isHighScore && (
+          <div className="flex items-center gap-2 text-amber-600">
+            <span className="text-lg">🎉</span>
+            <span className="text-sm font-medium">すごい！目標達成だね！</span>
+          </div>
+        )}
+
+        {/* 行動提案 */}
+        {actionSuggestion && (
+          <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+            <p className="text-sm flex items-start gap-2">
+              <Lightbulb className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+              <span className="text-slate-700">
+                <span className="font-medium">次の一歩: </span>
+                {actionSuggestion}
+              </span>
+            </p>
+          </div>
+        )}
+
+        {/* 応援CTA（保護者・指導者用） */}
+        {showEncouragementCTA && onEncourage && (
+          <div className="pt-2 border-t">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onEncourage}
+              className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+            >
+              <Heart className="h-4 w-4 mr-1" />
+              ねぎらう
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+```
+
+---
+
+### ワイヤーフレーム
+
+#### 生徒ダッシュボード表示
 
 ```
 ┌─────────────────────────────────────────────┐
 │  📝 先生からの採点結果                        │
 ├─────────────────────────────────────────────┤
 │  ┌───────────────────────────────────────┐  │
-│  │ 算数プリント 第10回-1                    │  │
-│  │ ━━━━━━━━━━━━━━━━━━━━━ 85点/100点      │  │
-│  │ ↑ +5点 前回より成長！                   │  │
-│  │                                         │  │
-│  │ 💡 次の一歩: まちがえた問題を           │  │
-│  │    もう一度ノートに解いてみよう          │  │
+│  │ [Badge:算数プリント] 第10回    [↑+5点] │  │
+│  │ ━━━━━━━━━━━━━━━━━━━━━ 85/100点        │  │
+│  │ 前回より5点アップ！成長してるね          │  │
+│  │ 🎉 すごい！目標達成だね！               │  │
+│  │ ┌─────────────────────────────────┐    │  │
+│  │ │ 💡 次の一歩: まちがえた問題を    │    │  │
+│  │ │    もう一度ノートに解いてみよう  │    │  │
+│  │ └─────────────────────────────────┘    │  │
 │  └───────────────────────────────────────┘  │
 │                                             │
 │  ┌───────────────────────────────────────┐  │
-│  │ 漢字テスト 第10回                       │  │
-│  │ ━━━━━━━━━━━━━━━━ 72点/100点           │  │
-│  │ → 前回と同じくらい                      │  │
-│  │                                         │
-│  │ 💡 次の一歩: まちがえた漢字を           │  │
-│  │    3回ずつ書いて覚えよう                │  │
+│  │ [Badge:漢字テスト] 第10回       [→0点] │  │
+│  │ ━━━━━━━━━━━━━━━━ 72/100点              │  │
+│  │ ┌─────────────────────────────────┐    │  │
+│  │ │ 💡 次の一歩: まちがえた漢字を    │    │  │
+│  │ │    3回ずつ書いて覚えよう        │    │  │
+│  │ └─────────────────────────────────┘    │  │
 │  └───────────────────────────────────────┘  │
 └─────────────────────────────────────────────┘
 ```
 
-#### 設計ポイント
-
-| 要素 | 実装 | 教育効果 |
-|------|------|---------|
-| タイトル | 「先生からの採点結果」 | 入力者の明示 |
-| 前回比矢印 | ↑↓→ + 点数差 | 成長実感 |
-| 行動提案 | 💡アイコン + 具体的行動 | 次の学習行動を促進 |
-| 色分け | 算数=青系、漢字=橙系 | 科目の即時認識 |
-| 高得点時 | 🎉バッジ表示 | 成功体験の強調 |
-| 低得点時 | 励ましコピー | セルフコンパッション |
-
-#### 履歴画面（グラフ）
-
-- **棒グラフ優先**: 折れ線より直感的（小学生向け）
-- **目標ライン表示**: 80点ラインを点線で表示
-- **前回比バッジ**: 各回に ↑↓→ を表示
-
-### 保護者向け画面
-
-#### ダッシュボード表示
+#### 保護者ダッシュボード表示
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -241,62 +443,43 @@ export interface AssessmentSummary {
 ├─────────────────────────────────────────────┤
 │  今週の結果                                  │
 │  ┌─────────────────┐ ┌─────────────────┐   │
-│  │ 算数プリント     │ │ 漢字テスト       │   │
-│  │ 85点 ↑          │ │ 72点 →          │   │
-│  │ 安定して成長中   │ │ コツコツ継続中   │   │
-│  │ [ねぎらう]       │ │ [ねぎらう]       │   │
+│  │ [Badge:算数]     │ │ [Badge:漢字]    │   │
+│  │ 85点 [↑]        │ │ 72点 [→]        │   │
+│  │ 安定して成長中   │ │ コツコツ継続中  │   │
+│  │ [♡ねぎらう]     │ │ [♡ねぎらう]     │   │
 │  └─────────────────┘ └─────────────────┘   │
 │                                             │
 │  📈 推移（直近5回）                          │
 │  ┌───────────────────────────────────────┐  │
-│  │ 100┤     ■                             │  │
-│  │  80┤ ■ ■   ■ ■  ←目標ライン          │  │
-│  │  60┤                                   │  │
-│  │    └─┴─┴─┴─┴─┴                        │  │
-│  │      6  7  8  9 10 回                  │  │
+│  │ [Recharts BarChart]                    │  │
+│  │ - 棒グラフ（算数=青、漢字=橙）         │  │
+│  │ - 80点目標ライン（点線）               │  │
 │  └───────────────────────────────────────┘  │
 └─────────────────────────────────────────────┘
 ```
 
-#### 設計ポイント
-
-| 要素 | 実装 | 効果 |
-|------|------|------|
-| サマリーカード | 最新結果 + トレンド | 全体把握 |
-| [ねぎらう]ボタン | ワンタップ応援 | 行動への障壁低減 |
-| 推移グラフ | 棒グラフ + 目標ライン | 安定性の可視化 |
-| 文言 | 「安定して成長中」「コツコツ継続中」 | ポジティブフレーミング |
-
-### 指導者向け画面
-
-#### バッチ入力画面（優先実装）
+#### 指導者バッチ入力画面
 
 ```
 ┌─────────────────────────────────────────────┐
 │  📝 テスト結果入力                           │
 ├─────────────────────────────────────────────┤
-│  テスト種別: [算数プリント ▼]               │
-│  学習回: [第10回 ▼]  実施順: [1回目 ▼]     │
-│  実施日: [2024-12-09]                       │
+│  [Select:テスト種別] [Select:学習回]        │
+│  [Select:実施順]     [DatePicker:実施日]    │
 ├─────────────────────────────────────────────┤
+│  [Table]                                    │
 │  生徒名          得点    /満点    状態      │
 │  ────────────────────────────────────────   │
-│  田中 太郎       [85 ]   /100    ✓入力済    │
-│  鈴木 花子       [72 ]   /100    ✓入力済    │
-│  佐藤 健         [   ]   /100    ○未入力    │
-│  山田 美咲       欠席     -       ─欠席     │
+│  [Avatar] 田中 太郎  [Input:85] /100  ✓    │
+│  [Avatar] 鈴木 花子  [Input:72] /100  ✓    │
+│  [Avatar] 佐藤 健    [Input:  ] /100  ○    │
+│  [Avatar] 山田 美咲  [Checkbox:欠席]   ─    │
 ├─────────────────────────────────────────────┤
 │  入力済: 2/4名  未入力: 1名  欠席: 1名      │
 │                                             │
-│  [下書き保存]              [確定して保存]   │
+│  [Button:ghost:下書き保存] [Button:確定保存]│
 └─────────────────────────────────────────────┘
 ```
-
-#### 分析ビュー
-
-- クラス平均・分布表示
-- 未提出/欠席検知
-- 生徒ごとの推移比較
 
 ---
 
