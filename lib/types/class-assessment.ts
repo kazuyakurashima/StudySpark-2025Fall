@@ -95,6 +95,11 @@ export interface AssessmentDisplayData {
   assessment_date: string
   is_resubmission: boolean
 
+  /** 単元名（算数プリントのみ、漢字テストはnull） */
+  description?: string | null
+  /** 採点日時（最終更新日、TIMESTAMPTZ、ISO 8601形式、UTC） */
+  graded_at?: string | null
+
   // 得点情報（status='completed'の場合のみ有効）
   score: number | null
   max_score: number
