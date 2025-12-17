@@ -33,9 +33,24 @@ export function StudentAssessmentSection({
     includeResubmissions: false,
   })
 
-  // エラー時は非表示
+  // エラー時
   if (error) {
-    return null
+    return (
+      <Card className="rounded-xl shadow-sm border-red-200">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2 text-red-700">
+            <ClipboardList className="h-5 w-5" />
+            先生からの採点結果
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="py-6">
+          <p className="text-sm text-red-600">テスト結果の取得に失敗しました</p>
+          <p className="text-xs text-red-500 mt-2 whitespace-pre-wrap">
+            {error}
+          </p>
+        </CardContent>
+      </Card>
+    )
   }
 
   // ローディング中

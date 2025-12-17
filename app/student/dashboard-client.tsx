@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { BottomNavigation } from "@/components/bottom-navigation"
 import { WeeklySubjectProgressCard } from "@/components/weekly-subject-progress-card"
+import { StudentAssessmentSection } from "@/components/assessment/student-assessment-section"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { PageHeader } from "@/components/common/page-header"
 import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, ChevronLeft, ChevronRight, Bot, Sparkles, ChevronDown, ChevronUp } from "lucide-react"
@@ -1625,6 +1626,7 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
   const router = useRouter()
   const [messages, setMessages] = useState(initialData.recentMessages)
   const { profile } = useUserProfile()
+  const studentId = profile?.student?.id ?? null
 
   // 🚀 SWR: SSR初期データをSWR形式に変換してfallbackとして使用
   const swrFallbackData = React.useMemo(() => transformSSRtoSWRData(initialData), [initialData])
@@ -1860,6 +1862,13 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
             />
             <LearningHistoryCalendar calendarData={calendarData} />
             <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} sessionNumber={sessionNumber} />
+            {studentId && (
+              <StudentAssessmentSection
+                studentId={studentId}
+                limit={3}
+                compact
+              />
+            )}
             <RecentEncouragementCard messages={messages} />
             <RecentLearningHistoryCard logs={recentLogs} batchFeedbacks={batchFeedbacks} legacyFeedbacks={legacyFeedbacks} />
           </div>
@@ -1990,6 +1999,13 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
               />
               <LearningHistoryCalendar calendarData={calendarData} />
               <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} sessionNumber={sessionNumber} />
+              {studentId && (
+                <StudentAssessmentSection
+                  studentId={studentId}
+                  limit={3}
+                  compact
+                />
+              )}
             </div>
           </div>
         </div>
