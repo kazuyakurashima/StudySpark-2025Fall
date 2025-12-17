@@ -151,6 +151,7 @@ async function checkStudentMissionComplete(studentId: number, date: string): Pro
     }
 
     // 3. 記録された科目を抽出（重複除去）
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const recordedSubjects = [...new Set(logs.map((log: any) => log.subjects.name))]
 
     // 4. すべてのミッション科目が記録されているかチェック
