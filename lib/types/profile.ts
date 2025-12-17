@@ -59,10 +59,14 @@ export interface ChildProfile {
 export interface ParentDashboardData {
   todayStatus: { message: string; createdAt?: string } | { error: string }
   streak: { streak: number } | { error: string }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   todayMission: { todayProgress: any[] } | { error: string }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   weeklyProgress: { progress: any[]; sessionNumber: number | null } | { error: string }
   calendarData: { calendarData: { [dateStr: string]: { subjectCount: number; accuracy80Count: number } } } | { error: string }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   recentLogs: { logs: any[] } | { error: string }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   recentMessages: { messages: any[] } | { error: string }
   reflectionStatus: { completed: boolean } | { error: string }
 }

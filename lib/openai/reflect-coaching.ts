@@ -98,9 +98,9 @@ export async function generateReflectMessage(
     console.log("=== Reflect Message Generation Completed ===")
 
     return { message }
-  } catch (error: any) {
+  } catch (error) {
     console.error("Reflect AI dialogue error:", error)
-    return { error: error.message || "AI対話でエラーが発生しました" }
+    return { error: error instanceof Error ? error.message : "AI対話でエラーが発生しました" }
   }
 }
 
@@ -175,9 +175,9 @@ ${conversationSummary}
     console.log("=== Reflect Summary Generation Completed ===")
 
     return { summary }
-  } catch (error: any) {
+  } catch (error) {
     console.error("Reflect summary generation error:", error)
-    return { error: error.message || "サマリー生成でエラーが発生しました" }
+    return { error: error instanceof Error ? error.message : "サマリー生成でエラーが発生しました" }
   }
 }
 
@@ -386,7 +386,7 @@ ${goalQuestion}`
  * ターン3: 質問3（Options/Will）
  */
 function getTurn3Prompt(context: ReflectContext): string {
-  const { studentName, conversationHistory } = context
+  const { conversationHistory } = context
 
   // 前回答の引用
   const lastAnswer = conversationHistory[conversationHistory.length - 1]?.content || ""

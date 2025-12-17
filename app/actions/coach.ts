@@ -293,7 +293,7 @@ export async function getStudentLearningHistory(studentId: string, limit = 20) {
   const batchIds = [...new Set(studyLogs.map(log => log.batch_id).filter((id): id is string => id !== null))]
 
   // batch_idがあるものはbatch単位でフィードバック取得
-  let batchFeedbacks: Record<string, string> = {}
+  const batchFeedbacks: Record<string, string> = {}
   if (batchIds.length > 0) {
     const { data: feedbacks, error: feedbackError } = await supabase
       .from("coach_feedbacks")
@@ -311,7 +311,7 @@ export async function getStudentLearningHistory(studentId: string, limit = 20) {
 
   // batch_idがNULLのログ用にstudy_log_idベースでフィードバック取得（レガシー対応）
   const legacyLogIds = studyLogs.filter(log => log.batch_id === null).map(log => log.id)
-  let legacyFeedbacks: Record<number, string> = {}
+  const legacyFeedbacks: Record<number, string> = {}
   if (legacyLogIds.length > 0) {
     const { data: legacyFb, error: legacyError } = await supabase
       .from("coach_feedbacks")
@@ -1113,7 +1113,7 @@ export async function getInactiveStudents(thresholdDays = 7) {
   const students = relations?.map((rel: any) => rel.students).filter(Boolean) || []
   const studentIds = students.map((s: any) => s.id)
 
-  let lastStudyDates: Record<string, string> = {}
+  const lastStudyDates: Record<string, string> = {}
   if (studentIds.length > 0) {
     // 各生徒の最新学習日を取得
     for (const studentId of studentIds) {

@@ -708,7 +708,7 @@ export async function getRecentStudyLogs(limit: number = 5) {
     const batchIds = [...new Set(logs.map(log => log.batch_id).filter((id): id is string => id !== null))]
 
     // batch_idがあるものはbatch単位でフィードバック取得
-    let batchFeedbacks: Record<string, string> = {}
+    const batchFeedbacks: Record<string, string> = {}
     if (batchIds.length > 0) {
       const { data: feedbacks, error: feedbackError } = await supabase
         .from("coach_feedbacks")
@@ -726,7 +726,7 @@ export async function getRecentStudyLogs(limit: number = 5) {
 
     // batch_idがNULLのログ用にstudy_log_idベースでフィードバック取得（レガシー対応）
     const legacyLogIds = logs.filter(log => log.batch_id === null).map(log => log.id)
-    let legacyFeedbacks: Record<number, string> = {}
+    const legacyFeedbacks: Record<number, string> = {}
     if (legacyLogIds.length > 0) {
       const { data: legacyFb, error: legacyError } = await supabase
         .from("coach_feedbacks")
