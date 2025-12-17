@@ -448,7 +448,7 @@ export async function getStudentAssessments(
       .select(
         `
         *,
-        master:assessment_masters (*)
+        master:assessment_masters!master_id (*)
       `
       )
       .eq("student_id", studentId)
@@ -554,7 +554,7 @@ export async function getAssessment(
       .select(
         `
         *,
-        master:assessment_masters (*)
+        master:assessment_masters!master_id (*)
       `
       )
       .eq("id", assessmentId)
@@ -841,7 +841,7 @@ export async function getCoachAssessments(options?: {
           .select(
             `
             *,
-            master:assessment_masters (*)
+            master:assessment_masters!master_id (*)
           `
           )
           .eq("student_id", student.id)
