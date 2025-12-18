@@ -7,6 +7,8 @@
     "dev": "next dev",
     "dev:clean": "./scripts/dev-clean.sh",
     "lint": "next lint",
+    "seed:local-users": "node scripts/seed-local-users.mjs",
+    "seed:local-users:sample": "SEED_SAMPLE_LOGS=1 node scripts/seed-local-users.mjs",
     "start": "next start"
   },
   "dependencies": {

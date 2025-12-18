@@ -31,5 +31,8 @@ logs/
 scripts/seed-local-data.ts
 scripts/apply-production-migrations.ts
 
+# local seed data (contains sensitive data / PII)
+scripts/.seed-data.local.json
+
 # Claude Code local config
 .claude/
