@@ -12,6 +12,7 @@ import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { PageHeader } from "@/components/common/page-header"
 import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, Sparkles, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, RefreshCw } from "lucide-react"
 import { WeeklySubjectProgressCard } from "@/components/weekly-subject-progress-card"
+import { StudentAssessmentSection } from "@/components/assessment/student-assessment-section"
 import { useUserProfile } from "@/lib/hooks/use-user-profile"
 import { hexWithAlpha, isThemeActive } from "@/lib/utils/theme-color"
 import { isError } from "@/lib/types/profile"
@@ -2121,6 +2122,13 @@ function ParentDashboardInner({
               />
               <LazyCalendarWrapper calendarData={calendarData} />
               <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} sessionNumber={sessionNumber} />
+              {selectedChild?.id && (
+                <StudentAssessmentSection
+                  studentId={selectedChild.id}
+                  limit={3}
+                  compact={false}
+                />
+              )}
               <RecentEncouragementCard messages={recentMessages} selectedChildId={selectedChild?.id || null} />
               <RecentLearningHistoryCard logs={recentLogs} batchFeedbacks={batchFeedbacks} legacyFeedbacks={legacyFeedbacks} />
             </div>
@@ -2252,6 +2260,13 @@ function ParentDashboardInner({
                 />
                 <LazyCalendarWrapper calendarData={calendarData} />
                 <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} sessionNumber={sessionNumber} />
+                {selectedChild?.id && (
+                  <StudentAssessmentSection
+                    studentId={selectedChild.id}
+                    limit={3}
+                    compact
+                  />
+                )}
               </div>
             </div>
           </div>

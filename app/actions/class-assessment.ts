@@ -518,6 +518,7 @@ export async function getStudentAssessments(
         attempt_number: master.attempt_number,
         assessment_date: item.assessment_date,
         is_resubmission: item.is_resubmission,
+        title: master.title || null,
         description: master.description || null,
         graded_at: item.updated_at || null,
         score: item.score,

@@ -32,7 +32,11 @@ export interface AssessmentMaster {
   grade: AssessmentGrade
   session_number: number // 学習回（1〜19）
   attempt_number: number // 回数（算数:1-2, 漢字:1）
-  max_score: number // 満点（算数:100, 漢字:50）
+  max_score: number // 満点
+  /** 項目名（例: マスタープリント小5下第1回①比の利用 / 漢字テスト 第3回） */
+  title?: string | null
+  /** 旧: 単元名など（DB未実装の場合はundefined/null） */
+  description?: string | null
   created_at: string
 }
 
@@ -97,6 +101,8 @@ export interface AssessmentDisplayData {
 
   /** 単元名（算数プリントのみ、漢字テストはnull） */
   description?: string | null
+  /** 項目名（マスタ由来、可能なら表示に使う） */
+  title?: string | null
   /** 採点日時（最終更新日、TIMESTAMPTZ、ISO 8601形式、UTC） */
   graded_at?: string | null
 

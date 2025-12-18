@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Loader2,
   Clock,
+  ClipboardCheck,
 } from "lucide-react"
 
 type GradeFilter = "all" | "5" | "6"
@@ -132,6 +133,30 @@ export function CoachHomeClient({ initialRecords, initialInactiveStudents }: Coa
             )}
           </Button>
         </div>
+
+        {/* Quick Actions */}
+        <section>
+          <Link href="/coach/assessments" className="block group">
+            <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-0 shadow-sm hover:shadow-md transition-all duration-200 group-focus:ring-2 group-focus:ring-blue-500 group-focus:ring-offset-2 rounded-2xl overflow-hidden">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex-shrink-0 w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
+                    <ClipboardCheck className="h-6 w-6 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-base font-semibold text-slate-900 mb-0.5">
+                      テスト結果を入力
+                    </p>
+                    <p className="text-sm text-slate-600">
+                      算数プリント・漢字テストの採点結果を一括入力
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all duration-200 flex-shrink-0" />
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        </section>
 
         {/* Alert Banner - Only when there are issues */}
         {alertStudents.length > 0 && (

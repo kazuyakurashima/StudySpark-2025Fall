@@ -93,6 +93,7 @@ export function AssessmentsTab({ studentId }: AssessmentsTabProps) {
                 assessment.percentage
               )}
               isResubmission={assessment.is_resubmission}
+              title={assessment.title}
               description={assessment.description}
               assessmentDate={assessment.assessment_date}
               gradedAt={assessment.graded_at}

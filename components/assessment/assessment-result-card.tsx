@@ -26,6 +26,8 @@ interface AssessmentResultCardProps {
   isResubmission?: boolean
   /** コンパクト表示（ダッシュボード用） */
   compact?: boolean
+  /** 項目名（優先表示） */
+  title?: string | null
   /** 単元名（算数プリントのみ、漢字テストはnull） */
   description?: string | null
   /** 実施日（DATE: "2025-12-14"） */
@@ -56,6 +58,7 @@ export function AssessmentResultCard({
   actionSuggestion,
   isResubmission,
   compact = false,
+  title,
   description,
   assessmentDate,
   gradedAt,
@@ -130,13 +133,13 @@ export function AssessmentResultCard({
           )}
         </div>
 
-        {/* サブタイトル行（単元名 + 日付） */}
-        {(description || assessmentDate || gradedAt) && (
+        {/* サブタイトル行（項目名/単元名 + 日付） */}
+        {(title || description || assessmentDate || gradedAt) && (
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mt-1.5 gap-2">
-            {/* 左: 単元名（2行表示を許容） */}
-            {description && (
+            {/* 左: 項目名（優先）/単元名（2行表示を許容） */}
+            {(title || description) && (
               <span className="text-sm text-slate-600 font-medium leading-tight">
-                {description}
+                {title || description}
               </span>
             )}
 

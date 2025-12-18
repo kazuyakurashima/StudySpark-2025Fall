@@ -365,10 +365,16 @@ export default function CoachAssessmentInputPage() {
                           <div key={sessionNum}>
                             {sessionMasters.map((m) => (
                               <SelectItem key={m.id} value={m.id}>
-                                第{m.session_number}回
-                                {m.assessment_type === "math_print" &&
-                                  `${m.attempt_number === 1 ? "①" : "②"}`}
-                                {m.description && ` ${m.description}`}
+                                {m.title ? (
+                                  m.title
+                                ) : (
+                                  <>
+                                    第{m.session_number}回
+                                    {m.assessment_type === "math_print" &&
+                                      `${m.attempt_number === 1 ? "①" : "②"}`}
+                                    {m.description && ` ${m.description}`}
+                                  </>
+                                )}
                                 （満点: {m.max_score}点）
                               </SelectItem>
                             ))}
@@ -413,9 +419,9 @@ export default function CoachAssessmentInputPage() {
                     {selectedMaster.assessment_type === "math_print" &&
                       `${selectedMaster.attempt_number === 1 ? "①" : "②"}`}
                   </span>
-                  {selectedMaster.description && (
+                  {(selectedMaster.title || selectedMaster.description) && (
                     <span className="font-medium text-slate-700">
-                      {selectedMaster.description}
+                      {selectedMaster.title || selectedMaster.description}
                     </span>
                   )}
                   <span className="font-medium">
