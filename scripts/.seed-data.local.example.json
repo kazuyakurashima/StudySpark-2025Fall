@@ -1,0 +1,35 @@
+{
+  "admins": [
+    {
+      "email": "admin@example.local",
+      "password": "admin2025",
+      "nickname": "管理者"
+    }
+  ],
+  "coaches": [
+    {
+      "email": "coach1@example.local",
+      "password": "demo2025",
+      "nickname": "先生A",
+      "assignAllStudents": true
+    }
+  ],
+  "students": [
+    {
+      "loginId": "student1",
+      "password": "demo2025",
+      "grade": 6,
+      "course": "A",
+      "nickname": "生徒1"
+    }
+  ],
+  "parents": [
+    {
+      "email": "parent1@example.local",
+      "password": "Testdemo2025",
+      "nickname": "保護者1",
+      "childLoginIds": ["student1"],
+      "relationType": "guardian"
+    }
+  ]
+}
