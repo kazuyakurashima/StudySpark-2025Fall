@@ -448,7 +448,7 @@ export async function getStudentAssessments(
       .select(
         `
         *,
-        master:assessment_masters (*)
+        master:assessment_masters!class_assessments_master_id_fkey (*)
       `
       )
       .eq("student_id", studentId)
@@ -468,7 +468,9 @@ export async function getStudentAssessments(
 
     if (error) {
       console.error("[getStudentAssessments] Error:", error)
-      return { success: false, error: "テスト結果の取得に失敗しました" }
+      // クライアント側で原因特定しやすいよう、まずは Supabase のエラーメッセージを返す
+      // （本番運用で露出が問題になる場合は、別途マスキング/ログID方式に切り替える）
+      return { success: false, error: error.message }
     }
 
     if (!data || data.length === 0) {
@@ -554,7 +556,7 @@ export async function getAssessment(
       .select(
         `
         *,
-        master:assessment_masters (*)
+        master:assessment_masters!class_assessments_master_id_fkey (*)
       `
       )
       .eq("id", assessmentId)
@@ -708,7 +710,7 @@ async function getPreviousComparisonsBatch(
         assessment_date,
         score,
         max_score_at_submission,
-        master:assessment_masters!inner (
+        master:assessment_masters!class_assessments_master_id_fkey!inner (
           assessment_type,
           attempt_number
         )
@@ -841,7 +843,7 @@ export async function getCoachAssessments(options?: {
           .select(
             `
             *,
-            master:assessment_masters (*)
+            master:assessment_masters!class_assessments_master_id_fkey (*)
           `
           )
           .eq("student_id", student.id)
