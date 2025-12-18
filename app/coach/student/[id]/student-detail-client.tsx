@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -19,9 +20,11 @@ import {
   CheckCircle2,
   Check,
   ChevronRight,
+  MessageSquare,
 } from "lucide-react"
 import { getAvatarById } from "@/lib/constants/avatars"
 import { useCoachStudentDetail } from "@/lib/hooks/use-coach-student-detail"
+import { CoachBottomNavigation } from "@/components/coach-bottom-navigation"
 
 // タブコンポーネント
 import { LearningTab } from "./tabs/learning-tab"
@@ -89,47 +92,70 @@ export function StudentDetailClient({ studentId, initialData }: StudentDetailCli
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 pb-20">
 
-      {/* シンプルヘッダー */}
+      {/* ヘッダー（パンくず + 生徒情報） */}
       <div className="sticky top-0 z-10 bg-white border-b border-slate-200">
-        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="max-w-4xl mx-auto px-4 py-2">
+          {/* パンくずナビゲーション */}
+          <div className="flex items-center gap-1 text-xs text-slate-500 mb-2">
+            <Link
+              href="/coach"
+              className="hover:text-slate-900 transition-colors"
+            >
+              生徒一覧
+            </Link>
+            <ChevronRight className="h-3 w-3" />
+            <span className="text-slate-900 font-medium">
+              {student.nickname || student.full_name}
+            </span>
+          </div>
+
+          {/* メインヘッダー */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push('/coach')}
+                className="h-8 w-8 p-0"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div className="flex items-center gap-2">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage
+                    src={getAvatarSrc()}
+                    alt={student.nickname || student.full_name}
+                  />
+                  <AvatarFallback>
+                    {(student.nickname || student.full_name).charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <h1 className="text-base font-semibold leading-tight">
+                    {student.nickname || student.full_name}
+                  </h1>
+                  <p className="text-xs text-slate-500">
+                    {student.grade}
+                    {student.course && ` · ${student.course}`}
+                  </p>
+                </div>
+              </div>
+            </div>
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => router.back()}
-              className="h-9 w-9 p-0"
+              onClick={() => mutate()}
+              disabled={isValidating}
             >
-              <ArrowLeft className="h-5 w-5" />
+              {isValidating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
             </Button>
-            <div className="flex items-center gap-2">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={getAvatarSrc()} alt={student.full_name} />
-                <AvatarFallback className="text-sm">{student.full_name.charAt(0)}</AvatarFallback>
-              </Avatar>
-              <div>
-                <span className="font-semibold text-slate-900">{student.full_name}</span>
-                <span className="text-slate-500 text-sm ml-2">
-                  {student.grade}
-                  {student.course && `・${student.course}コース`}
-                </span>
-              </div>
-            </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => mutate()}
-            disabled={isValidating}
-            className="h-9 w-9 p-0"
-          >
-            {isValidating ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4" />
-            )}
-          </Button>
         </div>
       </div>
 
@@ -146,8 +172,8 @@ export function StudentDetailClient({ studentId, initialData }: StudentDetailCli
               <span className="text-xs">学習</span>
             </TabsTrigger>
             <TabsTrigger value="encouragement" className="flex flex-col gap-1 py-3">
-              <Heart className="h-4 w-4" />
-              <span className="text-xs">応援</span>
+              <MessageSquare className="h-4 w-4" />
+              <span className="text-xs">メッセージ</span>
             </TabsTrigger>
           </TabsList>
 
@@ -307,6 +333,7 @@ export function StudentDetailClient({ studentId, initialData }: StudentDetailCli
         </Tabs>
       </div>
 
+      <CoachBottomNavigation />
     </div>
   )
 }
