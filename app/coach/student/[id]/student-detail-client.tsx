@@ -107,7 +107,10 @@ export function StudentDetailClient({ studentId, initialData }: StudentDetailCli
             </Link>
             <ChevronRight className="h-3 w-3" />
             <span className="text-slate-900 font-medium">
-              {student.nickname || student.full_name}
+              {student.nickname
+                ? `${student.nickname}（${student.full_name}）`
+                : student.full_name
+              }
             </span>
           </div>
 
@@ -137,6 +140,7 @@ export function StudentDetailClient({ studentId, initialData }: StudentDetailCli
                     {student.nickname || student.full_name}
                   </h1>
                   <p className="text-xs text-slate-500">
+                    {student.nickname && `${student.full_name} · `}
                     {student.grade}
                     {student.course && ` · ${student.course}`}
                   </p>

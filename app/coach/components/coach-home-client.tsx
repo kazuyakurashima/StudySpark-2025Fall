@@ -267,8 +267,15 @@ export function CoachHomeClient({ initialRecords, initialInactiveStudents }: Coa
                             "bg-emerald-500"
                           }`} />
                         </div>
-                        <p className="font-medium text-slate-900 text-sm truncate w-full">
-                          {student.nickname || student.full_name}
+                        <p className="font-medium text-slate-900 text-sm leading-tight line-clamp-2 w-full">
+                          {student.nickname ? (
+                            <>
+                              {student.nickname}
+                              <span className="text-slate-500 font-normal">（{student.full_name}）</span>
+                            </>
+                          ) : (
+                            student.full_name
+                          )}
                         </p>
                         <p className="text-xs text-slate-500 mt-0.5">
                           {student.grade} · {student.course || "-"}

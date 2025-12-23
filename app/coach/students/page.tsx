@@ -114,12 +114,16 @@ export default function StudentsListPage() {
                           <AvatarFallback>{student.full_name.charAt(0)}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-base md:text-lg truncate">{student.full_name}</div>
-                          {student.nickname && (
-                            <div className="text-sm text-muted-foreground truncate">
-                              ニックネーム: {student.nickname}
-                            </div>
-                          )}
+                          <div className="font-semibold text-base md:text-lg leading-tight line-clamp-2">
+                            {student.nickname ? (
+                              <>
+                                {student.nickname}
+                                <span className="text-slate-500 font-normal">（{student.full_name}）</span>
+                              </>
+                            ) : (
+                              student.full_name
+                            )}
+                          </div>
                           <Badge variant="secondary" className="mt-1">
                             {student.grade}
                           </Badge>
