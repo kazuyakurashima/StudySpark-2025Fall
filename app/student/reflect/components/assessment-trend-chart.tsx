@@ -4,20 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts"
 import { useState } from "react"
-
-interface AssessmentData {
-  id: string
-  score: number
-  max_score_at_submission: number
-  assessment_date: string
-  master?: {
-    id: string
-    title: string | null
-    assessment_type: string
-    max_score: number
-    session_number: number
-  }
-}
+import { AssessmentData } from "../types"
 
 interface AssessmentTrendChartProps {
   assessments: AssessmentData[]

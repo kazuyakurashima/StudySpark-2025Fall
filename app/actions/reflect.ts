@@ -1,7 +1,7 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
-import { formatDateToJST, getNowJST } from "@/lib/utils/date-jst"
+import { formatDateToJST, getNowJST, getWeeksAgoJST, getMonthsAgoJST } from "@/lib/utils/date-jst"
 
 /**
  * 週次振り返りが利用可能かチェック
@@ -728,20 +728,13 @@ export async function getAssessmentHistory(filters?: {
 
   // 期間フィルターの計算（DATE型カラムと比較するため YYYY-MM-DD 形式、JST基準）
   let dateFilter: string | null = null
-  const nowJST = getNowJST()
 
   if (filters?.period === '1week') {
-    const oneWeekAgo = new Date(nowJST)
-    oneWeekAgo.setDate(nowJST.getDate() - 7)
-    dateFilter = formatDateToJST(oneWeekAgo)
+    dateFilter = getWeeksAgoJST(1)
   } else if (filters?.period === '1month') {
-    const oneMonthAgo = new Date(nowJST)
-    oneMonthAgo.setMonth(nowJST.getMonth() - 1)
-    dateFilter = formatDateToJST(oneMonthAgo)
+    dateFilter = getMonthsAgoJST(1)
   } else if (filters?.period === '3months') {
-    const threeMonthsAgo = new Date(nowJST)
-    threeMonthsAgo.setMonth(nowJST.getMonth() - 3)
-    dateFilter = formatDateToJST(threeMonthsAgo)
+    dateFilter = getMonthsAgoJST(3)
   }
 
   // テスト結果を取得（assessment_masters を join、完了済みのみ）

@@ -6,20 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Calendar, TrendingUp } from "lucide-react"
 import { useState } from "react"
-
-interface AssessmentData {
-  id: string
-  score: number
-  max_score_at_submission: number
-  assessment_date: string
-  master?: {
-    id: string
-    title: string | null
-    assessment_type: string
-    max_score: number
-    session_number: number
-  }
-}
+import { AssessmentData } from "../types"
 
 interface AssessmentHistoryListProps {
   assessments: AssessmentData[]

@@ -191,3 +191,54 @@ export function getThisWeekMondayJST(): string {
   // 月曜日の日付を計算
   return getDateJST(diff)
 }
+
+/**
+ * 指定した週数前のJST日付を取得（YYYY-MM-DD形式）
+ * @param weeks - 週数（正の値で過去、負の値で未来）
+ * @example
+ * getWeeksAgoJST(1) // 1週間前
+ * getWeeksAgoJST(-1) // 1週間後
+ */
+export function getWeeksAgoJST(weeks: number): string {
+  const todayStr = getTodayJST()
+  const jstDate = new Date(`${todayStr}T00:00:00+09:00`)
+  const targetMs = jstDate.getTime() - (weeks * 7 * 24 * 60 * 60 * 1000)
+  const targetDate = new Date(targetMs)
+  return formatDateToJST(targetDate)
+}
+
+/**
+ * 指定した月数前のJST日付を取得（YYYY-MM-DD形式）
+ * @param months - 月数（正の値で過去、負の値で未来）
+ * @example
+ * getMonthsAgoJST(1) // 1ヶ月前
+ * getMonthsAgoJST(3) // 3ヶ月前
+ */
+export function getMonthsAgoJST(months: number): string {
+  const todayStr = getTodayJST()
+  const [year, month, day] = todayStr.split('-').map(Number)
+
+  let targetYear = year
+  let targetMonth = month - months
+
+  // 月が0以下になる場合、年を調整
+  while (targetMonth < 1) {
+    targetMonth += 12
+    targetYear -= 1
+  }
+
+  // 月が13以上になる場合、年を調整
+  while (targetMonth > 12) {
+    targetMonth -= 12
+    targetYear += 1
+  }
+
+  // 対象月の最終日を取得（JST完全独立で計算）
+  // Date.UTC を使ってローカルTZに依存しないようにする
+  const daysInTargetMonth = new Date(Date.UTC(targetYear, targetMonth, 0)).getUTCDate()
+  const targetDay = Math.min(day, daysInTargetMonth)
+
+  const monthStr = String(targetMonth).padStart(2, '0')
+  const dayStr = String(targetDay).padStart(2, '0')
+  return `${targetYear}-${monthStr}-${dayStr}`
+}

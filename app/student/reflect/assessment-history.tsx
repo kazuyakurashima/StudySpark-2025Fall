@@ -5,50 +5,7 @@ import { getAssessmentHistory, getAssessmentSummary } from "@/app/actions/reflec
 import { AssessmentSummaryCards } from "./components/assessment-summary-cards"
 import { AssessmentTrendChart } from "./components/assessment-trend-chart"
 import { AssessmentHistoryList } from "./components/assessment-history-list"
-
-interface AssessmentData {
-  id: string
-  score: number
-  max_score_at_submission: number
-  assessment_date: string
-  master?: {
-    id: string
-    title: string | null
-    assessment_type: string
-    max_score: number
-    session_number: number
-  }
-}
-
-interface AssessmentSummary {
-  latest: {
-    math: {
-      id: string
-      name: string | null
-      score: number
-      maxScore: number
-      percentage: number
-      submittedAt: string
-    } | null
-    kanji: {
-      id: string
-      name: string | null
-      score: number
-      maxScore: number
-      percentage: number
-      submittedAt: string
-    } | null
-  } | null
-  averages: {
-    math: number | null
-    kanji: number | null
-  } | null
-  counts: {
-    math: number
-    kanji: number
-    total: number
-  }
-}
+import { AssessmentData, AssessmentSummary } from "./types"
 
 export function AssessmentHistory() {
   const [assessments, setAssessments] = useState<AssessmentData[]>([])

@@ -3,36 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { TrendingUp, TrendingDown, Minus } from "lucide-react"
-
-interface AssessmentSummary {
-  latest: {
-    math: {
-      id: string
-      name: string | null
-      score: number
-      maxScore: number
-      percentage: number
-      submittedAt: string
-    } | null
-    kanji: {
-      id: string
-      name: string | null
-      score: number
-      maxScore: number
-      percentage: number
-      submittedAt: string
-    } | null
-  } | null
-  averages: {
-    math: number | null
-    kanji: number | null
-  } | null
-  counts: {
-    math: number
-    kanji: number
-    total: number
-  }
-}
+import { AssessmentSummary } from "../types"
 
 interface AssessmentSummaryCardsProps {
   summary: AssessmentSummary | null
