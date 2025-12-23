@@ -694,3 +694,271 @@ export async function getCoachingHistory(params?: {
 
   return { sessions: sessionsWithEncouragement }
 }
+
+/**
+ * テスト結果履歴を取得
+ *
+ * @param filters - フィルター条件（テスト種類、期間、学習回、ソート順）
+ * @returns テスト結果の配列と集計情報
+ */
+export async function getAssessmentHistory(filters?: {
+  testType?: 'math_print' | 'kanji_test' | 'all'
+  period?: '1week' | '1month' | '3months' | 'all'
+  sessionNumber?: number
+  sortBy?: 'date_desc' | 'date_asc' | 'score_desc' | 'score_asc'
+}) {
+  const supabase = await createClient()
+
+  // 認証チェック
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: "認証が必要です", assessments: [] }
+  }
+
+  // 生徒情報を取得
+  const { data: student } = await supabase
+    .from("students")
+    .select("id")
+    .eq("user_id", user.id)
+    .single()
+
+  if (!student) {
+    return { error: "生徒情報が見つかりません", assessments: [] }
+  }
+
+  // 期間フィルターの計算
+  let dateFilter: string | null = null
+  const now = new Date()
+
+  if (filters?.period === '1week') {
+    const oneWeekAgo = new Date(now)
+    oneWeekAgo.setDate(now.getDate() - 7)
+    dateFilter = oneWeekAgo.toISOString()
+  } else if (filters?.period === '1month') {
+    const oneMonthAgo = new Date(now)
+    oneMonthAgo.setMonth(now.getMonth() - 1)
+    dateFilter = oneMonthAgo.toISOString()
+  } else if (filters?.period === '3months') {
+    const threeMonthsAgo = new Date(now)
+    threeMonthsAgo.setMonth(now.getMonth() - 3)
+    dateFilter = threeMonthsAgo.toISOString()
+  }
+
+  // テスト結果を取得（assessment_masters を join）
+  let query = supabase
+    .from("class_assessments")
+    .select(`
+      id,
+      student_id,
+      assessment_master_id,
+      session_id,
+      score,
+      max_score_at_submission,
+      submitted_at,
+      created_at,
+      assessment_masters (
+        id,
+        assessment_name,
+        assessment_type,
+        max_score
+      ),
+      study_sessions (
+        id,
+        session_number,
+        start_date,
+        end_date
+      )
+    `)
+    .eq("student_id", student.id)
+    .not("submitted_at", "is", null)
+    .order("submitted_at", { ascending: false })
+
+  // 日付フィルター（期間指定がある場合）
+  if (dateFilter) {
+    query = query.gte("submitted_at", dateFilter)
+  }
+
+  // 学習回フィルター
+  if (filters?.sessionNumber) {
+    query = query.eq("session_id", filters.sessionNumber)
+  }
+
+  const { data: allAssessments, error } = await query
+
+  if (error) {
+    console.error("Error fetching assessment history:", error)
+    return { error: error.message, assessments: [] }
+  }
+
+  if (!allAssessments || allAssessments.length === 0) {
+    return { assessments: [], summary: null }
+  }
+
+  // ⚠️ クライアントサイドフィルタリング（Supabaseのネストフィルター制限対応）
+  let filteredAssessments = allAssessments
+
+  // テスト種類フィルター（クライアントサイド）
+  if (filters?.testType && filters.testType !== 'all') {
+    filteredAssessments = filteredAssessments.filter(
+      (a: any) => a.assessment_masters?.assessment_type === filters.testType
+    )
+  }
+
+  // ソート処理
+  if (filters?.sortBy) {
+    filteredAssessments.sort((a: any, b: any) => {
+      if (filters.sortBy === 'date_desc') {
+        return new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime()
+      } else if (filters.sortBy === 'date_asc') {
+        return new Date(a.submitted_at).getTime() - new Date(b.submitted_at).getTime()
+      } else if (filters.sortBy === 'score_desc') {
+        const scoreA = a.max_score_at_submission > 0 ? (a.score / a.max_score_at_submission) * 100 : 0
+        const scoreB = b.max_score_at_submission > 0 ? (b.score / b.max_score_at_submission) * 100 : 0
+        return scoreB - scoreA
+      } else if (filters.sortBy === 'score_asc') {
+        const scoreA = a.max_score_at_submission > 0 ? (a.score / a.max_score_at_submission) * 100 : 0
+        const scoreB = b.max_score_at_submission > 0 ? (b.score / b.max_score_at_submission) * 100 : 0
+        return scoreA - scoreB
+      }
+      return 0
+    })
+  }
+
+  return { assessments: filteredAssessments }
+}
+
+/**
+ * テスト結果のサマリー統計を取得
+ *
+ * @returns 最新テスト、平均点、受験回数の統計
+ */
+export async function getAssessmentSummary() {
+  const supabase = await createClient()
+
+  // 認証チェック
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return {
+      error: "認証が必要です",
+      latest: null,
+      averages: null,
+      counts: { math: 0, kanji: 0, total: 0 }
+    }
+  }
+
+  // 生徒情報を取得
+  const { data: student } = await supabase
+    .from("students")
+    .select("id")
+    .eq("user_id", user.id)
+    .single()
+
+  if (!student) {
+    return {
+      error: "生徒情報が見つかりません",
+      latest: null,
+      averages: null,
+      counts: { math: 0, kanji: 0, total: 0 }
+    }
+  }
+
+  // 全テスト結果を取得
+  const { data: allAssessments, error } = await supabase
+    .from("class_assessments")
+    .select(`
+      id,
+      score,
+      max_score_at_submission,
+      submitted_at,
+      assessment_masters (
+        id,
+        assessment_name,
+        assessment_type
+      )
+    `)
+    .eq("student_id", student.id)
+    .not("submitted_at", "is", null)
+    .order("submitted_at", { ascending: false })
+
+  if (error) {
+    console.error("Error fetching assessment summary:", error)
+    return {
+      error: error.message,
+      latest: null,
+      averages: null,
+      counts: { math: 0, kanji: 0, total: 0 }
+    }
+  }
+
+  if (!allAssessments || allAssessments.length === 0) {
+    return {
+      latest: null,
+      averages: null,
+      counts: { math: 0, kanji: 0, total: 0 }
+    }
+  }
+
+  // 算数プリントと漢字テストに分類
+  const mathAssessments = allAssessments.filter(
+    (a: any) => a.assessment_masters?.assessment_type === 'math_print'
+  )
+  const kanjiAssessments = allAssessments.filter(
+    (a: any) => a.assessment_masters?.assessment_type === 'kanji_test'
+  )
+
+  // 最新テスト
+  const latestMath = mathAssessments[0] || null
+  const latestKanji = kanjiAssessments[0] || null
+
+  // 平均点計算（直近3回）
+  const calculateAverage = (assessments: any[]) => {
+    const recent = assessments.slice(0, 3)
+    if (recent.length === 0) return null
+
+    const total = recent.reduce((sum, a) => {
+      const percentage = a.max_score_at_submission > 0
+        ? (a.score / a.max_score_at_submission) * 100
+        : 0
+      return sum + percentage
+    }, 0)
+
+    return Math.round(total / recent.length)
+  }
+
+  const mathAverage = calculateAverage(mathAssessments)
+  const kanjiAverage = calculateAverage(kanjiAssessments)
+
+  return {
+    latest: {
+      math: latestMath ? {
+        id: latestMath.id,
+        name: (latestMath as any).assessment_masters?.assessment_name,
+        score: latestMath.score,
+        maxScore: latestMath.max_score_at_submission,
+        percentage: latestMath.max_score_at_submission > 0
+          ? Math.round((latestMath.score / latestMath.max_score_at_submission) * 100)
+          : 0,
+        submittedAt: latestMath.submitted_at
+      } : null,
+      kanji: latestKanji ? {
+        id: latestKanji.id,
+        name: (latestKanji as any).assessment_masters?.assessment_name,
+        score: latestKanji.score,
+        maxScore: latestKanji.max_score_at_submission,
+        percentage: latestKanji.max_score_at_submission > 0
+          ? Math.round((latestKanji.score / latestKanji.max_score_at_submission) * 100)
+          : 0,
+        submittedAt: latestKanji.submitted_at
+      } : null
+    },
+    averages: {
+      math: mathAverage,
+      kanji: kanjiAverage
+    },
+    counts: {
+      math: mathAssessments.length,
+      kanji: kanjiAssessments.length,
+      total: allAssessments.length
+    }
+  }
+}
