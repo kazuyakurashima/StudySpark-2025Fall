@@ -726,61 +726,49 @@ export async function getAssessmentHistory(filters?: {
     return { error: "生徒情報が見つかりません", assessments: [] }
   }
 
-  // 期間フィルターの計算
+  // 期間フィルターの計算（DATE型カラムと比較するため YYYY-MM-DD 形式、JST基準）
   let dateFilter: string | null = null
-  const now = new Date()
+  const nowJST = getNowJST()
 
   if (filters?.period === '1week') {
-    const oneWeekAgo = new Date(now)
-    oneWeekAgo.setDate(now.getDate() - 7)
-    dateFilter = oneWeekAgo.toISOString()
+    const oneWeekAgo = new Date(nowJST)
+    oneWeekAgo.setDate(nowJST.getDate() - 7)
+    dateFilter = formatDateToJST(oneWeekAgo)
   } else if (filters?.period === '1month') {
-    const oneMonthAgo = new Date(now)
-    oneMonthAgo.setMonth(now.getMonth() - 1)
-    dateFilter = oneMonthAgo.toISOString()
+    const oneMonthAgo = new Date(nowJST)
+    oneMonthAgo.setMonth(nowJST.getMonth() - 1)
+    dateFilter = formatDateToJST(oneMonthAgo)
   } else if (filters?.period === '3months') {
-    const threeMonthsAgo = new Date(now)
-    threeMonthsAgo.setMonth(now.getMonth() - 3)
-    dateFilter = threeMonthsAgo.toISOString()
+    const threeMonthsAgo = new Date(nowJST)
+    threeMonthsAgo.setMonth(nowJST.getMonth() - 3)
+    dateFilter = formatDateToJST(threeMonthsAgo)
   }
 
-  // テスト結果を取得（assessment_masters を join）
+  // テスト結果を取得（assessment_masters を join、完了済みのみ）
   let query = supabase
     .from("class_assessments")
     .select(`
       id,
-      student_id,
-      assessment_master_id,
-      session_id,
       score,
       max_score_at_submission,
-      submitted_at,
-      created_at,
-      assessment_masters (
+      assessment_date,
+      status,
+      master:assessment_masters!class_assessments_master_id_fkey (
         id,
-        assessment_name,
+        title,
         assessment_type,
-        max_score
-      ),
-      study_sessions (
-        id,
-        session_number,
-        start_date,
-        end_date
+        max_score,
+        session_number
       )
     `)
     .eq("student_id", student.id)
-    .not("submitted_at", "is", null)
-    .order("submitted_at", { ascending: false })
+    .eq("status", "completed")
+    .not("assessment_date", "is", null)
+    .order("assessment_date", { ascending: false })
 
   // 日付フィルター（期間指定がある場合）
   if (dateFilter) {
-    query = query.gte("submitted_at", dateFilter)
-  }
-
-  // 学習回フィルター
-  if (filters?.sessionNumber) {
-    query = query.eq("session_id", filters.sessionNumber)
+    query = query.gte("assessment_date", dateFilter)
   }
 
   const { data: allAssessments, error } = await query
@@ -800,7 +788,14 @@ export async function getAssessmentHistory(filters?: {
   // テスト種類フィルター（クライアントサイド）
   if (filters?.testType && filters.testType !== 'all') {
     filteredAssessments = filteredAssessments.filter(
-      (a: any) => a.assessment_masters?.assessment_type === filters.testType
+      (a: any) => a.master?.assessment_type === filters.testType
+    )
+  }
+
+  // 学習回フィルター（クライアントサイド）
+  if (filters?.sessionNumber) {
+    filteredAssessments = filteredAssessments.filter(
+      (a: any) => a.master?.session_number === filters.sessionNumber
     )
   }
 
@@ -808,9 +803,9 @@ export async function getAssessmentHistory(filters?: {
   if (filters?.sortBy) {
     filteredAssessments.sort((a: any, b: any) => {
       if (filters.sortBy === 'date_desc') {
-        return new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime()
+        return new Date(b.assessment_date).getTime() - new Date(a.assessment_date).getTime()
       } else if (filters.sortBy === 'date_asc') {
-        return new Date(a.submitted_at).getTime() - new Date(b.submitted_at).getTime()
+        return new Date(a.assessment_date).getTime() - new Date(b.assessment_date).getTime()
       } else if (filters.sortBy === 'score_desc') {
         const scoreA = a.max_score_at_submission > 0 ? (a.score / a.max_score_at_submission) * 100 : 0
         const scoreB = b.max_score_at_submission > 0 ? (b.score / b.max_score_at_submission) * 100 : 0
@@ -862,23 +857,27 @@ export async function getAssessmentSummary() {
     }
   }
 
-  // 全テスト結果を取得
+  // 全テスト結果を取得（完了済みのみ）
   const { data: allAssessments, error } = await supabase
     .from("class_assessments")
     .select(`
       id,
       score,
       max_score_at_submission,
-      submitted_at,
-      assessment_masters (
+      assessment_date,
+      status,
+      master:assessment_masters!class_assessments_master_id_fkey (
         id,
-        assessment_name,
-        assessment_type
+        title,
+        assessment_type,
+        max_score,
+        session_number
       )
     `)
     .eq("student_id", student.id)
-    .not("submitted_at", "is", null)
-    .order("submitted_at", { ascending: false })
+    .eq("status", "completed")
+    .not("assessment_date", "is", null)
+    .order("assessment_date", { ascending: false })
 
   if (error) {
     console.error("Error fetching assessment summary:", error)
@@ -900,10 +899,10 @@ export async function getAssessmentSummary() {
 
   // 算数プリントと漢字テストに分類
   const mathAssessments = allAssessments.filter(
-    (a: any) => a.assessment_masters?.assessment_type === 'math_print'
+    (a: any) => a.master?.assessment_type === 'math_print'
   )
   const kanjiAssessments = allAssessments.filter(
-    (a: any) => a.assessment_masters?.assessment_type === 'kanji_test'
+    (a: any) => a.master?.assessment_type === 'kanji_test'
   )
 
   // 最新テスト
@@ -932,23 +931,23 @@ export async function getAssessmentSummary() {
     latest: {
       math: latestMath ? {
         id: latestMath.id,
-        name: (latestMath as any).assessment_masters?.assessment_name,
+        name: (latestMath as any).master?.title || null,
         score: latestMath.score,
         maxScore: latestMath.max_score_at_submission,
         percentage: latestMath.max_score_at_submission > 0
           ? Math.round((latestMath.score / latestMath.max_score_at_submission) * 100)
           : 0,
-        submittedAt: latestMath.submitted_at
+        submittedAt: latestMath.assessment_date
       } : null,
       kanji: latestKanji ? {
         id: latestKanji.id,
-        name: (latestKanji as any).assessment_masters?.assessment_name,
+        name: (latestKanji as any).master?.title || null,
         score: latestKanji.score,
         maxScore: latestKanji.max_score_at_submission,
         percentage: latestKanji.max_score_at_submission > 0
           ? Math.round((latestKanji.score / latestKanji.max_score_at_submission) * 100)
           : 0,
-        submittedAt: latestKanji.submitted_at
+        submittedAt: latestKanji.assessment_date
       } : null
     },
     averages: {

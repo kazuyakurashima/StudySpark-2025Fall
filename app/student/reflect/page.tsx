@@ -14,6 +14,7 @@ import { AchievementMap } from "./achievement-map"
 import { StudyHistory } from "./study-history"
 import { EncouragementHistory } from "./encouragement-history"
 import { CoachingHistory } from "./coaching-history"
+import { AssessmentHistory } from "./assessment-history"
 import {
   checkReflectAvailability,
   determineWeekType,
@@ -61,7 +62,7 @@ function ReflectPageInner() {
 
   useEffect(() => {
     const tab = searchParams.get("tab")
-    if (tab && ["achievement", "history", "encouragement", "coaching"].includes(tab)) {
+    if (tab && ["achievement", "history", "encouragement", "assessment", "coaching"].includes(tab)) {
       setActiveTab(tab)
     }
   }, [searchParams])
@@ -265,12 +266,13 @@ function ReflectPageInner() {
           </div>
         )}
 
-        {/* 4つのタブ表示 */}
+        {/* 5つのタブ表示 */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="achievement">達成マップ</TabsTrigger>
             <TabsTrigger value="history">学習履歴</TabsTrigger>
             <TabsTrigger value="encouragement">応援履歴</TabsTrigger>
+            <TabsTrigger value="assessment">テスト結果</TabsTrigger>
             <TabsTrigger value="coaching">コーチング履歴</TabsTrigger>
           </TabsList>
 
@@ -284,6 +286,10 @@ function ReflectPageInner() {
 
           <TabsContent value="encouragement" className="mt-6">
             <EncouragementHistory />
+          </TabsContent>
+
+          <TabsContent value="assessment" className="mt-6">
+            <AssessmentHistory />
           </TabsContent>
 
           <TabsContent value="coaching" className="mt-6">
