@@ -7,7 +7,11 @@ import { AssessmentTrendChart } from "./components/assessment-trend-chart"
 import { AssessmentHistoryList } from "./components/assessment-history-list"
 import { AssessmentData, AssessmentSummary } from "./types"
 
-export function AssessmentHistory() {
+interface AssessmentHistoryProps {
+  studentId?: string  // 保護者画面から渡される生徒ID（オプショナル）
+}
+
+export function AssessmentHistory({ studentId }: AssessmentHistoryProps = {}) {
   const [assessments, setAssessments] = useState<AssessmentData[]>([])
   const [summary, setSummary] = useState<AssessmentSummary | null>(null)
   const [loading, setLoading] = useState(true)
@@ -21,8 +25,8 @@ export function AssessmentHistory() {
 
         // 履歴とサマリーを並行取得
         const [historyResult, summaryResult] = await Promise.all([
-          getAssessmentHistory({ sortBy: 'date_desc' }),
-          getAssessmentSummary()
+          getAssessmentHistory({ sortBy: 'date_desc', studentId }),
+          getAssessmentSummary({ studentId })
         ])
 
         if ('error' in historyResult && historyResult.error) {
@@ -46,7 +50,7 @@ export function AssessmentHistory() {
     }
 
     fetchData()
-  }, [])
+  }, [studentId])
 
   if (error) {
     return (

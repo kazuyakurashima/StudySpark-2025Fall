@@ -698,14 +698,15 @@ export async function getCoachingHistory(params?: {
 /**
  * テスト結果履歴を取得
  *
- * @param filters - フィルター条件（テスト種類、期間、学習回、ソート順）
+ * @param filters - フィルター条件（テスト種類、期間、学習回、ソート順、生徒ID）
  * @returns テスト結果の配列と集計情報
  */
 export async function getAssessmentHistory(filters?: {
-  testType?: 'math_print' | 'kanji_test' | 'all'
-  period?: '1week' | '1month' | '3months' | 'all'
+  testType?: 'all' | 'math_print' | 'kanji_test'
+  period?: 'all' | '1week' | '1month' | '3months'
   sessionNumber?: number
   sortBy?: 'date_desc' | 'date_asc' | 'score_desc' | 'score_asc'
+  studentId?: string
 }) {
   const supabase = await createClient()
 
@@ -715,15 +716,55 @@ export async function getAssessmentHistory(filters?: {
     return { error: "認証が必要です", assessments: [] }
   }
 
-  // 生徒情報を取得
-  const { data: student } = await supabase
-    .from("students")
-    .select("id")
-    .eq("user_id", user.id)
-    .single()
+  // 対象の生徒IDを決定
+  let targetStudentId: string
 
-  if (!student) {
-    return { error: "生徒情報が見つかりません", assessments: [] }
+  if (filters?.studentId) {
+    // 保護者が他の生徒IDを指定している場合 → 権限チェック
+    const { data: parent, error: parentError } = await supabase
+      .from("parents")
+      .select("id")
+      .eq("user_id", user.id)
+      .single()
+
+    // Fail-closed: 保護者レコードが存在しない場合は拒否
+    if (parentError || !parent) {
+      return {
+        error: "アクセス権限がありません（保護者情報が見つかりません）",
+        assessments: []
+      }
+    }
+
+    // 親子関係の確認
+    const { data: relation, error: relationError } = await supabase
+      .from("parent_child_relations")
+      .select("id")
+      .eq("parent_id", parent.id)
+      .eq("student_id", filters.studentId)
+      .single()
+
+    // Fail-closed: 親子関係が存在しない場合は拒否
+    if (relationError || !relation) {
+      return {
+        error: "アクセス権限がありません（この生徒の情報は閲覧できません）",
+        assessments: []
+      }
+    }
+
+    targetStudentId = filters.studentId
+  } else {
+    // studentId未指定 → 現在のユーザーが生徒の場合のみ許可
+    const { data: student, error: studentError } = await supabase
+      .from("students")
+      .select("id")
+      .eq("user_id", user.id)
+      .single()
+
+    if (studentError || !student) {
+      return { error: "生徒情報が見つかりません", assessments: [] }
+    }
+
+    targetStudentId = student.id.toString()
   }
 
   // 期間フィルターの計算（DATE型カラムと比較するため YYYY-MM-DD 形式、JST基準）
@@ -754,7 +795,7 @@ export async function getAssessmentHistory(filters?: {
         session_number
       )
     `)
-    .eq("student_id", student.id)
+    .eq("student_id", targetStudentId)
     .eq("status", "completed")
     .not("assessment_date", "is", null)
     .order("assessment_date", { ascending: false })
@@ -818,9 +859,12 @@ export async function getAssessmentHistory(filters?: {
 /**
  * テスト結果のサマリー統計を取得
  *
+ * @param filters - フィルター条件（生徒ID）
  * @returns 最新テスト、平均点、受験回数の統計
  */
-export async function getAssessmentSummary() {
+export async function getAssessmentSummary(filters?: {
+  studentId?: string
+}) {
   const supabase = await createClient()
 
   // 認証チェック
@@ -834,20 +878,64 @@ export async function getAssessmentSummary() {
     }
   }
 
-  // 生徒情報を取得
-  const { data: student } = await supabase
-    .from("students")
-    .select("id")
-    .eq("user_id", user.id)
-    .single()
+  // 対象の生徒IDを決定
+  let targetStudentId: string
 
-  if (!student) {
-    return {
-      error: "生徒情報が見つかりません",
-      latest: null,
-      averages: null,
-      counts: { math: 0, kanji: 0, total: 0 }
+  if (filters?.studentId) {
+    // 保護者が他の生徒IDを指定している場合 → 権限チェック
+    const { data: parent, error: parentError } = await supabase
+      .from("parents")
+      .select("id")
+      .eq("user_id", user.id)
+      .single()
+
+    // Fail-closed: 保護者レコードが存在しない場合は拒否
+    if (parentError || !parent) {
+      return {
+        error: "アクセス権限がありません（保護者情報が見つかりません）",
+        latest: null,
+        averages: null,
+        counts: { math: 0, kanji: 0, total: 0 }
+      }
     }
+
+    // 親子関係の確認
+    const { data: relation, error: relationError } = await supabase
+      .from("parent_child_relations")
+      .select("id")
+      .eq("parent_id", parent.id)
+      .eq("student_id", filters.studentId)
+      .single()
+
+    // Fail-closed: 親子関係が存在しない場合は拒否
+    if (relationError || !relation) {
+      return {
+        error: "アクセス権限がありません（この生徒の情報は閲覧できません）",
+        latest: null,
+        averages: null,
+        counts: { math: 0, kanji: 0, total: 0 }
+      }
+    }
+
+    targetStudentId = filters.studentId
+  } else {
+    // studentId未指定 → 現在のユーザーが生徒の場合のみ許可
+    const { data: student, error: studentError } = await supabase
+      .from("students")
+      .select("id")
+      .eq("user_id", user.id)
+      .single()
+
+    if (studentError || !student) {
+      return {
+        error: "生徒情報が見つかりません",
+        latest: null,
+        averages: null,
+        counts: { math: 0, kanji: 0, total: 0 }
+      }
+    }
+
+    targetStudentId = student.id.toString()
   }
 
   // 全テスト結果を取得（完了済みのみ）
@@ -867,7 +955,7 @@ export async function getAssessmentSummary() {
         session_number
       )
     `)
-    .eq("student_id", student.id)
+    .eq("student_id", targetStudentId)
     .eq("status", "completed")
     .not("assessment_date", "is", null)
     .order("assessment_date", { ascending: false })
