@@ -95,6 +95,12 @@ export function StudentDetailClient({ studentId, initialData }: StudentDetailCli
   // 最近の学習（最新5件）
   const recentLearning = studyLogs.slice(0, 5)
 
+  // 学年を数値に変換（"小学5年生" → 5）
+  const getStudentGradeNumber = (gradeStr: string): number => {
+    const match = gradeStr.match(/(\d+)/)
+    return match ? parseInt(match[1], 10) : 6 // デフォルトは6年生
+  }
+
   const getAvatarSrc = () => {
     if (student.custom_avatar_url) return student.custom_avatar_url
     if (student.avatar_id) {
@@ -444,7 +450,12 @@ export function StudentDetailClient({ studentId, initialData }: StudentDetailCli
 
           {/* 達成マップタブ */}
           <TabsContent value="achievement" className="mt-4">
-            <AchievementMap viewerRole="coach" studentId={studentId} />
+            <AchievementMap
+              viewerRole="coach"
+              studentId={studentId}
+              studentGrade={getStudentGradeNumber(student.grade)}
+              studentCourse={student.course || undefined}
+            />
           </TabsContent>
 
           {/* ふりかえり履歴タブ */}

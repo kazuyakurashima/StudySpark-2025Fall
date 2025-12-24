@@ -521,7 +521,7 @@ export async function getChildStudyHistory(
 }
 
 /**
- * 子どもの応援履歴データを取得（保護者用）
+ * 子どもの応援履歴データを取得（保護者・指導者用）
  */
 export async function getChildEncouragementHistory(
   studentId: string,
@@ -534,14 +534,27 @@ export async function getChildEncouragementHistory(
 ) {
   console.log("[DEBUG getChildEncouragementHistory] Called with:", { studentId, params })
 
-  const { error, supabase } = await verifyParentChildRelation(studentId)
+  const supabase = await createClient()
 
-  if (error || !supabase) {
-    console.log("[DEBUG getChildEncouragementHistory] Verification error:", error)
-    return { error: error || "認証エラー" }
+  // 現在のユーザー取得
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: "ログインが必要です" }
   }
 
-  console.log("[DEBUG getChildEncouragementHistory] Verification successful")
+  // 権限チェック（checkStudentAccessを使用して保護者・指導者両方に対応）
+  const { checkStudentAccess } = await import("./common/check-student-access")
+  const hasAccess = await checkStudentAccess(user.id, studentId)
+
+  if (!hasAccess) {
+    console.log("[DEBUG getChildEncouragementHistory] Access denied")
+    return { error: "アクセス権限がありません" }
+  }
+
+  console.log("[DEBUG getChildEncouragementHistory] Access granted")
 
   let query = supabase
     .from("encouragement_messages")
