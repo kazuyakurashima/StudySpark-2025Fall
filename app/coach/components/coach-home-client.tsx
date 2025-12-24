@@ -136,7 +136,7 @@ export function CoachHomeClient({ initialRecords, initialInactiveStudents }: Coa
 
         {/* Quick Actions */}
         <section>
-          <Link href="/coach/assessments" className="block group">
+          <Link href="/coach/assessment-input" className="block group">
             <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-0 shadow-sm hover:shadow-md transition-all duration-200 group-focus:ring-2 group-focus:ring-blue-500 group-focus:ring-offset-2 rounded-2xl overflow-hidden">
               <CardContent className="p-4">
                 <div className="flex items-center gap-4">
@@ -145,7 +145,7 @@ export function CoachHomeClient({ initialRecords, initialInactiveStudents }: Coa
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-base font-semibold text-slate-900 mb-0.5">
-                      テスト結果を入力
+                      得点入力
                     </p>
                     <p className="text-sm text-slate-600">
                       算数プリント・漢字テストの採点結果を一括入力
