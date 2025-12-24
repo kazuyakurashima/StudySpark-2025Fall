@@ -16,7 +16,7 @@ import { Heart, ChevronDown, ChevronUp, Layers } from "lucide-react"
 import { getAvatarUrl } from "@/lib/utils/avatar"
 
 interface EncouragementHistoryProps {
-  viewerRole?: "student" | "parent"
+  viewerRole?: "student" | "parent" | "coach"
   studentId?: string
 }
 
@@ -41,8 +41,8 @@ export function EncouragementHistory({
 
     console.log("[DEBUG EncouragementHistory] Loading with:", { viewerRole, studentId, subjectFilter, periodFilter, sortBy, displayMode })
 
-    // viewerRoleに応じて適切なAPIを呼び出す
-    const result = viewerRole === "parent" && studentId
+    // viewerRoleに応じて適切なAPIを呼び出す（保護者・指導者は同じAPI）
+    const result = (viewerRole === "parent" || viewerRole === "coach") && studentId
       ? await getChildEncouragementHistory(studentId, {
           subjectFilter,
           periodFilter,
