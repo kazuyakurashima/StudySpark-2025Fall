@@ -96,7 +96,13 @@ export function StudentDetailClient({ studentId, initialData }: StudentDetailCli
   const recentLearning = studyLogs.slice(0, 5)
 
   // 学年を数値に変換（明示的マッピング）
-  const getStudentGradeNumber = (gradeStr: string): number => {
+  const getStudentGradeNumber = (gradeStr: string | null | undefined): number => {
+    // ガード: 空/未定義チェック
+    if (!gradeStr || typeof gradeStr !== 'string') {
+      console.warn('[student-detail-client] Invalid grade value, defaulting to 6')
+      return 6
+    }
+
     // Server Actionから返される形式: "小学5年" or "小学6年"
     const gradeMap: Record<string, number> = {
       "小学5年": 5,
