@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import {
   Select,
   SelectContent,
@@ -18,7 +17,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ClipboardCheck, Loader2, CheckCircle2, AlertCircle } from "lucide-react"
 import { CoachBottomNavigation } from "@/components/coach-bottom-navigation"
 import { getAvatarById } from "@/lib/constants/avatars"
-import { useToast } from "@/lib/hooks/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import {
   getUnconfirmedSessions,
   getAssessmentInputData,
@@ -347,27 +346,39 @@ export default function AssessmentInputPage() {
             <CardTitle className="text-base">テスト種別選択</CardTitle>
           </CardHeader>
           <CardContent>
-            <RadioGroup value={testType} onValueChange={(value) => setTestType(value as "math" | "kanji")}>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="math" id="math" />
-                <Label htmlFor="math" className="cursor-pointer">
-                  算数プリント（100点満点） - {students.filter((s) => {
-                    const studentScores = scores[s.id] || {}
-                    return studentScores.mathScore1 === null || studentScores.mathScore1 === undefined ||
-                           studentScores.mathScore2 === null || studentScores.mathScore2 === undefined
-                  }).length * 2}件未入力
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="kanji" id="kanji" />
-                <Label htmlFor="kanji" className="cursor-pointer">
-                  漢字テスト（50点満点） - {students.filter((s) => {
-                    const studentScores = scores[s.id] || {}
-                    return studentScores.kanjiScore === null || studentScores.kanjiScore === undefined
-                  }).length}件未入力
-                </Label>
-              </div>
-            </RadioGroup>
+            <div className="flex flex-col gap-3">
+              <Button
+                variant={testType === "math" ? "default" : "outline"}
+                onClick={() => setTestType("math")}
+                className="w-full justify-start text-left h-auto py-3"
+              >
+                <div className="flex flex-col">
+                  <span className="font-semibold">算数プリント（100点満点）</span>
+                  <span className="text-sm font-normal opacity-80">
+                    {students.filter((s) => {
+                      const studentScores = scores[s.id] || {}
+                      return studentScores.mathScore1 === null || studentScores.mathScore1 === undefined ||
+                             studentScores.mathScore2 === null || studentScores.mathScore2 === undefined
+                    }).length * 2}件未入力
+                  </span>
+                </div>
+              </Button>
+              <Button
+                variant={testType === "kanji" ? "default" : "outline"}
+                onClick={() => setTestType("kanji")}
+                className="w-full justify-start text-left h-auto py-3"
+              >
+                <div className="flex flex-col">
+                  <span className="font-semibold">漢字テスト（50点満点）</span>
+                  <span className="text-sm font-normal opacity-80">
+                    {students.filter((s) => {
+                      const studentScores = scores[s.id] || {}
+                      return studentScores.kanjiScore === null || studentScores.kanjiScore === undefined
+                    }).length}件未入力
+                  </span>
+                </div>
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
