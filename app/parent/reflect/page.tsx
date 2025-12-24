@@ -12,6 +12,7 @@ import ParentBottomNavigation from "@/components/parent-bottom-navigation"
 import { AchievementMap } from "@/app/student/reflect/achievement-map"
 import { StudyHistory } from "@/app/student/reflect/study-history"
 import { EncouragementHistory } from "@/app/student/reflect/encouragement-history"
+import { AssessmentHistory } from "@/app/student/reflect/assessment-history"
 import {
   getParentChildren,
   getChildReflections,
@@ -27,6 +28,10 @@ import {
   Bot,
   Lock,
   MessageCircle,
+  Target,
+  ClipboardCheck,
+  BookOpen,
+  Heart,
 } from "lucide-react"
 import { useUserProfile } from "@/lib/hooks/use-user-profile"
 
@@ -55,9 +60,15 @@ export default function ParentReflectPage() {
 
   // URLパラメータから初期タブを取得
   const tabParam = searchParams.get("tab")
-  const initialTab = (tabParam && ["map", "history", "encouragement", "coaching"].includes(tabParam))
-    ? (tabParam as "map" | "history" | "encouragement" | "coaching")
-    : "map"
+
+  // 後方互換: map → achievement, assessment-history → assessment に正規化
+  const normalizedTab = tabParam === "map" ? "achievement"
+    : tabParam === "assessment-history" ? "assessment"
+    : tabParam
+
+  const initialTab = (normalizedTab && ["achievement", "assessment", "history", "encouragement", "coaching"].includes(normalizedTab))
+    ? (normalizedTab as "achievement" | "assessment" | "history" | "encouragement" | "coaching")
+    : "achievement"
 
   // URLパラメータから child ID を取得
   const childParam = searchParams.get("child")
@@ -68,7 +79,7 @@ export default function ParentReflectPage() {
   const [reflections, setReflections] = useState<Reflection[]>([])
   const [selectedReflection, setSelectedReflection] = useState<Reflection | null>(null)
   const [messages, setMessages] = useState<any[]>([])
-  const [activeTab, setActiveTab] = useState<"map" | "history" | "encouragement" | "coaching">(initialTab)
+  const [activeTab, setActiveTab] = useState<"achievement" | "assessment" | "history" | "encouragement" | "coaching">(initialTab)
   const [loading, setLoading] = useState(true)
   const [encouragementStatus, setEncouragementStatus] = useState<{ [childId: number]: boolean }>({})
 
@@ -231,17 +242,17 @@ export default function ParentReflectPage() {
 
       <div className="max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
 
-        {/* AIコーチング制限の通知 */}
-        <Card className="border-amber-200 bg-amber-50">
+        {/* 保護者向け案内 */}
+        <Card className="border-blue-200 bg-blue-50">
           <CardContent className="py-4">
             <div className="flex items-start gap-3">
-              <Lock className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+              <Eye className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
               <div className="space-y-1">
-                <p className="text-sm font-medium text-amber-900">
-                  AIコーチング機能はお子様本人のみご利用いただけます
+                <p className="text-sm font-semibold text-blue-900">
+                  保護者様へ
                 </p>
-                <p className="text-xs text-amber-700">
-                  保護者様は過去の振り返り履歴、達成マップ、学習履歴、応援履歴をご覧いただけます
+                <p className="text-xs text-blue-700 leading-relaxed">
+                  お子様の達成マップ、テスト結果、学習履歴、応援履歴、ふりかえり履歴をご覧いただけます。ふりかえり機能（対話形式）はお子様本人のみご利用いただけます。
                 </p>
               </div>
             </div>
@@ -250,15 +261,38 @@ export default function ParentReflectPage() {
 
         {/* タブコンテンツ */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="map">達成マップ</TabsTrigger>
-            <TabsTrigger value="history">学習履歴</TabsTrigger>
-            <TabsTrigger value="encouragement">応援履歴</TabsTrigger>
-            <TabsTrigger value="coaching">コーチング履歴</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="achievement" className="flex items-center gap-1 text-xs sm:text-sm min-h-[44px] px-2 sm:px-3">
+              <Target className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" aria-hidden="true" />
+              <span className="hidden sm:inline">達成マップ</span>
+              <span className="sm:hidden leading-tight">達成</span>
+            </TabsTrigger>
+            <TabsTrigger value="assessment" className="flex items-center gap-1 text-xs sm:text-sm min-h-[44px] px-2 sm:px-3">
+              <ClipboardCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" aria-hidden="true" />
+              <span className="hidden sm:inline">テスト結果</span>
+              <span className="sm:hidden leading-tight">テスト</span>
+            </TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center gap-1 text-xs sm:text-sm min-h-[44px] px-2 sm:px-3">
+              <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" aria-hidden="true" />
+              <span className="hidden sm:inline">学習履歴</span>
+              <span className="sm:hidden leading-tight">学習</span>
+            </TabsTrigger>
+            <TabsTrigger value="encouragement" className="flex items-center gap-1 text-xs sm:text-sm min-h-[44px] px-2 sm:px-3">
+              <Heart className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" aria-hidden="true" />
+              <span className="hidden sm:inline">応援履歴</span>
+              <span className="sm:hidden leading-tight">応援</span>
+            </TabsTrigger>
+            <TabsTrigger value="coaching" className="flex items-center gap-1 text-xs sm:text-sm min-h-[44px] px-2 sm:px-3">
+              <MessageCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" aria-hidden="true" />
+              <span className="hidden sm:inline">ふりかえり履歴</span>
+              <span className="sm:hidden leading-tight whitespace-nowrap">ふり返り</span>
+            </TabsTrigger>
           </TabsList>
 
+          {/* タブコンテンツ（新しい順序: 達成/テスト/学習/応援/ふりかえり） */}
+
           {/* 達成マップタブ */}
-          <TabsContent value="map" className="space-y-4">
+          <TabsContent value="achievement" className="space-y-4">
             {selectedChild && (
               <AchievementMap
                 studentGrade={selectedChild.grade}
@@ -266,6 +300,27 @@ export default function ParentReflectPage() {
                 viewerRole="parent"
                 studentId={selectedChildId}
               />
+            )}
+          </TabsContent>
+
+          {/* テスト結果タブ */}
+          <TabsContent value="assessment" className="space-y-4">
+            {!selectedChild ? (
+              <Card className="card-elevated">
+                <CardContent className="py-12 text-center space-y-4">
+                  <div className="text-6xl">👨‍👩‍👧‍👦</div>
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-slate-700">
+                      お子様を選択してください
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      お子様のテスト結果履歴を確認できます
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <AssessmentHistory studentId={selectedChild.id} />
             )}
           </TabsContent>
 
@@ -283,7 +338,7 @@ export default function ParentReflectPage() {
             )}
           </TabsContent>
 
-          {/* コーチング履歴タブ */}
+          {/* ふりかえり履歴タブ */}
           <TabsContent value="coaching" className="space-y-4">
             {reflections.length === 0 ? (
               <Card>

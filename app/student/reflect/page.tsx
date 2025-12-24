@@ -32,6 +32,11 @@ import {
   AlertCircle,
   History,
   Bot,
+  Target,
+  ClipboardCheck,
+  BookOpen,
+  Heart,
+  MessageSquare,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { UserProfileProvider } from "@/lib/hooks/use-user-profile"
@@ -58,12 +63,17 @@ function ReflectPageInner() {
   const reflectChatRef = useRef<HTMLDivElement>(null)
 
   // URLクエリパラメータからタブを取得（デフォルトは "achievement"）
-  const [activeTab, setActiveTab] = useState<string>("achievement")
+  const [activeTab, setActiveTab] = useState<"achievement" | "assessment" | "history" | "encouragement" | "coaching">("achievement")
 
   useEffect(() => {
-    const tab = searchParams.get("tab")
-    if (tab && ["achievement", "history", "encouragement", "assessment", "coaching"].includes(tab)) {
-      setActiveTab(tab)
+    const tabParam = searchParams.get("tab")
+    if (!tabParam) return
+
+    // 後方互換: assessment-history → assessment に正規化
+    const normalizedTab = tabParam === "assessment-history" ? "assessment" : tabParam
+
+    if (["achievement", "assessment", "history", "encouragement", "coaching"].includes(normalizedTab)) {
+      setActiveTab(normalizedTab as "achievement" | "assessment" | "history" | "encouragement" | "coaching")
     }
   }, [searchParams])
 
@@ -269,15 +279,40 @@ function ReflectPageInner() {
         {/* 5つのタブ表示 */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="achievement">達成マップ</TabsTrigger>
-            <TabsTrigger value="history">学習履歴</TabsTrigger>
-            <TabsTrigger value="encouragement">応援履歴</TabsTrigger>
-            <TabsTrigger value="assessment">テスト結果</TabsTrigger>
-            <TabsTrigger value="coaching">コーチング履歴</TabsTrigger>
+            <TabsTrigger value="achievement" className="flex items-center gap-1 text-xs sm:text-sm min-h-[44px] px-2 sm:px-3">
+              <Target className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" aria-hidden="true" />
+              <span className="hidden sm:inline">達成マップ</span>
+              <span className="sm:hidden leading-tight">達成</span>
+            </TabsTrigger>
+            <TabsTrigger value="assessment" className="flex items-center gap-1 text-xs sm:text-sm min-h-[44px] px-2 sm:px-3">
+              <ClipboardCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" aria-hidden="true" />
+              <span className="hidden sm:inline">テスト結果</span>
+              <span className="sm:hidden leading-tight">テスト</span>
+            </TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center gap-1 text-xs sm:text-sm min-h-[44px] px-2 sm:px-3">
+              <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" aria-hidden="true" />
+              <span className="hidden sm:inline">学習履歴</span>
+              <span className="sm:hidden leading-tight">学習</span>
+            </TabsTrigger>
+            <TabsTrigger value="encouragement" className="flex items-center gap-1 text-xs sm:text-sm min-h-[44px] px-2 sm:px-3">
+              <Heart className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" aria-hidden="true" />
+              <span className="hidden sm:inline">応援履歴</span>
+              <span className="sm:hidden leading-tight">応援</span>
+            </TabsTrigger>
+            <TabsTrigger value="coaching" className="flex items-center gap-1 text-xs sm:text-sm min-h-[44px] px-2 sm:px-3">
+              <MessageSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" aria-hidden="true" />
+              <span className="hidden sm:inline">ふりかえり履歴</span>
+              <span className="sm:hidden leading-tight whitespace-nowrap">ふり返り</span>
+            </TabsTrigger>
           </TabsList>
 
+          {/* タブコンテンツ（新しい順序: 達成/テスト/学習/応援/ふりかえり） */}
           <TabsContent value="achievement" className="mt-6">
             <AchievementMap studentGrade={studentGrade} studentCourse={studentCourse} />
+          </TabsContent>
+
+          <TabsContent value="assessment" className="mt-6">
+            <AssessmentHistory />
           </TabsContent>
 
           <TabsContent value="history" className="mt-6">
@@ -286,10 +321,6 @@ function ReflectPageInner() {
 
           <TabsContent value="encouragement" className="mt-6">
             <EncouragementHistory />
-          </TabsContent>
-
-          <TabsContent value="assessment" className="mt-6">
-            <AssessmentHistory />
           </TabsContent>
 
           <TabsContent value="coaching" className="mt-6">
