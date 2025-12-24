@@ -83,6 +83,21 @@ export default function ParentReflectPage() {
   const [loading, setLoading] = useState(true)
   const [encouragementStatus, setEncouragementStatus] = useState<{ [childId: number]: boolean }>({})
 
+  // URLパラメータの変更を監視してタブを更新
+  useEffect(() => {
+    const tabParam = searchParams.get("tab")
+    if (!tabParam) return
+
+    // 後方互換: map → achievement, assessment-history → assessment に正規化
+    const normalizedTab = tabParam === "map" ? "achievement"
+      : tabParam === "assessment-history" ? "assessment"
+      : tabParam
+
+    if (["achievement", "assessment", "history", "encouragement", "coaching"].includes(normalizedTab)) {
+      setActiveTab(normalizedTab as "achievement" | "assessment" | "history" | "encouragement" | "coaching")
+    }
+  }, [searchParams])
+
   // 子ども一覧を読み込み（初回のみ）
   useEffect(() => {
     const loadChildren = async () => {
@@ -283,7 +298,7 @@ export default function ParentReflectPage() {
               <span className="sm:hidden leading-tight">応援</span>
             </TabsTrigger>
             <TabsTrigger value="coaching" className="flex items-center gap-1 text-xs sm:text-sm min-h-[44px] px-2 sm:px-3">
-              <MessageCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" aria-hidden="true" />
+              <MessageSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" aria-hidden="true" />
               <span className="hidden sm:inline">ふりかえり履歴</span>
               <span className="sm:hidden leading-tight whitespace-nowrap">ふり返り</span>
             </TabsTrigger>
