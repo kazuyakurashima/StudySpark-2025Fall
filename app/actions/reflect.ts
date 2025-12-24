@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { formatDateToJST, getNowJST, getWeeksAgoJST, getMonthsAgoJST } from "@/lib/utils/date-jst"
+import { checkStudentAccess } from "./common/check-student-access"
 
 /**
  * 週次振り返りが利用可能かチェック
@@ -720,35 +721,11 @@ export async function getAssessmentHistory(filters?: {
   let targetStudentId: string
 
   if (filters?.studentId) {
-    // 保護者が他の生徒IDを指定している場合 → 権限チェック
-    const { data: parent, error: parentError } = await supabase
-      .from("parents")
-      .select("id")
-      .eq("user_id", user.id)
-      .single()
+    // 保護者または指導者からのアクセス - 権限チェック
+    const hasAccess = await checkStudentAccess(user.id, filters.studentId)
 
-    // Fail-closed: 保護者レコードが存在しない場合は拒否
-    if (parentError || !parent) {
-      return {
-        error: "アクセス権限がありません（保護者情報が見つかりません）",
-        assessments: []
-      }
-    }
-
-    // 親子関係の確認
-    const { data: relation, error: relationError } = await supabase
-      .from("parent_child_relations")
-      .select("id")
-      .eq("parent_id", parent.id)
-      .eq("student_id", filters.studentId)
-      .single()
-
-    // Fail-closed: 親子関係が存在しない場合は拒否
-    if (relationError || !relation) {
-      return {
-        error: "アクセス権限がありません（この生徒の情報は閲覧できません）",
-        assessments: []
-      }
+    if (!hasAccess) {
+      return { error: "アクセス権限がありません", assessments: [] }
     }
 
     targetStudentId = filters.studentId
@@ -882,35 +859,12 @@ export async function getAssessmentSummary(filters?: {
   let targetStudentId: string
 
   if (filters?.studentId) {
-    // 保護者が他の生徒IDを指定している場合 → 権限チェック
-    const { data: parent, error: parentError } = await supabase
-      .from("parents")
-      .select("id")
-      .eq("user_id", user.id)
-      .single()
+    // 保護者または指導者からのアクセス - 権限チェック
+    const hasAccess = await checkStudentAccess(user.id, filters.studentId)
 
-    // Fail-closed: 保護者レコードが存在しない場合は拒否
-    if (parentError || !parent) {
+    if (!hasAccess) {
       return {
-        error: "アクセス権限がありません（保護者情報が見つかりません）",
-        latest: null,
-        averages: null,
-        counts: { math: 0, kanji: 0, total: 0 }
-      }
-    }
-
-    // 親子関係の確認
-    const { data: relation, error: relationError } = await supabase
-      .from("parent_child_relations")
-      .select("id")
-      .eq("parent_id", parent.id)
-      .eq("student_id", filters.studentId)
-      .single()
-
-    // Fail-closed: 親子関係が存在しない場合は拒否
-    if (relationError || !relation) {
-      return {
-        error: "アクセス権限がありません（この生徒の情報は閲覧できません）",
+        error: "アクセス権限がありません",
         latest: null,
         averages: null,
         counts: { math: 0, kanji: 0, total: 0 }
