@@ -1160,3 +1160,366 @@ export async function getInactiveStudents(thresholdDays = 7) {
 
   return { students: inactiveStudents }
 }
+
+// ==================== 得点入力専用ページ用API ====================
+
+export interface AssessmentMaster {
+  id: string
+  assessmentType: 'math_print' | 'kanji_test'
+  grade: '5年' | '6年'
+  sessionNumber: number
+  attemptNumber: number
+  maxScore: number
+}
+
+export interface AssessmentInputStudent {
+  id: string
+  fullName: string
+  nickname: string | null
+  avatarId: string | null
+  customAvatarUrl: string | null
+  grade: string
+  // 算数プリント
+  mathScore1?: number | null
+  mathScore2?: number | null
+  mathStatus1?: 'completed' | 'absent' | 'not_submitted'
+  mathStatus2?: 'completed' | 'absent' | 'not_submitted'
+  // 漢字テスト
+  kanjiScore?: number | null
+  kanjiStatus?: 'completed' | 'absent' | 'not_submitted'
+}
+
+export interface AssessmentInputData {
+  sessionNumber: number
+  students: AssessmentInputStudent[]
+  mathMasters: AssessmentMaster[]
+  kanjiMaster: AssessmentMaster | null
+}
+
+/**
+ * 未確定の回次一覧を取得（最新の未確定回次を自動選択するため）
+ */
+export async function getUnconfirmedSessions() {
+  const supabase = await createClient()
+
+  // 現在の指導者を取得
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: "認証が必要です" }
+  }
+
+  // 指導者IDを取得
+  const { data: coach, error: coachError } = await supabase
+    .from("coaches")
+    .select("id")
+    .eq("user_id", user.id)
+    .single()
+
+  if (coachError || !coach) {
+    return { error: "指導者情報が見つかりません" }
+  }
+
+  // 担当生徒を取得
+  const { data: relations, error: relationsError } = await supabase
+    .from("coach_student_relations")
+    .select("student_id, students(grade)")
+    .eq("coach_id", coach.id)
+
+  if (relationsError) {
+    return { error: "担当生徒の取得に失敗しました" }
+  }
+
+  const studentIds = relations?.map((rel) => rel.student_id) || []
+
+  if (studentIds.length === 0) {
+    return { sessions: [] }
+  }
+
+  // 各学年の回次範囲を取得
+  const grades = [...new Set(relations?.map((rel: any) => rel.students?.grade) || [])]
+  const sessionRanges: Record<number, number[]> = {}
+
+  for (const grade of grades) {
+    const maxSession = grade === 5 ? 19 : 15
+    sessionRanges[grade] = Array.from({ length: maxSession }, (_, i) => i + 1)
+  }
+
+  // 全回次を集約
+  const allSessions = [...new Set(Object.values(sessionRanges).flat())].sort((a, b) => b - a)
+
+  // 各回次の未入力件数を計算
+  const sessionStats = await Promise.all(
+    allSessions.map(async (sessionNumber) => {
+      // この回次のマスタを取得
+      const { data: masters } = await supabase
+        .from("assessment_masters")
+        .select("id, assessment_type, grade, attempt_number")
+        .eq("session_number", sessionNumber)
+
+      if (!masters || masters.length === 0) {
+        return { sessionNumber, unconfirmedCount: 0 }
+      }
+
+      // 各マスタの未確定件数を計算
+      let unconfirmedCount = 0
+
+      for (const master of masters) {
+        // この学年の生徒のみを対象
+        const targetStudentIds = studentIds.filter((sid) => {
+          const rel = relations?.find((r) => r.student_id === sid)
+          const studentGrade = (rel as any)?.students?.grade
+          return master.grade === (studentGrade === 5 ? "5年" : "6年")
+        })
+
+        // 各生徒の入力状況を確認
+        for (const studentId of targetStudentIds) {
+          const { data: existing } = await supabase
+            .from("class_assessments")
+            .select("id, status")
+            .eq("student_id", studentId)
+            .eq("master_id", master.id)
+            .eq("is_resubmission", false)
+            .maybeSingle()
+
+          if (!existing || existing.status === 'not_submitted') {
+            unconfirmedCount++
+          }
+        }
+      }
+
+      return { sessionNumber, unconfirmedCount }
+    })
+  )
+
+  // 未確定件数が1件以上ある回次のみを返す
+  const unconfirmedSessions = sessionStats
+    .filter((stat) => stat.unconfirmedCount > 0)
+    .map((stat) => ({
+      sessionNumber: stat.sessionNumber,
+      unconfirmedCount: stat.unconfirmedCount,
+      label: `第${stat.sessionNumber}回（${stat.unconfirmedCount}件未入力）`,
+    }))
+
+  return { sessions: unconfirmedSessions }
+}
+
+/**
+ * 指定された回次の得点入力データを取得
+ */
+export async function getAssessmentInputData(
+  sessionNumber: number
+): Promise<{ data?: AssessmentInputData; error?: string }> {
+  const supabase = await createClient()
+
+  // 現在の指導者を取得
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: "認証が必要です" }
+  }
+
+  // 指導者IDを取得
+  const { data: coach, error: coachError } = await supabase
+    .from("coaches")
+    .select("id")
+    .eq("user_id", user.id)
+    .single()
+
+  if (coachError || !coach) {
+    return { error: "指導者情報が見つかりません" }
+  }
+
+  // 担当生徒を取得
+  const { data: relations, error: relationsError } = await supabase
+    .from("coach_student_relations")
+    .select(`
+      student_id,
+      students (
+        id,
+        user_id,
+        full_name,
+        grade
+      )
+    `)
+    .eq("coach_id", coach.id)
+
+  if (relationsError) {
+    return { error: "担当生徒の取得に失敗しました" }
+  }
+
+  const students = relations?.map((rel: any) => rel.students).filter(Boolean) || []
+
+  if (students.length === 0) {
+    return { error: "担当生徒が見つかりません" }
+  }
+
+  // 生徒のプロフィール情報を取得
+  const studentUserIds = students.map((s: any) => s.user_id).filter(Boolean)
+  let profilesMap: Record<string, { nickname: string | null; avatar_id: string | null; custom_avatar_url: string | null }> = {}
+
+  if (studentUserIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, nickname, avatar_id, custom_avatar_url")
+      .in("id", studentUserIds)
+
+    if (profiles) {
+      profilesMap = profiles.reduce((acc, profile) => {
+        acc[profile.id] = {
+          nickname: profile.nickname,
+          avatar_id: profile.avatar_id,
+          custom_avatar_url: profile.custom_avatar_url,
+        }
+        return acc
+      }, {} as typeof profilesMap)
+    }
+  }
+
+  // 指定回次のマスタデータを取得
+  const { data: masters, error: mastersError } = await supabase
+    .from("assessment_masters")
+    .select("*")
+    .eq("session_number", sessionNumber)
+
+  if (mastersError) {
+    return { error: "マスタデータの取得に失敗しました" }
+  }
+
+  // マスタを型変換
+  const mathMasters: AssessmentMaster[] = masters
+    ?.filter((m) => m.assessment_type === "math_print")
+    .map((m) => ({
+      id: m.id,
+      assessmentType: m.assessment_type as 'math_print',
+      grade: m.grade as '5年' | '6年',
+      sessionNumber: m.session_number,
+      attemptNumber: m.attempt_number,
+      maxScore: m.max_score,
+    })) || []
+
+  const kanjiMasters = masters
+    ?.filter((m) => m.assessment_type === "kanji_test")
+    .map((m) => ({
+      id: m.id,
+      assessmentType: m.assessment_type as 'kanji_test',
+      grade: m.grade as '5年' | '6年',
+      sessionNumber: m.session_number,
+      attemptNumber: m.attempt_number,
+      maxScore: m.max_score,
+    })) || []
+
+  // 各生徒の既存入力を取得
+  const studentIds = students.map((s: any) => s.id)
+  const { data: existingAssessments } = await supabase
+    .from("class_assessments")
+    .select("*")
+    .in("student_id", studentIds)
+    .in("master_id", masters?.map((m) => m.id) || [])
+    .eq("is_resubmission", false)
+
+  // 生徒データを整形
+  const studentsData: AssessmentInputStudent[] = students.map((student: any) => {
+    const profile = profilesMap[student.user_id] || { nickname: null, avatar_id: null, custom_avatar_url: null }
+    const studentGrade = student.grade === 5 ? "5年" : "6年"
+
+    // 該当学年のマスタを取得
+    const mathMaster1 = mathMasters.find((m) => m.grade === studentGrade && m.attemptNumber === 1)
+    const mathMaster2 = mathMasters.find((m) => m.grade === studentGrade && m.attemptNumber === 2)
+    const kanjiMaster = kanjiMasters.find((m) => m.grade === studentGrade)
+
+    // 既存の入力を取得
+    const mathAssessment1 = existingAssessments?.find((a) => a.master_id === mathMaster1?.id && a.student_id === student.id)
+    const mathAssessment2 = existingAssessments?.find((a) => a.master_id === mathMaster2?.id && a.student_id === student.id)
+    const kanjiAssessment = existingAssessments?.find((a) => a.master_id === kanjiMaster?.id && a.student_id === student.id)
+
+    return {
+      id: String(student.id),
+      fullName: student.full_name,
+      nickname: profile.nickname,
+      avatarId: profile.avatar_id,
+      customAvatarUrl: profile.custom_avatar_url,
+      grade: studentGrade,
+      mathScore1: mathAssessment1?.score ?? null,
+      mathScore2: mathAssessment2?.score ?? null,
+      mathStatus1: mathAssessment1?.status ?? 'not_submitted',
+      mathStatus2: mathAssessment2?.status ?? 'not_submitted',
+      kanjiScore: kanjiAssessment?.score ?? null,
+      kanjiStatus: kanjiAssessment?.status ?? 'not_submitted',
+    }
+  })
+
+  return {
+    data: {
+      sessionNumber,
+      students: studentsData,
+      mathMasters,
+      kanjiMaster: kanjiMasters[0] || null,
+    },
+  }
+}
+
+/**
+ * 得点を一括保存
+ */
+export async function saveAssessmentScores(
+  sessionNumber: number,
+  scores: Array<{
+    studentId: string
+    masterId: string
+    score: number | null
+    status: 'completed' | 'absent' | 'not_submitted'
+  }>
+) {
+  const supabase = await createClient()
+
+  // 現在の指導者を取得
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: "認証が必要です" }
+  }
+
+  // 指導者IDを取得
+  const { data: coach, error: coachError } = await supabase
+    .from("coaches")
+    .select("id")
+    .eq("user_id", user.id)
+    .single()
+
+  if (coachError || !coach) {
+    return { error: "指導者情報が見つかりません" }
+  }
+
+  // 一括保存（upsert）
+  const today = new Date().toISOString().split('T')[0]
+  const upsertData = scores.map((score) => ({
+    student_id: parseInt(score.studentId, 10),
+    master_id: score.masterId,
+    score: score.status === 'completed' ? score.score : null,
+    status: score.status,
+    assessment_date: today,
+    grader_id: user.id,
+    is_resubmission: false,
+  }))
+
+  const { error: saveError } = await supabase
+    .from("class_assessments")
+    .upsert(upsertData, {
+      onConflict: "student_id,master_id,is_resubmission",
+      ignoreDuplicates: false,
+    })
+
+  if (saveError) {
+    console.error("Failed to save assessment scores:", saveError)
+    return { error: "得点の保存に失敗しました" }
+  }
+
+  return { success: true }
+}

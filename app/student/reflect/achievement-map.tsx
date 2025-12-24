@@ -10,7 +10,7 @@ import { TrendingUp } from "lucide-react"
 interface AchievementMapProps {
   studentGrade: number
   studentCourse?: string
-  viewerRole?: "student" | "parent"
+  viewerRole?: "student" | "parent" | "coach"
   studentId?: string
 }
 
@@ -40,7 +40,7 @@ export function AchievementMap({
     setLoading(true)
 
     // viewerRoleに応じて適切なAPIを呼び出す
-    const result = viewerRole === "parent" && studentId
+    const result = (viewerRole === "parent" || viewerRole === "coach") && studentId
       ? await getChildAchievementMapData(studentId)
       : await getAchievementMapData()
 

@@ -10,7 +10,7 @@ interface PageHeaderProps {
   title: string
   subtitle?: string
   actions?: React.ReactNode
-  variant?: "student" | "parent"
+  variant?: "student" | "parent" | "coach"
   className?: string
 }
 

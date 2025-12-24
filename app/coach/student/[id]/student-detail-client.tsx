@@ -21,7 +21,17 @@ import {
   Check,
   ChevronRight,
   MessageSquare,
+  ClipboardCheck,
+  MoreHorizontal,
+  Settings,
 } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { getAvatarById } from "@/lib/constants/avatars"
 import { useCoachStudentDetail } from "@/lib/hooks/use-coach-student-detail"
 import { CoachBottomNavigation } from "@/components/coach-bottom-navigation"
@@ -29,6 +39,9 @@ import { CoachBottomNavigation } from "@/components/coach-bottom-navigation"
 // タブコンポーネント
 import { LearningTab } from "./tabs/learning-tab"
 import { EncouragementTab } from "./tabs/encouragement-tab"
+import { AssessmentHistory } from "@/app/student/reflect/assessment-history"
+import { AchievementMap } from "@/app/student/reflect/achievement-map"
+import { EncouragementHistory } from "@/app/student/reflect/encouragement-history"
 
 // 相対時間を計算するヘルパー
 function getRelativeTime(dateStr: string): string {
@@ -81,6 +94,39 @@ export function StudentDetailClient({ studentId, initialData }: StudentDetailCli
 
   // 最近の学習（最新5件）
   const recentLearning = studyLogs.slice(0, 5)
+
+  // 学年を数値に変換（明示的マッピング）
+  const getStudentGradeNumber = (gradeStr: string | null | undefined): number => {
+    // ガード: 空/未定義チェック
+    if (!gradeStr || typeof gradeStr !== 'string') {
+      console.warn('[student-detail-client] Invalid grade value, defaulting to 6')
+      return 6
+    }
+
+    // Server Actionから返される形式: "小学5年" or "小学6年"
+    const gradeMap: Record<string, number> = {
+      "小学5年": 5,
+      "小学5年生": 5,
+      "小学6年": 6,
+      "小学6年生": 6,
+    }
+
+    // 明示的マッピングを優先
+    if (gradeMap[gradeStr]) {
+      return gradeMap[gradeStr]
+    }
+
+    // フォールバック: 数字抽出
+    const match = gradeStr.match(/(\d+)/)
+    if (match) {
+      const num = parseInt(match[1], 10)
+      return num === 5 || num === 6 ? num : 6
+    }
+
+    // 最終フォールバック
+    console.warn(`[student-detail-client] Unknown grade format: "${gradeStr}", defaulting to 6`)
+    return 6
+  }
 
   const getAvatarSrc = () => {
     if (student.custom_avatar_url) return student.custom_avatar_url
@@ -164,21 +210,101 @@ export function StudentDetailClient({ studentId, initialData }: StudentDetailCli
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-        {/* タブナビゲーション（3タブ構成） */}
+        {/* タブナビゲーション（PC: 6タブ, Mobile: 5タブ） */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full grid grid-cols-3 h-auto">
-            <TabsTrigger value="overview" className="flex flex-col gap-1 py-3">
-              <CheckCircle2 className="h-4 w-4" />
-              <span className="text-xs">概要</span>
+          {/* PC版: 6タブ構成（主要5タブ + その他メニュー） */}
+          <TabsList className="hidden md:grid md:grid-cols-6 w-full h-auto">
+            <TabsTrigger value="overview" className="flex items-center gap-2 py-3">
+              <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+              <span className="text-sm">概要</span>
             </TabsTrigger>
-            <TabsTrigger value="learning" className="flex flex-col gap-1 py-3">
-              <BookOpen className="h-4 w-4" />
-              <span className="text-xs">学習</span>
+
+            <TabsTrigger value="assessment" className="flex items-center gap-2 py-3">
+              <ClipboardCheck className="h-4 w-4" aria-hidden="true" />
+              <span className="text-sm">テスト結果</span>
             </TabsTrigger>
-            <TabsTrigger value="encouragement" className="flex flex-col gap-1 py-3">
-              <MessageSquare className="h-4 w-4" />
-              <span className="text-xs">メッセージ</span>
+
+            <TabsTrigger value="learning" className="flex items-center gap-2 py-3">
+              <BookOpen className="h-4 w-4" aria-hidden="true" />
+              <span className="text-sm">学習</span>
             </TabsTrigger>
+
+            <TabsTrigger value="encouragement" className="flex items-center gap-2 py-3">
+              <Heart className="h-4 w-4" aria-hidden="true" />
+              <span className="text-sm">応援</span>
+            </TabsTrigger>
+
+            <TabsTrigger value="achievement" className="flex items-center gap-2 py-3">
+              <Target className="h-4 w-4" aria-hidden="true" />
+              <span className="text-sm">達成マップ</span>
+            </TabsTrigger>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center gap-2 h-auto py-3">
+                  <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+                  <span className="text-sm">その他</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setActiveTab("coaching")}>
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  ふりかえり履歴
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setActiveTab("settings")}>
+                  <Settings className="h-4 w-4 mr-2" />
+                  設定
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </TabsList>
+
+          {/* モバイル版: 5タブ構成（主要4タブ + その他メニュー） */}
+          <TabsList className="grid grid-cols-5 md:hidden w-full h-auto">
+            <TabsTrigger value="overview" className="flex flex-col items-center gap-1 text-xs min-h-[44px] px-2 py-2">
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span>概要</span>
+            </TabsTrigger>
+
+            <TabsTrigger value="assessment" className="flex flex-col items-center gap-1 text-xs min-h-[44px] px-2 py-2">
+              <ClipboardCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span>テスト</span>
+            </TabsTrigger>
+
+            <TabsTrigger value="learning" className="flex flex-col items-center gap-1 text-xs min-h-[44px] px-2 py-2">
+              <BookOpen className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span>学習</span>
+            </TabsTrigger>
+
+            <TabsTrigger value="encouragement" className="flex flex-col items-center gap-1 text-xs min-h-[44px] px-2 py-2">
+              <Heart className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span>応援</span>
+            </TabsTrigger>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex flex-col items-center gap-1 text-xs min-h-[44px] px-2 py-2 h-auto">
+                  <MoreHorizontal className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  <span>その他</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setActiveTab("achievement")}>
+                  <Target className="h-4 w-4 mr-2" />
+                  達成マップ
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setActiveTab("coaching")}>
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  ふりかえり履歴
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setActiveTab("settings")}>
+                  <Settings className="h-4 w-4 mr-2" />
+                  設定
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </TabsList>
 
           {/* 概要タブ（SSRデータ使用） */}
@@ -325,14 +451,56 @@ export function StudentDetailClient({ studentId, initialData }: StudentDetailCli
 
           </TabsContent>
 
+          {/* テスト結果タブ */}
+          <TabsContent value="assessment" className="mt-4">
+            <AssessmentHistory studentId={studentId} />
+          </TabsContent>
+
           {/* 学習タブ（SWR lazy load） */}
           <TabsContent value="learning" className="mt-4">
             <LearningTab studentId={studentId} />
           </TabsContent>
 
-          {/* 応援タブ */}
+          {/* 応援タブ（送信UI + 履歴） */}
           <TabsContent value="encouragement" className="mt-4">
-            <EncouragementTab studentId={studentId} studentName={student.nickname || student.full_name} />
+            <div className="space-y-6">
+              {/* 応援メッセージ送信UI */}
+              <EncouragementTab studentId={studentId} studentName={student.nickname || student.full_name} />
+
+              {/* 送信済み履歴 */}
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-semibold mb-4">送信済みメッセージ</h3>
+                <EncouragementHistory viewerRole="coach" studentId={studentId} />
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* 達成マップタブ */}
+          <TabsContent value="achievement" className="mt-4">
+            <AchievementMap
+              viewerRole="coach"
+              studentId={studentId}
+              studentGrade={getStudentGradeNumber(student.grade)}
+              studentCourse={student.course || undefined}
+            />
+          </TabsContent>
+
+          {/* ふりかえり履歴タブ */}
+          <TabsContent value="coaching" className="mt-4">
+            <div className="text-center py-12 text-slate-500">
+              <MessageSquare className="h-12 w-12 mx-auto mb-4 text-slate-400" />
+              <p className="text-lg font-medium">ふりかえり履歴</p>
+              <p className="text-sm mt-2">この機能は今後実装予定です</p>
+            </div>
+          </TabsContent>
+
+          {/* 設定タブ */}
+          <TabsContent value="settings" className="mt-4">
+            <div className="text-center py-12 text-slate-500">
+              <Settings className="h-12 w-12 mx-auto mb-4 text-slate-400" />
+              <p className="text-lg font-medium">設定</p>
+              <p className="text-sm mt-2">この機能は今後実装予定です</p>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
