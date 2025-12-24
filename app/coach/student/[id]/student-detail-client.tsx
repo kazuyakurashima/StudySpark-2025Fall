@@ -95,10 +95,31 @@ export function StudentDetailClient({ studentId, initialData }: StudentDetailCli
   // 最近の学習（最新5件）
   const recentLearning = studyLogs.slice(0, 5)
 
-  // 学年を数値に変換（"小学5年生" → 5）
+  // 学年を数値に変換（明示的マッピング）
   const getStudentGradeNumber = (gradeStr: string): number => {
+    // Server Actionから返される形式: "小学5年" or "小学6年"
+    const gradeMap: Record<string, number> = {
+      "小学5年": 5,
+      "小学5年生": 5,
+      "小学6年": 6,
+      "小学6年生": 6,
+    }
+
+    // 明示的マッピングを優先
+    if (gradeMap[gradeStr]) {
+      return gradeMap[gradeStr]
+    }
+
+    // フォールバック: 数字抽出
     const match = gradeStr.match(/(\d+)/)
-    return match ? parseInt(match[1], 10) : 6 // デフォルトは6年生
+    if (match) {
+      const num = parseInt(match[1], 10)
+      return num === 5 || num === 6 ? num : 6
+    }
+
+    // 最終フォールバック
+    console.warn(`[student-detail-client] Unknown grade format: "${gradeStr}", defaulting to 6`)
+    return 6
   }
 
   const getAvatarSrc = () => {
