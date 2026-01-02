@@ -1,6 +1,8 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { gradeToString, getAssessmentTitle } from "@/lib/utils/grade-converter"
+import { getTodayJST } from "@/lib/utils/date-jst"
 
 export interface CoachStudent {
   id: string
@@ -1170,6 +1172,7 @@ export interface AssessmentMaster {
   sessionNumber: number
   attemptNumber: number
   maxScore: number
+  title: string  // 表示用タイトル（例: '算数プリント 1回目', '漢字テスト'）
 }
 
 export interface AssessmentInputStudent {
@@ -1178,22 +1181,26 @@ export interface AssessmentInputStudent {
   nickname: string | null
   avatarId: string | null
   customAvatarUrl: string | null
-  grade: string
+  grade: '5年' | '6年'
   // 算数プリント
-  mathScore1?: number | null
-  mathScore2?: number | null
-  mathStatus1?: 'completed' | 'absent' | 'not_submitted'
-  mathStatus2?: 'completed' | 'absent' | 'not_submitted'
+  mathScore1: number | null
+  mathScore2: number | null
+  mathStatus1: 'completed' | 'absent' | 'not_submitted'
+  mathStatus2: 'completed' | 'absent' | 'not_submitted'
+  mathDate1: string | null
+  mathDate2: string | null
   // 漢字テスト
-  kanjiScore?: number | null
-  kanjiStatus?: 'completed' | 'absent' | 'not_submitted'
+  kanjiScore: number | null
+  kanjiStatus: 'completed' | 'absent' | 'not_submitted'
+  kanjiDate: string | null
 }
 
 export interface AssessmentInputData {
   sessionNumber: number
   students: AssessmentInputStudent[]
   mathMasters: AssessmentMaster[]
-  kanjiMaster: AssessmentMaster | null
+  kanjiMasters: AssessmentMaster[]
+  skippedStudentsCount: number
 }
 
 /**
@@ -1232,75 +1239,92 @@ export async function getUnconfirmedSessions() {
     return { error: "担当生徒の取得に失敗しました" }
   }
 
-  const studentIds = relations?.map((rel) => rel.student_id) || []
+  // 学年変換＆無効データフィルタリング
+  const validRelations = relations
+    ?.map((rel: any) => {
+      const numericGrade = rel.students?.grade
+      const gradeStr = gradeToString(numericGrade)
+      if (!gradeStr) {
+        console.warn(`[getUnconfirmedSessions] Skipping student ${rel.student_id} with invalid grade: ${numericGrade}`)
+        return null
+      }
+      return { student_id: rel.student_id, grade: gradeStr }
+    })
+    .filter((r): r is { student_id: number; grade: '5年' | '6年' } => r !== null) || []
 
-  if (studentIds.length === 0) {
+  if (validRelations.length === 0) {
     return { sessions: [] }
   }
 
   // 各学年の回次範囲を取得
-  const grades = [...new Set(relations?.map((rel: any) => rel.students?.grade) || [])]
-  const sessionRanges: Record<number, number[]> = {}
+  const grades = [...new Set(validRelations.map((rel) => rel.grade))]
+  const sessionRanges: Record<string, number[]> = {}
 
   for (const grade of grades) {
-    const maxSession = grade === 5 ? 19 : 15
+    const maxSession = grade === '5年' ? 19 : 15
     sessionRanges[grade] = Array.from({ length: maxSession }, (_, i) => i + 1)
   }
 
-  // 全回次を集約
-  const allSessions = [...new Set(Object.values(sessionRanges).flat())].sort((a, b) => b - a)
+  // 全回次を集約（昇順）
+  const allSessions = [...new Set(Object.values(sessionRanges).flat())].sort((a, b) => a - b)
 
-  // 各回次の未入力件数を計算
-  const sessionStats = await Promise.all(
-    allSessions.map(async (sessionNumber) => {
-      // この回次のマスタを取得
-      const { data: masters } = await supabase
-        .from("assessment_masters")
-        .select("id, assessment_type, grade, attempt_number")
-        .eq("session_number", sessionNumber)
+  // 全マスタと全アセスメントを一括取得（N+1クエリ最適化）
+  const { data: allMasters } = await supabase
+    .from("assessment_masters")
+    .select("id, assessment_type, grade, session_number, attempt_number")
+    .in("session_number", allSessions)
 
-      if (!masters || masters.length === 0) {
-        return { sessionNumber, unconfirmedCount: 0 }
-      }
+  const studentIds = validRelations.map((r) => r.student_id)
+  const { data: allAssessments } = await supabase
+    .from("class_assessments")
+    .select("student_id, master_id, status")
+    .in("student_id", studentIds)
+    .in("master_id", allMasters?.map((m) => m.id) || [])
+    .eq("is_resubmission", false)
 
-      // 各マスタの未確定件数を計算
-      let unconfirmedCount = 0
+  // Map化: O(1)ルックアップ用
+  const assessmentMap = new Map<string, string>()
+  allAssessments?.forEach((a) => {
+    assessmentMap.set(`${a.master_id}:${a.student_id}`, a.status)
+  })
 
-      for (const master of masters) {
-        // この学年の生徒のみを対象
-        const targetStudentIds = studentIds.filter((sid) => {
-          const rel = relations?.find((r) => r.student_id === sid)
-          const studentGrade = (rel as any)?.students?.grade
-          return master.grade === (studentGrade === 5 ? "5年" : "6年")
-        })
+  const gradeMap = new Map<number, '5年' | '6年'>()
+  validRelations.forEach((rel) => {
+    gradeMap.set(rel.student_id, rel.grade)
+  })
 
-        // 各生徒の入力状況を確認
-        for (const studentId of targetStudentIds) {
-          const { data: existing } = await supabase
-            .from("class_assessments")
-            .select("id, status")
-            .eq("student_id", studentId)
-            .eq("master_id", master.id)
-            .eq("is_resubmission", false)
-            .maybeSingle()
+  // 各回次の未入力件数を計算（学年別、O(n)）
+  const sessionStats = allSessions.map((sessionNumber) => {
+    const masters = allMasters?.filter((m) => m.session_number === sessionNumber) || []
+    let unconfirmedCount5 = 0
+    let unconfirmedCount6 = 0
 
-          if (!existing || existing.status === 'not_submitted') {
-            unconfirmedCount++
+    for (const master of masters) {
+      // この学年の生徒のみを対象
+      const targetStudentIds = studentIds.filter((sid) => gradeMap.get(sid) === master.grade)
+
+      for (const studentId of targetStudentIds) {
+        const status = assessmentMap.get(`${master.id}:${studentId}`)
+        if (!status || status === 'not_submitted') {
+          if (master.grade === '5年') {
+            unconfirmedCount5++
+          } else {
+            unconfirmedCount6++
           }
         }
       }
+    }
 
-      return { sessionNumber, unconfirmedCount }
-    })
-  )
+    return { sessionNumber, unconfirmedCount5, unconfirmedCount6 }
+  })
 
-  // 未確定件数が1件以上ある回次のみを返す
+  // 未確定件数が1件以上ある回次のみを返す（どちらかの学年で未入力があれば表示）
   const unconfirmedSessions = sessionStats
-    .filter((stat) => stat.unconfirmedCount > 0)
+    .filter((stat) => stat.unconfirmedCount5 > 0 || stat.unconfirmedCount6 > 0)
     .map((stat) => ({
       sessionNumber: stat.sessionNumber,
-      unconfirmedCount: stat.unconfirmedCount,
-      label: `第${stat.sessionNumber}回（${stat.unconfirmedCount}件未入力）`,
+      unconfirmedCount5: stat.unconfirmedCount5,
+      unconfirmedCount6: stat.unconfirmedCount6,
     }))
 
   return { sessions: unconfirmedSessions }
@@ -1390,7 +1414,7 @@ export async function getAssessmentInputData(
     return { error: "マスタデータの取得に失敗しました" }
   }
 
-  // マスタを型変換
+  // マスタを型変換（DBのtitleを優先、なければフォールバック）
   const mathMasters: AssessmentMaster[] = masters
     ?.filter((m) => m.assessment_type === "math_print")
     .map((m) => ({
@@ -1400,6 +1424,7 @@ export async function getAssessmentInputData(
       sessionNumber: m.session_number,
       attemptNumber: m.attempt_number,
       maxScore: m.max_score,
+      title: m.title ?? getAssessmentTitle(m.assessment_type as 'math_print', m.attempt_number),
     })) || []
 
   const kanjiMasters = masters
@@ -1411,6 +1436,7 @@ export async function getAssessmentInputData(
       sessionNumber: m.session_number,
       attemptNumber: m.attempt_number,
       maxScore: m.max_score,
+      title: m.title ?? getAssessmentTitle(m.assessment_type as 'kanji_test', m.attempt_number),
     })) || []
 
   // 各生徒の既存入力を取得
@@ -1422,43 +1448,56 @@ export async function getAssessmentInputData(
     .in("master_id", masters?.map((m) => m.id) || [])
     .eq("is_resubmission", false)
 
-  // 生徒データを整形
-  const studentsData: AssessmentInputStudent[] = students.map((student: any) => {
-    const profile = profilesMap[student.user_id] || { nickname: null, avatar_id: null, custom_avatar_url: null }
-    const studentGrade = student.grade === 5 ? "5年" : "6年"
+  // 生徒データを整形（学年不正データはスキップ）
+  let skippedStudentsCount = 0
+  const studentsData: AssessmentInputStudent[] = students
+    .map((student: any) => {
+      const profile = profilesMap[student.user_id] || { nickname: null, avatar_id: null, custom_avatar_url: null }
+      const studentGrade = gradeToString(student.grade)
 
-    // 該当学年のマスタを取得
-    const mathMaster1 = mathMasters.find((m) => m.grade === studentGrade && m.attemptNumber === 1)
-    const mathMaster2 = mathMasters.find((m) => m.grade === studentGrade && m.attemptNumber === 2)
-    const kanjiMaster = kanjiMasters.find((m) => m.grade === studentGrade)
+      if (!studentGrade) {
+        console.warn(`[getAssessmentInputData] Skipping student ${student.id} (${student.full_name}) with invalid grade: ${student.grade}`)
+        skippedStudentsCount++
+        return null
+      }
 
-    // 既存の入力を取得
-    const mathAssessment1 = existingAssessments?.find((a) => a.master_id === mathMaster1?.id && a.student_id === student.id)
-    const mathAssessment2 = existingAssessments?.find((a) => a.master_id === mathMaster2?.id && a.student_id === student.id)
-    const kanjiAssessment = existingAssessments?.find((a) => a.master_id === kanjiMaster?.id && a.student_id === student.id)
+      // 該当学年のマスタを取得
+      const mathMaster1 = mathMasters.find((m) => m.grade === studentGrade && m.attemptNumber === 1)
+      const mathMaster2 = mathMasters.find((m) => m.grade === studentGrade && m.attemptNumber === 2)
+      const kanjiMaster = kanjiMasters.find((m) => m.grade === studentGrade)
 
-    return {
-      id: String(student.id),
-      fullName: student.full_name,
-      nickname: profile.nickname,
-      avatarId: profile.avatar_id,
-      customAvatarUrl: profile.custom_avatar_url,
-      grade: studentGrade,
-      mathScore1: mathAssessment1?.score ?? null,
-      mathScore2: mathAssessment2?.score ?? null,
-      mathStatus1: mathAssessment1?.status ?? 'not_submitted',
-      mathStatus2: mathAssessment2?.status ?? 'not_submitted',
-      kanjiScore: kanjiAssessment?.score ?? null,
-      kanjiStatus: kanjiAssessment?.status ?? 'not_submitted',
-    }
-  })
+      // 既存の入力を取得
+      const mathAssessment1 = existingAssessments?.find((a) => a.master_id === mathMaster1?.id && a.student_id === student.id)
+      const mathAssessment2 = existingAssessments?.find((a) => a.master_id === mathMaster2?.id && a.student_id === student.id)
+      const kanjiAssessment = existingAssessments?.find((a) => a.master_id === kanjiMaster?.id && a.student_id === student.id)
+
+      return {
+        id: String(student.id),
+        fullName: student.full_name,
+        nickname: profile.nickname,
+        avatarId: profile.avatar_id,
+        customAvatarUrl: profile.custom_avatar_url,
+        grade: studentGrade,
+        mathScore1: mathAssessment1?.score ?? null,
+        mathScore2: mathAssessment2?.score ?? null,
+        mathStatus1: mathAssessment1?.status ?? 'not_submitted',
+        mathStatus2: mathAssessment2?.status ?? 'not_submitted',
+        mathDate1: mathAssessment1?.assessment_date ?? null,
+        mathDate2: mathAssessment2?.assessment_date ?? null,
+        kanjiScore: kanjiAssessment?.score ?? null,
+        kanjiStatus: kanjiAssessment?.status ?? 'not_submitted',
+        kanjiDate: kanjiAssessment?.assessment_date ?? null,
+      }
+    })
+    .filter((s): s is AssessmentInputStudent => s !== null)
 
   return {
     data: {
       sessionNumber,
       students: studentsData,
       mathMasters,
-      kanjiMaster: kanjiMasters[0] || null,
+      kanjiMasters,
+      skippedStudentsCount,
     },
   }
 }
@@ -1473,7 +1512,8 @@ export async function saveAssessmentScores(
     masterId: string
     score: number | null
     status: 'completed' | 'absent' | 'not_submitted'
-  }>
+  }>,
+  assessmentDate?: string
 ) {
   const supabase = await createClient()
 
@@ -1498,13 +1538,13 @@ export async function saveAssessmentScores(
   }
 
   // 一括保存（upsert）
-  const today = new Date().toISOString().split('T')[0]
+  const dateToUse = assessmentDate || getTodayJST()
   const upsertData = scores.map((score) => ({
     student_id: parseInt(score.studentId, 10),
     master_id: score.masterId,
     score: score.status === 'completed' ? score.score : null,
     status: score.status,
-    assessment_date: today,
+    assessment_date: dateToUse,  // NOT NULL制約のため常に保存
     grader_id: user.id,
     is_resubmission: false,
   }))
