@@ -44,8 +44,12 @@
 
 #### 環境準備
 - [ ] DB2026 のマスタデータ投入完了
+  - ⚠️ 注記: `problem_counts` は2月切替後に投入予定（[data_strategy.md](03_data_strategy.md#84-problem_counts-の段階的投入) 参照）
 - [ ] DB2026 でのステージング検証完了
 - [ ] main ブランチの動作確認完了
+- [ ] 新小5登録スクリプトの依存関係インストール完了
+  - `pnpm add csv-parse iconv-lite`
+  - `pnpm add -D @types/node`
 
 #### ドキュメント
 - [ ] 切替手順書のレビュー完了
@@ -63,6 +67,7 @@
 - [ ] release/2025 と main の差分確認（未 cherry-pick がないこと）
 - [ ] DB2025 のバックアップ取得
 - [ ] DB2026 の状態確認（マスタデータ、スキーマ）
+  - ⚠️ 注記: `problem_counts` は未投入（2月切替後に投入予定）
 - [ ] Vercel 環境変数の変更値を準備
 
 #### 関係者連絡
@@ -297,11 +302,64 @@
   □ 主要件数・整合性が問題ないことを確認
 ```
 
-### Phase 3: 環境切替（00:35〜）
+### Phase 2.5: 新小5生徒登録（00:35〜）
 
 ```
 担当: 運用担当
-所要時間: 15分
+所要時間: 10分
+
+⚠️ 前提条件:
+- 新小5生徒のCSVファイルを準備（生徒保護者情報アカウント.csv）
+- 依存関係がインストール済み（事前準備で確認済み）
+
+□ 新小5生徒登録スクリプトの実行
+  $ npx tsx scripts/register-grade5-students.ts ~/Downloads/生徒保護者情報アカウント.csv
+
+  □ 確認プロンプトで登録内容を確認
+  □ Enter キーで登録開始
+
+  □ 実行結果を確認:
+    - Success: ___ 件（期待値: 5件）
+    - Failure: ___ 件（期待値: 0件）
+
+  □ 失敗があった場合:
+    - エラーメッセージを記録
+    - **重複エラーの場合**:
+      - 保護者メールアドレス重複: 該当の保護者アカウントが既に存在
+      - 生徒ログインID重複: 該当の生徒アカウントが既に存在
+      - → スキップして次の生徒へ進む（重複データは上書きされない）
+    - **その他のエラーの場合**:
+      - スクリプトが自動ロールバックを試みる（ベストエフォート）
+      - 部分的に作成されたデータは削除される
+      - エラー内容を確認し、必要に応じて手動で再実行
+
+□ シーケンスの手動更新（必須）
+  スクリプト終了時に表示される SQL を実行:
+
+  $ psql <DB2026_CONNECTION> -c "SELECT setval('students_id_seq', COALESCE((SELECT MAX(id) FROM students), 0), true);"
+  $ psql <DB2026_CONNECTION> -c "SELECT setval('parents_id_seq', COALESCE((SELECT MAX(id) FROM parents), 0), true);"
+  $ psql <DB2026_CONNECTION> -c "SELECT setval('parent_child_relations_id_seq', COALESCE((SELECT MAX(id) FROM parent_child_relations), 0), true);"
+
+  □ すべて成功したことを確認
+
+□ 登録確認
+  $ psql <DB2026_CONNECTION> -c "SELECT grade, COUNT(*) FROM students GROUP BY grade ORDER BY grade;"
+  □ 小5が5件増えていることを確認
+
+  $ psql <DB2026_CONNECTION> -c "SELECT COUNT(*) FROM parents;"
+  □ 保護者が5件増えていることを確認
+
+  $ psql <DB2026_CONNECTION> -c "SELECT COUNT(*) FROM parent_child_relations;"
+  □ 親子関係が5件増えていることを確認
+
+□ 作業ログに記録: 「新小5登録完了 HH:MM、登録件数: ___ 件」
+```
+
+### Phase 3: 環境切替（00:45〜）
+
+```
+担当: 運用担当
+所要時間: 15分（00:45〜01:00）
 
 □ Vercel 環境変数の変更
   1. Vercel ダッシュボード → Settings → Environment Variables
@@ -324,11 +382,11 @@
   □ デプロイURLを記録
 ```
 
-### Phase 4: 動作確認（00:50〜）
+### Phase 4: 動作確認（01:00〜）
 
 ```
 担当: 全員
-所要時間: 60分
+所要時間: 50分（01:00〜01:50）
 
 □ 基本動作確認
   - [ ] トップページの表示
@@ -353,8 +411,13 @@
   - [ ] 得点入力機能
 
 □ マスタデータ確認
-  - [ ] 学習回が2026年度版であること
+  - [ ] 学習回が2026年度版であること（小5: 20回、小6: 18回）
+  - [ ] テスト日程が2026年度版であること
   - [ ] 科目・単元が正しく表示されること
+  - ⚠️ 既知の制限: 問題数データ（`problem_counts`）は未投入
+    - 影響: 学習記録入力画面で「◯問中◯問」の表示がされない
+    - 機能への影響: なし（正答数入力は可能）
+    - 投入予定: 2月中旬以降
 
 □ API動作確認
   - [ ] AIコーチメッセージの生成
