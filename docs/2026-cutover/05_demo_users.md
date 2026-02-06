@@ -98,8 +98,8 @@ npx tsx scripts/register-demo-users.ts
 2. 存在する場合:
    a. parent_child_relations を削除
    b. students / parents を削除
-   c. profiles を削除
-   d. auth.users を削除（Admin API）
+   c. auth.users を削除（Admin API）
+      ※ profiles は ON DELETE CASCADE で自動削除される
 3. 新規作成
 ```
 

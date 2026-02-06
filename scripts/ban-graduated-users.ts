@@ -101,7 +101,7 @@ async function main() {
     const missingColumns = REQUIRED_COLUMNS.filter(col => !(col in firstRecord))
     if (missingColumns.length > 0) {
       console.error(`\n❌ CSV に必須カラムがありません: ${missingColumns.join(', ')}`)
-      console.error('期待するカラム: id, user_id, email, display_name')
+      console.error(`期待するカラム: ${REQUIRED_COLUMNS.join(', ')}`)
       process.exit(1)
     }
 
