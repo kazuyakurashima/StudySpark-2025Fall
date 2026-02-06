@@ -4,8 +4,8 @@
 -- 作成日: 2026-02-06
 -- 説明: 2026年度上半期（2/9 - 7/19）のマスターデータ
 --      学習回、科目、学習内容、テスト日程などを投入
---      ※ 問題数データ（problem_counts）はマイグレーションで投入
---        → 20260206000002_update_content_types_and_problem_counts.sql
+--      ※ 問題数データ（problem_counts）はシードで別途投入
+--        → supabase/seeds/problem_counts_2026.sql
 
 -- ----------------------------------------------------------------------------
 -- 1. 科目マスタ
@@ -86,6 +86,8 @@ BEGIN
 
   -- 2026年度 study_content_types（109件）
   -- 生成元: scripts/generate-problem-counts-sql.py + 2026年四谷大塚DB.xlsx
+  -- ※ 同一データが migration/20260206000002 にも存在（既存DBアップグレード用）
+  --   新規DB構築時はこの seed.sql が source of truth
   INSERT INTO public.study_content_types (grade, subject_id, course, content_name, display_order) VALUES
   -- 小5 算数
   (5, v_math_id, 'A', '類題', 1),
@@ -326,5 +328,5 @@ BEGIN
   RAISE NOTICE '- 学習内容タイプ: 109件 (2026年度カリキュラム対応)';
   RAISE NOTICE '- テストタイプ: 3件 (組分け×2, 合不合×1)';
   RAISE NOTICE '- テスト日程: 小5組分け=9回, 小6組分け=3回, 小6合不合=5回';
-  RAISE NOTICE '- ※ problem_counts はマイグレーションで別途投入 → seeds/problem_counts_2026.sql';
+  RAISE NOTICE '- ※ problem_counts はシードで別途投入 → seeds/problem_counts_2026.sql';
 END $$;

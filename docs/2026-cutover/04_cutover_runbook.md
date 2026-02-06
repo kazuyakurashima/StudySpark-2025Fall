@@ -43,9 +43,12 @@
 ### 3.1 1週間前（1/25まで）
 
 #### 環境準備
-- [ ] DB2026 のマスタデータ投入完了
-  - study_content_types: マイグレーション `20260206000002` で全面置換
-  - problem_counts: `supabase/seeds/problem_counts_2026.sql` で投入（[data_strategy.md](03_data_strategy.md#84-problem_counts-の投入) 参照）
+- [ ] DB2026 のマスタデータ投入完了（以下の順序で実行）
+  1. `seed.sql` — subjects, study_sessions, study_content_types(2026版), test_types, test_schedules
+  2. マイグレーション `20260206000001` — assessment_masters 更新
+  3. マイグレーション `20260206000002` — study_content_types 全面置換（新規DBでは冪等、既存DBアップグレード用）
+  4. `supabase/seeds/problem_counts_2026.sql` — problem_counts 投入（1,408件）
+  - 参照: [data_strategy.md](03_data_strategy.md#84-problem_counts-の投入)
 - [ ] DB2026 でのステージング検証完了
 - [ ] main ブランチの動作確認完了
 - [ ] 新小5登録スクリプトの依存関係インストール完了
@@ -68,7 +71,7 @@
 - [ ] release/2025 と main の差分確認（未 cherry-pick がないこと）
 - [ ] DB2025 のバックアップ取得
 - [ ] DB2026 の状態確認（マスタデータ、スキーマ）
-  - ⚠️ 注記: `problem_counts` は未投入（2月切替後に投入予定）
+  - `problem_counts` が投入済みであること（1,408件）
 - [ ] Vercel 環境変数の変更値を準備
 
 #### 関係者連絡
@@ -415,10 +418,8 @@
   - [ ] 学習回が2026年度版であること（小5: 20回、小6: 18回）
   - [ ] テスト日程が2026年度版であること
   - [ ] 科目・単元が正しく表示されること
-  - ⚠️ 既知の制限: 問題数データ（`problem_counts`）は未投入
-    - 影響: 学習記録入力画面で「◯問中◯問」の表示がされない
-    - 機能への影響: なし（正答数入力は可能）
-    - 投入予定: 2月中旬以降
+  - [ ] 問題数データ（`problem_counts`）が投入済みであること（1,408件）
+    - 確認: 学習記録入力画面で「◯問中◯問」が正しく表示されること
 
 □ API動作確認
   - [ ] AIコーチメッセージの生成

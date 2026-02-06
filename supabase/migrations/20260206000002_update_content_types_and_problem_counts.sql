@@ -6,11 +6,15 @@
 --
 -- study_content_types: 109 件
 --
+-- 用途:
+-- - 既存DBの2025→2026アップグレード用（study_content_types を DELETE → INSERT で全面置換）
+-- - 新規DB構築時は seed.sql が同一データを投入済みのため、本マイグレーションは冪等（DO NOTHING）
+--
 -- 注記:
--- - 2026年度カリキュラム変更に伴い study_content_types を DELETE → INSERT で全面置換
 -- - DELETE は CASCADE で problem_counts も自動削除される
 -- - ⚠️ study_logs が存在する場合も CASCADE で削除されるため、事前チェックで中断する
 -- - problem_counts は別ファイルで投入: supabase/seeds/problem_counts_2026.sql
+-- - ※ seed.sql にも同一データあり。変更時は両方を更新すること
 -- =============================================================================
 
 DO $$
@@ -26,6 +30,12 @@ BEGIN
   SELECT id INTO v_japanese_id FROM public.subjects WHERE name = '国語';
   SELECT id INTO v_science_id FROM public.subjects WHERE name = '理科';
   SELECT id INTO v_social_id FROM public.subjects WHERE name = '社会';
+
+  -- 前提チェック: subjects が存在しない場合は中断
+  IF v_math_id IS NULL OR v_japanese_id IS NULL OR v_science_id IS NULL OR v_social_id IS NULL THEN
+    RAISE EXCEPTION 'subjects テーブルに必要な科目が不足しています (算数=%, 国語=%, 理科=%, 社会=%)。seed.sql を先に実行してください。',
+      v_math_id, v_japanese_id, v_science_id, v_social_id;
+  END IF;
 
   -- =========================================================================
   -- 1. 安全チェック: study_logs が存在する場合は中断
