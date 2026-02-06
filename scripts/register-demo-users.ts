@@ -202,16 +202,18 @@ async function deleteExistingDemoUsers(users: ExistingDemoUser[], dryRun: boolea
         .single()
 
       if (student) {
-        await supabase
+        const { error: relError } = await supabase
           .from('parent_child_relations')
           .delete()
           .eq('student_id', student.id)
+        if (relError) console.error(`    ⚠️  関係削除失敗: ${relError.message}`)
       }
 
-      await supabase
+      const { error: stuError } = await supabase
         .from('students')
         .delete()
         .eq('user_id', user.id)
+      if (stuError) console.error(`    ⚠️  生徒削除失敗: ${stuError.message}`)
     } else {
       const { data: parent } = await supabase
         .from('parents')
@@ -220,22 +222,27 @@ async function deleteExistingDemoUsers(users: ExistingDemoUser[], dryRun: boolea
         .single()
 
       if (parent) {
-        await supabase
+        const { error: relError } = await supabase
           .from('parent_child_relations')
           .delete()
           .eq('parent_id', parent.id)
+        if (relError) console.error(`    ⚠️  関係削除失敗: ${relError.message}`)
       }
 
-      await supabase
+      const { error: parError } = await supabase
         .from('parents')
         .delete()
         .eq('user_id', user.id)
+      if (parError) console.error(`    ⚠️  保護者削除失敗: ${parError.message}`)
     }
 
-    // 2. auth.users を削除（profiles は CASCADE で削除される）
+    // 2. auth.users を削除
+    //    profiles は profiles(id) REFERENCES auth.users(id) ON DELETE CASCADE により自動削除
+    //    計画(05_demo_users.md 4.2)では profiles → auth.users の順だが、
+    //    CASCADE で同等の結果になるため auth.users 削除のみで対応
     const { error } = await supabase.auth.admin.deleteUser(user.id)
     if (error) {
-      console.error(`    ⚠️  削除失敗: ${error.message}`)
+      console.error(`    ⚠️  auth.users 削除失敗: ${error.message}`)
     } else {
       console.log(`    ✓ 削除完了`)
     }

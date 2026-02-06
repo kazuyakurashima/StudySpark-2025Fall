@@ -16,9 +16,10 @@
  *   --force    確認プロンプトをスキップ
  *
  * 補足:
- *   - BAN は Supabase Auth の ban_duration で実装
- *   - BAN 解除は Supabase ダッシュボード または以下で可能:
- *     supabase.auth.admin.updateUserById(userId, { ban_duration: 'none' })
+ *   - BAN は Supabase Auth の ban_duration で実装（"100y" = 100年、公式ドキュメント例に準拠）
+ *   - BAN 解除は Supabase ダッシュボードから実施（Auth > Users > 対象ユーザー > Unban）
+ *   - API での解除: supabase.auth.admin.updateUserById(userId, { ban_duration: 'none' })
+ *     ※ 上記 API 解除は計画上「未検証」のため、本番ではダッシュボード経由を推奨
  */
 
 import { createClient } from '@supabase/supabase-js'
@@ -41,8 +42,10 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: { persistSession: false, autoRefreshToken: false }
 })
 
-// BAN期間: 100年（実質永久）
-const BAN_DURATION = '876000h'
+// BAN期間: 100年（実質永久、Supabase GoTrue 公式ドキュメント例に準拠）
+const BAN_DURATION = '100y'
+
+const REQUIRED_COLUMNS = ['user_id', 'email', 'display_name'] as const
 
 interface GraduatingStudent {
   id: string
@@ -90,6 +93,25 @@ async function main() {
   if (records.length === 0) {
     console.log('対象者がいません。終了します。')
     return
+  }
+
+  // CSVカラム検証
+  if (records.length > 0) {
+    const firstRecord = records[0]
+    const missingColumns = REQUIRED_COLUMNS.filter(col => !(col in firstRecord))
+    if (missingColumns.length > 0) {
+      console.error(`\n❌ CSV に必須カラムがありません: ${missingColumns.join(', ')}`)
+      console.error('期待するカラム: id, user_id, email, display_name')
+      process.exit(1)
+    }
+
+    // 空値チェック
+    const invalidRecords = records.filter(r => !r.user_id || !r.email)
+    if (invalidRecords.length > 0) {
+      console.error(`\n❌ user_id または email が空のレコードが ${invalidRecords.length} 件あります`)
+      invalidRecords.forEach(r => console.error(`  - display_name: ${r.display_name || '(空)'}`))
+      process.exit(1)
+    }
   }
 
   // 対象者一覧表示
