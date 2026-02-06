@@ -1,6 +1,7 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Noto_Sans_JP } from "next/font/google"
+import { EnvironmentBanner } from "@/components/environment-banner"
 import "./globals.css"
 
 const notoSansJP = Noto_Sans_JP({
@@ -34,7 +35,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja" className={notoSansJP.variable}>
-      <body className="font-sans antialiased">{children}</body>
+      <body className="font-sans antialiased">
+        <EnvironmentBanner />
+        {children}
+      </body>
     </html>
   )
 }
