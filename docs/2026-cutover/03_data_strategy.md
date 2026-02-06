@@ -35,7 +35,7 @@
 | テーブル | 説明 | 2026年度対応 |
 |---------|------|-------------|
 | `subjects` | 科目マスタ | 変更なし（共通） |
-| `study_content_types` | 学習内容タイプ | 変更なし（共通） |
+| `study_content_types` | 学習内容タイプ | **2026年度カリキュラム変更に伴い全面置換**（マイグレーションで DELETE→INSERT） |
 | `study_sessions` | 学習回マスタ | 2026年度版を投入（期間情報更新） |
 | `problem_counts` | 問題数マスタ | 2026年度版を投入（学年・回数に合わせて更新）※段階的投入 |
 | `assessment_masters` | テスト・プリントマスタ（算数プリント・漢字テスト） | **2026年度対応が必要**（マイグレーション更新：5年19回→20回、6年15回→18回） |
@@ -616,41 +616,33 @@ banGraduatedUsers(process.argv[2])
 // 6年生: 2026/2/9 開始、全18回（組分けテスト週も連番に含める）
 ```
 
-### 8.4 problem_counts の段階的投入
+### 8.4 problem_counts の投入
 
-**決定事項**: `problem_counts` テーブルへのデータ投入を **2月切替後に延期**。
+**実施済み（2026-02-06）**: `problem_counts` のデータ生成完了。
 
-#### 延期理由
+#### 生成ツール
 
-1. **Excel-DB マッピングの複雑性**
-   - 元データ（`2026年四谷大塚DB.xlsx`）は科目・レベル・学習内容別のシート構成
-   - DB スキーマ（`problem_counts`）は `study_content_types` の `id` を FK 参照
-   - マッピングロジックの実装・検証に時間を要する
+- **スクリプト**: `scripts/generate-problem-counts-sql.py`
+- **ソースデータ**: `2026年四谷大塚DB.xlsx`（16シート）
+- **出力**: `supabase/seeds/problem_counts_2026.sql`（1,408件）
 
-2. **切替リスクの最小化**
-   - 問題数データの有無はアプリの動作に影響しない（入力欄に問題数が表示されないのみ）
-   - 必須マスタデータ（`study_sessions`, `test_schedules` 等）の投入を優先
+#### study_content_types の変更について
 
-3. **段階的リリース戦略**
-   - Phase 0（2月切替）: 問題数なしで運用開始
-   - Phase 1（2月中旬以降）: `problem_counts` データ追加
+当初「変更なし（共通）」としていたが、2026年度はカリキュラム構造が変更されており、
+study_content_types の全面置換が必要であることが判明。
 
-#### 影響範囲
+- **マイグレーション**: `20260206000002_update_content_types_and_problem_counts.sql`
+  - 既存 study_content_types を DELETE → 2026年度版 109件を INSERT
+  - ⚠️ DELETE 前に `study_logs` の存在チェック（CASCADE による学習ログ削除防止）
+- **命名規則の変更**:
+  - 理科・6年社会: 予習/演習で同名の項目があるため「予習：」「演習：」接頭辞を付与
+  - 例: 「練習問題」→「予習：練習問題」「演習：練習問題」
 
-**生徒の学習記録入力画面（`/student/spark`）:**
-- 現状: 学習内容ごとに「◯問中◯問」の入力欄が表示される
-- 延期後: 問題数の表示がなくなり、シンプルな「正答数」入力のみとなる
-- **機能への影響**: なし（正答数・正答率の記録は引き続き可能）
+#### 投入手順
 
-**指導者の得点入力画面（`/coach/students/[id]/scores`）:**
-- 同様に問題数表示が省略される
-
-#### 投入予定
-
-- **タイミング**: 2026年2月中旬〜下旬（DB2026 運用開始後）
-- **投入方法**: `supabase/seeds/` ディレクトリに別ファイルとして配置
-  - 例: `supabase/seeds/problem_counts_2026.sql`
-- **投入手順**: `psql <DB2026_CONNECTION> -f supabase/seeds/problem_counts_2026.sql`
+1. study_content_types マイグレーション適用（Supabase SQL Editor）
+2. problem_counts 投入: `psql <DB2026_CONNECTION> -f supabase/seeds/problem_counts_2026.sql`
+   - ヘルパー関数が前提データ不整合を検出した場合、RAISE EXCEPTION で中断
 
 ## 9. データ整合性チェック
 

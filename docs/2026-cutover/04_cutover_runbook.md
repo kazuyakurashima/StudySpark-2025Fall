@@ -44,7 +44,8 @@
 
 #### 環境準備
 - [ ] DB2026 のマスタデータ投入完了
-  - ⚠️ 注記: `problem_counts` は2月切替後に投入予定（[data_strategy.md](03_data_strategy.md#84-problem_counts-の段階的投入) 参照）
+  - study_content_types: マイグレーション `20260206000002` で全面置換
+  - problem_counts: `supabase/seeds/problem_counts_2026.sql` で投入（[data_strategy.md](03_data_strategy.md#84-problem_counts-の投入) 参照）
 - [ ] DB2026 でのステージング検証完了
 - [ ] main ブランチの動作確認完了
 - [ ] 新小5登録スクリプトの依存関係インストール完了

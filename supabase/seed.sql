@@ -1,10 +1,11 @@
 -- ============================================================================
 -- マスターデータ投入（seed.sql）- 2026年度版
 -- ============================================================================
--- 作成日: 2026-01-XX
+-- 作成日: 2026-02-06
 -- 説明: 2026年度上半期（2/9 - 7/19）のマスターデータ
 --      学習回、科目、学習内容、テスト日程などを投入
---      ※ 問題数データ（problem_counts）は後日追加予定
+--      ※ 問題数データ（problem_counts）はマイグレーションで投入
+--        → 20260206000002_update_content_types_and_problem_counts.sql
 
 -- ----------------------------------------------------------------------------
 -- 1. 科目マスタ
@@ -83,100 +84,126 @@ BEGIN
   SELECT id INTO v_science_id FROM public.subjects WHERE name = '理科';
   SELECT id INTO v_social_id FROM public.subjects WHERE name = '社会';
 
-  -- 小学5年生 - 算数
+  -- 2026年度 study_content_types（109件）
+  -- 生成元: scripts/generate-problem-counts-sql.py + 2026年四谷大塚DB.xlsx
   INSERT INTO public.study_content_types (grade, subject_id, course, content_name, display_order) VALUES
+  -- 小5 算数
   (5, v_math_id, 'A', '類題', 1),
-  (5, v_math_id, 'A', '基本問題', 2),
   (5, v_math_id, 'B', '類題', 1),
-  (5, v_math_id, 'B', '基本問題', 2),
-  (5, v_math_id, 'B', '練習問題', 3),
   (5, v_math_id, 'C', '類題', 1),
-  (5, v_math_id, 'C', '基本問題', 2),
-  (5, v_math_id, 'C', '練習問題', 3),
-  (5, v_math_id, 'C', '演習問題集（実戦演習）', 4),
   (5, v_math_id, 'S', '類題', 1),
+  (5, v_math_id, 'A', '基本問題', 2),
+  (5, v_math_id, 'B', '基本問題', 2),
+  (5, v_math_id, 'C', '基本問題', 2),
   (5, v_math_id, 'S', '基本問題', 2),
+  (5, v_math_id, 'B', '練習問題', 3),
+  (5, v_math_id, 'C', '練習問題', 3),
   (5, v_math_id, 'S', '練習問題', 3),
-  (5, v_math_id, 'S', '演習問題集（実戦演習）', 4)
-  ON CONFLICT (grade, subject_id, course, content_name) DO NOTHING;
-
-  -- 小学5年生 - 国語
-  INSERT INTO public.study_content_types (grade, subject_id, course, content_name, display_order) VALUES
-  (5, v_japanese_id, 'A', '確認問題', 1),
-  (5, v_japanese_id, 'B', '確認問題', 1),
-  (5, v_japanese_id, 'C', '確認問題', 1),
-  (5, v_japanese_id, 'S', '確認問題', 1)
-  ON CONFLICT (grade, subject_id, course, content_name) DO NOTHING;
-
-  -- 小学5年生 - 理科
-  INSERT INTO public.study_content_types (grade, subject_id, course, content_name, display_order) VALUES
-  (5, v_science_id, 'A', '演習問題集（基本問題）', 1),
-  (5, v_science_id, 'B', '演習問題集（基本問題）', 1),
-  (5, v_science_id, 'B', '演習問題集（練習問題）', 2),
-  (5, v_science_id, 'C', '演習問題集（基本問題）', 1),
-  (5, v_science_id, 'C', '演習問題集（練習問題）', 2),
-  (5, v_science_id, 'C', '演習問題集（発展問題）', 3),
-  (5, v_science_id, 'S', '演習問題集（基本問題）', 1),
-  (5, v_science_id, 'S', '演習問題集（練習問題）', 2),
-  (5, v_science_id, 'S', '演習問題集（発展問題）', 3)
-  ON CONFLICT (grade, subject_id, course, content_name) DO NOTHING;
-
-  -- 小学5年生 - 社会
-  INSERT INTO public.study_content_types (grade, subject_id, course, content_name, display_order) VALUES
-  (5, v_social_id, 'A', '演習問題集（練習問題）', 1),
-  (5, v_social_id, 'B', '演習問題集（練習問題）', 1),
-  (5, v_social_id, 'B', '演習問題集（発展問題・記述問題）', 2),
-  (5, v_social_id, 'C', '演習問題集（練習問題）', 1),
-  (5, v_social_id, 'C', '演習問題集（発展問題・記述問題）', 2),
-  (5, v_social_id, 'S', '演習問題集（練習問題）', 1),
-  (5, v_social_id, 'S', '演習問題集（発展問題・記述問題）', 2)
-  ON CONFLICT (grade, subject_id, course, content_name) DO NOTHING;
-
-  -- 小学6年生 - 算数
-  INSERT INTO public.study_content_types (grade, subject_id, course, content_name, display_order) VALUES
-  (6, v_math_id, 'A', '１行問題', 1),
-  (6, v_math_id, 'A', '基本演習', 2),
-  (6, v_math_id, 'A', '実戦演習', 3),
-  (6, v_math_id, 'B', '１行問題', 1),
-  (6, v_math_id, 'B', '基本演習', 2),
-  (6, v_math_id, 'B', '実戦演習', 3),
-  (6, v_math_id, 'C', '１行問題', 1),
-  (6, v_math_id, 'C', '基本演習', 2),
-  (6, v_math_id, 'C', '実戦演習', 3),
-  (6, v_math_id, 'S', '１行問題', 1),
-  (6, v_math_id, 'S', '基本演習', 2),
-  (6, v_math_id, 'S', '実戦演習', 3)
-  ON CONFLICT (grade, subject_id, course, content_name) DO NOTHING;
-
-  -- 小学6年生 - 国語
-  INSERT INTO public.study_content_types (grade, subject_id, course, content_name, display_order) VALUES
-  (6, v_japanese_id, 'A', '中学入試頻出漢字', 1),
-  (6, v_japanese_id, 'B', '中学入試頻出漢字', 1),
-  (6, v_japanese_id, 'C', '中学入試頻出漢字', 1),
-  (6, v_japanese_id, 'S', '中学入試頻出漢字', 1)
-  ON CONFLICT (grade, subject_id, course, content_name) DO NOTHING;
-
-  -- 小学6年生 - 理科
-  INSERT INTO public.study_content_types (grade, subject_id, course, content_name, display_order) VALUES
-  (6, v_science_id, 'A', '演習問題集（基本問題）', 1),
-  (6, v_science_id, 'B', '演習問題集（基本問題）', 1),
-  (6, v_science_id, 'C', '演習問題集（基本問題）', 1),
-  (6, v_science_id, 'C', '演習問題集（練習問題）', 2),
-  (6, v_science_id, 'S', '演習問題集（基本問題）', 1),
-  (6, v_science_id, 'S', '演習問題集（練習問題）', 2)
-  ON CONFLICT (grade, subject_id, course, content_name) DO NOTHING;
-
-  -- 小学6年生 - 社会
-  INSERT INTO public.study_content_types (grade, subject_id, course, content_name, display_order) VALUES
-  (6, v_social_id, 'A', '演習問題集（基本問題）', 1),
-  (6, v_social_id, 'B', '演習問題集（基本問題）', 1),
-  (6, v_social_id, 'B', '演習問題集（練習問題）', 2),
-  (6, v_social_id, 'C', '演習問題集（基本問題）', 1),
-  (6, v_social_id, 'C', '演習問題集（練習問題）', 2),
-  (6, v_social_id, 'C', '演習問題集（応用問題）', 3),
-  (6, v_social_id, 'S', '演習問題集（基本問題）', 1),
-  (6, v_social_id, 'S', '演習問題集（練習問題）', 2),
-  (6, v_social_id, 'S', '演習問題集（応用問題）', 3)
+  (5, v_math_id, 'C', '実戦演習', 4),
+  (5, v_math_id, 'S', '実戦演習', 4),
+  -- 小6 算数
+  (6, v_math_id, 'A', '重要問題', 1),
+  (6, v_math_id, 'B', '重要問題', 1),
+  (6, v_math_id, 'C', '重要問題', 1),
+  (6, v_math_id, 'S', '重要問題', 1),
+  (6, v_math_id, 'B', '類題', 2),
+  (6, v_math_id, 'C', '類題', 2),
+  (6, v_math_id, 'S', '類題', 2),
+  (6, v_math_id, 'C', 'ステップアップ演習', 3),
+  (6, v_math_id, 'S', 'ステップアップ演習', 3),
+  (6, v_math_id, 'A', '基本問題', 4),
+  (6, v_math_id, 'B', '基本問題', 4),
+  (6, v_math_id, 'C', '基本問題', 4),
+  (6, v_math_id, 'S', '基本問題', 4),
+  (6, v_math_id, 'C', '練習問題', 5),
+  (6, v_math_id, 'S', '練習問題', 5),
+  (6, v_math_id, 'S', 'ステップ③（難関校対策）', 6),
+  -- 小5 国語
+  (5, v_japanese_id, 'A', '漢字', 1),
+  (5, v_japanese_id, 'B', '漢字', 1),
+  (5, v_japanese_id, 'C', '漢字', 1),
+  (5, v_japanese_id, 'S', '漢字', 1),
+  -- 小6 国語
+  (6, v_japanese_id, 'A', '漢字', 1),
+  (6, v_japanese_id, 'B', '漢字', 1),
+  (6, v_japanese_id, 'C', '漢字', 1),
+  (6, v_japanese_id, 'S', '漢字', 1),
+  -- 小5 理科（予習 / 演習で名前が重複するため接頭辞付き）
+  (5, v_science_id, 'A', '予習：要点チェック', 1),
+  (5, v_science_id, 'B', '予習：要点チェック', 1),
+  (5, v_science_id, 'C', '予習：要点チェック', 1),
+  (5, v_science_id, 'S', '予習：要点チェック', 1),
+  (5, v_science_id, 'A', '予習：練習問題', 2),
+  (5, v_science_id, 'B', '予習：練習問題', 2),
+  (5, v_science_id, 'C', '予習：練習問題', 2),
+  (5, v_science_id, 'S', '予習：練習問題', 2),
+  (5, v_science_id, 'A', '演習：基本問題', 3),
+  (5, v_science_id, 'B', '演習：基本問題', 3),
+  (5, v_science_id, 'C', '演習：基本問題', 3),
+  (5, v_science_id, 'S', '演習：基本問題', 3),
+  (5, v_science_id, 'B', '演習：練習問題', 4),
+  (5, v_science_id, 'C', '演習：練習問題', 4),
+  (5, v_science_id, 'S', '演習：練習問題', 4),
+  (5, v_science_id, 'C', '演習：発展問題', 5),
+  (5, v_science_id, 'S', '演習：発展問題', 5),
+  (5, v_science_id, 'S', '演習：応用問題', 6),
+  (5, v_science_id, 'S', '演習：チャレンジ問題', 7),
+  -- 小6 理科（予習 / 演習で名前が重複するため接頭辞付き）
+  (6, v_science_id, 'A', '予習：練習問題', 1),
+  (6, v_science_id, 'B', '予習：練習問題', 1),
+  (6, v_science_id, 'C', '予習：練習問題', 1),
+  (6, v_science_id, 'S', '予習：練習問題', 1),
+  (6, v_science_id, 'C', '予習：応用問題', 2),
+  (6, v_science_id, 'S', '予習：応用問題', 2),
+  (6, v_science_id, 'A', '演習：基本問題', 3),
+  (6, v_science_id, 'B', '演習：基本問題', 3),
+  (6, v_science_id, 'C', '演習：基本問題', 3),
+  (6, v_science_id, 'S', '演習：基本問題', 3),
+  (6, v_science_id, 'B', '演習：練習問題', 4),
+  (6, v_science_id, 'C', '演習：練習問題', 4),
+  (6, v_science_id, 'S', '演習：練習問題', 4),
+  (6, v_science_id, 'C', '演習：発展問題', 5),
+  (6, v_science_id, 'S', '演習：発展問題', 5),
+  (6, v_science_id, 'S', '演習：応用問題', 6),
+  (6, v_science_id, 'S', '演習：チャレンジ問題', 7),
+  -- 小5 社会（予習と演習で名前が異なるため接頭辞なし）
+  (5, v_social_id, 'A', '要点チェック', 1),
+  (5, v_social_id, 'B', '要点チェック', 1),
+  (5, v_social_id, 'C', '要点チェック', 1),
+  (5, v_social_id, 'S', '要点チェック', 1),
+  (5, v_social_id, 'A', '練習', 2),
+  (5, v_social_id, 'B', '練習', 2),
+  (5, v_social_id, 'C', '練習', 2),
+  (5, v_social_id, 'S', '練習', 2),
+  (5, v_social_id, 'A', '練習問題', 3),
+  (5, v_social_id, 'B', '練習問題', 3),
+  (5, v_social_id, 'C', '練習問題', 3),
+  (5, v_social_id, 'S', '練習問題', 3),
+  (5, v_social_id, 'B', '発展問題', 4),
+  (5, v_social_id, 'C', '発展問題', 4),
+  (5, v_social_id, 'S', '発展問題', 4),
+  (5, v_social_id, 'C', '応用', 5),
+  (5, v_social_id, 'S', '応用', 5),
+  (5, v_social_id, 'S', 'チャレンジ', 6),
+  -- 小6 社会（予習 / 演習で名前が重複するため接頭辞付き）
+  (6, v_social_id, 'A', '予習：要点チェック', 1),
+  (6, v_social_id, 'B', '予習：要点チェック', 1),
+  (6, v_social_id, 'C', '予習：要点チェック', 1),
+  (6, v_social_id, 'S', '予習：要点チェック', 1),
+  (6, v_social_id, 'A', '予習：練習問題', 2),
+  (6, v_social_id, 'B', '予習：練習問題', 2),
+  (6, v_social_id, 'C', '予習：練習問題', 2),
+  (6, v_social_id, 'S', '予習：練習問題', 2),
+  (6, v_social_id, 'A', '演習：練習問題', 3),
+  (6, v_social_id, 'B', '演習：練習問題', 3),
+  (6, v_social_id, 'C', '演習：練習問題', 3),
+  (6, v_social_id, 'S', '演習：練習問題', 3),
+  (6, v_social_id, 'B', '演習：応用', 4),
+  (6, v_social_id, 'C', '演習：応用', 4),
+  (6, v_social_id, 'S', '演習：応用', 4),
+  (6, v_social_id, 'C', '演習：チャレンジ', 5),
+  (6, v_social_id, 'S', '演習：チャレンジ', 5),
+  (6, v_social_id, 'S', '演習：発展', 6)
   ON CONFLICT (grade, subject_id, course, content_name) DO NOTHING;
 
 END $$;
@@ -296,8 +323,8 @@ BEGIN
   RAISE NOTICE 'マスターデータ投入完了（2026年度版）';
   RAISE NOTICE '- 科目: 4件 (算数, 国語, 理科, 社会)';
   RAISE NOTICE '- 学習回: 小5=20回, 小6=18回 (2026年2月〜7月)';
-  RAISE NOTICE '- 学習内容タイプ: 約50件 (2025年度と同じ構造)';
+  RAISE NOTICE '- 学習内容タイプ: 109件 (2026年度カリキュラム対応)';
   RAISE NOTICE '- テストタイプ: 3件 (組分け×2, 合不合×1)';
   RAISE NOTICE '- テスト日程: 小5組分け=9回, 小6組分け=3回, 小6合不合=5回';
-  RAISE NOTICE '- ※ 問題数データ（problem_counts）は未投入（後日追加予定）';
+  RAISE NOTICE '- ※ problem_counts はマイグレーションで別途投入 → seeds/problem_counts_2026.sql';
 END $$;
