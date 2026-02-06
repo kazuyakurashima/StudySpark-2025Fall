@@ -17,6 +17,19 @@ import { NextResponse, type NextRequest } from 'next/server'
  * - 認証状態のチェックとリダイレクトはここで行う
  */
 export async function updateSession(request: NextRequest) {
+  // メンテナンスモードチェック（Supabaseクライアント生成前に判定）
+  if (process.env.NEXT_PUBLIC_MAINTENANCE_MODE === 'true') {
+    const pathname = request.nextUrl.pathname
+    // メンテナンスページ、ログインページ、管理者パスは通過させる
+    // ログインページ(/)を許可する理由: 管理者がログインして/adminにアクセスするため
+    // 非管理者はログイン後に/student等へリダイレクトされ、そこでメンテナンスページに飛ばされる
+    if (pathname !== '/maintenance' && pathname !== '/' && !pathname.startsWith('/admin')) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/maintenance'
+      return NextResponse.redirect(url)
+    }
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   })
