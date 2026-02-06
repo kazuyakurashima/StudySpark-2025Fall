@@ -150,9 +150,9 @@ def generate_problem_counts_sql(excel_data):
             if val and val > 0:
                 for course in courses:
                     lines.append(
-                        f"    (ct_id({grade}, v_{subject_var(subject)}, '{course}', "
+                        f"    (pg_temp.ct_id({grade}, v_{subject_var(subject)}, '{course}', "
                         f"'{sql_escape(db_name)}'), "
-                        f"ss_id({grade}, {session_num}), {val})"
+                        f"pg_temp.ss_id({grade}, {session_num}), {val})"
                     )
     return lines
 
@@ -242,7 +242,7 @@ def main():
     sql.append("")
     sql.append("-- ヘルパー関数: study_content_type_id を取得")
     sql.append("CREATE OR REPLACE FUNCTION pg_temp.ct_id(")
-    sql.append("  p_grade SMALLINT, p_subject_id BIGINT, p_course TEXT, p_name TEXT")
+    sql.append("  p_grade INTEGER, p_subject_id BIGINT, p_course course_level, p_name TEXT")
     sql.append(") RETURNS BIGINT AS $fn$")
     sql.append("  SELECT id FROM public.study_content_types")
     sql.append("  WHERE grade = p_grade AND subject_id = p_subject_id")
@@ -251,7 +251,7 @@ def main():
     sql.append("")
     sql.append("-- ヘルパー関数: study_session_id を取得")
     sql.append("CREATE OR REPLACE FUNCTION pg_temp.ss_id(")
-    sql.append("  p_grade SMALLINT, p_session_number SMALLINT")
+    sql.append("  p_grade INTEGER, p_session_number INTEGER")
     sql.append(") RETURNS BIGINT AS $fn$")
     sql.append("  SELECT id FROM public.study_sessions")
     sql.append("  WHERE grade = p_grade AND session_number = p_session_number;")
