@@ -43,7 +43,7 @@
 | 用語 | 定義 |
 |------|------|
 | **年度 (Academic Year)** | 学習カリキュラムの単位。2025年度＝2025年9月〜2026年1月、2026年度＝2026年9月〜2027年1月 |
-| **学習回 (Session)** | 週単位の学習進捗管理単位。5年生: 19回、6年生: 15回 |
+| **学習回 (Session)** | 週単位の学習進捗管理単位。5年生: 20回、6年生: 18回（2026年度） |
 | **マスタープリント** | 算数のプリント教材（assessment_masters で assessment_type='math_print'）。週2回分 |
 | **漢字テスト** | 漢字のテスト教材（assessment_masters で assessment_type='kanji_test'）。週1回分 |
 | **Identity データ** | ユーザー認証・プロフィール・関連付け（profiles, students, parents, coaches, *_relations） |
