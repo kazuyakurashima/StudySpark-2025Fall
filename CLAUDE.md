@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## プロジェクト概要
 
-**StudySpark** は、中学受験を目指す小学6年生向けの学習支援Webアプリです。AIコーチング、学習記録、応援機能を通じて、生徒・保護者・指導者をサポートします。
+**StudySpark** は、中学受験を目指す小学5・6年生向けの学習支援Webアプリです。AIコーチング、学習記録、応援機能を通じて、生徒・保護者・指導者をサポートします。
 
 ## 開発コマンド
 

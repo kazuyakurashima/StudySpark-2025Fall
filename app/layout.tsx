@@ -26,7 +26,7 @@ export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
   title: "StudySpark - 学習支援アプリ",
-  description: "中学受験を目指す小学6年生向けの学習支援Webアプリ",
+  description: "中学受験を目指す小学5・6年生向けの学習支援Webアプリ",
   generator: "v0.app",
   icons: {
     icon: [
