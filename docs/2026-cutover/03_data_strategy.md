@@ -318,6 +318,28 @@ psql <DB2025_CONNECTION> -c "COPY (SELECT * FROM coach_student_relations) TO STD
 supabase auth export --project-ref zlipaeanhcslhintxpej > auth_users_20260201.json
 ```
 
+#### 代替手段: HTTPS版スクリプト（psql 不可環境用）
+
+ネットワークがPostgreSQLポートをブロックしている場合、Supabase JS Client（HTTPS）経由で移行可能:
+
+```bash
+# .env.migration に DB2025/DB2026 の URL + SERVICE_ROLE_KEY を設定
+npx tsx scripts/cutover/migrate-identity-https.ts
+```
+
+**2026-02-07 実績**: psql接続がタイムアウトしたため、本スクリプトで移行を実施。
+ただし Admin API の `createUser` は `encrypted_password` を引き継がないため、
+パスワードハッシュは SQL Editor 経由で手動復元が必要:
+
+```sql
+-- DB2025 SQL Editor で実行し、結果を DB2026 SQL Editor で実行
+SELECT string_agg(
+  'UPDATE auth.users SET encrypted_password = ''' || encrypted_password || ''' WHERE id = ''' || id::text || ''';',
+  E'\n'
+) AS update_sql
+FROM auth.users WHERE encrypted_password IS NOT NULL;
+```
+
 #### Step 2: DB2026 へのインポート
 
 **重要な順序制約**: profiles.id は auth.users(id) への外部キーのため、必ず auth.users を先にインポート。
@@ -507,12 +529,37 @@ while IFS=, read -r id user_id email display_name; do
 done < graduating_students_20260201.csv
 ```
 
+**2026-02-07 実績: ソフト除外方式**
+
+実際の切替ではデータ復元可能性を重視し、BAN＋リレーション退避で対応:
+
+```sql
+-- 1. バックアップテーブル作成
+CREATE TABLE IF NOT EXISTS _backup_graduated_csr AS
+SELECT * FROM coach_student_relations WHERE student_id IN (<対象IDs>);
+CREATE TABLE IF NOT EXISTS _backup_graduated_pcr AS
+SELECT * FROM parent_child_relations WHERE student_id IN (<対象IDs>);
+
+-- 2. リレーション削除（指導者画面から非表示）
+DELETE FROM coach_student_relations WHERE student_id IN (<対象IDs>);
+DELETE FROM parent_child_relations WHERE student_id IN (<対象IDs>);
+
+-- 3. auth.users BAN（ログイン不可）
+UPDATE auth.users SET banned_until = '2099-12-31'
+WHERE id IN (SELECT user_id FROM students WHERE id IN (<対象IDs>));
+
+-- 復元手順:
+-- INSERT INTO coach_student_relations SELECT * FROM _backup_graduated_csr;
+-- INSERT INTO parent_child_relations SELECT * FROM _backup_graduated_pcr;
+-- UPDATE auth.users SET banned_until = NULL WHERE ...;
+```
+
 **BAN スクリプトの実装**（`scripts/ban-graduated-users.ts`）:
 
-**BAN API 仕様調査結果（実装方針確定）**:
-- 公式ドキュメントには `"100y"` (100年間BAN) の例のみ記載
-- `"none"` の意味は **ドキュメントに記載なし**（おそらくBAN解除を意味する可能性が高い）
-- **決定**: 公式例に従い `"100y"` を使用（時間単位 "h" の動作保証がないため）
+**BAN 方式（統一基準: `"100y"`）**:
+- **スクリプト経由**: `ban_duration: "100y"`（Supabase公式ドキュメント記載形式）
+- **SQL直接実行**: `banned_until = '2099-12-31'`（SQL Editorでの手動対応時）
+- いずれも実質的に永久BANで、効果は同等。環境に応じて使い分けて良い
 
 **参考URL**:
 - https://supabase.com/docs/reference/javascript/auth-admin-updateuserbyid
@@ -543,11 +590,10 @@ async function banGraduatedUsers(csvPath: string) {
 
   for (const record of records) {
     try {
-      // ⚠️ 永久BANには公式例に従って "100y" を指定
-      // "none" は BAN解除の可能性が高いため使用しない
+      // 永久BAN: "100y"（Supabase公式ドキュメント記載形式）
       const { error } = await supabase.auth.admin.updateUserById(
         record.user_id,
-        { ban_duration: '100y' }  // 100年（公式ドキュメント例）
+        { ban_duration: '100y' }
       )
 
       if (error) throw error

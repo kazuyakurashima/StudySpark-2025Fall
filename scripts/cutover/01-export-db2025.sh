@@ -62,8 +62,8 @@ echo "[3/4] Identity テーブルをエクスポート..."
 TABLES=(profiles students parents coaches admins invitation_codes parent_child_relations coach_student_relations)
 
 for TABLE in "${TABLES[@]}"; do
-  COUNT=$(psql "$DB2025" -t -A -c "SELECT COUNT(*) FROM public.$TABLE" 2>/dev/null || echo "0")
-  psql "$DB2025" -c "COPY (SELECT * FROM public.$TABLE) TO STDOUT WITH CSV HEADER" > "$EXPORT_DIR/$TABLE.csv" 2>/dev/null || true
+  COUNT=$(psql "$DB2025" -t -A -c "SELECT COUNT(*) FROM public.$TABLE")
+  psql "$DB2025" -c "COPY (SELECT * FROM public.$TABLE) TO STDOUT WITH CSV HEADER" > "$EXPORT_DIR/$TABLE.csv"
   echo "  $TABLE: ${COUNT} 件 -> $EXPORT_DIR/$TABLE.csv"
 done
 
