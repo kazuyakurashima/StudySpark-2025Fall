@@ -1,13 +1,24 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Noto_Sans_JP } from "next/font/google"
-import { EnvironmentBanner } from "@/components/environment-banner"
+import localFont from "next/font/local"
 import "./globals.css"
 
-const notoSansJP = Noto_Sans_JP({
-  subsets: ["latin"],
-  display: "swap",
+const notoSansJP = localFont({
+  src: [
+    {
+      path: "./fonts/noto-sans-jp/NotoSansJP-Regular.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "./fonts/noto-sans-jp/NotoSansJP-Bold.woff2",
+      weight: "700",
+      style: "normal",
+    },
+  ],
   variable: "--font-noto-sans-jp",
+  display: "swap",
+  preload: true,
 })
 
 // 全ページを動的レンダリングに設定（認証にcookiesを使用するため）
@@ -36,7 +47,6 @@ export default function RootLayout({
   return (
     <html lang="ja" className={notoSansJP.variable}>
       <body className="font-sans antialiased">
-        <EnvironmentBanner />
         {children}
       </body>
     </html>

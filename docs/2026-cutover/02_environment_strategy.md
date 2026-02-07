@@ -170,21 +170,11 @@ SUPABASE_SERVICE_ROLE_KEY = (DB2026のkey)
 
 ### 5.4 事故防止のための技術的対策
 
-#### A. 環境識別バナー（推奨）
+#### A. 環境識別バナー（中止）
 
-ステージング環境のUIに識別バナーを表示：
-
-```typescript
-// 例: app/layout.tsx に追加
-const isStaging =
-  process.env.VERCEL_ENV === 'preview' || process.env.NODE_ENV === 'development'
-
-{isStaging && (
-  <div className="bg-yellow-500 text-black text-center py-1 text-sm">
-    ⚠️ ステージング環境 (DB2026)
-  </div>
-)}
-```
+> **2026-02-07**: 即日切替完了により二重運用期間が発生しなかったため、環境識別バナーは不要と判断し中止。
+> 一時実装した `components/environment-banner.tsx` は削除済み。
+> 将来二重運用が必要になった場合は `NEXT_PUBLIC_ENV_LABEL` 環境変数ベースで再実装可能。
 
 #### B. DB接続ログ（開発時）
 
