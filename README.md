@@ -1,6 +1,6 @@
 # StudySpark
 
-**中学受験を目指す小学6年生向けの学習支援Webアプリケーション**
+**中学受験を目指す小学5・6年生向けの学習支援Webアプリケーション**
 
 [![Built with Next.js](https://img.shields.io/badge/Built%20with-Next.js%2014-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![Powered by Supabase](https://img.shields.io/badge/Powered%20by-Supabase-3ECF8E?style=for-the-badge&logo=supabase)](https://supabase.com/)
