@@ -42,16 +42,16 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: { persistSession: false, autoRefreshToken: false }
 })
 
-// BAN期間: 100年（実質永久、Supabase GoTrue 公式ドキュメント例に準拠）
-const BAN_DURATION = '100y'
+// BAN期間: 876000時間 ≈ 100年（GoTrue は "y" 非対応、Go time.ParseDuration 形式で指定）
+const BAN_DURATION = '876000h'
 
-const REQUIRED_COLUMNS = ['user_id', 'email', 'display_name'] as const
+const REQUIRED_COLUMNS = ['user_id'] as const
 
 interface GraduatingStudent {
   id: string
   user_id: string
-  email: string
-  display_name: string
+  email?: string
+  display_name?: string
 }
 
 async function main() {
@@ -106,10 +106,10 @@ async function main() {
     }
 
     // 空値チェック
-    const invalidRecords = records.filter(r => !r.user_id || !r.email)
+    const invalidRecords = records.filter(r => !r.user_id)
     if (invalidRecords.length > 0) {
-      console.error(`\n❌ user_id または email が空のレコードが ${invalidRecords.length} 件あります`)
-      invalidRecords.forEach(r => console.error(`  - display_name: ${r.display_name || '(空)'}`))
+      console.error(`\n❌ user_id が空のレコードが ${invalidRecords.length} 件あります`)
+      invalidRecords.forEach(r => console.error(`  - id: ${r.id || '(空)'}`))
       process.exit(1)
     }
   }
@@ -117,7 +117,8 @@ async function main() {
   // 対象者一覧表示
   console.log('\n以下のユーザーをBANします:')
   records.forEach((r, i) => {
-    console.log(`  ${i + 1}. ${r.display_name} (${r.email}) [user_id: ${r.user_id}]`)
+    const label = r.display_name || r.email || r.user_id
+    console.log(`  ${i + 1}. ${label} [user_id: ${r.user_id}]`)
   })
 
   // 確認プロンプト
@@ -137,7 +138,8 @@ async function main() {
   const failures: { email: string; error: string }[] = []
 
   for (const student of records) {
-    process.stdout.write(`  BAN: ${student.display_name} (${student.email})... `)
+    const label = student.display_name || student.email || student.user_id
+    process.stdout.write(`  BAN: ${label}... `)
 
     if (dryRun) {
       console.log('[dry-run] スキップ')
@@ -153,7 +155,7 @@ async function main() {
       if (error) {
         console.log(`❌ ${error.message}`)
         failureCount++
-        failures.push({ email: student.email, error: error.message })
+        failures.push({ email: student.email || student.user_id, error: error.message })
       } else {
         console.log('✓')
         successCount++
@@ -162,7 +164,7 @@ async function main() {
       const message = err instanceof Error ? err.message : String(err)
       console.log(`❌ ${message}`)
       failureCount++
-      failures.push({ email: student.email, error: message })
+      failures.push({ email: student.email || student.user_id, error: message })
     }
   }
 
