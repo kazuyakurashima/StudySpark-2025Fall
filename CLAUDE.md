@@ -201,55 +201,13 @@ ChatGPT API（GPT-5-mini）
 
 **機能実装時は必ずこれらのドキュメントを参照してください。** 正確なUI仕様、データ構造、ビジネスロジック、曜日別のロジックなどが詳細に記載されています。
 
-## TODO: `next/font/google` 依存の解消（Noto Sans JP のローカル化）
+## DONE: `next/font/google` 依存の解消（Noto Sans JP のローカル化）
 
-App Router のビルド時に Google Fonts への外部アクセスが禁止されている環境では、`app/layout.tsx` で利用している `next/font/google`（`Noto_Sans_JP`）のフェッチが失敗し、`/_next/static/*` の生成が中断される。恒久対応としてフォントをローカル配布に切り替えること。
+> **2026-02-07 完了**: `next/font/local` に移行済み。commit `7cf42b0`。
 
-### ゴール
-- `app/layout.tsx` で `next/font/local` を用いて Noto Sans JP を読み込む。
-- フォントファイルはレポジトリ内に配置し、ビルド時に外部ネットワークへ依存しない。
-
-### 実装方針
-1. **フォントファイルの準備**
-   - Google Fonts から Noto Sans JP の `Regular (400)` と `Bold (700)` の WOFF2（必要なら互換用に WOFF）をダウンロード。
-   - `app/fonts/noto-sans-jp/` を作成し、以下のように配置する。
-     - `app/fonts/noto-sans-jp/NotoSansJP-Regular.woff2`
-     - `app/fonts/noto-sans-jp/NotoSansJP-Bold.woff2`
-     - （WOFF が必要な場合）`app/fonts/noto-sans-jp/NotoSansJP-Regular.woff`／`...-Bold.woff`
-
-2. **フォントの定義**
-   - `app/layout.tsx:3` 付近で `next/font/local` をインポートし、既存の `Noto_Sans_JP` 呼び出しを差し替える。
-   - 例：
-     ```ts
-     import localFont from "next/font/local"
-
-     const notoSansJP = localFont({
-       src: [
-         {
-           path: "./fonts/noto-sans-jp/NotoSansJP-Regular.woff2",
-           weight: "400",
-           style: "normal",
-         },
-         {
-           path: "./fonts/noto-sans-jp/NotoSansJP-Bold.woff2",
-           weight: "700",
-           style: "normal",
-         },
-       ],
-       variable: "--font-noto-sans-jp",
-       display: "swap",
-       preload: true,
-     })
-     ```
-   - 既存の `subsets` オプションは不要になるので削除。
-
-3. **スタイルの確認**
-   - `app/globals.css` で `font-sans` が `--font-noto-sans-jp` を参照していることを確認（既存設定のままで可）。
-   - `npm run dev` / `npm run build` を実行し、`fonts.googleapis.com` へのリクエストが行われないことと、`/_next/static/chunks/*` が生成されることを確認。
-
-4. **補足**
-   - 将来的に追加ウェイトが必要になった場合は同じフォルダへ追加し、`src` 配列にエントリを増やす。
-   - フォントのライセンス表記が必要な場合は `public/fonts/LICENSE.txt` などに同梱する。
+- `app/layout.tsx` で `next/font/local` を使用、WOFF2 は `app/fonts/noto-sans-jp/` に配置
+- `app/globals.css` の `@theme` で `--font-sans: var(--font-noto-sans-jp)` に接続
+- ビルド時に `fonts.googleapis.com` への外部アクセス不要
 
 ## データベース変更前確認ルール（必須）
 

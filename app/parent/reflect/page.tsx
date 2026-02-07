@@ -32,6 +32,7 @@ import {
   ClipboardCheck,
   BookOpen,
   Heart,
+  MessageSquare,
 } from "lucide-react"
 import { useUserProfile } from "@/lib/hooks/use-user-profile"
 
