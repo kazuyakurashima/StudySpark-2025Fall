@@ -78,8 +78,40 @@ export async function updateSession(request: NextRequest) {
 
   // 認証済みユーザーがルートパスにアクセスした場合、ロール別にリダイレクト
   if (user && request.nextUrl.pathname === '/') {
-    // ロール判定は後で実装（現状はダッシュボードへ）
-    // TODO: profilesテーブルからロールを取得してリダイレクト
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, setup_completed')
+      .eq('id', user.id)
+      .single()
+
+    if (profile) {
+      const url = request.nextUrl.clone()
+
+      // セットアップ未完了の場合
+      if (!profile.setup_completed) {
+        if (profile.role === 'student') {
+          url.pathname = '/setup/avatar'
+          return NextResponse.redirect(url)
+        } else if (profile.role === 'parent') {
+          url.pathname = '/setup/parent-avatar'
+          return NextResponse.redirect(url)
+        }
+      }
+
+      // ロール別ダッシュボードへリダイレクト
+      const rolePathMap: Record<string, string> = {
+        student: '/student',
+        parent: '/parent',
+        coach: '/coach',
+        admin: '/admin',
+      }
+      const targetPath = rolePathMap[profile.role]
+      if (targetPath) {
+        url.pathname = targetPath
+        return NextResponse.redirect(url)
+      }
+    }
+    // profile が取得できない場合はログインページを表示（フォールバック）
   }
 
   return supabaseResponse
