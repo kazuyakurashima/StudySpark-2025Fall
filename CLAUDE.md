@@ -201,14 +201,6 @@ ChatGPT API（GPT-5-mini）
 
 **機能実装時は必ずこれらのドキュメントを参照してください。** 正確なUI仕様、データ構造、ビジネスロジック、曜日別のロジックなどが詳細に記載されています。
 
-## DONE: `next/font/google` 依存の解消（Noto Sans JP のローカル化）
-
-> **2026-02-07 完了**: `next/font/local` に移行済み。commit `7cf42b0`。
-
-- `app/layout.tsx` で `next/font/local` を使用、WOFF2 は `app/fonts/noto-sans-jp/` に配置
-- `app/globals.css` の `@theme` で `--font-sans: var(--font-noto-sans-jp)` に接続
-- ビルド時に `fonts.googleapis.com` への外部アクセス不要
-
 ## データベース変更前確認ルール（必須）
 
 **目的**: Supabase や DB へのマイグレーション・スキーマ変更に伴う事故を防ぐための行動規範。
