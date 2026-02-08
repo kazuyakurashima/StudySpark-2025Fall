@@ -509,3 +509,4 @@ release/2025 ブランチを作成し、1月中の二重運用体制を確立す
 | 2026-02-07 | Claude Code | E6-T5 Done、E7-T1/T2/T3 完了（ブランチアーカイブ・DB2025 Pause・振り返り記録）→ 全30タスク完了 |
 | 2026-02-07 | Claude Code | Codexフィードバック: 凡例にSKIPPED/CANCELLED追加、タスク件数30件に修正、E7-T2ステータス文言明確化 |
 | 2026-02-07 | Claude Code | Codexフィードバック: Phase-Plan.md/README.md を「小学5・6年生向け」に統一。注: commit 9670c78 メッセージに「migrate-identity-https.ts 追加」とあるが、同ファイルは c4051d2 で既にトラッキング済みのため実差分はメタデータ更新のみ |
+| 2026-02-08 | Claude Code | Next.js 14.2.18→14.2.35 セキュリティ更新。audit結果: critical 0, high 5(全て推移的依存/メジャー更新要), moderate 6, low 2。解消済み: GHSA-f82v(認証バイパス), GHSA-mwv6(SC DoS), GHSA-5j59(SC DoS follow-up)。残存highは glob(eslint推移的), tar×3(@tailwindcss/oxide推移的), next DoS(15.x要) |
