@@ -433,8 +433,9 @@ export async function getStudySessions(grade: number) {
  * @param subjectId - 科目ID
  * @param course - コースレベル ('A' | 'B' | 'C' | 'S')
  *
- * NOTE: sessionId は使用しません（problem_counts テーブルが未実装のため）
- * 将来的に問題数が学習回ごとに異なる場合は、problem_counts との JOIN が必要
+ * @deprecated getContentTypesWithCounts() を使用してください（問題数も同時に取得できます）
+ * TODO(削除条件): テストスクリプト（test-study-content-types.ts, test-save-study-log.ts,
+ *   test-spark-submit.ts）の移行完了後に本関数と getContentTypeId() を削除
  */
 export async function getContentTypes(
   grade: number,
@@ -472,6 +473,8 @@ export async function getContentTypes(
  * @param course - コースレベル ('A' | 'B' | 'C' | 'S')
  * @param contentName - 学習内容名 (例: "類題", "基本問題")
  * @returns study_content_type_id
+ *
+ * @deprecated getContentTypesWithCounts() で取得した contentTypes[].id を直接使用してください
  */
 export async function getContentTypeId(
   grade: number,
@@ -499,6 +502,68 @@ export async function getContentTypeId(
     return { id: data.id }
   } catch (error) {
     console.error("Get content type ID error:", error)
+    return { error: "予期しないエラーが発生しました" }
+  }
+}
+
+/**
+ * マスターデータ取得: 学習内容タイプ一覧 + 問題数（セッション別）
+ *
+ * study_content_types LEFT JOIN problem_counts で、指定セッションの問題数を同時に取得。
+ * problem_counts にエントリがない場合（復習週）は totalProblems = 0 として返す。
+ *
+ * 【DB設計前提】2026年度以降、study_content_types は各コース（A/B/C/S）ごとに
+ * 専用の行を持つ設計。旧2025年度の階層フィルタ（A→Aのみ, B→A+B, C/S→全件）は不要。
+ * `WHERE course = 生徒のコース` で必要な全コンテンツが取得できる。
+ * cf. 03-Requirements-Student.md のコース表示仕様
+ *
+ * @param grade - 学年 (5 or 6)
+ * @param course - コースレベル ('A' | 'B' | 'C' | 'S')
+ * @param sessionId - study_sessions.id
+ */
+export async function getContentTypesWithCounts(
+  grade: number,
+  course: "A" | "B" | "C" | "S",
+  sessionId: number,
+) {
+  try {
+    const supabase = await createClient()
+
+    // !left で LEFT JOIN を明示: problem_counts にエントリがないセッション（復習週）でも
+    // study_content_types の全行が返り、totalProblems = 0 として扱う
+    const { data, error } = await supabase
+      .from("study_content_types")
+      .select(
+        "id, subject_id, content_name, course, display_order, problem_counts!left(total_problems)",
+      )
+      .eq("grade", grade)
+      .eq("course", course)
+      .eq("problem_counts.session_id", sessionId)
+      .order("subject_id")
+      .order("display_order")
+
+    if (error) {
+      console.error("getContentTypesWithCounts error:", error)
+      return { error: "学習内容データの取得に失敗しました" }
+    }
+
+    const contentTypes = (data || []).map((item) => ({
+      id: item.id as number,
+      subjectId: item.subject_id as number,
+      contentName: item.content_name as string,
+      course: item.course as string,
+      displayOrder: item.display_order as number,
+      totalProblems:
+        (
+          item.problem_counts as
+            | Array<{ total_problems: number }>
+            | null
+        )?.[0]?.total_problems ?? 0,
+    }))
+
+    return { contentTypes }
+  } catch (error) {
+    console.error("getContentTypesWithCounts error:", error)
     return { error: "予期しないエラーが発生しました" }
   }
 }

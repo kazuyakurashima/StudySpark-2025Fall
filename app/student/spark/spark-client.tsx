@@ -9,16 +9,15 @@ import { Badge } from "@/components/ui/badge"
 import { BottomNavigation } from "@/components/bottom-navigation"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { PageHeader } from "@/components/common/page-header"
-import { Calendar, BookOpen, MessageSquare, Save, Sparkles, Flame, Crown, Bot } from "lucide-react"
+import { Calendar, BookOpen, MessageSquare, Save, Sparkles, Bot } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   getStudySessions,
   getExistingStudyLog,
-  getContentTypes,
+  getContentTypesWithCounts,
   saveStudyLog,
-  getContentTypeId,
   getCurrentSession,
 } from "@/app/actions/study-log"
 import {
@@ -75,299 +74,33 @@ const subjects = [
   },
 ]
 
-const grade5LearningContent = {
-  math: [
-    { id: "ruirui", name: "類題", course: "A", maxProblems: {} },
-    { id: "kihon", name: "基本問題", course: "A", maxProblems: {} },
-    { id: "renshu", name: "練習問題", course: "B", maxProblems: {} },
-    { id: "jissen", name: "演習問題集（実戦演習）", course: "C", maxProblems: {} },
-  ],
-  japanese: [{ id: "kakunin", name: "確認問題", course: "A", maxProblems: {} }],
-  science: [
-    { id: "kihon", name: "演習問題集（基本問題）", course: "A", maxProblems: {} },
-    { id: "renshu", name: "演習問題集（練習問題）", course: "B", maxProblems: {} },
-    { id: "hatten", name: "演習問題集（発展問題）", course: "C", maxProblems: {} },
-  ],
-  social: [
-    { id: "renshu", name: "演習問題集（練習問題）", course: "A", maxProblems: {} },
-    { id: "hatten", name: "演習問題集（発展問題・記述問題）", course: "B", maxProblems: {} },
-  ],
+type DBSession = {
+  id: number
+  session_number: number
+  grade: number
+  start_date: string
+  end_date: string
 }
 
-const grade6LearningContent = {
-  math: [
-    { id: "ichigyo", name: "１行問題", course: "A", maxProblems: {} },
-    { id: "kihon", name: "基本演習", course: "B", maxProblems: {} },
-    { id: "jissen", name: "実戦演習", course: "C", maxProblems: {} },
-  ],
-  japanese: [{ id: "kanji", name: "中学入試頻出漢字", course: "A", maxProblems: {} }],
-  science: [
-    { id: "kihon", name: "演習問題集（基本問題）", course: "A", maxProblems: {} },
-    { id: "renshu", name: "演習問題集（練習問題）", course: "C", maxProblems: {} },
-  ],
-  social: [
-    { id: "kihon", name: "演習問題集（基本問題）", course: "A", maxProblems: {} },
-    { id: "renshu", name: "演習問題集（練習問題）", course: "B", maxProblems: {} },
-    { id: "oyo", name: "演習問題集（応用問題）", course: "C", maxProblems: {} },
-  ],
+type ContentTypeWithCount = {
+  id: number
+  subjectId: number
+  contentName: string
+  course: string
+  displayOrder: number
+  totalProblems: number
 }
 
-const grade5ProblemCounts = {
-  session1: {
-    math: { ruirui: 7, kihon: 16, renshu: 12, jissen: 10 },
-    japanese: { kakunin: 40 },
-    science: { kihon: 12, renshu: 15, hatten: 4 },
-    social: { renshu: 9, hatten: 6 },
-  },
-  session2: {
-    math: { ruirui: 7, kihon: 10, renshu: 11, jissen: 12 },
-    japanese: { kakunin: 40 },
-    science: { kihon: 13, renshu: 21, hatten: 3 },
-    social: { renshu: 9, hatten: 7 },
-  },
-  session3: {
-    math: { ruirui: 5, kihon: 10, renshu: 11, jissen: 9 },
-    japanese: { kakunin: 40 },
-    science: { kihon: 14, renshu: 17, hatten: 5 },
-    social: { renshu: 11, hatten: 6 },
-  },
-  session4: {
-    math: { ruirui: 8, kihon: 15, renshu: 14, jissen: 13 },
-    japanese: { kakunin: 40 },
-    science: { kihon: 15, renshu: 14, hatten: 4 },
-    social: { renshu: 15, hatten: 5 },
-  },
-  session5: {
-    math: { ruirui: 0, kihon: 31, renshu: 12, jissen: 0 },
-    japanese: { kakunin: 80 },
-    science: { kihon: 0, renshu: 34, hatten: 16 },
-    social: { renshu: 19, hatten: 19 },
-  },
-  session6: {
-    math: { ruirui: 8, kihon: 14, renshu: 12, jissen: 10 },
-    japanese: { kakunin: 40 },
-    science: { kihon: 24, renshu: 17, hatten: 6 },
-    social: { renshu: 11, hatten: 4 },
-  },
-  session7: {
-    math: { ruirui: 6, kihon: 12, renshu: 10, jissen: 12 },
-    japanese: { kakunin: 40 },
-    science: { kihon: 16, renshu: 22, hatten: 5 },
-    social: { renshu: 15, hatten: 6 },
-  },
-  session8: {
-    math: { ruirui: 6, kihon: 9, renshu: 11, jissen: 12 },
-    japanese: { kakunin: 40 },
-    science: { kihon: 18, renshu: 18, hatten: 5 },
-    social: { renshu: 5, hatten: 6 },
-  },
-  session9: {
-    math: { ruirui: 6, kihon: 10, renshu: 11, jissen: 9 },
-    japanese: { kakunin: 40 },
-    science: { kihon: 17, renshu: 18, hatten: 6 },
-    social: { renshu: 15, hatten: 7 },
-  },
-  session10: {
-    math: { ruirui: 0, kihon: 26, renshu: 9, jissen: 0 },
-    japanese: { kakunin: 80 },
-    science: { kihon: 0, renshu: 31, hatten: 18 },
-    social: { renshu: 18, hatten: 13 },
-  },
-  session11: {
-    math: { ruirui: 8, kihon: 15, renshu: 11, jissen: 13 },
-    japanese: { kakunin: 40 },
-    science: { kihon: 18, renshu: 18, hatten: 3 },
-    social: { renshu: 10, hatten: 9 },
-  },
-  session12: {
-    math: { ruirui: 6, kihon: 12, renshu: 8, jissen: 8 },
-    japanese: { kakunin: 40 },
-    science: { kihon: 18, renshu: 11, hatten: 5 },
-    social: { renshu: 12, hatten: 6 },
-  },
-  session13: {
-    math: { ruirui: 7, kihon: 13, renshu: 15, jissen: 14 },
-    japanese: { kakunin: 40 },
-    science: { kihon: 18, renshu: 20, hatten: 2 },
-    social: { renshu: 14, hatten: 9 },
-  },
-  session14: {
-    math: { ruirui: 5, kihon: 14, renshu: 8, jissen: 12 },
-    japanese: { kakunin: 40 },
-    science: { kihon: 14, renshu: 20, hatten: 3 },
-    social: { renshu: 11, hatten: 10 },
-  },
-  session15: {
-    math: { ruirui: 0, kihon: 33, renshu: 13, jissen: 0 },
-    japanese: { kakunin: 80 },
-    science: { kihon: 0, renshu: 24, hatten: 12 },
-    social: { renshu: 17, hatten: 22 },
-  },
-  session16: {
-    math: { ruirui: 7, kihon: 17, renshu: 12, jissen: 10 },
-    japanese: { kakunin: 40 },
-    science: { kihon: 13, renshu: 12, hatten: 4 },
-    social: { renshu: 7, hatten: 10 },
-  },
-  session17: {
-    math: { ruirui: 6, kihon: 10, renshu: 10, jissen: 8 },
-    japanese: { kakunin: 40 },
-    science: { kihon: 18, renshu: 20, hatten: 8 },
-    social: { renshu: 14, hatten: 7 },
-  },
-  session18: {
-    math: { ruirui: 8, kihon: 15, renshu: 13, jissen: 11 },
-    japanese: { kakunin: 40 },
-    science: { kihon: 19, renshu: 14, hatten: 7 },
-    social: { renshu: 14, hatten: 7 },
-  },
-  session19: {
-    math: { ruirui: 0, kihon: 22, renshu: 0, jissen: 0 },
-    japanese: { kakunin: 80 },
-    science: { kihon: 0, renshu: 36, hatten: 16 },
-    social: { renshu: 19, hatten: 18 },
-  },
+function formatSessionDate(dateStr: string): string {
+  const date = new Date(dateStr + "T00:00:00")
+  return `${date.getMonth() + 1}/${date.getDate()}`
 }
 
-const grade6ProblemCounts = {
-  session1: {
-    math: { ichigyo: 20, kihon: 12, jissen: 13 },
-    japanese: { kanji: 40 },
-    science: { kihon: 25, renshu: 25 },
-    social: { kihon: 60, renshu: 20, oyo: 10 },
-  },
-  session2: {
-    math: { ichigyo: 22, kihon: 12, jissen: 13 },
-    japanese: { kanji: 40 },
-    science: { kihon: 26, renshu: 23 },
-    social: { kihon: 63, renshu: 16, oyo: 14 },
-  },
-  session3: {
-    math: { ichigyo: 19, kihon: 12, jissen: 12 },
-    japanese: { kanji: 40 },
-    science: { kihon: 31, renshu: 32 },
-    social: { kihon: 55, renshu: 20, oyo: 5 },
-  },
-  session4: {
-    math: { ichigyo: 22, kihon: 13, jissen: 14 },
-    japanese: { kanji: 40 },
-    science: { kihon: 29, renshu: 28 },
-    social: { kihon: 55, renshu: 26, oyo: 10 },
-  },
-  session5: {
-    math: { ichigyo: 21, kihon: 14, jissen: 14 },
-    japanese: { kanji: 40 },
-    science: { kihon: 20, renshu: 27 },
-    social: { kihon: 50, renshu: 7, oyo: 7 },
-  },
-  session6: {
-    math: { ichigyo: 17, kihon: 12, jissen: 15 },
-    japanese: { kanji: 40 },
-    science: { kihon: 22, renshu: 11 },
-    social: { kihon: 52, renshu: 12, oyo: 5 },
-  },
-  session7: {
-    math: { ichigyo: 22, kihon: 12, jissen: 12 },
-    japanese: { kanji: 40 },
-    science: { kihon: 25, renshu: 28 },
-    social: { kihon: 55, renshu: 27, oyo: 9 },
-  },
-  session8: {
-    math: { ichigyo: 20, kihon: 12, jissen: 13 },
-    japanese: { kanji: 40 },
-    science: { kihon: 22, renshu: 22 },
-    social: { kihon: 48, renshu: 16, oyo: 11 },
-  },
-  session9: {
-    math: { ichigyo: 17, kihon: 12, jissen: 12 },
-    japanese: { kanji: 40 },
-    science: { kihon: 26, renshu: 18 },
-    social: { kihon: 44, renshu: 9, oyo: 8 },
-  },
-  session10: {
-    math: { ichigyo: 20, kihon: 13, jissen: 13 },
-    japanese: { kanji: 40 },
-    science: { kihon: 15, renshu: 22 },
-    social: { kihon: 63, renshu: 10, oyo: 10 },
-  },
-  session11: {
-    math: { ichigyo: 18, kihon: 12, jissen: 14 },
-    japanese: { kanji: 40 },
-    science: { kihon: 28, renshu: 26 },
-    social: { kihon: 33, renshu: 14, oyo: 10 },
-  },
-  session12: {
-    math: { ichigyo: 19, kihon: 13, jissen: 12 },
-    japanese: { kanji: 40 },
-    science: { kihon: 21, renshu: 30 },
-    social: { kihon: 37, renshu: 12, oyo: 9 },
-  },
-  session13: {
-    math: { ichigyo: 9, kihon: 20, jissen: 0 },
-    japanese: { kanji: 40 },
-    science: { kihon: 22, renshu: 28 },
-    social: { kihon: 40, renshu: 29, oyo: 9 },
-  },
-  session14: {
-    math: { ichigyo: 9, kihon: 21, jissen: 0 },
-    japanese: { kanji: 40 },
-    science: { kihon: 22, renshu: 32 },
-    social: { kihon: 52, renshu: 15, oyo: 8 },
-  },
-  session15: {
-    math: { ichigyo: 9, kihon: 23, jissen: 0 },
-    japanese: { kanji: 40 },
-    science: { kihon: 24, renshu: 27 },
-    social: { kihon: 60, renshu: 14, oyo: 3 },
-  },
-}
-
-const grade5Sessions = [
-  { id: "session1", name: "第1回", period: "9/1〜9/7" },
-  { id: "session2", name: "第2回", period: "9/8〜9/14" },
-  { id: "session3", name: "第3回", period: "9/15〜9/21" },
-  { id: "session4", name: "第4回", period: "9/22〜9/28" },
-  { id: "session5", name: "第5回", period: "9/29〜10/5" },
-  { id: "session6", name: "第6回", period: "10/6〜10/12" },
-  { id: "session7", name: "第7回", period: "10/13〜10/19" },
-  { id: "session8", name: "第8回", period: "10/20〜10/26" },
-  { id: "session9", name: "第9回", period: "10/27〜11/2" },
-  { id: "session10", name: "第10回", period: "11/3〜11/9" },
-  { id: "session11", name: "第11回", period: "11/10〜11/16" },
-  { id: "session12", name: "第12回", period: "11/17〜11/23" },
-  { id: "session13", name: "第13回", period: "11/24〜11/30" },
-  { id: "session14", name: "第14回", period: "12/1〜12/7" },
-  { id: "session15", name: "第15回", period: "12/8〜12/14" },
-  { id: "session16", name: "第16回", period: "12/15〜12/21" },
-  { id: "session17", name: "第17回", period: "12/22〜1/11" },
-  { id: "session18", name: "第18回", period: "1/12〜1/18" },
-  { id: "session19", name: "第19回", period: "1/19〜1/25" },
-]
-
-// 小学6年生: 15回（8/25 - 1/18）
-// ※ 期間は docs/03-Requirements-Student.md の表示期間に準拠
-const grade6Sessions = [
-  { id: "session1", name: "第1回", period: "8/25〜9/7" },
-  { id: "session2", name: "第2回", period: "9/8〜9/14" },
-  { id: "session3", name: "第3回", period: "9/15〜9/21" },
-  { id: "session4", name: "第4回", period: "9/22〜10/5" },
-  { id: "session5", name: "第5回", period: "10/6〜10/12" },
-  { id: "session6", name: "第6回", period: "10/13〜10/19" },
-  { id: "session7", name: "第7回", period: "10/20〜10/26" },
-  { id: "session8", name: "第8回", period: "10/27〜11/2" },
-  { id: "session9", name: "第9回", period: "11/3〜11/16" },
-  { id: "session10", name: "第10回", period: "11/17〜11/23" },
-  { id: "session11", name: "第11回", period: "11/24〜11/30" },
-  { id: "session12", name: "第12回", period: "12/1〜12/14" },
-  { id: "session13", name: "第13回", period: "12/15〜12/21" },
-  { id: "session14", name: "第14回", period: "12/22〜1/11" },
-  { id: "session15", name: "第15回", period: "1/12〜1/18" },
-]
-
-const levels = {
-  spark: { name: "Spark", icon: Sparkles, description: "楽しくスタート", color: "text-primary" },
-  flame: { name: "Flame", icon: Flame, description: "成長ステップ", color: "text-red-500" },
-  blaze: { name: "Blaze", icon: Crown, description: "最高にチャレンジ", color: "text-purple-500" },
+const subjectIdMap: { [key: string]: number } = {
+  math: 1,
+  japanese: 2,
+  science: 3,
+  social: 4,
 }
 
 // 削除: getCurrentLearningSession() はServer Actionに置き換え
@@ -391,10 +124,12 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
   const studentGrade = student.grade.toString()
   const currentCourse = student.course
 
-  // セッション選択の状態（初期値はnull、useEffectでサーバーから取得）
-  const [selectedSession, setSelectedSession] = useState<string | null>(null)
-  const [currentSessionId, setCurrentSessionId] = useState<number | null>(null) // 現在の週のセッションDB ID
-  const [currentSessionNumber, setCurrentSessionNumber] = useState<number | null>(null) // 現在の週のセッション番号
+  // セッション・コンテンツデータ（DBから取得）
+  const [dbSessions, setDbSessions] = useState<DBSession[]>([])
+  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null)
+  const [currentSessionNumber, setCurrentSessionNumber] = useState<number | null>(null)
+  const [contentData, setContentData] = useState<ContentTypeWithCount[]>([])
+  const [isLoadingContent, setIsLoadingContent] = useState(false)
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>(
     preselectedSubject ? [preselectedSubject] : []
   )
@@ -415,85 +150,80 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
   const [isRetryingSave, setIsRetryingSave] = useState(false)
   const [lastStudyLogId, setLastStudyLogId] = useState<number | null>(null)
   const [lastBatchId, setLastBatchId] = useState<string | null>(null)
-  const [lastStudyLogIds, setLastStudyLogIds] = useState<number[]>([])
 
-  // 初回マウント時に現在のセッションをサーバーから取得
+  // 初回マウント時にセッション一覧と現在のセッションをサーバーから取得
   useEffect(() => {
     async function initializeCurrentSession() {
       const grade = parseInt(studentGrade)
-      const session = await getCurrentSession(grade)
 
+      // セッション一覧を取得
+      const sessionsResult = await getStudySessions(grade)
+      if (!sessionsResult.error && sessionsResult.sessions) {
+        setDbSessions(sessionsResult.sessions)
+      }
+
+      // 現在のセッションを取得
+      const session = await getCurrentSession(grade)
       if (session) {
-        setCurrentSessionId(session.id)
         setCurrentSessionNumber(session.session_number)
-        setSelectedSession(`session${session.session_number}`)
-      } else {
+        setSelectedSessionId(session.id)
+      } else if (sessionsResult.sessions && sessionsResult.sessions.length > 0) {
         // フォールバック: 最初のセッションを選択
-        const sessions = grade === 5 ? grade5Sessions : grade6Sessions
-        if (sessions.length > 0) {
-          setSelectedSession(sessions[0].id)
-        }
+        setSelectedSessionId(sessionsResult.sessions[0].id)
       }
     }
 
     initializeCurrentSession()
   }, [studentGrade])
 
+  // セッション変更時にコンテンツデータ（問題数含む）を取得
+  useEffect(() => {
+    async function fetchContentData() {
+      if (!selectedSessionId) return
+
+      setContentData([]) // 前セッションのデータをクリア
+      setIsLoadingContent(true)
+      try {
+        const result = await getContentTypesWithCounts(
+          parseInt(studentGrade),
+          currentCourse,
+          selectedSessionId,
+        )
+        if (!result.error && result.contentTypes) {
+          setContentData(result.contentTypes)
+        }
+      } catch (error) {
+        console.error("Failed to fetch content data:", error)
+      } finally {
+        setIsLoadingContent(false)
+      }
+    }
+
+    fetchContentData()
+  }, [selectedSessionId, studentGrade, currentCourse])
+
   // Fetch existing study logs when session or subjects change
   useEffect(() => {
     async function fetchExistingLogs() {
-      if (!selectedSession || selectedSubjects.length === 0) return
+      if (!selectedSessionId || selectedSubjects.length === 0 || contentData.length === 0) return
 
       try {
-        // Get session ID from database
-        const sessionNumber = parseInt(selectedSession.replace("session", ""))
-        const grade = parseInt(studentGrade)
-
-        const sessionsResult = await getStudySessions(grade)
-        if (sessionsResult.error || !sessionsResult.sessions) {
-          return
-        }
-
-        const targetSession = sessionsResult.sessions.find((s) => s.session_number === sessionNumber)
-        if (!targetSession) {
-          return
-        }
-
-        const subjectIdMap: { [key: string]: number } = {
-          math: 1,
-          japanese: 2,
-          science: 3,
-          social: 4,
-        }
-
-        // Fetch existing logs for all selected subjects
         for (const subjectId of selectedSubjects) {
           const dbSubjectId = subjectIdMap[subjectId]
           if (!dbSubjectId) continue
 
-          const result = await getExistingStudyLog(targetSession.id, dbSubjectId)
+          const result = await getExistingStudyLog(selectedSessionId, dbSubjectId)
           if (result.error || !result.logs || result.logs.length === 0) continue
 
-          // Get content types to map study_content_type_id to content_name
-          const contentTypesResult = await getContentTypes(grade, dbSubjectId, currentCourse)
-          if (contentTypesResult.error || !contentTypesResult.contentTypes) continue
-
-          // Pre-fill the form with existing data
+          // DB ID で直接マッチ（名前マッピング不要）
           const newDetails: { [contentId: string]: number } = {}
-          const availableContent = getAvailableLearningContent(subjectId)
+          const subjectContent = contentData.filter(ct => ct.subjectId === dbSubjectId)
 
           for (const log of result.logs) {
-            // Find matching content type
-            const contentType = contentTypesResult.contentTypes.find((ct) => ct.id === log.study_content_type_id)
-            if (!contentType) continue
-
-            // Find matching content in UI by name
-            const matchingContent = availableContent.find((c) => c.name === contentType.content_name)
-            if (matchingContent && newDetails[matchingContent.id] === undefined) {
-              newDetails[matchingContent.id] = log.correct_count
+            const matchingContent = subjectContent.find(ct => ct.id === log.study_content_type_id)
+            if (matchingContent && newDetails[String(matchingContent.id)] === undefined) {
+              newDetails[String(matchingContent.id)] = log.correct_count
             }
-
-            // 振り返りテキストは既存データから読み込まない（毎回新規入力）
           }
 
           if (Object.keys(newDetails).length > 0) {
@@ -509,40 +239,27 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
     }
 
     fetchExistingLogs()
-  }, [selectedSession, selectedSubjects.join(","), currentCourse])
-
-  const getCurrentLevel = () => {
-    if (currentCourse === "A") return "spark"
-    if (currentCourse === "B") return "flame"
-    return "blaze" // C or S course
-  }
-
-  const currentLevel = getCurrentLevel()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSessionId, selectedSubjects.join(","), contentData])
 
   const getAvailableLearningContent = (subjectId: string) => {
-    const contentMap = studentGrade === "5" ? grade5LearningContent : grade6LearningContent
-    const subjectContent = contentMap[subjectId as keyof typeof contentMap] || []
+    const dbSubjectId = subjectIdMap[subjectId]
+    if (!dbSubjectId) return []
 
-    return subjectContent.filter((content) => {
-      if (currentCourse === "A") return content.course === "A"
-      if (currentCourse === "B") return content.course === "A" || content.course === "B"
-      return true // C and S courses can access all content
-    })
+    // contentData は getContentTypesWithCounts() で取得済み（DB側で course = 生徒コースでフィルタ済み）
+    // 2026年度以降、各コースに専用のコンテンツ行があるため階層フィルタは不要
+    return contentData
+      .filter(ct => ct.subjectId === dbSubjectId)
+      .map(ct => ({
+        id: String(ct.id),
+        name: ct.contentName,
+        course: ct.course,
+        totalProblems: ct.totalProblems,
+      }))
   }
 
-  const getProblemCount = (subjectId: string, contentId: string) => {
-    const problemData = studentGrade === "5" ? grade5ProblemCounts : grade6ProblemCounts
-    const sessionData = problemData[selectedSession as keyof typeof problemData]
-    if (!sessionData) return 0
-
-    const subjectData = sessionData[subjectId as keyof typeof sessionData]
-    if (!subjectData) return 0
-
-    return subjectData[contentId as keyof typeof subjectData] || 0
-  }
-
-  const handleSessionChange = (newSession: string) => {
-    setSelectedSession(newSession)
+  const handleSessionChange = (value: string) => {
+    setSelectedSessionId(parseInt(value))
     // 学習回が変更されたら科目選択と入力内容をリセット
     setSelectedSubjects([])
     setSubjectDetails({})
@@ -580,40 +297,13 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
     setIsSubmitting(true)
 
     try {
-      // 1. Get session_id from Supabase (not from local mapping)
-      if (!selectedSession) {
+      if (!selectedSessionId) {
         alert("学習回を選択してください")
         setIsSubmitting(false)
         return
       }
-      const sessionNumber = parseInt(selectedSession.replace("session", ""))
-      const grade = parseInt(studentGrade)
 
-      const sessionsResult = await getStudySessions(grade)
-      if (sessionsResult.error || !sessionsResult.sessions) {
-        alert(`学習回の取得に失敗しました: ${sessionsResult.error}`)
-        setIsSubmitting(false)
-        return
-      }
-
-      const targetSession = sessionsResult.sessions.find((s) => s.session_number === sessionNumber)
-      if (!targetSession) {
-        alert(`学習回 ${sessionNumber} が見つかりません`)
-        setIsSubmitting(false)
-        return
-      }
-
-      const actualSessionId = targetSession.id
-
-      // 2. Map subject IDs to database IDs (算数=1, 国語=2, 理科=3, 社会=4)
-      const subjectIdMap: { [key: string]: number } = {
-        math: 1,
-        japanese: 2,
-        science: 3,
-        social: 4,
-      }
-
-      // 3. Prepare study logs for each subject and content
+      // DB ID を直接使用（N+1 クエリ不要）
       const logs: Array<{
         session_id: number
         subject_id: number
@@ -624,41 +314,24 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
         reflection_text?: string
       }> = []
 
-      // For each selected subject, create log entries
       for (const subjectId of selectedSubjects) {
         const dbSubjectId = subjectIdMap[subjectId]
         const details = subjectDetails[subjectId]
 
         if (!details || !dbSubjectId) continue
 
-        // Get available learning content for this subject
         const availableContent = getAvailableLearningContent(subjectId)
 
-        for (const [contentId, correctAnswers] of Object.entries(details)) {
-          // Only save if there's a value entered
+        for (const content of availableContent) {
+          const correctAnswers = details[content.id]
           if (correctAnswers === undefined || correctAnswers < 0) continue
 
-          // Find content name from availableContent
-          const contentItem = availableContent.find((c) => c.id === contentId)
-          if (!contentItem) continue
-
-          // 4. Get study_content_type_id from Supabase using getContentTypeId
-          const contentTypeResult = await getContentTypeId(grade, dbSubjectId, currentCourse, contentItem.name)
-
-          if (contentTypeResult.error || !contentTypeResult.id) {
-            console.error(`学習内容タイプIDの取得に失敗: ${contentItem.name}`, contentTypeResult.error)
-            continue
-          }
-
-          // Get total problems for this content
-          const maxProblems = getProblemCount(subjectId, contentId)
-
           logs.push({
-            session_id: actualSessionId,
+            session_id: selectedSessionId,
             subject_id: dbSubjectId,
-            study_content_type_id: contentTypeResult.id,
+            study_content_type_id: parseInt(content.id),
             correct_count: correctAnswers,
-            total_problems: maxProblems,
+            total_problems: content.totalProblems,
             reflection_text: reflection || undefined,
           })
         }
@@ -707,7 +380,6 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
       if (result.studyLogIds.length > 0) {
         setLastStudyLogId(result.studyLogIds[0])
         setLastBatchId(result.batchId)
-        setLastStudyLogIds(result.studyLogIds)
 
         const feedbackResult = await generateCoachFeedback(
           result.studentId,
@@ -752,11 +424,10 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
   }
 
   const isFormValid = () => {
-    if (!selectedSession) return false
+    if (!selectedSessionId) return false
     if (selectedSubjects.length === 0) return false
 
     // 少なくとも1つの科目で、1つ以上の学習内容に入力があればOK
-    // 問題数0の復習週や、一部の学習内容のみ入力する場合も許可
     return selectedSubjects.some((subjectId) => {
       const details = subjectDetails[subjectId]
       if (!details) return false
@@ -764,15 +435,9 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
       const availableContent = getAvailableLearningContent(subjectId)
       if (availableContent.length === 0) return false
 
-      // 問題数が0でない学習内容が1つでも入力されていればOK
       return availableContent.some((content) => {
-        const maxProblems = getProblemCount(subjectId, content.id)
+        if (content.totalProblems === 0) return false
         const inputValue = details[content.id]
-
-        // 問題数が0の場合は入力不要（復習週）
-        if (maxProblems === 0) return false
-
-        // 入力があればOK（0も有効な入力）
         return inputValue !== undefined && inputValue >= 0
       })
     })
@@ -799,10 +464,12 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
     }
   }
 
-  const CurrentLevelIcon = levels[currentLevel].icon
-
   const getAvailableSessions = () => {
-    return studentGrade === "5" ? grade5Sessions : grade6Sessions
+    return dbSessions.map(session => ({
+      id: String(session.id),
+      name: `第${session.session_number}回`,
+      period: `${formatSessionDate(session.start_date)}〜${formatSessionDate(session.end_date)}`,
+    }))
   }
 
   const getLevelDisplayName = () => {
@@ -857,7 +524,7 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
           </CardHeader>
           <CardContent className="pt-6">
             <div className="space-y-4">
-              <Select value={selectedSession ?? undefined} onValueChange={handleSessionChange}>
+              <Select value={selectedSessionId ? String(selectedSessionId) : undefined} onValueChange={handleSessionChange}>
                 <SelectTrigger className="w-full h-14 text-base border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 rounded-xl shadow-sm">
                   <SelectValue placeholder="学習回を選択してください" />
                 </SelectTrigger>
@@ -870,15 +537,16 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
                 </SelectContent>
               </Select>
 
-              {selectedSession && (() => {
-                const selectedSessionNumber = parseInt(selectedSession.replace("session", ""))
+              {selectedSessionId && (() => {
+                const selectedSessionData = dbSessions.find(s => s.id === selectedSessionId)
+                const selectedSessionNumber = selectedSessionData?.session_number ?? 0
                 const isCurrentWeek = currentSessionNumber && selectedSessionNumber === currentSessionNumber
 
                 return (
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
                       <Badge variant="outline" className="text-sm px-4 py-2 bg-slate-50 border-slate-300 font-medium">
-                        {getAvailableSessions().find((s) => s.id === selectedSession)?.period}
+                        {getAvailableSessions().find((s) => s.id === String(selectedSessionId))?.period}
                       </Badge>
                       {isCurrentWeek && (
                         <Badge className="bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm px-4 py-2 shadow-lg">
@@ -905,7 +573,7 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
           </CardContent>
         </Card>
 
-        {selectedSession && (
+        {selectedSessionId && (
           <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm ring-1 ring-slate-200/50">
             <CardHeader className="pb-4 bg-gradient-to-r from-green-50/50 to-emerald-50/50 rounded-t-lg">
               <CardTitle className="flex items-center gap-3 text-lg font-semibold text-slate-800">
@@ -935,7 +603,14 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
           </Card>
         )}
 
-        {selectedSubjects.length > 0 && selectedSession && (
+        {selectedSubjects.length > 0 && selectedSessionId && isLoadingContent && (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-4 border-blue-600"></div>
+            <span className="ml-4 text-lg text-slate-700 font-medium">学習内容を読み込み中...</span>
+          </div>
+        )}
+
+        {selectedSubjects.length > 0 && selectedSessionId && !isLoadingContent && (
           <div className="space-y-6">
             {selectedSubjects.map((subjectId) => {
               const subject = subjects.find((s) => s.id === subjectId)
@@ -957,7 +632,7 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
                   </CardHeader>
                   <CardContent className="space-y-6">
                     {availableContent.map((content) => {
-                      const maxProblems = getProblemCount(subjectId, content.id)
+                      const maxProblems = content.totalProblems
                       const currentValue = subjectDetails[subjectId]?.[content.id] || 0
 
                       // 問題数が0の場合は復習週として表示
@@ -1179,7 +854,7 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
         {selectedSubjects.length > 0 && !isFormValid() && (
           <div className="p-6 bg-gradient-to-r from-amber-50 to-orange-50 border-l-8 border-amber-400 rounded-2xl shadow-xl">
             <p className="text-lg text-amber-800 font-bold">
-              {!selectedSession ? "学習回を選択してください" : "選択した科目の正答数を入力してください"}
+              {!selectedSessionId ? "学習回を選択してください" : "選択した科目の正答数を入力してください"}
             </p>
           </div>
         )}
