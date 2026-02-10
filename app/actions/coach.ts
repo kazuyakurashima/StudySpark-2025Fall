@@ -1256,13 +1256,27 @@ export async function getUnconfirmedSessions() {
     return { sessions: [] }
   }
 
-  // 各学年の回次範囲を取得
+  // 各学年の回次範囲をDBから取得
   const grades = [...new Set(validRelations.map((rel) => rel.grade))]
-  const sessionRanges: Record<string, number[]> = {}
+  const numericGrades = grades.map(g => g === '5年' ? 5 : 6)
 
+  const { data: allStudySessions, error: sessionsError } = await supabase
+    .from("study_sessions")
+    .select("grade, session_number")
+    .in("grade", numericGrades)
+    .order("session_number")
+
+  if (sessionsError || !allStudySessions || allStudySessions.length === 0) {
+    console.error("[getUnconfirmedSessions] study_sessions 取得失敗:", sessionsError)
+    return { error: "学習回データの取得に失敗しました" }
+  }
+
+  const sessionRanges: Record<string, number[]> = {}
   for (const grade of grades) {
-    const maxSession = grade === '5年' ? 19 : 15
-    sessionRanges[grade] = Array.from({ length: maxSession }, (_, i) => i + 1)
+    const numericGrade = grade === '5年' ? 5 : 6
+    sessionRanges[grade] = allStudySessions
+      .filter(s => s.grade === numericGrade)
+      .map(s => s.session_number)
   }
 
   // 全回次を集約（昇順）

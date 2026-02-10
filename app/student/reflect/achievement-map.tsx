@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getAchievementMapData } from "@/app/actions/reflect"
 import { getChildAchievementMapData } from "@/app/actions/parent"
+import { getStudySessions } from "@/app/actions/study-log"
 import { TrendingUp } from "lucide-react"
 
 interface AchievementMapProps {
@@ -22,6 +23,7 @@ export function AchievementMap({
 }: AchievementMapProps) {
   const [selectedSubject, setSelectedSubject] = useState("all")
   const [mapData, setMapData] = useState<any[]>([])
+  const [totalSessions, setTotalSessions] = useState<number>(0)
   const [loading, setLoading] = useState(true)
 
   const subjects = [
@@ -32,9 +34,21 @@ export function AchievementMap({
     { id: "social", name: "社会", color: "bg-emerald-500" },
   ]
 
+  // 学習回数をDBから取得（学年依存のみ — 科目切替では再取得しない）
+  useEffect(() => {
+    async function fetchSessionCount() {
+      const sessionsResult = await getStudySessions(studentGrade)
+      if (!sessionsResult.error && sessionsResult.sessions) {
+        setTotalSessions(sessionsResult.sessions.length)
+      }
+    }
+    fetchSessionCount()
+  }, [studentGrade])
+
+  // 学習ログデータを取得（科目・ロール・生徒ID依存）
   useEffect(() => {
     loadMapData()
-  }, [selectedSubject, viewerRole, studentId])
+  }, [selectedSubject, viewerRole, studentId, studentGrade])
 
   const loadMapData = async () => {
     setLoading(true)
@@ -137,8 +151,7 @@ export function AchievementMap({
     return acc
   }, {})
 
-  // 全学習回を生成（小5は19回、小6は15回）
-  const totalSessions = studentGrade === 5 ? 19 : 15
+  // 全学習回を生成（DBから取得した回数を使用）
   const allSessions: Record<string, any> = {}
 
   // 学習内容のリストを取得（データから）
