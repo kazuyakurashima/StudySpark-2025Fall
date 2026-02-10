@@ -614,8 +614,64 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
           <div className="space-y-6">
             {selectedSubjects.map((subjectId) => {
               const subject = subjects.find((s) => s.id === subjectId)
-              const availableContent = getAvailableLearningContent(subjectId)
-              if (!subject || availableContent.length === 0) return null
+              const allContent = getAvailableLearningContent(subjectId)
+              if (!subject || allContent.length === 0) return null
+
+              // 問題数 > 0 のコンテンツのみ表示対象
+              const availableContent = allContent.filter(c => c.totalProblems > 0)
+              // 全コンテンツが問題数0 → この科目は復習週
+              const isReviewWeek = availableContent.length === 0
+
+              if (isReviewWeek) {
+                return (
+                  <Card
+                    key={subjectId}
+                    className={`shadow-xl border-0 bg-white/95 backdrop-blur-sm border-l-8 ${subject.accent} ring-1 ring-slate-200/50`}
+                  >
+                    <CardHeader className="pb-4">
+                      <CardTitle className="text-xl flex items-center gap-3">
+                        <Badge className={`${subject.badge} px-6 py-3 text-base font-bold rounded-xl`}>
+                          {subject.name}
+                        </Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="p-6 bg-gradient-to-br from-amber-50/80 to-orange-50/80 rounded-2xl border-2 border-amber-200 shadow-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-400 rounded-full flex items-center justify-center shadow-lg">
+                            <svg
+                              className="w-6 h-6 text-white"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                              />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-xl font-bold text-slate-800 mb-1">今週は復習週です！</p>
+                            <p className="text-base text-slate-700">
+                              今までに解いた問題をもう一度復習して、理解を深めましょう。
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-4 p-4 bg-amber-50 rounded-lg border border-amber-200">
+                          <p className="text-sm text-slate-600 leading-relaxed">
+                            💡{" "}
+                            <span className="font-bold">復習のコツ:</span>{" "}
+                            間違えた問題や難しかった問題を中心に見直すと効果的です。わからないところは先生や保護者に質問してみましょう！
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              }
 
               return (
                 <Card
@@ -634,77 +690,6 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
                     {availableContent.map((content) => {
                       const maxProblems = content.totalProblems
                       const currentValue = subjectDetails[subjectId]?.[content.id] || 0
-
-                      // 問題数が0の場合は復習週として表示
-                      if (maxProblems === 0) {
-                        return (
-                          <div
-                            key={content.id}
-                            className="space-y-4 p-6 bg-gradient-to-br from-amber-50/80 to-orange-50/80 rounded-2xl border-2 border-amber-200 shadow-lg"
-                          >
-                            <div className="space-y-3 p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-300 shadow-sm">
-                              <div className="flex items-center gap-3">
-                                <div className="p-2 bg-amber-100 rounded-full">
-                                  <svg
-                                    className="w-6 h-6 text-amber-600"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                                    />
-                                  </svg>
-                                </div>
-                                <h4 className="text-lg font-bold text-amber-800">{content.name}</h4>
-                              </div>
-                              <Badge
-                                variant="outline"
-                                className="px-3 py-1 text-sm font-bold bg-amber-100 text-amber-700 border-amber-300"
-                              >
-                                {content.course}コース
-                              </Badge>
-                            </div>
-                            <div className="p-6 bg-white/80 rounded-xl border-2 border-amber-200 shadow-sm">
-                              <div className="space-y-4">
-                                <div className="flex items-center gap-3">
-                                  <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-400 rounded-full flex items-center justify-center shadow-lg">
-                                    <svg
-                                      className="w-6 h-6 text-white"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                                      />
-                                    </svg>
-                                  </div>
-                                  <div className="flex-1">
-                                    <p className="text-xl font-bold text-slate-800 mb-1">今週は復習週です！</p>
-                                    <p className="text-base text-slate-700">
-                                      今までに解いた問題をもう一度復習して、理解を深めましょう。
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="mt-4 p-4 bg-amber-50 rounded-lg border border-amber-200">
-                                  <p className="text-sm text-slate-600 leading-relaxed">
-                                    💡{" "}
-                                    <span className="font-bold">復習のコツ:</span>{" "}
-                                    間違えた問題や難しかった問題を中心に見直すと効果的です。わからないところは先生や保護者に質問してみましょう！
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      }
 
                       return (
                         <div
