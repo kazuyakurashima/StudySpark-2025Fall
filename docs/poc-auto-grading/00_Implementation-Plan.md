@@ -306,6 +306,14 @@ CREATE POLICY "students_update_own_answers" ON student_answers
       WHERE a.id = answer_session_id AND s.user_id = auth.uid()
         AND a.status = 'in_progress'  -- 採点後(graded)の改竄を防止
     )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM answer_sessions a
+      JOIN students s ON s.id = a.student_id
+      WHERE a.id = answer_session_id AND s.user_id = auth.uid()
+        AND a.status = 'in_progress'  -- 更新後の値も同条件を満たすことを保証
+    )
   );
 
 CREATE POLICY "admins_write_student_answers" ON student_answers
@@ -323,6 +331,10 @@ CREATE POLICY "admins_write_student_answers" ON student_answers
 > 採点完了（`graded`）後の解答追加・改竄をRLSレベルで防止する。
 > 保護者の `question_sets` 閲覧は子どもが実際に受験したセット（`answer_sessions` 経由）に限定し、
 > 未受験のテスト内容が事前に見えることを防ぐ。
+>
+> **実装タスク**: 上記RLSポリシーは本計画書の設計定義であり、実DBへの適用はPoC実装フェーズで
+> マイグレーションファイル（`supabase/migrations/YYYYMMDD_create_auto_grading_tables.sql`）として作成・適用する。
+> 適用タイミング: PoC Step 1（テーブル作成）と同時。
 
 ### 1-4. 既存テーブルとの関係
 
