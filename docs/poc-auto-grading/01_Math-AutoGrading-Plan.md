@@ -1258,7 +1258,7 @@ export async function getMathGradeResult(
  * - 認可チェック: 保護者は紐づけ済み子ども、指導者は担当生徒のみ
  */
 export async function getMathGradingHistory(input?: {
-  studentId?: string
+  studentId?: number  // students.id は SERIAL (integer)
 }): Promise<{
   results: MathGradingHistoryItem[]
   summary: {
@@ -1995,7 +1995,7 @@ pnpm run build
  * - attempt_history も含む（推移グラフ用）
  */
 export async function getMathGradingHistory(input?: {
-  studentId?: string  // 保護者・指導者用（省略時は自分）
+  studentId?: number  // students.id は SERIAL (integer)  // 保護者・指導者用（省略時は自分）
 }): Promise<{
   results: MathGradingHistoryItem[]
   summary: {
@@ -2069,6 +2069,8 @@ ORDER BY qs.session_number, qs.display_order;
 
 ### 12-4. 保護者ダッシュボード表示
 
+> **スコープ変更（2026-02-11）**: フロントエンド実装は延期。バックエンド（Server Action の保護者認可チェック）は実装済み。別チケットで対応予定。
+
 保護者ダッシュボードに、子どもの算数自動採点結果を表示。
 生徒ダッシュボードと同一のカード形式（セクション 12-2）を使用。
 
@@ -2076,6 +2078,8 @@ ORDER BY qs.session_number, qs.display_order;
 保護者-子ども紐づけの認可チェックは Server Action 内で実施。
 
 ### 12-5. 指導者（生徒詳細画面）表示
+
+> **実装済み（2026-02-11）**: `AssessmentHistory` コンポーネント（`studentId` props）が `/coach/student/[id]` で既に使用されており、算数自動採点データは `getMathGradingHistory` 並行取得により自動的に統合される。追加のフロントエンド作業は不要。
 
 指導者の生徒詳細ページ (`/coach/student/[id]`) の「テスト結果」タブに統合。
 生徒リフレクトと同一の履歴表示（セクション 12-3）を `studentId` 指定で表示。
@@ -2098,3 +2102,72 @@ ORDER BY qs.session_number, qs.display_order;
 
 > 全ポリシーはセクション 2-6 の `answer_sessions` / `student_answers` ブロックに記載。
 > Server Action 内の認可チェックは `resolveParentId()` / `resolveCoachId()` ヘルパー（セクション 2-6b）を使用。
+
+---
+
+## 13. 本番デプロイ手順
+
+### 13-1. 前提条件
+
+- `feat/math-auto-grading` ブランチが最新で、全テスト通過済み（104 tests pass）
+- `pnpm run build` 成功
+
+### 13-2. マージ
+
+```bash
+git checkout main
+git merge --no-ff feat/math-auto-grading
+git push origin main
+```
+
+### 13-3. マイグレーション適用
+
+**Migration 5 事前チェック**（ユニーク制約対象の重複確認）:
+
+```sql
+-- question_sets テーブルが新規作成の場合はスキップ可
+-- 既存データがある場合のみ実行
+SELECT session_id, subject_id, display_order, COUNT(*)
+FROM question_sets
+GROUP BY session_id, subject_id, display_order
+HAVING COUNT(*) > 1;
+-- 結果が0行であることを確認してから Migration 5 を適用
+```
+
+**適用順序**（依存関係あり、上から順に）:
+
+| # | ファイル | 内容 |
+|---|---------|------|
+| 1 | `20260211000001_create_auto_grading_tables.sql` | 4テーブル + RLS + ヘルパー関数 |
+| 2 | `20260211000002_update_lock_answer_session.sql` | lock関数の3引数版に置換 |
+| 3 | `20260211000003_create_get_math_grading_history_rpc.sql` | 履歴取得RPC |
+| 4 | `20260211000004_create_atomic_session_rpcs.sql` | 正答開示/リトライの排他制御RPC |
+| 5 | `20260211000005_add_question_sets_unique_constraint.sql` | ユニーク制約追加 |
+
+### 13-4. Seed データ投入
+
+```sql
+-- supabase/seeds/math_questions_2026.sql を SQL Editor で実行
+-- 冪等性あり（既存 approved セットはスキップ）
+```
+
+### 13-5. デプロイ後検証チェックリスト
+
+| # | 検証項目 | 手順 | 期待結果 |
+|---|---------|------|---------|
+| 1 | テーブル存在確認 | `SELECT count(*) FROM question_sets;` | 16 |
+| 2 | 問題データ確認 | `SELECT count(*) FROM questions;` | 458 |
+| 3 | 生徒: 問題一覧 | 生徒ログイン → `/student/math-answer` | 16セット表示 |
+| 4 | 生徒: 解答→採点 | 1セット通して入力→採点 | スコア表示 |
+| 5 | 生徒: ダッシュボード | 採点後→ダッシュボード | 算数自動採点セクション表示 |
+| 6 | 生徒: リフレクト | テスト結果タブ → 「算数自動採点」フィルタ | 履歴表示 |
+| 7 | 生徒: リトライ/正答開示 | 不正解あり→リトライ or 正答開示 | 排他制御動作 |
+| 8 | **認可: 保護者アクセス** | 保護者ログイン → リフレクト → テスト結果 | 紐づけ子どものデータのみ表示 |
+| 9 | **認可: 指導者アクセス** | 指導者ログイン → 生徒詳細 → テスト結果 | 担当生徒のデータのみ表示 |
+| 10 | **認可: 他人のデータ** | 保護者が紐づけなし生徒の `studentId` を指定 | エラー or 空データ |
+
+### 13-6. ロールバック手順
+
+1. `git revert <merge-commit>` でアプリコードをロールバック
+2. DB: 新規テーブル（`question_sets`, `questions`, `answer_sessions`, `student_answers`）は残っても既存機能に影響なし
+3. 必要に応じて `DROP TABLE` で削除（データ損失を伴うため要確認）

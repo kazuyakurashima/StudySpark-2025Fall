@@ -7,6 +7,7 @@ import { AssessmentSummaryCards } from "./components/assessment-summary-cards"
 import { AssessmentTrendChart } from "./components/assessment-trend-chart"
 import { AssessmentHistoryList } from "./components/assessment-history-list"
 import { AssessmentData, AssessmentSummary } from "./types"
+import { compareAssessmentDateDesc } from "./assessment-sort"
 
 interface AssessmentHistoryProps {
   studentId?: string  // 保護者画面から渡される生徒ID（オプショナル）
@@ -54,6 +55,7 @@ export function AssessmentHistory({ studentId }: AssessmentHistoryProps = {}) {
             assessment_date: r.latestAttempt!.gradedAt
               ? r.latestAttempt!.gradedAt.split('T')[0]
               : new Date().toISOString().split('T')[0],
+            graded_at: r.latestAttempt!.gradedAt || undefined,
             master: {
               id: `math_auto_${r.questionSetId}`,
               title: r.title,
@@ -67,11 +69,9 @@ export function AssessmentHistory({ studentId }: AssessmentHistoryProps = {}) {
             })),
           }))
 
-        // 日付降順でマージソート
+        // 日付降順でマージソート（テスト済み: assessment-sort.test.ts）
         const mergedAssessments = [...classAssessments, ...mathAutoAssessments]
-          .sort((a, b) =>
-            new Date(b.assessment_date).getTime() - new Date(a.assessment_date).getTime()
-          )
+          .sort(compareAssessmentDateDesc)
 
         setAssessments(mergedAssessments)
 

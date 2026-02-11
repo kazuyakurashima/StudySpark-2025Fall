@@ -183,7 +183,38 @@
 
 ---
 
-**最終更新:** 2025年10月6日 12:30
+## 📋 算数自動採点 関連の延期タスク
+
+### TD-1: ダッシュボード Server Action 重複発火の共通キャッシュ戦略
+**優先度:** 低（パフォーマンス最適化）
+**追加日:** 2026-02-11
+
+生徒ダッシュボード (`dashboard-client.tsx`) ではモバイル/PC 両レイアウトに同一コンポーネントを配置しているため、以下の Server Action が二重発火する:
+
+- `getMathGradingHistory()` — `MathAutoGradingSection` x2
+- `useStudentAssessments()` — `StudentAssessmentSection` x2
+
+**対応案:**
+1. 親コンポーネントで1回取得 → props 配布パターン
+2. SWR / React Query 導入でリクエストレベルの重複排除
+3. `useMemo` + Context でレスポンシブ切り替え時の再フェッチ防止
+
+**影響ファイル:** `components/assessment/math-auto-grading-section.tsx`, `components/assessment/student-assessment-section.tsx`, `app/student/dashboard-client.tsx`
+
+### TD-2: 保護者ダッシュボードに算数自動採点表示 (計画書 12-4)
+**優先度:** 中
+**追加日:** 2026-02-11
+
+バックエンド（Server Action の保護者認可チェック）は実装済み。フロントエンド統合が未実装。
+
+### ~~TD-3: 指導者 生徒詳細画面に算数自動採点表示 (計画書 12-5)~~
+**ステータス:** 実装済み（2026-02-11 確認）
+
+`/coach/student/[id]` の `AssessmentHistory` コンポーネントが `studentId` props で算数自動採点データを自動統合。追加作業不要。
+
+---
+
+**最終更新:** 2026年2月11日
 **更新者:** Claude Code
 
 **注:** このバックログはPhase 0-5の基本実装完了後に順次対応します。エラーなく稼働することを最優先し、初期実装では省略します。

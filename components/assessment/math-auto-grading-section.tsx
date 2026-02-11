@@ -126,8 +126,8 @@ export function MathAutoGradingSection({
     )
   }
 
-  // 表示対象: 採点済み優先、最新N件
-  const displayResults = activeResults
+  // 表示対象: 採点済み優先、最新N件（防御的コピーで元配列を非破壊）
+  const displayResults = [...activeResults]
     .sort((a, b) => {
       // 採点済みを先、進行中を後
       const statusOrder = (s: string) => s === "graded" ? 0 : 1

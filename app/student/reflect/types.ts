@@ -18,6 +18,8 @@ export interface AssessmentData {
   score: number
   max_score_at_submission: number
   assessment_date: string
+  /** 採点完了タイムスタンプ（ISO8601）。同日ソートの安定化に使用 */
+  graded_at?: string
   master?: {
     id: string
     title: string | null

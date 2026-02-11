@@ -7,6 +7,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Calendar, TrendingUp } from "lucide-react"
 import { useState } from "react"
 import { AssessmentData } from "../types"
+import { compareAssessmentDate } from "../assessment-sort"
 
 interface AssessmentHistoryListProps {
   assessments: AssessmentData[]
@@ -89,12 +90,10 @@ export function AssessmentHistoryList({ assessments, loading }: AssessmentHistor
     )
   }
 
-  // ソート
+  // ソート（テスト済み: assessment-sort.test.ts）
   filteredAssessments.sort((a, b) => {
-    if (sortBy === 'date_desc') {
-      return new Date(b.assessment_date).getTime() - new Date(a.assessment_date).getTime()
-    } else if (sortBy === 'date_asc') {
-      return new Date(a.assessment_date).getTime() - new Date(b.assessment_date).getTime()
+    if (sortBy === 'date_desc' || sortBy === 'date_asc') {
+      return compareAssessmentDate(a, b, sortBy === 'date_desc' ? 'desc' : 'asc')
     } else if (sortBy === 'score_desc') {
       const scoreA = a.max_score_at_submission > 0 ? (a.score / a.max_score_at_submission) * 100 : 0
       const scoreB = b.max_score_at_submission > 0 ? (b.score / b.max_score_at_submission) * 100 : 0
