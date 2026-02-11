@@ -60,8 +60,19 @@ export default function ProfileSetup() {
 
   const handleSkip = async () => {
     setIsLoading(true)
-    // スキップ時も setup_completed=true にして completeSetup 経由でダッシュボードへ
-    await completeSetup()
+    setError(null)
+    try {
+      // スキップ時も setup_completed=true にして completeSetup 経由でダッシュボードへ
+      const result = await completeSetup()
+      if (result?.error) {
+        setError(result.error)
+        setIsLoading(false)
+      }
+      // 成功時は completeSetup 内で redirect されるため到達しない
+    } catch {
+      setError("セットアップの完了に失敗しました")
+      setIsLoading(false)
+    }
   }
 
   return (

@@ -141,10 +141,15 @@ export async function completeSetup() {
   }
 
   // setup_completed を確実に true にする（スキップ経路の安全網）
-  await supabase
+  const { error: updateError } = await supabase
     .from("profiles")
     .update({ setup_completed: true })
     .eq("id", user.id)
+
+  if (updateError) {
+    console.error("[completeSetup] setup_completed update failed:", updateError)
+    return { error: "セットアップ完了の保存に失敗しました" }
+  }
 
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
 
