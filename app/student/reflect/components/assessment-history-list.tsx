@@ -14,7 +14,7 @@ interface AssessmentHistoryListProps {
 }
 
 export function AssessmentHistoryList({ assessments, loading }: AssessmentHistoryListProps) {
-  const [testType, setTestType] = useState<'all' | 'math_print' | 'kanji_test'>('all')
+  const [testType, setTestType] = useState<'all' | 'math_print' | 'kanji_test' | 'math_auto_grading'>('all')
   const [period, setPeriod] = useState<'all' | '1week' | '1month' | '3months'>('all')
   const [sortBy, setSortBy] = useState<'date_desc' | 'date_asc' | 'score_desc' | 'score_asc'>('date_desc')
 
@@ -134,6 +134,7 @@ export function AssessmentHistoryList({ assessments, loading }: AssessmentHistor
                 <SelectItem value="all">📚 すべて</SelectItem>
                 <SelectItem value="math_print">📊 算数プリント</SelectItem>
                 <SelectItem value="kanji_test">✏️ 漢字テスト</SelectItem>
+                <SelectItem value="math_auto_grading">📐 算数自動採点</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -195,8 +196,9 @@ export function AssessmentHistoryList({ assessments, loading }: AssessmentHistor
                   ? Math.round((assessment.score / assessment.max_score_at_submission) * 100)
                   : 0
                 const badge = getPerformanceBadge(percentage)
+                const isMathAutoGrading = assessment.master?.assessment_type === 'math_auto_grading'
                 const isKanji = assessment.master?.assessment_type === 'kanji_test'
-                const testIcon = isKanji ? '✏️' : '📊'
+                const testIcon = isMathAutoGrading ? '📐' : isKanji ? '✏️' : '📊'
 
                 return (
                   <AccordionItem

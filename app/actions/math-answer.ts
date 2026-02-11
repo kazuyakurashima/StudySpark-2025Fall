@@ -12,6 +12,7 @@ export interface MathQuestionSetSummary {
   id: number
   title: string
   sessionNumber: number
+  displayOrder: number
   questionCount: number
   status: 'not_started' | 'in_progress' | 'graded'
   answersRevealed: boolean
@@ -226,6 +227,7 @@ export async function getMathQuestionSets(): Promise<{
         id: qs.id,
         title: qs.title || `第${sessionInfo.session_number}回`,
         sessionNumber: sessionInfo.session_number,
+        displayOrder: qs.display_order ?? 0,
         questionCount: countMap.get(qs.id) || 0,
         status: session ? (session.status as 'in_progress' | 'graded') : 'not_started',
         answersRevealed: session?.answers_revealed ?? false,
@@ -242,6 +244,9 @@ export async function getMathQuestionSets(): Promise<{
 
       return summary
     })
+
+    // sessionNumber → displayOrder の順でソート
+    results.sort((a, b) => a.sessionNumber - b.sessionNumber || a.displayOrder - b.displayOrder)
 
     return { questionSets: results }
   } catch (error) {
@@ -835,7 +840,13 @@ export async function getMathGradingHistory(input?: {
 
       if (!profile) return { results: [], summary: emptySummary, error: 'プロフィールが見つかりません' }
 
-      if (profile.role === 'parent') {
+      if (profile.role === 'student') {
+        // 生徒は自分のデータのみアクセス可能
+        const ownStudentId = await resolveStudentId(admin, user.id)
+        if (ownStudentId !== targetStudentId) {
+          return { results: [], summary: emptySummary, error: 'アクセス権限がありません' }
+        }
+      } else if (profile.role === 'parent') {
         const parentId = await resolveParentId(admin, user.id)
         if (!parentId) return { results: [], summary: emptySummary, error: '保護者情報が見つかりません' }
         const { data: parentRel } = await admin

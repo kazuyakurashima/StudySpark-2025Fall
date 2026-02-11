@@ -196,7 +196,11 @@ export function AssessmentResultCard({
             value={percentage || 0}
             className={cn(
               "flex-1 h-2",
-              type === "math_print" ? "[&>div]:bg-blue-500" : "[&>div]:bg-orange-500"
+              type === "math_print"
+              ? "[&>div]:bg-blue-500"
+              : type === "math_auto_grading"
+                ? "[&>div]:bg-indigo-500"
+                : "[&>div]:bg-orange-500"
             )}
           />
         </div>
@@ -244,7 +248,7 @@ export function getActionSuggestion(
 ): string {
   if (percentage === null) return ""
 
-  const templates = {
+  const templates: Record<AssessmentType, { high: string[]; medium: string[]; low: string[] }> = {
     math_print: {
       high: [
         "この調子で次のプリントにもチャレンジしてみよう",
@@ -277,6 +281,23 @@ export function getActionSuggestion(
         "まずは書き順を確認しながらゆっくり練習しよう",
         "覚えにくい漢字は絵と一緒に覚えてみよう",
         "毎日少しずつ練習すると覚えやすくなるよ",
+      ],
+    },
+    math_auto_grading: {
+      high: [
+        "この調子で次の問題にもチャレンジしてみよう",
+        "解き方をしっかり覚えられているね！",
+        "自信を持って次に進もう！",
+      ],
+      medium: [
+        "まちがえた問題の解き方を確認してみよう",
+        "答え合わせで解説を読んでみよう",
+        "もう一度チャレンジすると点数が上がるかも！",
+      ],
+      low: [
+        "焦らずにもう一度取り組んでみよう",
+        "解説をよく読んでから再挑戦してみよう",
+        "わからないところは先生に聞いてみよう",
       ],
     },
   }

@@ -3,8 +3,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts"
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { AssessmentData } from "../types"
+
+type ChartType = 'math_print' | 'kanji_test' | 'math_auto_grading'
 
 interface AssessmentTrendChartProps {
   assessments: AssessmentData[]
@@ -12,7 +14,17 @@ interface AssessmentTrendChartProps {
 }
 
 export function AssessmentTrendChart({ assessments, loading }: AssessmentTrendChartProps) {
-  const [selectedType, setSelectedType] = useState<'math_print' | 'kanji_test'>('math_print')
+  // データがある種類を自動検出して初期選択
+  const defaultType = useMemo<ChartType>(() => {
+    const types: ChartType[] = ['math_print', 'kanji_test', 'math_auto_grading']
+    for (const t of types) {
+      if (assessments.some(a => a.master?.assessment_type === t)) return t
+    }
+    return 'math_print'
+  }, [assessments])
+
+  const [selectedType, setSelectedType] = useState<ChartType | null>(null)
+  const activeType = selectedType ?? defaultType
 
   if (loading) {
     return (
@@ -29,13 +41,15 @@ export function AssessmentTrendChart({ assessments, loading }: AssessmentTrendCh
 
   // テスト種類でフィルター
   const filteredAssessments = assessments.filter(
-    (a) => a.master?.assessment_type === selectedType
+    (a) => a.master?.assessment_type === activeType
   )
 
   // データが空の場合
   if (filteredAssessments.length === 0) {
-    const typeName = selectedType === 'math_print' ? '算数プリント' : '漢字テスト'
-    const icon = selectedType === 'math_print' ? '📊' : '✏️'
+    const typeName = activeType === 'math_print' ? '算数プリント'
+      : activeType === 'math_auto_grading' ? '算数自動採点' : '漢字テスト'
+    const icon = activeType === 'math_print' ? '📊'
+      : activeType === 'math_auto_grading' ? '📐' : '✏️'
 
     return (
       <Card className="card-elevated mb-6">
@@ -44,13 +58,14 @@ export function AssessmentTrendChart({ assessments, loading }: AssessmentTrendCh
             <span>📈</span>
             <span>成績トレンド</span>
           </CardTitle>
-          <Select value={selectedType} onValueChange={(v) => setSelectedType(v as any)}>
+          <Select value={activeType} onValueChange={(v) => setSelectedType(v as ChartType)}>
             <SelectTrigger className="w-[160px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="math_print">📊 算数プリント</SelectItem>
               <SelectItem value="kanji_test">✏️ 漢字テスト</SelectItem>
+              <SelectItem value="math_auto_grading">📐 算数自動採点</SelectItem>
             </SelectContent>
           </Select>
         </CardHeader>
@@ -62,7 +77,10 @@ export function AssessmentTrendChart({ assessments, loading }: AssessmentTrendCh
                 {typeName}のデータがまだありません
               </p>
               <p className="text-xs text-slate-500 max-w-sm">
-                💡 テスト結果は指導者が入力します。入力されると自動的にグラフが表示されるよ！
+                {activeType === 'math_auto_grading'
+                  ? '💡 算数プリントを解いて採点すると、自動的にグラフが表示されるよ！'
+                  : '💡 テスト結果は指導者が入力します。入力されると自動的にグラフが表示されるよ！'
+                }
               </p>
             </div>
           </div>
@@ -116,8 +134,10 @@ export function AssessmentTrendChart({ assessments, loading }: AssessmentTrendCh
     return null
   }
 
-  const typeName = selectedType === 'math_print' ? '算数プリント' : '漢字テスト'
-  const lineColor = selectedType === 'math_print' ? '#3b82f6' : '#10b981'
+  const typeName = activeType === 'math_print' ? '算数プリント'
+    : activeType === 'math_auto_grading' ? '算数自動採点' : '漢字テスト'
+  const lineColor = activeType === 'math_print' ? '#3b82f6'
+    : activeType === 'math_auto_grading' ? '#6366f1' : '#10b981'
 
   return (
     <Card className="card-elevated mb-6">
@@ -126,13 +146,14 @@ export function AssessmentTrendChart({ assessments, loading }: AssessmentTrendCh
           <span>📈</span>
           <span>成績トレンド</span>
         </CardTitle>
-        <Select value={selectedType} onValueChange={(v) => setSelectedType(v as any)}>
+        <Select value={activeType} onValueChange={(v) => setSelectedType(v as ChartType)}>
           <SelectTrigger className="w-[160px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="math_print">📊 算数プリント</SelectItem>
             <SelectItem value="kanji_test">✏️ 漢字テスト</SelectItem>
+            <SelectItem value="math_auto_grading">📐 算数自動採点</SelectItem>
           </SelectContent>
         </Select>
       </CardHeader>

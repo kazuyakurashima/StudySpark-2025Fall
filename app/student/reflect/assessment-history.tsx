@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { getAssessmentHistory, getAssessmentSummary } from "@/app/actions/reflect"
+import { getMathGradingHistory } from "@/app/actions/math-answer"
 import { AssessmentSummaryCards } from "./components/assessment-summary-cards"
 import { AssessmentTrendChart } from "./components/assessment-trend-chart"
 import { AssessmentHistoryList } from "./components/assessment-history-list"
@@ -23,10 +24,11 @@ export function AssessmentHistory({ studentId }: AssessmentHistoryProps = {}) {
         setLoading(true)
         setError(null)
 
-        // 履歴とサマリーを並行取得
-        const [historyResult, summaryResult] = await Promise.all([
+        // 履歴・サマリー・算数自動採点を並行取得
+        const [historyResult, summaryResult, mathAutoResult] = await Promise.all([
           getAssessmentHistory({ sortBy: 'date_desc', studentId }),
-          getAssessmentSummary({ studentId })
+          getAssessmentSummary({ studentId }),
+          getMathGradingHistory({ studentId: studentId ? Number(studentId) : undefined })
         ])
 
         if ('error' in historyResult && historyResult.error) {
@@ -39,8 +41,78 @@ export function AssessmentHistory({ studentId }: AssessmentHistoryProps = {}) {
           return
         }
 
-        setAssessments((historyResult.assessments || []) as AssessmentData[])
-        setSummary(summaryResult as AssessmentSummary)
+        // class_assessments のデータ
+        const classAssessments = (historyResult.assessments || []) as AssessmentData[]
+
+        // 算数自動採点データを AssessmentData 形式に変換してマージ
+        const mathAutoAssessments: AssessmentData[] = (mathAutoResult.results || [])
+          .filter(r => r.latestAttempt && r.latestAttempt.status === 'graded')
+          .map(r => ({
+            id: `math_auto_${r.questionSetId}`,
+            score: r.latestAttempt!.score,
+            max_score_at_submission: r.latestAttempt!.maxScore,
+            assessment_date: r.latestAttempt!.gradedAt
+              ? r.latestAttempt!.gradedAt.split('T')[0]
+              : new Date().toISOString().split('T')[0],
+            master: {
+              id: `math_auto_${r.questionSetId}`,
+              title: r.title,
+              assessment_type: 'math_auto_grading',
+              max_score: r.latestAttempt!.maxScore,
+              session_number: r.sessionNumber,
+            }
+          }))
+
+        // 日付降順でマージソート
+        const mergedAssessments = [...classAssessments, ...mathAutoAssessments]
+          .sort((a, b) =>
+            new Date(b.assessment_date).getTime() - new Date(a.assessment_date).getTime()
+          )
+
+        setAssessments(mergedAssessments)
+
+        // サマリーに算数自動採点のデータを追加
+        const baseSummary = summaryResult as AssessmentSummary
+        const mathAutoSummary = mathAutoResult.summary
+
+        // 最新の算数自動採点を見つける（gradedAt タイムスタンプで比較）
+        const latestGradedResult = (mathAutoResult.results || [])
+          .filter(r => r.latestAttempt?.status === 'graded' && r.latestAttempt.gradedAt)
+          .sort((a, b) => (b.latestAttempt!.gradedAt || '').localeCompare(a.latestAttempt!.gradedAt || ''))
+        const latestSource = latestGradedResult[0] ?? null
+        const latestMathAuto = latestSource ? mathAutoAssessments.find(
+          a => a.id === `math_auto_${latestSource.questionSetId}`
+        ) ?? null : null
+
+        const enrichedSummary: AssessmentSummary = {
+          latest: {
+            math: baseSummary.latest?.math || null,
+            kanji: baseSummary.latest?.kanji || null,
+            mathAutoGrading: latestMathAuto ? {
+              id: latestMathAuto.id,
+              name: latestMathAuto.master?.title || null,
+              score: latestMathAuto.score,
+              maxScore: latestMathAuto.max_score_at_submission,
+              percentage: latestMathAuto.max_score_at_submission > 0
+                ? Math.round((latestMathAuto.score / latestMathAuto.max_score_at_submission) * 100)
+                : 0,
+              submittedAt: latestMathAuto.assessment_date,
+            } : null,
+          },
+          averages: {
+            math: baseSummary.averages?.math ?? null,
+            kanji: baseSummary.averages?.kanji ?? null,
+            mathAutoGrading: mathAutoSummary.averagePercentage,
+          },
+          counts: {
+            math: baseSummary.counts?.math || 0,
+            kanji: baseSummary.counts?.kanji || 0,
+            mathAutoGrading: mathAutoSummary.completedSets,
+            total: (baseSummary.counts?.total || 0) + mathAutoSummary.completedSets,
+          },
+        }
+
+        setSummary(enrichedSummary)
       } catch (err) {
         console.error('Error fetching assessment data:', err)
         setError('データの取得に失敗しました')

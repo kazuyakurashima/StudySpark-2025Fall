@@ -10,7 +10,7 @@
 // =============================================================================
 
 /** テスト種別 */
-export type AssessmentType = "math_print" | "kanji_test"
+export type AssessmentType = "math_print" | "kanji_test" | "math_auto_grading"
 
 /** 入力ソース */
 export type AssessmentSource = "manual" | "import"
@@ -231,6 +231,7 @@ export interface EncouragementAssessmentLink {
 export const ASSESSMENT_TYPE_LABELS: Record<AssessmentType, string> = {
   math_print: "算数プリント",
   kanji_test: "漢字テスト",
+  math_auto_grading: "算数自動採点",
 }
 
 /** ステータスの表示名 */
@@ -277,6 +278,11 @@ export const ASSESSMENT_TYPE_COLORS: Record<
     text: "text-orange-700",
     badge: "bg-orange-100 text-orange-800",
   },
+  math_auto_grading: {
+    bg: "bg-indigo-50",
+    text: "text-indigo-700",
+    badge: "bg-indigo-100 text-indigo-800",
+  },
 }
 
 // =============================================================================
@@ -302,6 +308,11 @@ export function getAssessmentDisplayName(
   if (type === "kanji_test") {
     return `第${sessionNumber}回 ${typeName}`
   }
+  if (type === "math_auto_grading") {
+    return attemptNumber > 1
+      ? `第${sessionNumber}回 ${typeName}（${attemptNumber}回目）`
+      : `第${sessionNumber}回 ${typeName}`
+  }
   return `第${sessionNumber}回 ${typeName}${attemptNumber}回目`
 }
 
@@ -311,7 +322,7 @@ export function getAssessmentShortName(
   attemptNumber: number
 ): string {
   const typeName = ASSESSMENT_TYPE_LABELS[type]
-  if (type === "kanji_test") {
+  if (type === "kanji_test" || type === "math_auto_grading") {
     return typeName
   }
   return `${typeName}${attemptNumber}回目`

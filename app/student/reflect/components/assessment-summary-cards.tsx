@@ -13,8 +13,8 @@ interface AssessmentSummaryCardsProps {
 export function AssessmentSummaryCards({ summary, loading }: AssessmentSummaryCardsProps) {
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {[1, 2, 3, 4].map((i) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
           <Card key={i} className="card-elevated animate-pulse">
             <CardHeader className="pb-3">
               <div className="h-5 bg-slate-200 rounded w-32"></div>
@@ -105,11 +105,13 @@ export function AssessmentSummaryCards({ summary, loading }: AssessmentSummaryCa
 
   const latestMath = summary?.latest?.math
   const latestKanji = summary?.latest?.kanji
+  const latestMathAutoGrading = summary?.latest?.mathAutoGrading
   const mathAverage = summary?.averages?.math
   const kanjiAverage = summary?.averages?.kanji
+  const mathAutoGradingAverage = summary?.averages?.mathAutoGrading
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
       {/* カード1: 最新 算数プリント */}
       {latestMath ? (
         <Card className="card-elevated shadow-sm hover:shadow-md transition-shadow duration-200 bg-gradient-to-br from-blue-50 to-blue-100/50">
@@ -297,6 +299,99 @@ export function AssessmentSummaryCards({ summary, loading }: AssessmentSummaryCa
             </p>
             <p className="text-xs text-slate-500">
               受験回数: {summary?.counts.kanji || 0}回
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* カード5: 最新 算数自動採点 */}
+      {latestMathAutoGrading ? (
+        <Card className="card-elevated shadow-sm hover:shadow-md transition-shadow duration-200 bg-gradient-to-br from-indigo-50 to-indigo-100/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <span>📐</span>
+              <span>最新 算数自動採点</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div>
+              <p className="text-2xl font-bold text-slate-900">
+                {latestMathAutoGrading.score}/{latestMathAutoGrading.maxScore}
+              </p>
+              <p className="text-xs text-slate-600">({latestMathAutoGrading.percentage}%)</p>
+            </div>
+
+            <Badge
+              variant="outline"
+              className={`${getPerformanceBadge(latestMathAutoGrading.percentage).className} text-xs`}
+            >
+              {getPerformanceBadge(latestMathAutoGrading.percentage).icon} {getPerformanceBadge(latestMathAutoGrading.percentage).text}
+            </Badge>
+
+            {mathAutoGradingAverage !== null && mathAutoGradingAverage !== undefined && getPreviousComparison(latestMathAutoGrading.percentage, mathAutoGradingAverage ?? null) && (
+              <div className={`flex items-center gap-1 text-xs ${getPreviousComparison(latestMathAutoGrading.percentage, mathAutoGradingAverage ?? null)?.className}`}>
+                {getPreviousComparison(latestMathAutoGrading.percentage, mathAutoGradingAverage ?? null)?.icon}
+                <span>{getPreviousComparison(latestMathAutoGrading.percentage, mathAutoGradingAverage ?? null)?.text}</span>
+                <span className="text-slate-500 ml-1">（平均比）</span>
+              </div>
+            )}
+
+            <p className="text-xs text-slate-500 truncate" title={latestMathAutoGrading.name || '---'}>
+              {latestMathAutoGrading.name || '---'}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <EmptyCard
+          title="最新 算数自動採点"
+          icon="📐"
+          bgClass="bg-gradient-to-br from-indigo-50 to-indigo-100/50"
+        />
+      )}
+
+      {/* カード6: 算数自動採点 平均 */}
+      {mathAutoGradingAverage !== null && summary && summary.counts.mathAutoGrading >= 1 ? (
+        <Card className="card-elevated shadow-sm hover:shadow-md transition-shadow duration-200 bg-gradient-to-br from-slate-50 to-white">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <span>📈</span>
+              <span>算数自動採点 平均</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div>
+              <p className="text-2xl font-bold text-slate-900">
+                {mathAutoGradingAverage}%
+              </p>
+              <p className="text-xs text-slate-600">（全セットの平均得点率）</p>
+            </div>
+
+            <Badge
+              variant="outline"
+              className={`${getPerformanceBadge(mathAutoGradingAverage!).className} text-xs`}
+            >
+              {getPerformanceBadge(mathAutoGradingAverage!).icon} {getPerformanceBadge(mathAutoGradingAverage!).text}
+            </Badge>
+
+            <p className="text-xs text-slate-500">
+              完了セット数: {summary.counts.mathAutoGrading}セット
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="card-elevated shadow-sm hover:shadow-md transition-shadow duration-200 bg-gradient-to-br from-slate-50 to-white">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <span>📈</span>
+              <span>算数自動採点 平均</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-slate-600">
+              まだ自動採点の結果がありません
+            </p>
+            <p className="text-xs text-slate-500">
+              完了セット数: {summary?.counts.mathAutoGrading || 0}セット
             </p>
           </CardContent>
         </Card>

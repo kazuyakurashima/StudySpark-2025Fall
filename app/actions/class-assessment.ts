@@ -443,6 +443,14 @@ export async function getStudentAssessments(
       return { success: false, error: "認証エラー" }
     }
 
+    // 算数自動採点は MathAutoGradingSection が独立して取得するため、ここでは扱わない
+    if (options?.type === "math_auto_grading") {
+      return { success: true, data: [] }
+    }
+
+    // --- class_assessments（算数プリント・漢字テスト） ---
+    let displayData: AssessmentDisplayData[] = []
+
     let query = supabase
       .from("class_assessments")
       .select(
@@ -468,73 +476,69 @@ export async function getStudentAssessments(
 
     if (error) {
       console.error("[getStudentAssessments] Error:", error)
-      // クライアント側で原因特定しやすいよう、まずは Supabase のエラーメッセージを返す
-      // （本番運用で露出が問題になる場合は、別途マスキング/ログID方式に切り替える）
       return { success: false, error: error.message }
     }
 
-    if (!data || data.length === 0) {
-      return { success: true, data: [] }
+    if (data && data.length > 0) {
+      // ★ バッチクエリで前回比とクラス平均を一括取得（N+1問題解消）
+      const masterIds = [...new Set(data.map((item) => item.master_id))]
+      const assessmentInfos = data.map((item) => {
+        const master = item.master as AssessmentMaster
+        return {
+          assessment_date: item.assessment_date,
+          assessment_type: master.assessment_type,
+          attempt_number: master.attempt_number,
+        }
+      })
+
+      // 並列でバッチ取得
+      const [classAverages, previousComparisons] = await Promise.all([
+        getClassAveragesBatch(supabase, masterIds),
+        getPreviousComparisonsBatch(supabase, studentId, assessmentInfos),
+      ])
+
+      // DisplayData形式に変換（追加クエリなし）
+      displayData = data.map((item) => {
+        const master = item.master as AssessmentMaster
+        const percentage =
+          item.status === "completed" && item.score !== null
+            ? Math.round((item.score / item.max_score_at_submission) * 100)
+            : null
+
+        // バッチ取得した結果から前回比を取得
+        const prevKey = `${master.assessment_type}:${master.attempt_number}:${item.assessment_date}`
+        const previous = previousComparisons.get(prevKey)
+
+        // バッチ取得した結果からクラス平均を取得
+        const classAvg = classAverages.get(item.master_id)
+
+        return {
+          id: item.id,
+          student_id: item.student_id,
+          status: item.status,
+          assessment_type: master.assessment_type,
+          session_number: master.session_number,
+          attempt_number: master.attempt_number,
+          assessment_date: item.assessment_date,
+          is_resubmission: item.is_resubmission,
+          title: master.title || null,
+          description: master.description || null,
+          graded_at: item.updated_at || null,
+          score: item.score,
+          max_score: item.max_score_at_submission,
+          percentage,
+          previous_score: previous?.score,
+          previous_percentage: previous?.percentage,
+          change: previous && item.score !== null ? item.score - previous.score : undefined,
+          change_label: previous
+            ? `前回比(${master.assessment_type === "math_print" ? "算数プリント" : "漢字テスト"}${master.attempt_number}回目)`
+            : undefined,
+          class_average: classAvg?.average,
+          class_average_percentage: classAvg?.percentage,
+          class_average_count: classAvg?.count,
+        }
+      })
     }
-
-    // ★ バッチクエリで前回比とクラス平均を一括取得（N+1問題解消）
-    const masterIds = [...new Set(data.map((item) => item.master_id))]
-    const assessmentInfos = data.map((item) => {
-      const master = item.master as AssessmentMaster
-      return {
-        assessment_date: item.assessment_date,
-        assessment_type: master.assessment_type,
-        attempt_number: master.attempt_number,
-      }
-    })
-
-    // 並列でバッチ取得
-    const [classAverages, previousComparisons] = await Promise.all([
-      getClassAveragesBatch(supabase, masterIds),
-      getPreviousComparisonsBatch(supabase, studentId, assessmentInfos),
-    ])
-
-    // DisplayData形式に変換（追加クエリなし）
-    const displayData: AssessmentDisplayData[] = data.map((item) => {
-      const master = item.master as AssessmentMaster
-      const percentage =
-        item.status === "completed" && item.score !== null
-          ? Math.round((item.score / item.max_score_at_submission) * 100)
-          : null
-
-      // バッチ取得した結果から前回比を取得
-      const prevKey = `${master.assessment_type}:${master.attempt_number}:${item.assessment_date}`
-      const previous = previousComparisons.get(prevKey)
-
-      // バッチ取得した結果からクラス平均を取得
-      const classAvg = classAverages.get(item.master_id)
-
-      return {
-        id: item.id,
-        student_id: item.student_id,
-        status: item.status,
-        assessment_type: master.assessment_type,
-        session_number: master.session_number,
-        attempt_number: master.attempt_number,
-        assessment_date: item.assessment_date,
-        is_resubmission: item.is_resubmission,
-        title: master.title || null,
-        description: master.description || null,
-        graded_at: item.updated_at || null,
-        score: item.score,
-        max_score: item.max_score_at_submission,
-        percentage,
-        previous_score: previous?.score,
-        previous_percentage: previous?.percentage,
-        change: previous && item.score !== null ? item.score - previous.score : undefined,
-        change_label: previous
-          ? `前回比(${master.assessment_type === "math_print" ? "算数プリント" : "漢字テスト"}${master.attempt_number}回目)`
-          : undefined,
-        class_average: classAvg?.average,
-        class_average_percentage: classAvg?.percentage,
-        class_average_count: classAvg?.count,
-      }
-    })
 
     return { success: true, data: displayData }
   } catch (error) {
@@ -580,56 +584,6 @@ export async function getAssessment(
 
 // Supabaseクライアントの型（importを避けるため）
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>
-
-/**
- * 前回比を計算（同テスト種別 × 同attempt_number の直近と比較）
- * ★ 修正: DBクエリで assessment_type/attempt_number を絞り込む
- */
-async function getPreviousComparisonWithClient(
-  supabase: SupabaseClient,
-  studentId: number,
-  assessmentType: AssessmentType,
-  attemptNumber: number,
-  currentDate: string
-): Promise<{ score: number; percentage: number } | null> {
-  try {
-    // ★ マスタテーブルでフィルタリングして、確実に同種別・同回数を取得
-    const { data: masters } = await supabase
-      .from("assessment_masters")
-      .select("id")
-      .eq("assessment_type", assessmentType)
-      .eq("attempt_number", attemptNumber)
-
-    if (!masters || masters.length === 0) return null
-
-    const masterIds = masters.map((m) => m.id)
-
-    // ★ 該当マスタの直近1件のみ取得（limit 1）
-    const { data } = await supabase
-      .from("class_assessments")
-      .select("score, max_score_at_submission")
-      .eq("student_id", studentId)
-      .eq("status", "completed")
-      .eq("is_resubmission", false)
-      .in("master_id", masterIds)
-      .lt("assessment_date", currentDate)
-      .order("assessment_date", { ascending: false })
-      .limit(1)
-      .single()
-
-    if (!data || data.score === null) return null
-
-    return {
-      score: data.score,
-      percentage: Math.round(
-        (data.score / data.max_score_at_submission) * 100
-      ),
-    }
-  } catch {
-    // .single()でデータがない場合のエラーは無視
-    return null
-  }
-}
 
 /**
  * クラス平均をバッチ取得（複数マスタID対応）

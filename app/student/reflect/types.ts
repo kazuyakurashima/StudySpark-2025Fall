@@ -49,14 +49,24 @@ export interface AssessmentSummary {
       percentage: number
       submittedAt: string
     } | null
+    mathAutoGrading: {
+      id: string
+      name: string | null
+      score: number
+      maxScore: number
+      percentage: number
+      submittedAt: string
+    } | null
   } | null
   averages: {
     math: number | null
     kanji: number | null
+    mathAutoGrading: number | null
   } | null
   counts: {
     math: number
     kanji: number
+    mathAutoGrading: number
     total: number
   }
 }
