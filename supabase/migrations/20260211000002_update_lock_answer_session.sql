@@ -6,6 +6,12 @@
 --        無効なステータスのセッションに対する操作を防止する
 -- 既存互換: p_expected_status は NULL 許容。NULL の場合は従来通りステータス不問
 -- 既存データへの影響: なし（関数の置き換えのみ）
+--
+-- 注意: 00001 で作成された2引数版 (BIGINT, BIGINT) は別シグネチャとして共存するため、
+--        先に DROP して3引数版（DEFAULT NULL付き）に統一する。
+--        これにより 2引数呼び出しも必ず本関数に解決される。
+
+DROP FUNCTION IF EXISTS public.lock_answer_session(BIGINT, BIGINT);
 
 CREATE OR REPLACE FUNCTION public.lock_answer_session(
   p_session_id BIGINT,

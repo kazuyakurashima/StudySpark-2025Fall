@@ -26,15 +26,10 @@ export default async function MathResultPage({
   }
 
   return (
-    <div className="container mx-auto max-w-2xl px-4 py-6">
-      <h1 className="text-xl font-bold mb-1">
-        {questionsResult.questionSet?.title || '採点結果'}
-      </h1>
-
-      <MathResultView
-        questionSetId={questionSetId}
-        result={gradeResult.result}
-      />
-    </div>
+    <MathResultView
+      questionSetId={questionSetId}
+      questionSetTitle={questionsResult.questionSet?.title || '採点結果'}
+      result={gradeResult.result}
+    />
   )
 }

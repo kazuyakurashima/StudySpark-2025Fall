@@ -22,7 +22,7 @@ export function NumericInput({
 }: NumericInputProps) {
   return (
     <div data-slot="numeric-input" className={cn('flex items-center gap-2', className)}>
-      <span className="text-sm font-medium text-muted-foreground min-w-[2.5rem]">
+      <span className="text-sm font-bold text-blue-700 min-w-[2.5rem]">
         {questionNumber}
       </span>
       <input
@@ -37,7 +37,7 @@ export function NumericInput({
           'disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
           'text-center'
         )}
-        placeholder=""
+        placeholder="数値を入力"
       />
       {unitLabel && (
         <span className="text-sm text-muted-foreground whitespace-nowrap">

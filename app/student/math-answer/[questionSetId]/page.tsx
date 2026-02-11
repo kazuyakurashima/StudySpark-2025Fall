@@ -26,22 +26,11 @@ export default async function MathAnswerInputPage({
   }
 
   return (
-    <div className="container mx-auto max-w-2xl px-4 py-6">
-      <h1 className="text-xl font-bold mb-1">{questionsResult.questionSet.title}</h1>
-      <p className="text-sm text-muted-foreground mb-6">
-        {questionsResult.questionSet.questionCount}問
-        {draftResult && draftResult.attemptNumber > 1 && (
-          <span className="ml-2 text-blue-600">
-            {draftResult.attemptNumber}回目の挑戦
-          </span>
-        )}
-      </p>
-
-      <MathAnswerForm
-        questionSetId={questionSetId}
-        questions={questionsResult.questions}
-        draft={draftResult}
-      />
-    </div>
+    <MathAnswerForm
+      questionSetId={questionSetId}
+      questionSetTitle={questionsResult.questionSet.title}
+      questions={questionsResult.questions}
+      draft={draftResult}
+    />
   )
 }

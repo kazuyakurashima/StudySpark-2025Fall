@@ -45,10 +45,11 @@ export function FractionInput({
 
   return (
     <div data-slot="fraction-input" className={cn('flex items-center gap-2', className)}>
-      <span className="text-sm font-medium text-muted-foreground min-w-[2.5rem]">
+      <span className="text-sm font-bold text-blue-700 min-w-[2.5rem]">
         {questionNumber}
       </span>
       <div className="flex flex-col items-center gap-0.5">
+        <span className="text-[10px] text-slate-400">分子</span>
         <input
           type="text"
           inputMode="numeric"
@@ -60,7 +61,7 @@ export function FractionInput({
           placeholder=""
           aria-label="分子"
         />
-        <div className="w-16 h-px bg-foreground" />
+        <div className="w-16 h-0.5 bg-blue-400 rounded-full" />
         <input
           ref={denominatorRef}
           type="text"
@@ -75,6 +76,7 @@ export function FractionInput({
           placeholder=""
           aria-label="分母"
         />
+        <span className="text-[10px] text-slate-400">分母</span>
         {showDenominatorError && (
           <span className="text-xs text-destructive mt-0.5">分母は0以外</span>
         )}

@@ -1,12 +1,21 @@
 'use client'
 
-import { useState, useCallback, useTransition } from 'react'
+import { useState, useCallback, useTransition, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { NumericInput } from '@/components/math/numeric-input'
 import { FractionInput } from '@/components/math/fraction-input'
 import { MultiPartInput } from '@/components/math/multi-part-input'
 import { SelectionInput } from '@/components/math/selection-input'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { BottomNavigation } from '@/components/bottom-navigation'
+import { UserProfileHeader } from '@/components/common/user-profile-header'
+import { PageHeader } from '@/components/common/page-header'
+import { UserProfileProvider } from '@/lib/hooks/use-user-profile'
+import { Calculator, BookOpen, ChevronLeft, Save, ArrowRight, Check, Info } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import {
   saveMathDraftAnswers,
   submitAndGradeMathAnswers,
@@ -15,6 +24,7 @@ import {
 
 interface Props {
   questionSetId: number
+  questionSetTitle: string
   questions: MathQuestionForUI[]
   draft: {
     answerSessionId: number
@@ -28,7 +38,14 @@ type FractionState = Record<number, { numerator: string; denominator: string }>
 type MultiPartState = Record<number, Record<string, string>>
 type SelectionState = Record<number, string[]>
 
-export function MathAnswerForm({ questionSetId, questions, draft }: Props) {
+const HELP_TEXT: Record<string, string> = {
+  numeric: '数値を入力（小数も可）',
+  fraction: '分子と分母をそれぞれ入力',
+  selection: '正しい選択肢をタップ',
+  multi_part: '各欄に数値を入力',
+}
+
+function MathAnswerFormInner({ questionSetId, questionSetTitle, questions, draft }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
@@ -99,6 +116,33 @@ export function MathAnswerForm({ questionSetId, questions, draft }: Props) {
   const lockedQuestionIds = new Set(
     draft?.answers.filter(a => a.isCorrect === true).map(a => a.questionId) ?? []
   )
+
+  // 進捗計算
+  const progress = useMemo(() => {
+    let answered = 0
+    for (const q of questions) {
+      if (lockedQuestionIds.has(q.id)) {
+        answered++
+        continue
+      }
+      switch (q.answerType) {
+        case 'numeric':
+          if (numericAnswers[q.id]) answered++
+          break
+        case 'fraction':
+          if (fractionAnswers[q.id]?.numerator && fractionAnswers[q.id]?.denominator) answered++
+          break
+        case 'multi_part':
+          if (multiPartAnswers[q.id] && Object.values(multiPartAnswers[q.id]).some(v => v)) answered++
+          break
+        case 'selection':
+          if (selectionAnswers[q.id]?.length > 0) answered++
+          break
+      }
+    }
+    const total = questions.length
+    return { answered, total, percentage: total > 0 ? Math.round((answered / total) * 100) : 0 }
+  }, [questions, numericAnswers, fractionAnswers, multiPartAnswers, selectionAnswers, lockedQuestionIds])
 
   // 全解答を統合して配列化
   const collectAnswers = useCallback(() => {
@@ -182,143 +226,222 @@ export function MathAnswerForm({ questionSetId, questions, draft }: Props) {
 
   // セクション単位でグループ化
   const sections = groupBySection(questions)
+  const attemptNumber = draft?.attemptNumber ?? 1
+  const subtitle = `${questions.length}問${attemptNumber > 1 ? ` | ${attemptNumber}回目の挑戦` : ''}`
 
   return (
-    <div>
-      {sections.map(({ sectionName, questions: sectionQuestions }) => (
-        <div key={sectionName} className="mb-6">
-          <h2 className="text-sm font-semibold text-muted-foreground border-b pb-1 mb-3">
-            {sectionName}
-          </h2>
-          <div className="space-y-4">
-            {sectionQuestions.map(q => {
-              const isLocked = lockedQuestionIds.has(q.id)
+    <>
+      <UserProfileHeader />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 pb-20 elegant-fade-in">
+        <PageHeader
+          icon={Calculator}
+          title={questionSetTitle}
+          subtitle={subtitle}
+          variant="student"
+        />
 
-              if (isLocked) {
-                // 正解済み: 読み取り専用表示
-                const draftAnswer = draft?.answers.find(a => a.questionId === q.id)
-                return (
-                  <div key={q.id} className="flex items-center gap-2 opacity-70">
-                    <span className="text-sm font-medium text-muted-foreground min-w-[2.5rem]">
-                      {q.questionNumber}
-                    </span>
-                    <span className="text-green-600">✅</span>
-                    <span className="text-sm">{draftAnswer?.rawInput}</span>
-                    {q.unitLabel && (
-                      <span className="text-sm text-muted-foreground">{q.unitLabel}</span>
-                    )}
-                  </div>
-                )
-              }
+        {/* 戻るリンク */}
+        <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 pt-3">
+          <Link
+            href="/student/math-answer"
+            className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-blue-600 transition-colors"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            一覧へ
+          </Link>
+        </div>
 
-              switch (q.answerType) {
-                case 'numeric':
-                  return (
-                    <NumericInput
-                      key={q.id}
-                      questionNumber={q.questionNumber}
-                      unitLabel={q.unitLabel ?? undefined}
-                      value={numericAnswers[q.id] || ''}
-                      onChange={(v) => setNumericAnswers(prev => ({ ...prev, [q.id]: v }))}
-                    />
-                  )
-
-                case 'fraction':
-                  return (
-                    <FractionInput
-                      key={q.id}
-                      questionNumber={q.questionNumber}
-                      numerator={fractionAnswers[q.id]?.numerator || ''}
-                      denominator={fractionAnswers[q.id]?.denominator || ''}
-                      onNumeratorChange={(v) =>
-                        setFractionAnswers(prev => ({
-                          ...prev,
-                          [q.id]: { ...prev[q.id], numerator: v, denominator: prev[q.id]?.denominator || '' },
-                        }))
-                      }
-                      onDenominatorChange={(v) =>
-                        setFractionAnswers(prev => ({
-                          ...prev,
-                          [q.id]: { numerator: prev[q.id]?.numerator || '', denominator: v },
-                        }))
-                      }
-                    />
-                  )
-
-                case 'multi_part': {
-                  const config = q.answerConfig as { template: string; slots: { label: string; unit: string }[] } | null
-                  if (!config) return null
-                  return (
-                    <MultiPartInput
-                      key={q.id}
-                      questionNumber={q.questionNumber}
-                      template={config.template}
-                      slots={config.slots}
-                      values={multiPartAnswers[q.id] || {}}
-                      onChange={(label, value) =>
-                        setMultiPartAnswers(prev => ({
-                          ...prev,
-                          [q.id]: { ...prev[q.id], [label]: value },
-                        }))
-                      }
-                    />
-                  )
-                }
-
-                case 'selection': {
-                  const config = q.answerConfig as { options: string[]; unit: string | null } | null
-                  if (!config) return null
-                  return (
-                    <SelectionInput
-                      key={q.id}
-                      questionNumber={q.questionNumber}
-                      options={config.options}
-                      selectedValues={selectionAnswers[q.id] || []}
-                      unitLabel={config.unit ?? undefined}
-                      onToggle={(value) =>
-                        setSelectionAnswers(prev => {
-                          const current = prev[q.id] || []
-                          const next = current.includes(value)
-                            ? current.filter(v => v !== value)
-                            : [...current, value]
-                          return { ...prev, [q.id]: next }
-                        })
-                      }
-                    />
-                  )
-                }
-
-                default:
-                  return null
-              }
-            })}
+        {/* 進捗バー (sticky) */}
+        <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-sm border-b border-slate-100 shadow-sm">
+          <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5">
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-medium text-slate-600 whitespace-nowrap">
+                入力済み {progress.answered}/{progress.total}問
+              </span>
+              <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all duration-500"
+                  style={{ width: `${progress.percentage}%` }}
+                />
+              </div>
+              <span className="text-xs font-bold text-blue-600">{progress.percentage}%</span>
+            </div>
           </div>
         </div>
-      ))}
 
-      {/* 操作ボタン */}
-      <div className="flex items-center gap-3 mt-8 mb-20">
-        <Button
-          variant="outline"
-          onClick={handleSave}
-          disabled={isPending}
-        >
-          途中保存
-        </Button>
-        <Button
-          onClick={handleSubmit}
-          disabled={isPending}
-        >
-          {isPending ? '処理中...' : '採点する'}
-        </Button>
+        {/* フォーム本体 */}
+        <div className="max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8">
+          {sections.map(({ sectionName, questions: sectionQuestions }) => (
+            <div key={sectionName} className="mb-8">
+              {/* セクションヘッダー */}
+              <div className="flex items-center gap-2 mb-4 border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-500/10 to-transparent rounded-r-lg py-2 px-3">
+                <BookOpen className="h-4 w-4 text-blue-600 shrink-0" />
+                <h2 className="text-sm font-bold text-slate-700">{sectionName}</h2>
+                <span className="text-xs text-slate-400 ml-auto whitespace-nowrap">{sectionQuestions.length}問</span>
+              </div>
+
+              <div className="space-y-3">
+                {sectionQuestions.map((q, idx) => {
+                  const isLocked = lockedQuestionIds.has(q.id)
+                  const showHelp = !isLocked && (idx === 0 || sectionQuestions[idx - 1]?.answerType !== q.answerType)
+
+                  return (
+                    <Card key={q.id} className={cn(
+                      'bg-white/80 backdrop-blur-sm border shadow-sm',
+                      isLocked && 'bg-green-50/50 border-green-200/60'
+                    )}>
+                      <CardContent className="p-4">
+                        {showHelp && (
+                          <div className="flex items-center gap-1.5 mb-2.5 text-xs text-slate-400">
+                            <Info className="h-3 w-3 shrink-0" />
+                            <span>{HELP_TEXT[q.answerType] ?? ''}</span>
+                          </div>
+                        )}
+
+                        {isLocked ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-blue-700 min-w-[2.5rem]">
+                              {q.questionNumber}
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <div className="flex items-center justify-center w-5 h-5 rounded-full bg-green-100">
+                                <Check className="h-3 w-3 text-green-600" />
+                              </div>
+                              <span className="text-sm text-slate-700">
+                                {draft?.answers.find(a => a.questionId === q.id)?.rawInput}
+                              </span>
+                              {q.unitLabel && (
+                                <span className="text-sm text-muted-foreground">{q.unitLabel}</span>
+                              )}
+                            </div>
+                            <Badge variant="outline" className="ml-auto bg-green-50 text-green-700 border-green-200 text-xs">
+                              正解済み
+                            </Badge>
+                          </div>
+                        ) : (
+                          <>
+                            {q.answerType === 'numeric' && (
+                              <NumericInput
+                                questionNumber={q.questionNumber}
+                                unitLabel={q.unitLabel ?? undefined}
+                                value={numericAnswers[q.id] || ''}
+                                onChange={(v) => setNumericAnswers(prev => ({ ...prev, [q.id]: v }))}
+                              />
+                            )}
+
+                            {q.answerType === 'fraction' && (
+                              <FractionInput
+                                questionNumber={q.questionNumber}
+                                numerator={fractionAnswers[q.id]?.numerator || ''}
+                                denominator={fractionAnswers[q.id]?.denominator || ''}
+                                onNumeratorChange={(v) =>
+                                  setFractionAnswers(prev => ({
+                                    ...prev,
+                                    [q.id]: { ...prev[q.id], numerator: v, denominator: prev[q.id]?.denominator || '' },
+                                  }))
+                                }
+                                onDenominatorChange={(v) =>
+                                  setFractionAnswers(prev => ({
+                                    ...prev,
+                                    [q.id]: { numerator: prev[q.id]?.numerator || '', denominator: v },
+                                  }))
+                                }
+                              />
+                            )}
+
+                            {q.answerType === 'multi_part' && (() => {
+                              const config = q.answerConfig as { template: string; slots: { label: string; unit: string }[] } | null
+                              if (!config) return null
+                              return (
+                                <MultiPartInput
+                                  questionNumber={q.questionNumber}
+                                  template={config.template}
+                                  slots={config.slots}
+                                  values={multiPartAnswers[q.id] || {}}
+                                  onChange={(label, value) =>
+                                    setMultiPartAnswers(prev => ({
+                                      ...prev,
+                                      [q.id]: { ...prev[q.id], [label]: value },
+                                    }))
+                                  }
+                                />
+                              )
+                            })()}
+
+                            {q.answerType === 'selection' && (() => {
+                              const config = q.answerConfig as { options: string[]; unit: string | null } | null
+                              if (!config) return null
+                              return (
+                                <SelectionInput
+                                  questionNumber={q.questionNumber}
+                                  options={config.options}
+                                  selectedValues={selectionAnswers[q.id] || []}
+                                  unitLabel={config.unit ?? undefined}
+                                  onToggle={(value) =>
+                                    setSelectionAnswers(prev => {
+                                      const current = prev[q.id] || []
+                                      const next = current.includes(value)
+                                        ? current.filter(v => v !== value)
+                                        : [...current, value]
+                                      return { ...prev, [q.id]: next }
+                                    })
+                                  }
+                                />
+                              )
+                            })()}
+                          </>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+
+          {/* 操作ボタン (sticky) */}
+          <div className="sticky bottom-16 z-10 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-xl shadow-lg p-3 flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={handleSave}
+              disabled={isPending}
+              className="flex-1 gap-2"
+            >
+              <Save className="h-4 w-4" />
+              途中保存
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={isPending}
+              className="flex-1 bg-blue-500 hover:bg-blue-600 text-white gap-2"
+            >
+              {isPending ? '処理中...' : (
+                <>採点する<ArrowRight className="h-4 w-4" /></>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* 保存メッセージ (toast) */}
+        {saveMessage && (
+          <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50">
+            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2.5 shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <Check className="h-4 w-4 text-green-600 shrink-0" />
+              <span className="text-sm text-slate-700">{saveMessage}</span>
+            </div>
+          </div>
+        )}
       </div>
+      <BottomNavigation activeTab="home" />
+    </>
+  )
+}
 
-      {saveMessage && (
-        <p className="text-sm text-muted-foreground fixed bottom-20 left-1/2 -translate-x-1/2 bg-background border rounded-md px-4 py-2 shadow-md">
-          {saveMessage}
-        </p>
-      )}
-    </div>
+export function MathAnswerForm(props: Props) {
+  return (
+    <UserProfileProvider>
+      <MathAnswerFormInner {...props} />
+    </UserProfileProvider>
   )
 }
 

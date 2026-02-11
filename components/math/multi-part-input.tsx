@@ -27,7 +27,7 @@ export function MultiPartInput({
 
   return (
     <div data-slot="multi-part-input" className={cn('flex items-start gap-2', className)}>
-      <span className="text-sm font-medium text-muted-foreground min-w-[2.5rem] mt-3">
+      <span className="text-sm font-bold text-blue-700 min-w-[2.5rem] mt-3">
         {questionNumber}
       </span>
       <div className="flex flex-wrap items-center gap-1">
@@ -55,7 +55,7 @@ export function MultiPartInput({
                   'disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
                   'text-center'
                 )}
-                placeholder=""
+                placeholder={part.label}
                 aria-label={part.label}
               />
               {slot?.unit && (
