@@ -140,6 +140,12 @@ export async function completeSetup() {
     redirect("/")
   }
 
+  // setup_completed を確実に true にする（スキップ経路の安全網）
+  await supabase
+    .from("profiles")
+    .update({ setup_completed: true })
+    .eq("id", user.id)
+
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
 
   if (!profile) {

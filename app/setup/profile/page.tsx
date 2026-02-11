@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { updateProfile } from "@/app/actions/profile"
+import { updateProfile, completeSetup } from "@/app/actions/profile"
 import { getCurrentUser } from "@/app/actions/auth"
 
 export default function ProfileSetup() {
@@ -58,8 +58,10 @@ export default function ProfileSetup() {
     router.push("/setup/complete")
   }
 
-  const handleSkip = () => {
-    router.push("/setup/complete")
+  const handleSkip = async () => {
+    setIsLoading(true)
+    // スキップ時も setup_completed=true にして completeSetup 経由でダッシュボードへ
+    await completeSetup()
   }
 
   return (
