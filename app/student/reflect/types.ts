@@ -18,6 +18,8 @@ export interface AssessmentData {
   score: number
   max_score_at_submission: number
   assessment_date: string
+  /** 採点完了タイムスタンプ（ISO8601）。同日ソートの安定化に使用 */
+  graded_at?: string
   master?: {
     id: string
     title: string | null
@@ -25,6 +27,8 @@ export interface AssessmentData {
     max_score: number
     session_number: number
   }
+  /** 算数自動採点のアテンプト推移（オプショナル） */
+  attemptHistory?: { attempt: number; percentage: number }[]
 }
 
 /**
@@ -49,14 +53,24 @@ export interface AssessmentSummary {
       percentage: number
       submittedAt: string
     } | null
+    mathAutoGrading: {
+      id: string
+      name: string | null
+      score: number
+      maxScore: number
+      percentage: number
+      submittedAt: string
+    } | null
   } | null
   averages: {
     math: number | null
     kanji: number | null
+    mathAutoGrading: number | null
   } | null
   counts: {
     math: number
     kanji: number
+    mathAutoGrading: number
     total: number
   }
 }

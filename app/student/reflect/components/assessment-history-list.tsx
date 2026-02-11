@@ -7,6 +7,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Calendar, TrendingUp } from "lucide-react"
 import { useState } from "react"
 import { AssessmentData } from "../types"
+import { compareAssessmentDate } from "../assessment-sort"
 
 interface AssessmentHistoryListProps {
   assessments: AssessmentData[]
@@ -14,7 +15,7 @@ interface AssessmentHistoryListProps {
 }
 
 export function AssessmentHistoryList({ assessments, loading }: AssessmentHistoryListProps) {
-  const [testType, setTestType] = useState<'all' | 'math_print' | 'kanji_test'>('all')
+  const [testType, setTestType] = useState<'all' | 'math_print' | 'kanji_test' | 'math_auto_grading'>('all')
   const [period, setPeriod] = useState<'all' | '1week' | '1month' | '3months'>('all')
   const [sortBy, setSortBy] = useState<'date_desc' | 'date_asc' | 'score_desc' | 'score_asc'>('date_desc')
 
@@ -89,12 +90,10 @@ export function AssessmentHistoryList({ assessments, loading }: AssessmentHistor
     )
   }
 
-  // ソート
+  // ソート（テスト済み: assessment-sort.test.ts）
   filteredAssessments.sort((a, b) => {
-    if (sortBy === 'date_desc') {
-      return new Date(b.assessment_date).getTime() - new Date(a.assessment_date).getTime()
-    } else if (sortBy === 'date_asc') {
-      return new Date(a.assessment_date).getTime() - new Date(b.assessment_date).getTime()
+    if (sortBy === 'date_desc' || sortBy === 'date_asc') {
+      return compareAssessmentDate(a, b, sortBy === 'date_desc' ? 'desc' : 'asc')
     } else if (sortBy === 'score_desc') {
       const scoreA = a.max_score_at_submission > 0 ? (a.score / a.max_score_at_submission) * 100 : 0
       const scoreB = b.max_score_at_submission > 0 ? (b.score / b.max_score_at_submission) * 100 : 0
@@ -134,6 +133,7 @@ export function AssessmentHistoryList({ assessments, loading }: AssessmentHistor
                 <SelectItem value="all">📚 すべて</SelectItem>
                 <SelectItem value="math_print">📊 算数プリント</SelectItem>
                 <SelectItem value="kanji_test">✏️ 漢字テスト</SelectItem>
+                <SelectItem value="math_auto_grading">📐 算数自動採点</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -195,8 +195,9 @@ export function AssessmentHistoryList({ assessments, loading }: AssessmentHistor
                   ? Math.round((assessment.score / assessment.max_score_at_submission) * 100)
                   : 0
                 const badge = getPerformanceBadge(percentage)
+                const isMathAutoGrading = assessment.master?.assessment_type === 'math_auto_grading'
                 const isKanji = assessment.master?.assessment_type === 'kanji_test'
-                const testIcon = isKanji ? '✏️' : '📊'
+                const testIcon = isMathAutoGrading ? '📐' : isKanji ? '✏️' : '📊'
 
                 return (
                   <AccordionItem
@@ -272,6 +273,16 @@ export function AssessmentHistoryList({ assessments, loading }: AssessmentHistor
                             </p>
                           </div>
                         </div>
+
+                        {/* 算数自動採点のアテンプト推移 */}
+                        {isMathAutoGrading && assessment.attemptHistory && assessment.attemptHistory.length > 1 && (
+                          <div className="mt-3 p-2 bg-indigo-50 rounded border border-indigo-100">
+                            <p className="text-xs text-indigo-700 flex items-start gap-1">
+                              <span>📈</span>
+                              <span>推移: {assessment.attemptHistory.map(h => `${h.percentage}%`).join(" → ")}</span>
+                            </p>
+                          </div>
+                        )}
 
                         {percentage >= 80 && (
                           <div className="mt-3 p-2 bg-emerald-50 rounded border border-emerald-100">

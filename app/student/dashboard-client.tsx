@@ -9,9 +9,10 @@ import { Button } from "@/components/ui/button"
 import { BottomNavigation } from "@/components/bottom-navigation"
 import { WeeklySubjectProgressCard } from "@/components/weekly-subject-progress-card"
 import { StudentAssessmentSection } from "@/components/assessment/student-assessment-section"
+import { MathAutoGradingSection } from "@/components/assessment/math-auto-grading-section"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { PageHeader } from "@/components/common/page-header"
-import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, ChevronLeft, ChevronRight, Bot, Sparkles, ChevronDown, ChevronUp } from "lucide-react"
+import { Flame, Calendar, Home, Flag, MessageCircle, BarChart3, Clock, Heart, ChevronLeft, ChevronRight, Bot, Sparkles, ChevronDown, ChevronUp, Calculator, ArrowRight } from "lucide-react"
 import { UserProfileProvider, useUserProfile } from "@/lib/hooks/use-user-profile"
 import { hexWithAlpha, isThemeActive } from "@/lib/utils/theme-color"
 import { StreakCard } from "@/components/streak-card"
@@ -1851,6 +1852,24 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
             </Card>
 
             <TodayMissionCard todayProgress={todayProgress} yesterdayProgress={yesterdayProgress} reflectionCompleted={reflectionCompleted} weeklyProgress={weeklyProgress} />
+
+            {/* 算数プリント採点カード */}
+            <Card
+              className="bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-100 border-blue-200/60 shadow-xl backdrop-blur-sm cursor-pointer hover:shadow-2xl transition-all duration-300 group"
+              onClick={() => router.push('/student/math-answer')}
+            >
+              <CardContent className="flex items-center gap-4 p-5">
+                <div className="p-3 bg-blue-100 rounded-xl shadow-sm group-hover:bg-blue-200 transition-colors">
+                  <Calculator className="h-8 w-8 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-slate-800">算数プリント採点</h3>
+                  <p className="text-sm text-slate-600">解答を入力して自動採点</p>
+                </div>
+                <ArrowRight className="h-5 w-5 text-blue-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
+              </CardContent>
+            </Card>
+
             <StreakCard
               streak={studyStreak}
               maxStreak={maxStreak}
@@ -1864,6 +1883,13 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
             <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} sessionNumber={sessionNumber} />
             {studentId && (
               <StudentAssessmentSection
+                studentId={studentId}
+                limit={3}
+                compact
+              />
+            )}
+            {studentId && (
+              <MathAutoGradingSection
                 studentId={studentId}
                 limit={3}
                 compact
@@ -1982,6 +2008,24 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
               </Card>
 
               <TodayMissionCard todayProgress={todayProgress} yesterdayProgress={yesterdayProgress} reflectionCompleted={reflectionCompleted} weeklyProgress={weeklyProgress} />
+
+              {/* 算数プリント採点カード */}
+              <Card
+                className="bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-100 border-blue-200/60 shadow-xl backdrop-blur-sm cursor-pointer hover:shadow-2xl transition-all duration-300 group"
+                onClick={() => router.push('/student/math-answer')}
+              >
+                <CardContent className="flex items-center gap-4 p-5">
+                  <div className="p-3 bg-blue-100 rounded-xl shadow-sm group-hover:bg-blue-200 transition-colors">
+                    <Calculator className="h-8 w-8 text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-slate-800">算数プリント採点</h3>
+                    <p className="text-sm text-slate-600">解答を入力して自動採点</p>
+                  </div>
+                  <ArrowRight className="h-5 w-5 text-blue-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
+                </CardContent>
+              </Card>
+
               <RecentEncouragementCard messages={messages} />
               <RecentLearningHistoryCard logs={recentLogs} batchFeedbacks={batchFeedbacks} legacyFeedbacks={legacyFeedbacks} />
             </div>
@@ -2001,6 +2045,13 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
               <WeeklySubjectProgressCard weeklyProgress={weeklyProgress} sessionNumber={sessionNumber} />
               {studentId && (
                 <StudentAssessmentSection
+                  studentId={studentId}
+                  limit={3}
+                  compact
+                />
+              )}
+              {studentId && (
+                <MathAutoGradingSection
                   studentId={studentId}
                   limit={3}
                   compact
