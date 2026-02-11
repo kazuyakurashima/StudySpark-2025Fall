@@ -69,7 +69,9 @@ export default function ProfileSetup() {
         setIsLoading(false)
       }
       // 成功時は completeSetup 内で redirect されるため到達しない
-    } catch {
+    } catch (e) {
+      // Next.js の redirect() は NEXT_REDIRECT エラーを throw するため再 throw
+      if (e instanceof Error && e.message === "NEXT_REDIRECT") throw e
       setError("セットアップの完了に失敗しました")
       setIsLoading(false)
     }

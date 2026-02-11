@@ -128,8 +128,9 @@ export async function updateProfile(data: {
 
 /**
  * セットアップ完了後のリダイレクト
+ * @returns エラー時のみ { error: string } を返す。成功時は redirect() で制御フローが終了する。
  */
-export async function completeSetup() {
+export async function completeSetup(): Promise<{ error: string } | never> {
   const supabase = await createClient()
 
   const {
@@ -151,10 +152,15 @@ export async function completeSetup() {
     return { error: "セットアップ完了の保存に失敗しました" }
   }
 
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single()
 
-  if (!profile) {
-    redirect("/")
+  if (profileError || !profile) {
+    console.error("[completeSetup] profile fetch failed:", profileError)
+    return { error: "プロフィールの取得に失敗しました" }
   }
 
   // ロール別にリダイレクト
