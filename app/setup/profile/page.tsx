@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { updateProfile, completeSetup } from "@/app/actions/profile"
 import { getCurrentUser } from "@/app/actions/auth"
+import { isRedirectError } from "next/dist/client/components/redirect"
 
 export default function ProfileSetup() {
   const router = useRouter()
@@ -71,7 +72,7 @@ export default function ProfileSetup() {
       // 成功時は completeSetup 内で redirect されるため到達しない
     } catch (e) {
       // Next.js の redirect() は NEXT_REDIRECT エラーを throw するため再 throw
-      if (e instanceof Error && e.message === "NEXT_REDIRECT") throw e
+      if (isRedirectError(e)) throw e
       setError("セットアップの完了に失敗しました")
       setIsLoading(false)
     }

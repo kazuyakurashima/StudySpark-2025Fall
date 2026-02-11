@@ -4,14 +4,26 @@ import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { completeSetup } from "@/app/actions/profile"
+import { isRedirectError } from "next/dist/client/components/redirect"
 
 export default function RegistrationComplete() {
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleStart = async () => {
     setIsLoading(true)
-    await completeSetup()
-    // completeSetup() がリダイレクトするため、ここに到達しない
+    setError(null)
+    try {
+      const result = await completeSetup()
+      if (result?.error) {
+        setError(result.error)
+        setIsLoading(false)
+      }
+    } catch (e) {
+      if (isRedirectError(e)) throw e
+      setError("セットアップの完了に失敗しました")
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -28,6 +40,12 @@ export default function RegistrationComplete() {
               これからあなたの学習をサポートします。まずは目標を設定して、学習を始めましょう！
             </p>
           </div>
+
+          {error && (
+            <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md">
+              {error}
+            </div>
+          )}
 
           <div className="pt-4">
             <Button
