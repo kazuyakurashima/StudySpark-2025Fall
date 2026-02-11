@@ -275,6 +275,16 @@ export function AssessmentHistoryList({ assessments, loading }: AssessmentHistor
                           </div>
                         </div>
 
+                        {/* 算数自動採点のアテンプト推移 */}
+                        {isMathAutoGrading && assessment.attemptHistory && assessment.attemptHistory.length > 1 && (
+                          <div className="mt-3 p-2 bg-indigo-50 rounded border border-indigo-100">
+                            <p className="text-xs text-indigo-700 flex items-start gap-1">
+                              <span>📈</span>
+                              <span>推移: {assessment.attemptHistory.map(h => `${h.percentage}%`).join(" → ")}</span>
+                            </p>
+                          </div>
+                        )}
+
                         {percentage >= 80 && (
                           <div className="mt-3 p-2 bg-emerald-50 rounded border border-emerald-100">
                             <p className="text-xs text-emerald-700 flex items-start gap-1">

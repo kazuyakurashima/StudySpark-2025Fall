@@ -25,6 +25,8 @@ export interface AssessmentData {
     max_score: number
     session_number: number
   }
+  /** 算数自動採点のアテンプト推移（オプショナル） */
+  attemptHistory?: { attempt: number; percentage: number }[]
 }
 
 /**

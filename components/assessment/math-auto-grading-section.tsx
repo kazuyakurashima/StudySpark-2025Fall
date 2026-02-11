@@ -222,6 +222,12 @@ export function MathAutoGradingSection({
                         }
                       </span>
                     )}
+                    {/* 日付 */}
+                    {attempt.gradedAt && (
+                      <span className="text-slate-400">
+                        {new Date(attempt.gradedAt).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" })}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>

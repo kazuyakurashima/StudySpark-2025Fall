@@ -60,7 +60,11 @@ export function AssessmentHistory({ studentId }: AssessmentHistoryProps = {}) {
               assessment_type: 'math_auto_grading',
               max_score: r.latestAttempt!.maxScore,
               session_number: r.sessionNumber,
-            }
+            },
+            attemptHistory: r.attemptHistory.map(h => ({
+              attempt: h.attempt,
+              percentage: h.percentage,
+            })),
           }))
 
         // 日付降順でマージソート
