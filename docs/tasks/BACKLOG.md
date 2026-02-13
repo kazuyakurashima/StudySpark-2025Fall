@@ -214,7 +214,145 @@
 
 ---
 
-**最終更新:** 2026年2月11日
+## 🔒 セキュリティ改善タスク
+
+### SEC-1: Server Action `getDailySparkLevel` 認証チェック追加
+**優先度:** 高（セキュリティ）
+**追加日:** 2026-02-13
+**検出元:** Vercel React Best Practices 監査 (server-auth-actions ルール)
+**現状リスク:** PoCで新規登録を閉じているため実害は限定的。本番公開時は必須対応。
+
+#### 問題
+`app/actions/daily-spark.ts` の `getDailySparkLevel(studentId, parentUserId?)` は `"use server"` で公開エンドポイントとなっているが、`supabase.auth.getUser()` による認証チェックがない。任意の `studentId` を渡して他人のミッション達成状況を取得可能。
+
+#### 影響範囲
+Server Action エントリポイント:
+- `app/actions/daily-spark.ts:11` — 認証なし（**修正対象**）
+
+内部実装（Server Action から呼ばれる）:
+- `lib/utils/daily-spark.ts:36` — `getDailySparkLevel()` 本体
+
+呼び出し元（全6箇所）:
+| ファイル | 行 | 呼び出し元ロール |
+|---------|-----|-----------------|
+| `components/common/daily-spark-logo.tsx` | 39 | 生徒・保護者 |
+| `app/parent/dashboard-client.tsx` | 1927 | 保護者 |
+| `app/parent/encouragement/page.tsx` | 76 | 保護者 |
+| `app/parent/goal/page.tsx` | 169 | 保護者 |
+| `app/parent/reflect/page.tsx` | 174 | 保護者 |
+| `scripts/debug-daily-spark.ts` | 122 | デバッグ用 |
+
+#### 修正方針
+
+**Step 1: 認証チェック追加** (`app/actions/daily-spark.ts`)
+```typescript
+export async function getDailySparkLevel(studentId: number, parentUserId?: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    throw new Error("認証が必要です")
+  }
+
+  // ロール取得
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single()
+
+  if (!profile) {
+    throw new Error("プロフィールが見つかりません")
+  }
+
+  // 認可チェック: 自分のデータか、保護者が子どものデータにアクセスしているか
+  if (profile.role === "student") {
+    // 生徒は自分のstudentIdのみ許可
+    const { data: student } = await supabase
+      .from("students")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("id", studentId)
+      .single()
+    if (!student) {
+      throw new Error("アクセス権限がありません")
+    }
+  } else if (profile.role === "parent") {
+    // 保護者は関連する子どものstudentIdのみ許可
+    const { data: relation } = await supabase
+      .from("parent_child_relations")
+      .select("id, parents!inner(user_id)")
+      .eq("parents.user_id", user.id)
+      .eq("student_id", studentId)
+      .single()
+    if (!relation) {
+      throw new Error("アクセス権限がありません")
+    }
+  } else if (profile.role === "coach") {
+    // コーチは全生徒アクセス可（既存RLS準拠）
+  } else {
+    throw new Error("アクセス権限がありません")
+  }
+
+  return await getLevel(studentId, parentUserId)
+}
+```
+
+**Step 2: 呼び出し元のエラーハンドリング確認**
+- `daily-spark-logo.tsx` — 既に try/catch あり（対応不要）
+- `parent/dashboard-client.tsx` — 既に try/catch あり（対応不要）
+- 他の保護者ページ — 要確認
+
+#### UXへの影響
+- **なし** — 正当なログイン済みユーザーの挙動は変わらない
+- 未認証リクエストのみ弾く
+
+#### テスト観点
+- 生徒ログイン → 自分のstudentIdでSparkレベル取得 → 成功
+- 生徒ログイン → 他人のstudentIdでSparkレベル取得 → エラー
+- 保護者ログイン → 自分の子どものstudentIdで取得 → 成功
+- 保護者ログイン → 関連のないstudentIdで取得 → エラー
+- 未認証 → エラー
+
+#### 対応時期
+- PoCフェーズ: 低リスク（新規登録を閉じているため）
+- 本番公開前: **必須対応**
+
+### SEC-2: Server Action 入力バリデーション (zod) 追加
+**優先度:** 中
+**追加日:** 2026-02-13
+**検出元:** Vercel React Best Practices 監査 (server-auth-actions ルール)
+
+以下の Server Action に zod スキーマバリデーションが未実装:
+- `universalLogin(input, password)` — 型注釈のみ
+- `parentSignUp(...)` — 9引数を受け取るがスキーマなし
+- `sendPasswordResetEmail(email)` — レート制限なし
+
+#### 対応時期
+- 本番公開前に対応推奨
+
+---
+
+## 🎨 Vercel React Best Practices 改善タスク
+
+### BP-1: localStorage アクセスの堅牢化
+**優先度:** 低
+**追加日:** 2026-02-13
+
+- `dashboard-client.tsx` — try-catch 追加、バージョンプレフィックス追加
+- `use-user-profile.tsx` — 同上
+- localStorage 保存を useEffect → イベントハンドラへ移動
+
+### BP-2: ダッシュボード再レンダリング最適化
+**優先度:** 低
+**追加日:** 2026-02-13
+
+- SWRデータの useEffect → state 同期パターンを直接導出に変更
+- ハイドレーションフリッカー対策
+
+---
+
+**最終更新:** 2026年2月13日
 **更新者:** Claude Code
 
 **注:** このバックログはPhase 0-5の基本実装完了後に順次対応します。エラーなく稼働することを最優先し、初期実装では省略します。
