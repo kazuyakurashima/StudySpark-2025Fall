@@ -219,34 +219,49 @@
 ### SEC-1: Server Action `getDailySparkLevel` 認証チェック追加
 **優先度:** 高（セキュリティ）
 **追加日:** 2026-02-13
+**更新日:** 2026-02-13（コードレビュー反映）
 **検出元:** Vercel React Best Practices 監査 (server-auth-actions ルール)
 **現状リスク:** PoCで新規登録を閉じているため実害は限定的。本番公開時は必須対応。
 
 #### 問題
 `app/actions/daily-spark.ts` の `getDailySparkLevel(studentId, parentUserId?)` は `"use server"` で公開エンドポイントとなっているが、`supabase.auth.getUser()` による認証チェックがない。任意の `studentId` を渡して他人のミッション達成状況を取得可能。
 
+さらに `lib/utils/daily-spark.ts` も先頭に `"use server"` があり、`daily-spark-logo.tsx` から直接 import されているため、**公開エンドポイントが2箇所**存在する。
+
 #### 影響範囲
-Server Action エントリポイント:
-- `app/actions/daily-spark.ts:11` — 認証なし（**修正対象**）
 
-内部実装（Server Action から呼ばれる）:
-- `lib/utils/daily-spark.ts:36` — `getDailySparkLevel()` 本体
+**公開エンドポイント（2箇所 → 1箇所に統一が必要）:**
+- `app/actions/daily-spark.ts:11` — Server Action エントリポイント（**認証追加対象**）
+- `lib/utils/daily-spark.ts:36` — `"use server"` 付きで直接 import されている（**内部専用化が必要**）
 
-呼び出し元（全6箇所）:
-| ファイル | 行 | 呼び出し元ロール |
-|---------|-----|-----------------|
-| `components/common/daily-spark-logo.tsx` | 39 | 生徒・保護者 |
-| `app/parent/dashboard-client.tsx` | 1927 | 保護者 |
-| `app/parent/encouragement/page.tsx` | 76 | 保護者 |
-| `app/parent/goal/page.tsx` | 169 | 保護者 |
-| `app/parent/reflect/page.tsx` | 174 | 保護者 |
-| `scripts/debug-daily-spark.ts` | 122 | デバッグ用 |
+**呼び出し元（全6箇所）:**
+
+| ファイル | 行 | 呼び出し元ロール | try/catch |
+|---------|-----|-----------------|-----------|
+| `components/common/daily-spark-logo.tsx` | 39 | 生徒・保護者 | あり |
+| `app/parent/dashboard-client.tsx` | 1927 | 保護者 | あり |
+| `app/parent/encouragement/page.tsx` | 76 | 保護者 | **なし（要追加）** |
+| `app/parent/goal/page.tsx` | 169 | 保護者 | あり（個別child try/catch） |
+| `app/parent/reflect/page.tsx` | 174 | 保護者 | **なし（要追加）** |
+| `scripts/debug-daily-spark.ts` | 122 | デバッグ用 | — |
 
 #### 修正方針
 
-**Step 1: 認証チェック追加** (`app/actions/daily-spark.ts`)
+**Step 1: 公開エンドポイントの統一**
+- `lib/utils/daily-spark.ts` から `"use server"` を削除し、内部専用化
+- `daily-spark-logo.tsx` の import 元を `@/lib/utils/daily-spark` → `@/app/actions/daily-spark` に変更
+- 全呼び出し元が `app/actions/daily-spark.ts` を経由するように統一
+
+**Step 2: `parentUserId` をサーバー側で確定** (`app/actions/daily-spark.ts`)
+- `parentUserId` を外部引数で受けず、サーバー側でセッションの `user.id` から確定
+- シグネチャ変更: `getDailySparkLevel(studentId: number)` （parentUserId 引数を削除）
+- 保護者かどうかはロール判定後にサーバー側で `user.id` を渡す
+
+**Step 3: 認可チェックに `checkStudentAccess` を再利用** (`app/actions/daily-spark.ts`)
 ```typescript
-export async function getDailySparkLevel(studentId: number, parentUserId?: string) {
+import { checkStudentAccess } from "@/app/actions/common/check-student-access"
+
+export async function getDailySparkLevel(studentId: number) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -254,79 +269,89 @@ export async function getDailySparkLevel(studentId: number, parentUserId?: strin
     throw new Error("認証が必要です")
   }
 
-  // ロール取得
+  // 認可チェック（既存の共通関数を再利用）
+  // checkStudentAccess は生徒本人・保護者（parent_child_relations）・
+  // コーチ（coach_student_relations = 担当生徒のみ）を判定
+  const hasAccess = await checkStudentAccess(user.id, String(studentId))
+  if (!hasAccess) {
+    throw new Error("アクセス権限がありません")
+  }
+
+  // 保護者の場合はサーバー側で user.id を parentUserId として渡す
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
     .eq("id", user.id)
     .single()
 
-  if (!profile) {
-    throw new Error("プロフィールが見つかりません")
-  }
-
-  // 認可チェック: 自分のデータか、保護者が子どものデータにアクセスしているか
-  if (profile.role === "student") {
-    // 生徒は自分のstudentIdのみ許可
-    const { data: student } = await supabase
-      .from("students")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("id", studentId)
-      .single()
-    if (!student) {
-      throw new Error("アクセス権限がありません")
-    }
-  } else if (profile.role === "parent") {
-    // 保護者は関連する子どものstudentIdのみ許可
-    const { data: relation } = await supabase
-      .from("parent_child_relations")
-      .select("id, parents!inner(user_id)")
-      .eq("parents.user_id", user.id)
-      .eq("student_id", studentId)
-      .single()
-    if (!relation) {
-      throw new Error("アクセス権限がありません")
-    }
-  } else if (profile.role === "coach") {
-    // コーチは全生徒アクセス可（既存RLS準拠）
-  } else {
-    throw new Error("アクセス権限がありません")
-  }
-
+  const parentUserId = profile?.role === "parent" ? user.id : undefined
   return await getLevel(studentId, parentUserId)
 }
 ```
 
-**Step 2: 呼び出し元のエラーハンドリング確認**
-- `daily-spark-logo.tsx` — 既に try/catch あり（対応不要）
-- `parent/dashboard-client.tsx` — 既に try/catch あり（対応不要）
-- 他の保護者ページ — 要確認
+> **注:** `checkStudentAccess` (`app/actions/common/check-student-access.ts`) は既にコーチの認可を
+> `coach_student_relations` テーブルで判定しており、**担当生徒のみ**アクセス可（全生徒ではない）。
+> これは RLS ポリシー（`20251006000013_update_rls_policies.sql` の `"Coaches can view assigned students *"` ポリシー群）と整合する。
+
+**Step 4: 呼び出し元の修正**
+- `daily-spark-logo.tsx` — import 元を `@/app/actions/daily-spark` に変更、`parentUserId` 引数を削除
+- `parent/encouragement/page.tsx:76` — try/catch 追加
+- `parent/reflect/page.tsx:174` — try/catch 追加
+- 全保護者ページ — `parentUserId` 引数の削除、`profile.id` を渡す箇所を削除
+
+**Step 5: ループ呼び出しの並列化**
+```typescript
+// Before: 逐次呼び出し
+for (const child of children) {
+  const level = await getDailySparkLevel(child.id, profile.id)
+  statusMap[child.id] = level === "parent" || level === "both"
+}
+
+// After: Promise.allSettled で並列化
+const results = await Promise.allSettled(
+  children.map((child) => getDailySparkLevel(child.id))
+)
+results.forEach((result, i) => {
+  const childId = children[i].id
+  statusMap[childId] = result.status === "fulfilled"
+    && (result.value === "parent" || result.value === "both")
+})
+```
 
 #### UXへの影響
 - **なし** — 正当なログイン済みユーザーの挙動は変わらない
 - 未認証リクエストのみ弾く
+- ループ呼び出しの `Promise.allSettled` 化により、複数子ども時のレスポンス改善
 
 #### テスト観点
 - 生徒ログイン → 自分のstudentIdでSparkレベル取得 → 成功
 - 生徒ログイン → 他人のstudentIdでSparkレベル取得 → エラー
 - 保護者ログイン → 自分の子どものstudentIdで取得 → 成功
 - 保護者ログイン → 関連のないstudentIdで取得 → エラー
+- **コーチログイン → 担当生徒のstudentIdで取得 → 成功**
+- **コーチログイン → 非担当生徒のstudentIdで取得 → エラー**
 - 未認証 → エラー
 
 #### 対応時期
 - PoCフェーズ: 低リスク（新規登録を閉じているため）
 - 本番公開前: **必須対応**
 
-### SEC-2: Server Action 入力バリデーション (zod) 追加
+### SEC-2: Server Action 入力バリデーション・レート制限追加
 **優先度:** 中
 **追加日:** 2026-02-13
+**更新日:** 2026-02-13（コードレビュー反映）
 **検出元:** Vercel React Best Practices 監査 (server-auth-actions ルール)
 
+#### zod スキーマバリデーション未実装
 以下の Server Action に zod スキーマバリデーションが未実装:
 - `universalLogin(input, password)` — 型注釈のみ
 - `parentSignUp(...)` — 9引数を受け取るがスキーマなし
-- `sendPasswordResetEmail(email)` — レート制限なし
+
+#### `sendPasswordResetEmail` のセキュリティ強化
+- **レート制限**: 同一メールアドレスへの連続送信を制限（例: 1分間に1回、1時間に5回）
+- **ユーザー列挙対策**: メールアドレスの存在有無に関わらず同一レスポンスを返す
+  - 現状リスク: 存在しないメールでエラーが返る場合、攻撃者がアカウント有無を判別可能
+  - 対策: 成功/失敗に関わらず「メールを送信しました」と返す（実際にはSupabase側で制御）
 
 #### 対応時期
 - 本番公開前に対応推奨
