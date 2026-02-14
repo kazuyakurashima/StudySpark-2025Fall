@@ -214,12 +214,41 @@
 
 ---
 
+## ⚠️ 例外運用記録
+
+### OPS-1: auth.users 直INSERT による指導者アカウント一括追加
+**実行日:** 2026-02-14
+**実行者:** 倉島
+**スクリプト:** `scripts/add-coaches-and-fix-admin.sql`
+**対象:** miyake, abe, ota, ikeda, yashiro, kimura（6名）+ admin修正
+
+**例外理由:**
+Supabase Auth の `signUp` API にはレート制限（1時間2件）があり、6名を一括登録できないため `auth.users` + `auth.identities` への直INSERT で回避。
+
+**リスクと対処:**
+- 平文初期パスワードが Git 履歴に残存 → **全対象アカウントのパスワードローテーション必須**
+- `auth.users` スキーマは Supabase 内部仕様 → バージョンアップ時に非互換の可能性あり
+- `coaches` INSERT に再実行ガードなし → 再実行時は手動確認が必要
+
+**恒久対応方針:**
+- 今後のアカウント追加は `supabase.auth.admin.createUser({ email_confirm: true })` を使用
+- Custom SMTP 導入でレート制限を解消（本筋）
+- SQL 直書きでのパスワード記載は禁止 → 環境変数 or Secret Manager 経由に統一
+
+**事後チェック項目:**
+- [ ] 全対象アカウントのパスワードローテーション完了
+- [ ] auth.users ↔ auth.identities の 1:1 整合性確認
+- [ ] coaches/admins レコードの欠落確認
+- [ ] 全対象アカウントのログイン動作確認
+
+---
+
 ## 🔒 セキュリティ改善タスク
 
-### SEC-1: Server Action `getDailySparkLevel` 認証チェック追加 ✅ 完了
+### SEC-1: Server Action `getDailySparkLevel` 認証チェック追加 🔀 PR作成済み・main未反映
 **優先度:** 高（セキュリティ）
 **追加日:** 2026-02-13
-**完了日:** 2026-02-14（PR作成済み: `fix/sec1-daily-spark-auth`）
+**状態:** `fix/sec1-daily-spark-auth` ブランチで実装済み・PR作成済み → **main 未マージ**
 **検出元:** Vercel React Best Practices 監査 (server-auth-actions ルール)
 **現状リスク:** PoCで新規登録を閉じているため実害は限定的。本番公開時は必須対応。
 
