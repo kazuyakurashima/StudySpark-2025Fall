@@ -293,8 +293,38 @@
   $ psql <DB2026_CONNECTION> -c "UPDATE students SET grade = 6 WHERE grade = 5"
   □ 更新件数を記録: ___ 件
 
-□ 卒業処理（選択肢B: 無効化を採用）
-  # 専用スクリプトで BAN 実行
+□ 卒業処理（正規フロー: relation バックアップ → relation 削除 → BAN）
+
+  # ステップ1: 卒業対象IDを一時テーブルに読み込み（事後確認でも使用）
+  $ psql <DB2026_CONNECTION> <<'SQL'
+    CREATE TEMP TABLE _graduating_ids AS
+    SELECT id::BIGINT FROM (VALUES
+      -- graduating_students_*.csv の id 列を列挙（例）
+      -- (1), (2), (3)
+    ) AS t(id);
+  SQL
+  □ 件数確認: SELECT COUNT(*) FROM _graduating_ids → ___ 件
+  □ graduating_students_*.csv の件数と一致すること
+
+  # ステップ2: リレーションのバックアップ（復元用）
+  $ psql <DB2026_CONNECTION> <<'SQL'
+    CREATE TABLE IF NOT EXISTS _backup_graduated_csr AS
+    SELECT * FROM coach_student_relations WHERE student_id IN (SELECT id FROM _graduating_ids);
+    CREATE TABLE IF NOT EXISTS _backup_graduated_pcr AS
+    SELECT * FROM parent_child_relations WHERE student_id IN (SELECT id FROM _graduating_ids);
+  SQL
+  □ バックアップ件数を記録:
+    SELECT COUNT(*) FROM _backup_graduated_csr → ___ 件
+    SELECT COUNT(*) FROM _backup_graduated_pcr → ___ 件
+
+  # ステップ3: リレーション削除（指導者画面・保護者画面から非表示）
+  $ psql <DB2026_CONNECTION> <<'SQL'
+    DELETE FROM coach_student_relations WHERE student_id IN (SELECT id FROM _graduating_ids);
+    DELETE FROM parent_child_relations WHERE student_id IN (SELECT id FROM _graduating_ids);
+  SQL
+  □ 削除件数を記録: coach_student_relations ___ 件, parent_child_relations ___ 件
+
+  # ステップ4: auth.users BAN（ログイン不可）
   $ npx tsx scripts/ban-graduated-users.ts graduating_students_20260201.csv
   □ BAN 完了件数を記録: ___ 件
   □ エラーがあれば記録
@@ -309,7 +339,17 @@
   □ 主要件数・整合性が問題ないことを確認
 
 □ 卒業処理の事後確認（⚠️ 必須: 指導者画面への旧生徒表示を防止）
-  # 卒業対象が coach_student_relations から除外されているか確認
+
+  # 卒業対象IDの照合元を決定:
+  # 方式A: _backup_graduated_csr が存在する場合（上記ステップ2で作成済み）
+  # 方式B: 存在しない場合、graduating_students_*.csv から一時テーブルを作成
+  #
+  # 方式B の手順（_backup_graduated_csr が存在しない場合のみ実行）:
+  #   CREATE TEMP TABLE _grad_check_ids AS
+  #   SELECT id::BIGINT FROM (VALUES (1),(2),(3) /* CSVのid列 */) AS t(id);
+  #   → 以降の SQL で _backup_graduated_csr の代わりに _grad_check_ids を使用
+
+  # relation 残存確認
   $ psql <DB2026_CONNECTION> -c "
     SELECT csr.student_id, s.full_name
     FROM coach_student_relations csr
@@ -318,9 +358,9 @@
       SELECT student_id FROM _backup_graduated_csr
     )
   "
-  □ 結果が 0 件であること（残存している場合は relation 削除を再実施）
+  □ 結果が 0 件であること（残存している場合はステップ3を再実施）
 
-  # BAN 状態の確認（卒業対象の auth.users.banned_until が設定済みか）
+  # BAN 状態の確認（SQL Editor / service role でのみ実行可）
   $ psql <DB2026_CONNECTION> -c "
     SELECT au.email, au.banned_until, s.full_name
     FROM students s
@@ -328,12 +368,13 @@
     WHERE s.id IN (SELECT student_id FROM _backup_graduated_csr)
     ORDER BY au.banned_until NULLS FIRST
   "
-  □ 全員の banned_until が設定済みであること（NULL がある場合は BAN を再実施）
+  □ 全員の banned_until が設定済みであること（NULL がある場合はステップ4を再実施）
 
-  # 注意: 卒業生の判定に students.grade は使用しない
-  # 繰り上げ後は grade=6 に現役生も含まれるため、
-  # 卒業対象リスト（graduating_students_*.csv / _backup_graduated_*）を基準にする
-  # 詳細: 03_data_strategy.md セクション 7.2
+  # 注意事項:
+  # - 卒業生の判定に students.grade は使用しない（繰り上げ後は現役生も grade=6）
+  # - 一次ソースは graduating_students_*.csv → _backup_graduated_* の順で参照
+  # - auth.users はアプリ層（RLS コンテキスト）からアクセス不可、SQL Editor 専用
+  # - 詳細: 03_data_strategy.md セクション 7.2
 ```
 
 ### Phase 2.5: 新小5生徒登録（00:35〜）

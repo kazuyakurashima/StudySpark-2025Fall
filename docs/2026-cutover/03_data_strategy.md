@@ -635,11 +635,23 @@ banGraduatedUsers(process.argv[2])
 
 **卒業生判定の一次ソース（優先順）**:
 
-| 優先度 | ソース | 説明 |
-|--------|--------|------|
-| 1 | `graduating_students_*.csv` | 切替時に出力した卒業対象リスト |
-| 2 | `_backup_graduated_csr` / `_backup_graduated_pcr` | ソフト除外方式で作成したバックアップテーブル |
-| 3 | `auth.users.banned_until` | BAN 済みユーザー（SQL Editor / service role でのみ参照可） |
+| 優先度 | ソース | 条件 | 説明 |
+|--------|--------|------|------|
+| 1 | `graduating_students_*.csv` | 常に存在 | 切替時にランブックで出力する卒業対象リスト。唯一の確定ソース |
+| 2 | `_backup_graduated_csr` / `_backup_graduated_pcr` | ソフト除外方式採用時のみ | ランブックのステップ2で作成。非存在の場合は CSV から一時テーブルを作成して代替 |
+| 3 | `auth.users.banned_until` | SQL Editor / service role 専用 | BAN 済みユーザー。アプリ層からは参照不可 |
+
+**`_backup_graduated_*` が存在しない場合の代替手順**:
+
+```sql
+-- graduating_students_*.csv の id 列を VALUES で投入
+CREATE TEMP TABLE _grad_check_ids AS
+SELECT id::BIGINT FROM (VALUES
+  -- CSV の id 列を列挙
+  -- (1), (2), (3)
+) AS t(id);
+-- 以降のクエリで _backup_graduated_csr の代わりに _grad_check_ids を使用
+```
 
 **`auth.users` のアクセス制約**:
 
@@ -675,6 +687,22 @@ UPDATE coach_student_relations
 SET is_active = false, unassigned_at = NOW()
 WHERE student_id IN (<卒業対象IDs>);
 ```
+
+**`is_active` 導入時の同時更新対象**:
+
+`coach_student_relations` を参照する全箇所に `.eq("is_active", true)` を追加する必要がある。
+片側だけ更新すると表示・権限制御の不整合が生じるため、以下を一括で対応すること。
+
+| 区分 | ファイル | 参照箇所（関数名/用途） |
+|------|---------|----------------------|
+| Action | `app/actions/coach.ts` | `getCoachStudents()`, `getStudentDetail()`, `getCoachStudentLearningRecords()`, `getCoachAnalysisData()`, `getInactiveStudents()` 等（計10箇所） |
+| Action | `app/actions/class-assessment.ts` | 指導者向けアセスメント取得（2箇所） |
+| Action | `app/actions/encouragement.ts` | 応援メッセージ送信時の権限確認（1箇所） |
+| Action | `app/actions/past-exam.ts` | 過去問データ取得（1箇所） |
+| Action | `app/actions/math-answer.ts` | 算数回答の指導者向け取得（1箇所） |
+| Action | `app/actions/common/check-student-access.ts` | 共通アクセスチェック（1箇所） |
+| Page | `app/coach/student/[id]/page.tsx` | 個別生徒ページのアクセス確認（1箇所） |
+| RLS | `supabase/migrations/` 内の RLS ポリシー | `coach_student_relations` を参照する SELECT/INSERT/UPDATE/DELETE ポリシー |
 
 **担当割当の運用改善**:
 
