@@ -293,41 +293,66 @@
   $ psql <DB2026_CONNECTION> -c "UPDATE students SET grade = 6 WHERE grade = 5"
   □ 更新件数を記録: ___ 件
 
-□ 卒業処理（正規フロー: relation バックアップ → relation 削除 → BAN）
+□ 卒業処理（正規フロー: 対象ID登録 → バックアップ+削除 → BAN）
 
-  # ステップ1: 卒業対象IDを一時テーブルに読み込み（事後確認でも使用）
+  # ⚠️ テーブル名の日付は実行日に置き換えること（例: 20270201）
+  # 以下の SQL はすべて同一 psql セッションで実行する
+
   $ psql <DB2026_CONNECTION> <<'SQL'
-    CREATE TEMP TABLE _graduating_ids AS
+
+    -- ステップ1: 卒業対象IDを常設テーブルに登録（事後確認でも使用）
+    DROP TABLE IF EXISTS _graduating_ids_20270201;
+    CREATE TABLE _graduating_ids_20270201 AS
     SELECT id::BIGINT FROM (VALUES
-      -- graduating_students_*.csv の id 列を列挙（例）
+      -- graduating_students_*.csv の id 列を列挙
       -- (1), (2), (3)
     ) AS t(id);
-  SQL
-  □ 件数確認: SELECT COUNT(*) FROM _graduating_ids → ___ 件
-  □ graduating_students_*.csv の件数と一致すること
 
-  # ステップ2: リレーションのバックアップ（復元用）
-  $ psql <DB2026_CONNECTION> <<'SQL'
-    CREATE TABLE IF NOT EXISTS _backup_graduated_csr AS
-    SELECT * FROM coach_student_relations WHERE student_id IN (SELECT id FROM _graduating_ids);
-    CREATE TABLE IF NOT EXISTS _backup_graduated_pcr AS
-    SELECT * FROM parent_child_relations WHERE student_id IN (SELECT id FROM _graduating_ids);
-  SQL
-  □ バックアップ件数を記録:
-    SELECT COUNT(*) FROM _backup_graduated_csr → ___ 件
-    SELECT COUNT(*) FROM _backup_graduated_pcr → ___ 件
+    -- 件数確認
+    SELECT COUNT(*) AS graduating_count FROM _graduating_ids_20270201;
 
-  # ステップ3: リレーション削除（指導者画面・保護者画面から非表示）
-  $ psql <DB2026_CONNECTION> <<'SQL'
-    DELETE FROM coach_student_relations WHERE student_id IN (SELECT id FROM _graduating_ids);
-    DELETE FROM parent_child_relations WHERE student_id IN (SELECT id FROM _graduating_ids);
+    -- ステップ2+3: バックアップ作成 + リレーション削除（1トランザクション）
+    BEGIN;
+
+    DROP TABLE IF EXISTS _backup_graduated_csr_20270201;
+    CREATE TABLE _backup_graduated_csr_20270201 AS
+    SELECT * FROM coach_student_relations
+    WHERE student_id IN (SELECT id FROM _graduating_ids_20270201);
+
+    DROP TABLE IF EXISTS _backup_graduated_pcr_20270201;
+    CREATE TABLE _backup_graduated_pcr_20270201 AS
+    SELECT * FROM parent_child_relations
+    WHERE student_id IN (SELECT id FROM _graduating_ids_20270201);
+
+    -- バックアップ件数確認
+    SELECT 'csr' AS tbl, COUNT(*) AS cnt FROM _backup_graduated_csr_20270201
+    UNION ALL
+    SELECT 'pcr', COUNT(*) FROM _backup_graduated_pcr_20270201;
+
+    -- リレーション削除（指導者画面・保護者画面から非表示）
+    DELETE FROM coach_student_relations
+    WHERE student_id IN (SELECT id FROM _graduating_ids_20270201);
+
+    DELETE FROM parent_child_relations
+    WHERE student_id IN (SELECT id FROM _graduating_ids_20270201);
+
+    COMMIT;
+    -- ⚠️ エラー時は自動 ROLLBACK。バックアップも削除もなかったことになる
+
   SQL
-  □ 削除件数を記録: coach_student_relations ___ 件, parent_child_relations ___ 件
+  □ graduating_count が CSV 件数と一致すること: ___ 件
+  □ バックアップ件数を記録: csr ___ 件, pcr ___ 件
+  □ COMMIT が成功したことを確認
 
   # ステップ4: auth.users BAN（ログイン不可）
-  $ npx tsx scripts/ban-graduated-users.ts graduating_students_20260201.csv
+  $ npx tsx scripts/ban-graduated-users.ts graduating_students_20270201.csv
   □ BAN 完了件数を記録: ___ 件
   □ エラーがあれば記録
+
+  # 復元手順（必要な場合のみ）:
+  # INSERT INTO coach_student_relations SELECT * FROM _backup_graduated_csr_20270201;
+  # INSERT INTO parent_child_relations SELECT * FROM _backup_graduated_pcr_20270201;
+  # → BAN 解除は Supabase Dashboard (Auth > Users > Unban)
 
 □ 整合性チェック（SQLで即時確認）
   $ psql <DB2026_CONNECTION> -c "SELECT COUNT(*) FROM auth.users"
@@ -340,39 +365,40 @@
 
 □ 卒業処理の事後確認（⚠️ 必須: 指導者画面への旧生徒表示を防止）
 
-  # 卒業対象IDの照合元を決定:
-  # 方式A: _backup_graduated_csr が存在する場合（上記ステップ2で作成済み）
-  # 方式B: 存在しない場合、graduating_students_*.csv から一時テーブルを作成
-  #
-  # 方式B の手順（_backup_graduated_csr が存在しない場合のみ実行）:
-  #   CREATE TEMP TABLE _grad_check_ids AS
-  #   SELECT id::BIGINT FROM (VALUES (1),(2),(3) /* CSVのid列 */) AS t(id);
-  #   → 以降の SQL で _backup_graduated_csr の代わりに _grad_check_ids を使用
+  # 対象IDソースは CTE で統一。以下のいずれかを使用:
+  # - _graduating_ids_YYYYMMDD（常設テーブル、上記ステップ1で作成）
+  # - _backup_graduated_csr_YYYYMMDD（バックアップテーブル）
+  # ⚠️ 日付部分を実行日に置き換えること
 
-  # relation 残存確認
-  $ psql <DB2026_CONNECTION> -c "
-    SELECT csr.student_id, s.full_name
+  # relation 残存確認 + BAN 状態確認（1クエリで実行）
+  $ psql <DB2026_CONNECTION> <<'SQL'
+    WITH target_ids AS (
+      SELECT id FROM _graduating_ids_20270201
+    )
+    -- (1) relation 残存確認
+    SELECT 'relation_残存' AS check_type, csr.student_id, s.full_name, NULL AS banned_until
     FROM coach_student_relations csr
     JOIN students s ON s.id = csr.student_id
-    WHERE csr.student_id IN (
-      SELECT student_id FROM _backup_graduated_csr
-    )
-  "
-  □ 結果が 0 件であること（残存している場合はステップ3を再実施）
+    WHERE csr.student_id IN (SELECT id FROM target_ids)
 
-  # BAN 状態の確認（SQL Editor / service role でのみ実行可）
-  $ psql <DB2026_CONNECTION> -c "
-    SELECT au.email, au.banned_until, s.full_name
+    UNION ALL
+
+    -- (2) BAN 状態確認（SQL Editor / service role でのみ実行可）
+    SELECT 'BAN_未設定', s.id, s.full_name, au.banned_until::TEXT
     FROM students s
     JOIN auth.users au ON au.id = s.user_id
-    WHERE s.id IN (SELECT student_id FROM _backup_graduated_csr)
-    ORDER BY au.banned_until NULLS FIRST
-  "
-  □ 全員の banned_until が設定済みであること（NULL がある場合はステップ4を再実施）
+    WHERE s.id IN (SELECT id FROM target_ids)
+      AND au.banned_until IS NULL
+
+    ORDER BY check_type, full_name;
+  SQL
+  □ 結果が 0 件であること
+  □ relation_残存 が出た場合 → ステップ2+3を再実施
+  □ BAN_未設定 が出た場合 → ステップ4を再実施
 
   # 注意事項:
   # - 卒業生の判定に students.grade は使用しない（繰り上げ後は現役生も grade=6）
-  # - 一次ソースは graduating_students_*.csv → _backup_graduated_* の順で参照
+  # - 一次ソースは graduating_students_*.csv（_graduating_ids_* テーブル経由）
   # - auth.users はアプリ層（RLS コンテキスト）からアクセス不可、SQL Editor 専用
   # - 詳細: 03_data_strategy.md セクション 7.2
 ```

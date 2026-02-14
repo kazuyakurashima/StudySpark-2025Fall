@@ -637,20 +637,22 @@ banGraduatedUsers(process.argv[2])
 
 | 優先度 | ソース | 条件 | 説明 |
 |--------|--------|------|------|
-| 1 | `graduating_students_*.csv` | 常に存在 | 切替時にランブックで出力する卒業対象リスト。唯一の確定ソース |
-| 2 | `_backup_graduated_csr` / `_backup_graduated_pcr` | ソフト除外方式採用時のみ | ランブックのステップ2で作成。非存在の場合は CSV から一時テーブルを作成して代替 |
-| 3 | `auth.users.banned_until` | SQL Editor / service role 専用 | BAN 済みユーザー。アプリ層からは参照不可 |
+| 1 | `_graduating_ids_YYYYMMDD` | ランブック実行時に作成 | CSV から投入した卒業対象ID（常設テーブル）。事後確認の CTE ソースとして使用 |
+| 2 | `_backup_graduated_csr_YYYYMMDD` / `_backup_graduated_pcr_YYYYMMDD` | ランブック実行時に作成 | relation のバックアップ。復元が必要な場合に使用 |
+| 3 | `graduating_students_*.csv` | 常に存在 | ランブックで出力する元データ。テーブルが消失した場合の最終ソース |
+| 4 | `auth.users.banned_until` | SQL Editor / service role 専用 | BAN 済みユーザー。アプリ層からは参照不可 |
 
-**`_backup_graduated_*` が存在しない場合の代替手順**:
+**テーブルが消失した場合の復旧手順**:
 
 ```sql
--- graduating_students_*.csv の id 列を VALUES で投入
-CREATE TEMP TABLE _grad_check_ids AS
+-- graduating_students_*.csv の id 列から再作成
+DROP TABLE IF EXISTS _graduating_ids_YYYYMMDD;
+CREATE TABLE _graduating_ids_YYYYMMDD AS
 SELECT id::BIGINT FROM (VALUES
   -- CSV の id 列を列挙
   -- (1), (2), (3)
 ) AS t(id);
--- 以降のクエリで _backup_graduated_csr の代わりに _grad_check_ids を使用
+-- 以降の事後確認クエリで CTE ソースとして使用
 ```
 
 **`auth.users` のアクセス制約**:
