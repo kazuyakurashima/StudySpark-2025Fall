@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { sendPasswordResetEmail } from "@/app/actions/auth"
+import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,12 +20,24 @@ export default function ForgotPasswordPage() {
     setSuccess(false)
     setIsLoading(true)
 
-    const result = await sendPasswordResetEmail(email)
+    try {
+      const supabase = createClient()
 
-    if (result.error) {
-      setError(result.error)
-    } else {
-      setSuccess(true)
+      // PKCE フロー: ブラウザ側で呼び出すことで code_verifier が
+      // ブラウザの cookie/storage に確実に保存される
+      const redirectTo = `${window.location.origin}/auth/callback?next=/auth/reset-password`
+
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo,
+      })
+
+      if (resetError) {
+        setError(resetError.message)
+      } else {
+        setSuccess(true)
+      }
+    } catch {
+      setError("予期しないエラーが発生しました。もう一度お試しください。")
     }
 
     setIsLoading(false)
