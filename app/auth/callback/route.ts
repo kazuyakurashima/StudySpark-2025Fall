@@ -52,18 +52,21 @@ export async function GET(request: Request) {
   let exchangeError: Error | null = null
 
   if (code) {
-    // PKCE フロー: code → セッション交換
+    // パスワードリセット（recovery）フローの場合:
+    // Vercel 環境ではサーバー側に code_verifier cookie が届かないため、
+    // サーバー側で exchangeCodeForSession すると code が消費されて
+    // クライアント側フォールバックも失敗する。
+    // → recovery の場合はサーバー側 exchange をスキップし、
+    //   クライアント側ページに code を直接渡す。
+    if (type === "recovery" || next === "/auth/reset-password") {
+      return NextResponse.redirect(
+        `${origin}/auth/reset-password?code=${encodeURIComponent(code)}`
+      )
+    }
+
+    // PKCE フロー: code → セッション交換（recovery 以外）
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     exchangeError = error
-    if (error) {
-      // code_verifier が cookie に届かない場合（Vercel 環境など）、
-      // クライアント側で exchange するためにリダイレクト
-      if (error.message?.includes("code verifier") && next === "/auth/reset-password") {
-        return NextResponse.redirect(
-          `${origin}/auth/reset-password?code=${encodeURIComponent(code)}`
-        )
-      }
-    }
   } else if (token_hash && type) {
     // token_hash フロー（メールテンプレート設定次第で発生）
     const { error } = await supabase.auth.verifyOtp({ token_hash, type })

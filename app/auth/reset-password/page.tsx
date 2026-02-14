@@ -20,14 +20,39 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     const initSession = async () => {
-      // URL に code がある場合、クライアント側で code → セッション交換
-      // （サーバー側 Route Handler で code_verifier cookie が届かない場合のフォールバック）
+      // まず既存セッションを確認。
+      // Supabase クライアントが URL の code を自動交換済みの場合があるため、
+      // その場合は手動 exchange を行わずにセッションを採用する。
+      const {
+        data: { session: existingSession },
+      } = await supabase.auth.getSession()
+
       const params = new URLSearchParams(window.location.search)
       const code = params.get("code")
 
+      if (existingSession) {
+        if (code) {
+          // URL から code パラメータを除去（ブラウザ履歴からも消す）
+          window.history.replaceState({}, "", "/auth/reset-password")
+        }
+        setIsSessionReady(true)
+        return
+      }
+
+      // URL に code がある場合、クライアント側で code → セッション交換
+      // （サーバー側 Route Handler で code_verifier が届かない場合のフォールバック）
       if (code) {
         const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
         if (exchangeError) {
+          // 交換失敗でも、既に自動交換済みの可能性があるため再確認
+          const {
+            data: { session: sessionAfterFailedExchange },
+          } = await supabase.auth.getSession()
+          if (sessionAfterFailedExchange) {
+            window.history.replaceState({}, "", "/auth/reset-password")
+            setIsSessionReady(true)
+            return
+          }
           setError("リセットリンクが無効または期限切れです。もう一度パスワードリセットを申請してください。")
           return
         }
@@ -37,13 +62,8 @@ export default function ResetPasswordPage() {
         return
       }
 
-      // code なし: 既にセッションが存在するか確認（通常の callback 経由）
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session) {
-        setIsSessionReady(true)
-      } else {
-        setError("無効なリセットリンクです。もう一度パスワードリセットを申請してください。")
-      }
+      // code なし & セッションなし
+      setError("無効なリセットリンクです。もう一度パスワードリセットを申請してください。")
     }
 
     initSession()
