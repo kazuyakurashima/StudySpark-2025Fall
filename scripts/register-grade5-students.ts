@@ -243,8 +243,18 @@ async function registerStudent(record: StudentRecord): Promise<RegistrationResul
       if (isDuplicateEmail) {
         // 兄弟追加: 既存保護者を再利用
         console.log(`  ℹ️  保護者メール既存: ${parentEmail} → 既存保護者を再利用します`)
-        const { data: listData } = await supabase.auth.admin.listUsers()
-        const existingUser = listData?.users?.find(u => u.email === parentEmail)
+
+        // ページネーション対応で既存ユーザーを検索
+        let existingUser: { id: string; email?: string } | undefined
+        let page = 1
+        const perPage = 500
+        while (!existingUser) {
+          const { data: listData, error: listError } = await supabase.auth.admin.listUsers({ page, perPage })
+          if (listError || !listData?.users?.length) break
+          existingUser = listData.users.find(u => u.email === parentEmail)
+          if (listData.users.length < perPage) break // 最終ページ
+          page++
+        }
 
         if (!existingUser) {
           result.error = `既存保護者の検索に失敗: ${parentEmail}`
@@ -252,9 +262,41 @@ async function registerStudent(record: StudentRecord): Promise<RegistrationResul
           return result
         }
 
+        // ロール検証: profiles.role === 'parent' であることを確認
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', existingUser.id)
+          .single()
+
+        if (profileError || !profileData) {
+          result.error = `既存ユーザーのプロフィールが見つかりません: ${parentEmail}`
+          console.error(`  ❌ ${result.error}`)
+          return result
+        }
+
+        if (profileData.role !== 'parent') {
+          result.error = `既存ユーザーのロールが parent ではありません (role=${profileData.role}): ${parentEmail}。指導者・管理者アカウントとの重複の可能性があります`
+          console.error(`  ❌ ${result.error}`)
+          return result
+        }
+
+        // parents テーブルにレコードが存在することを確認
+        const { data: parentCheck, error: parentCheckError } = await supabase
+          .from('parents')
+          .select('id')
+          .eq('user_id', existingUser.id)
+          .single()
+
+        if (parentCheckError || !parentCheck) {
+          result.error = `既存ユーザーの parents レコードが見つかりません: ${parentEmail} (user_id=${existingUser.id})`
+          console.error(`  ❌ ${result.error}`)
+          return result
+        }
+
         result.parentUserId = existingUser.id
         isExistingParent = true
-        console.log(`  ✓ 既存保護者を再利用: ${result.parentUserId}`)
+        console.log(`  ✓ 既存保護者を再利用: ${result.parentUserId} (role=parent, parent_id=${parentCheck.id} 検証済み)`)
       } else {
         result.error = `Failed to create parent auth: ${parentAuthError?.message}`
         console.error(`  ❌ ${result.error}`)
