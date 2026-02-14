@@ -39,3 +39,8 @@ export/
 
 # Claude Code local config
 .claude/
+
+# AI/editor tool configs
+.agents/
+.cursor/
+.kiro/
