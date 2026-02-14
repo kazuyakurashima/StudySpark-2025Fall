@@ -216,10 +216,10 @@
 
 ## 🔒 セキュリティ改善タスク
 
-### SEC-1: Server Action `getDailySparkLevel` 認証チェック追加
+### SEC-1: Server Action `getDailySparkLevel` 認証チェック追加 ✅ 完了
 **優先度:** 高（セキュリティ）
 **追加日:** 2026-02-13
-**更新日:** 2026-02-13（コードレビュー反映）
+**完了日:** 2026-02-14（PR作成済み: `fix/sec1-daily-spark-auth`）
 **検出元:** Vercel React Best Practices 監査 (server-auth-actions ルール)
 **現状リスク:** PoCで新規登録を閉じているため実害は限定的。本番公開時は必須対応。
 
