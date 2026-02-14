@@ -637,21 +637,22 @@ banGraduatedUsers(process.argv[2])
 
 | 優先度 | ソース | 条件 | 説明 |
 |--------|--------|------|------|
-| 1 | `_graduating_ids_YYYYMMDD` | ランブック実行時に作成 | CSV から投入した卒業対象ID（常設テーブル）。事後確認の CTE ソースとして使用 |
-| 2 | `_backup_graduated_csr_YYYYMMDD` / `_backup_graduated_pcr_YYYYMMDD` | ランブック実行時に作成 | relation のバックアップ。復元が必要な場合に使用 |
+| 1 | `_graduating_ids_YYYYMMDD_HHMM` | ランブック実行時に作成 | CSV から `\copy` で投入した卒業対象ID（常設テーブル）。事後確認の CTE ソースとして使用 |
+| 2 | `_backup_graduated_csr_YYYYMMDD_HHMM` / `_backup_graduated_pcr_YYYYMMDD_HHMM` | ランブック実行時に作成 | relation のバックアップ。復元が必要な場合に使用 |
 | 3 | `graduating_students_*.csv` | 常に存在 | ランブックで出力する元データ。テーブルが消失した場合の最終ソース |
 | 4 | `auth.users.banned_until` | SQL Editor / service role 専用 | BAN 済みユーザー。アプリ層からは参照不可 |
+
+テーブル名は `YYYYMMDD_HHMM`（実行時刻）形式で、同日再実行時の上書きを防止する。
 
 **テーブルが消失した場合の復旧手順**:
 
 ```sql
--- graduating_students_*.csv の id 列から再作成
-DROP TABLE IF EXISTS _graduating_ids_YYYYMMDD;
-CREATE TABLE _graduating_ids_YYYYMMDD AS
-SELECT id::BIGINT FROM (VALUES
-  -- CSV の id 列を列挙
-  -- (1), (2), (3)
-) AS t(id);
+-- graduating_students_*.csv から \copy で再作成（VALUES 手入力は禁止）
+DROP TABLE IF EXISTS _graduating_ids_YYYYMMDD_HHMM;
+CREATE TABLE _graduating_ids_YYYYMMDD_HHMM (
+  id BIGINT PRIMARY KEY, user_id UUID, email TEXT, display_name TEXT
+);
+\copy _graduating_ids_YYYYMMDD_HHMM FROM 'graduating_students_YYYYMMDD.csv' WITH CSV HEADER
 -- 以降の事後確認クエリで CTE ソースとして使用
 ```
 
