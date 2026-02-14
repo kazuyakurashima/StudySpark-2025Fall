@@ -70,6 +70,13 @@ export async function GET(request: Request) {
     exchangeError = error
     if (error) {
       console.error("[auth/callback] exchangeCodeForSession 失敗:", error.message, error.status)
+
+      // code_verifier が cookie に届かない場合（Vercel 環境など）、
+      // クライアント側で exchange するためにリダイレクト
+      if (error.message?.includes("code verifier") && next === "/auth/reset-password") {
+        console.log("[auth/callback] クライアント側 exchange にフォールバック")
+        return NextResponse.redirect(`${origin}/auth/reset-password?code=${code}`)
+      }
     }
   } else if (token_hash && type) {
     // token_hash フロー（メールテンプレート設定次第で発生）

@@ -19,15 +19,28 @@ export default function ResetPasswordPage() {
   const supabase = createClient()
 
   useEffect(() => {
-    // PKCE フロー: /auth/callback で code → セッション交換済み
-    // セッションが存在すればパスワード更新可能
-    const checkSession = async () => {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    const initSession = async () => {
+      // URL に code がある場合、クライアント側で code → セッション交換
+      // （サーバー側 Route Handler で code_verifier cookie が届かない場合のフォールバック）
+      const params = new URLSearchParams(window.location.search)
+      const code = params.get("code")
 
-      if (sessionError) {
-        console.error("[ResetPassword] getSession failed:", sessionError)
+      if (code) {
+        console.log("[ResetPassword] クライアント側 exchangeCodeForSession 開始")
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+        if (exchangeError) {
+          console.error("[ResetPassword] exchangeCodeForSession 失敗:", exchangeError.message)
+          setError("リセットリンクが無効または期限切れです。もう一度パスワードリセットを申請してください。")
+          return
+        }
+        // URL から code パラメータを除去（ブラウザ履歴からも消す）
+        window.history.replaceState({}, "", "/auth/reset-password")
+        setIsSessionReady(true)
+        return
       }
 
+      // code なし: 既にセッションが存在するか確認（通常の callback 経由）
+      const { data: { session } } = await supabase.auth.getSession()
       if (session) {
         setIsSessionReady(true)
       } else {
@@ -35,7 +48,7 @@ export default function ResetPasswordPage() {
       }
     }
 
-    checkSession()
+    initSession()
   }, [supabase.auth])
 
   const handleSubmit = async (e: React.FormEvent) => {
