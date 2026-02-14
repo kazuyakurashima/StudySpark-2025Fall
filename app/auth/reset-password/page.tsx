@@ -14,19 +14,29 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isSessionReady, setIsSessionReady] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
-    // URLハッシュからトークンを確認
-    const hashParams = new URLSearchParams(window.location.hash.substring(1))
-    const accessToken = hashParams.get("access_token")
-    const type = hashParams.get("type")
+    // PKCE フロー: /auth/callback で code → セッション交換済み
+    // セッションが存在すればパスワード更新可能
+    const checkSession = async () => {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
-    if (type !== "recovery" || !accessToken) {
-      setError("無効なリセットリンクです。もう一度パスワードリセットを申請してください。")
+      if (sessionError) {
+        console.error("[ResetPassword] getSession failed:", sessionError)
+      }
+
+      if (session) {
+        setIsSessionReady(true)
+      } else {
+        setError("無効なリセットリンクです。もう一度パスワードリセットを申請してください。")
+      }
     }
-  }, [])
+
+    checkSession()
+  }, [supabase.auth])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -97,7 +107,7 @@ export default function ResetPasswordPage() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   required
-                  disabled={isLoading}
+                  disabled={isLoading || !isSessionReady}
                   minLength={6}
                 />
               </div>
@@ -113,7 +123,7 @@ export default function ResetPasswordPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
-                  disabled={isLoading}
+                  disabled={isLoading || !isSessionReady}
                   minLength={6}
                 />
               </div>
@@ -124,7 +134,7 @@ export default function ResetPasswordPage() {
                 </Alert>
               )}
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full" disabled={isLoading || !isSessionReady}>
                 {isLoading ? "変更中..." : "パスワードを変更"}
               </Button>
             </form>

@@ -345,10 +345,16 @@ export async function getCurrentUser() {
 export async function sendPasswordResetEmail(email: string) {
   const supabase = await createClient()
   const headersList = await headers()
-  const origin = headersList.get("origin") || "http://localhost:3000"
+  // NEXT_PUBLIC_APP_URL 優先（プロキシ/プレビュー環境での事故防止）
+  const origin =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    headersList.get("origin") ||
+    "http://localhost:3000"
 
+  // PKCE フロー: Supabase が ?code=... を /auth/callback に返す
+  // callback が code をセッションに交換後、next= で reset-password へリダイレクト
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${origin}/auth/reset-password`,
+    redirectTo: `${origin}/auth/callback?next=/auth/reset-password`,
   })
 
   if (error) {
