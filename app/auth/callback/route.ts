@@ -14,13 +14,24 @@ import { cookies } from "next/headers"
  * 3. type に応じて適切なページへリダイレクト
  */
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url)
+  const url = new URL(request.url)
+  const { searchParams, origin } = url
   const code = searchParams.get("code")
   const token_hash = searchParams.get("token_hash")
   const type = searchParams.get("type") as "recovery" | "signup" | "email" | null
   const rawNext = searchParams.get("next") ?? "/"
   // オープンリダイレクト防止: /始まりの内部パスのみ許可
   const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/"
+
+  // TODO: デバッグログ（原因特定後に削除）
+  console.log("[auth/callback] params:", {
+    hasCode: !!code,
+    hasTokenHash: !!token_hash,
+    type,
+    next,
+    origin,
+    path: url.pathname,
+  })
 
   const cookieStore = await cookies()
   const supabase = createServerClient(
@@ -48,14 +59,23 @@ export async function GET(request: Request) {
 
   if (code) {
     // PKCE フロー: code → セッション交換
+    console.log("[auth/callback] exchangeCodeForSession 開始")
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     exchangeError = error
+    if (error) {
+      console.error("[auth/callback] exchangeCodeForSession 失敗:", error.message, error.status)
+    }
   } else if (token_hash && type) {
     // token_hash フロー（メールテンプレート設定次第で発生）
+    console.log("[auth/callback] verifyOtp 開始:", { type })
     const { error } = await supabase.auth.verifyOtp({ token_hash, type })
     exchangeError = error
+    if (error) {
+      console.error("[auth/callback] verifyOtp 失敗:", error.message, error.status)
+    }
   } else {
     // code も token_hash もない場合はエラー
+    console.warn("[auth/callback] code も token_hash もなし → エラーリダイレクト")
     return NextResponse.redirect(`${origin}/?error=auth_callback_error`)
   }
 
@@ -76,5 +96,6 @@ export async function GET(request: Request) {
   }
 
   // exchange/verify 失敗時はログインページへ
+  console.error("[auth/callback] 最終エラー → ログインページへリダイレクト:", exchangeError?.message)
   return NextResponse.redirect(`${origin}/?error=auth_callback_error`)
 }
