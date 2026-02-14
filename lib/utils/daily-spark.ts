@@ -1,16 +1,8 @@
-"use server"
-
 import { createClient } from "@/lib/supabase/server"
 import { getTodayMissionSubjectsFromString } from "./get-today-mission"
+import type { SparkLevel } from "@/lib/types/daily-spark"
 
-/**
- * Daily Sparkのレベル
- * - none: 未達成
- * - child: 子供のみ達成（生徒が今日のミッション完了）
- * - parent: 保護者のみ達成（保護者が今日応援メッセージ送信）
- * - both: 両方達成
- */
-export type SparkLevel = "none" | "child" | "parent" | "both"
+export type { SparkLevel } from "@/lib/types/daily-spark"
 
 /**
  * 今日の日付をJST形式で取得（YYYY-MM-DD）
@@ -28,9 +20,10 @@ function getTodayInJST(): string {
 }
 
 /**
- * Daily Sparkのレベルを取得（Server Action）
+ * Daily Sparkのレベルを取得（内部実装）
+ * 外部からは app/actions/daily-spark.ts 経由で呼び出すこと
  * @param studentId 生徒ID
- * @param parentUserId 保護者のユーザーID（保護者ログイン時のみ）
+ * @param parentUserId 保護者のユーザーID（サーバー側で確定済み）
  * @returns SparkLevel
  */
 export async function getDailySparkLevel(

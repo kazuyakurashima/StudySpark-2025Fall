@@ -57,7 +57,7 @@ interface Reflection {
 
 export default function ParentReflectPage() {
   const searchParams = useSearchParams()
-  const { profile, setSelectedChildId: setProviderChildId, selectedChildId: providerSelectedChildId } = useUserProfile()
+  const { setSelectedChildId: setProviderChildId, selectedChildId: providerSelectedChildId } = useUserProfile()
 
   // URLパラメータから初期タブを取得
   const tabParam = searchParams.get("tab")
@@ -164,18 +164,22 @@ export default function ParentReflectPage() {
   // ページ表示時にも再取得（他ページで応援送信後の反映のため）
   useEffect(() => {
     const checkEncouragementStatus = async () => {
-      if (children.length === 0 || !profile?.id) return
+      if (children.length === 0) return
 
-      const { getDailySparkLevel } = await import("@/app/actions/daily-spark")
-      const statusMap: { [childId: number]: boolean } = {}
-
-      for (const child of children) {
-        const childIdNumber = parseInt(child.id, 10)
-        const level = await getDailySparkLevel(childIdNumber, profile.id)
-        statusMap[childIdNumber] = level === "parent" || level === "both"
+      try {
+        const { getDailySparkLevel } = await import("@/app/actions/daily-spark")
+        const { fetchEncouragementStatusMap } = await import("@/lib/utils/check-encouragement-status")
+        const statusMap = await fetchEncouragementStatusMap(children, getDailySparkLevel)
+        setEncouragementStatus(statusMap)
+      } catch (error) {
+        console.error("[ParentReflect] checkEncouragementStatus failed:", error)
+        const fallback: { [childId: number]: boolean } = {}
+        children.forEach((c) => {
+          const id = typeof c.id === "string" ? parseInt(c.id as string, 10) : c.id
+          if (Number.isInteger(id)) fallback[id] = false
+        })
+        setEncouragementStatus(fallback)
       }
-
-      setEncouragementStatus(statusMap)
     }
 
     // 初回実行
@@ -193,7 +197,7 @@ export default function ParentReflectPage() {
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange)
     }
-  }, [children, profile?.id])
+  }, [children])
 
   const getWeekTypeLabel = (weekType: string) => {
     switch (weekType) {

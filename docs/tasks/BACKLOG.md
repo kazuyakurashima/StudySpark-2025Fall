@@ -251,6 +251,7 @@
 - `lib/utils/daily-spark.ts` から `"use server"` を削除し、内部専用化
 - `daily-spark-logo.tsx` の import 元を `@/lib/utils/daily-spark` → `@/app/actions/daily-spark` に変更
 - 全呼び出し元が `app/actions/daily-spark.ts` を経由するように統一
+- **例外**: `scripts/debug-daily-spark.ts` はCLIデバッグ用のため `lib/utils/daily-spark.ts` を直接呼び出す（認証バイパス）。`server-only` は `app/actions/daily-spark.ts` に配置し、lib 層には付与しない
 
 **Step 2: `parentUserId` をサーバー側で確定** (`app/actions/daily-spark.ts`)
 - `parentUserId` を外部引数で受けず、サーバー側でセッションの `user.id` から確定

@@ -66,7 +66,7 @@ export function UserProfileHeader({ encouragementStatus }: UserProfileHeaderProp
         <div className="flex items-center">
           <DailySparkLogo
             studentId={profile.role === "student" ? profile.student?.id : selectedChild?.id}
-            parentUserId={profile.role === "parent" ? profile.id : undefined}
+            isParentView={profile.role === "parent"}
           />
         </div>
 
