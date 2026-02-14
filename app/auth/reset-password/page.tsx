@@ -26,10 +26,8 @@ export default function ResetPasswordPage() {
       const code = params.get("code")
 
       if (code) {
-        console.log("[ResetPassword] クライアント側 exchangeCodeForSession 開始")
         const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
         if (exchangeError) {
-          console.error("[ResetPassword] exchangeCodeForSession 失敗:", exchangeError.message)
           setError("リセットリンクが無効または期限切れです。もう一度パスワードリセットを申請してください。")
           return
         }

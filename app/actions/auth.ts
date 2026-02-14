@@ -341,6 +341,10 @@ export async function getCurrentUser() {
 
 /**
  * パスワードリセットメール送信 (保護者・指導者用)
+ *
+ * @deprecated Server Action 経由では PKCE code_verifier がブラウザ cookie に保存されず、
+ * exchangeCodeForSession が失敗する。代わりに forgot-password/page.tsx で
+ * ブラウザ側 createBrowserClient から直接 resetPasswordForEmail を呼ぶこと。
  */
 export async function sendPasswordResetEmail(email: string) {
   const supabase = await createClient()

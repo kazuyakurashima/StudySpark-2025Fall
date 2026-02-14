@@ -12,6 +12,10 @@ import { cookies } from "next/headers"
  * 1. ユーザーがメール内リンクをクリック → /auth/callback?code=xxx
  * 2. この Route Handler が code をセッションに交換
  * 3. type に応じて適切なページへリダイレクト
+ *
+ * 注意:
+ * - Vercel 環境では PKCE code_verifier cookie が Route Handler に届かない場合がある
+ * - その場合、code をクライアント側ページに渡してブラウザ側で exchange する
  */
 export async function GET(request: Request) {
   const url = new URL(request.url)
@@ -23,23 +27,7 @@ export async function GET(request: Request) {
   // オープンリダイレクト防止: /始まりの内部パスのみ許可
   const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/"
 
-  // TODO: デバッグログ（原因特定後に削除）
-  console.log("[auth/callback] params:", {
-    hasCode: !!code,
-    hasTokenHash: !!token_hash,
-    type,
-    next,
-    origin,
-    path: url.pathname,
-  })
-
   const cookieStore = await cookies()
-
-  // TODO: デバッグ — code_verifier cookie の存在確認（原因特定後に削除）
-  const allCookieNames = cookieStore.getAll().map((c) => c.name)
-  const authCookies = allCookieNames.filter((n) => n.includes("sb-") || n.includes("code"))
-  console.log("[auth/callback] auth関連cookie名:", authCookies)
-
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -65,30 +53,23 @@ export async function GET(request: Request) {
 
   if (code) {
     // PKCE フロー: code → セッション交換
-    console.log("[auth/callback] exchangeCodeForSession 開始")
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     exchangeError = error
     if (error) {
-      console.error("[auth/callback] exchangeCodeForSession 失敗:", error.message, error.status)
-
       // code_verifier が cookie に届かない場合（Vercel 環境など）、
       // クライアント側で exchange するためにリダイレクト
       if (error.message?.includes("code verifier") && next === "/auth/reset-password") {
-        console.log("[auth/callback] クライアント側 exchange にフォールバック")
-        return NextResponse.redirect(`${origin}/auth/reset-password?code=${code}`)
+        return NextResponse.redirect(
+          `${origin}/auth/reset-password?code=${encodeURIComponent(code)}`
+        )
       }
     }
   } else if (token_hash && type) {
     // token_hash フロー（メールテンプレート設定次第で発生）
-    console.log("[auth/callback] verifyOtp 開始:", { type })
     const { error } = await supabase.auth.verifyOtp({ token_hash, type })
     exchangeError = error
-    if (error) {
-      console.error("[auth/callback] verifyOtp 失敗:", error.message, error.status)
-    }
   } else {
     // code も token_hash もない場合はエラー
-    console.warn("[auth/callback] code も token_hash もなし → エラーリダイレクト")
     return NextResponse.redirect(`${origin}/?error=auth_callback_error`)
   }
 
@@ -109,6 +90,5 @@ export async function GET(request: Request) {
   }
 
   // exchange/verify 失敗時はログインページへ
-  console.error("[auth/callback] 最終エラー → ログインページへリダイレクト:", exchangeError?.message)
   return NextResponse.redirect(`${origin}/?error=auth_callback_error`)
 }
