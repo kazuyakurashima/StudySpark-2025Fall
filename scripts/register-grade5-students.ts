@@ -104,12 +104,15 @@ async function checkDuplicates(loginId: string) {
 /**
  * ロールバック処理（ベストエフォート）
  * Auth API はトランザクションに含められないため、可能な限りクリーンアップを試みる
+ *
+ * @param skipParentAuth - true の場合、既存保護者の auth を削除しない（兄弟追加時）
  */
 async function rollbackPartialRegistration(
   parentUserId?: string,
   studentUserId?: string,
   parentId?: number,
-  studentId?: number
+  studentId?: number,
+  skipParentAuth: boolean = false
 ) {
   console.log('\n🔄 Rolling back partial registration...')
 
@@ -168,7 +171,8 @@ async function rollbackPartialRegistration(
   }
 
   // 親アカウント削除（profiles は CASCADE で削除される）
-  if (parentUserId) {
+  // 兄弟追加時は既存保護者の auth を削除しない
+  if (parentUserId && !skipParentAuth) {
     const { error } = await supabase.auth.admin.deleteUser(parentUserId)
 
     if (error) {
@@ -176,6 +180,8 @@ async function rollbackPartialRegistration(
     } else {
       console.log('  ✓ Deleted parent auth user')
     }
+  } else if (skipParentAuth) {
+    console.log('  (既存保護者のため auth 削除をスキップ)')
   }
 
   console.log('  Rollback completed (best effort)')
@@ -215,6 +221,8 @@ async function registerStudent(record: StudentRecord): Promise<RegistrationResul
     console.log('  ✓ No login_id duplicates found')
 
     // 2. 保護者アカウント作成（auth.users）
+    // 既存保護者（兄弟追加）の場合はスキップして再利用する
+    let isExistingParent = false
     console.log(`\n👨‍👩‍👧 Creating parent account: ${parentEmail}`)
     const { data: parentAuthData, error: parentAuthError } = await supabase.auth.admin.createUser({
       email: parentEmail,
@@ -233,18 +241,32 @@ async function registerStudent(record: StudentRecord): Promise<RegistrationResul
                                parentAuthError?.message?.includes('exists')
 
       if (isDuplicateEmail) {
-        result.error = `Duplicate: Parent email already exists: ${parentEmail}`
+        // 兄弟追加: 既存保護者を再利用
+        console.log(`  ℹ️  保護者メール既存: ${parentEmail} → 既存保護者を再利用します`)
+        const { data: listData } = await supabase.auth.admin.listUsers()
+        const existingUser = listData?.users?.find(u => u.email === parentEmail)
+
+        if (!existingUser) {
+          result.error = `既存保護者の検索に失敗: ${parentEmail}`
+          console.error(`  ❌ ${result.error}`)
+          return result
+        }
+
+        result.parentUserId = existingUser.id
+        isExistingParent = true
+        console.log(`  ✓ 既存保護者を再利用: ${result.parentUserId}`)
       } else {
         result.error = `Failed to create parent auth: ${parentAuthError?.message}`
+        console.error(`  ❌ ${result.error}`)
+        return result
       }
-      console.error(`  ❌ ${result.error}`)
-      return result
+    } else {
+      result.parentUserId = parentAuthData.user.id
+      console.log(`  ✓ Parent user created: ${result.parentUserId}`)
     }
 
-    result.parentUserId = parentAuthData.user.id
-    console.log(`  ✓ Parent user created: ${result.parentUserId}`)
-
     // 3. 保護者プロフィール作成（profiles - auth.users の作成時に自動作成されるためUPDATEのみ）
+    // 既存保護者の場合もプロフィールは最新に更新する
     const { error: parentProfileError } = await supabase
       .from('profiles')
       .update({
@@ -257,32 +279,54 @@ async function registerStudent(record: StudentRecord): Promise<RegistrationResul
     if (parentProfileError) {
       result.error = `Failed to update parent profile: ${parentProfileError.message}`
       console.error(`  ❌ ${result.error}`)
-      await rollbackPartialRegistration(result.parentUserId)
+      if (!isExistingParent) {
+        await rollbackPartialRegistration(result.parentUserId)
+      }
       return result
     }
 
     console.log('  ✓ Parent profile updated')
 
     // 4. 保護者詳細情報作成（parents）
-    const { data: parentData, error: parentInsertError } = await supabase
-      .from('parents')
-      .insert({
-        user_id: result.parentUserId,
-        full_name: parentFullName,
-        furigana: parentFurigana
-      })
-      .select('id')
-      .single()
+    // 既存保護者の場合は parents テーブルから ID を取得
+    let parentId: number
 
-    if (parentInsertError || !parentData) {
-      result.error = `Failed to insert parent: ${parentInsertError?.message}`
-      console.error(`  ❌ ${result.error}`)
-      await rollbackPartialRegistration(result.parentUserId)
-      return result
+    if (isExistingParent) {
+      const { data: existingParent, error: existingParentError } = await supabase
+        .from('parents')
+        .select('id')
+        .eq('user_id', result.parentUserId)
+        .single()
+
+      if (existingParentError || !existingParent) {
+        result.error = `既存保護者の parents レコードが見つかりません: ${existingParentError?.message}`
+        console.error(`  ❌ ${result.error}`)
+        return result
+      }
+
+      parentId = existingParent.id
+      console.log(`  ✓ 既存保護者レコードを再利用: ID=${parentId}`)
+    } else {
+      const { data: parentData, error: parentInsertError } = await supabase
+        .from('parents')
+        .insert({
+          user_id: result.parentUserId,
+          full_name: parentFullName,
+          furigana: parentFurigana
+        })
+        .select('id')
+        .single()
+
+      if (parentInsertError || !parentData) {
+        result.error = `Failed to insert parent: ${parentInsertError?.message}`
+        console.error(`  ❌ ${result.error}`)
+        await rollbackPartialRegistration(result.parentUserId)
+        return result
+      }
+
+      parentId = parentData.id
+      console.log(`  ✓ Parent record created: ID=${parentId}`)
     }
-
-    const parentId = parentData.id
-    console.log(`  ✓ Parent record created: ID=${parentId}`)
 
     // 5. 生徒アカウント作成（auth.users）
     console.log(`\n👦 Creating student account: ${studentLoginId}`)
@@ -310,7 +354,9 @@ async function registerStudent(record: StudentRecord): Promise<RegistrationResul
         result.error = `Failed to create student auth: ${studentAuthError?.message}`
       }
       console.error(`  ❌ ${result.error}`)
-      await rollbackPartialRegistration(result.parentUserId, undefined, parentId)
+      if (!isExistingParent) {
+        await rollbackPartialRegistration(result.parentUserId, undefined, parentId)
+      }
       return result
     }
 
@@ -330,7 +376,7 @@ async function registerStudent(record: StudentRecord): Promise<RegistrationResul
     if (studentProfileError) {
       result.error = `Failed to update student profile: ${studentProfileError.message}`
       console.error(`  ❌ ${result.error}`)
-      await rollbackPartialRegistration(result.parentUserId, result.studentUserId, parentId)
+      await rollbackPartialRegistration(result.parentUserId, result.studentUserId, parentId, undefined, isExistingParent)
       return result
     }
 
@@ -353,7 +399,7 @@ async function registerStudent(record: StudentRecord): Promise<RegistrationResul
     if (studentInsertError || !studentData) {
       result.error = `Failed to insert student: ${studentInsertError?.message}`
       console.error(`  ❌ ${result.error}`)
-      await rollbackPartialRegistration(result.parentUserId, result.studentUserId, parentId)
+      await rollbackPartialRegistration(result.parentUserId, result.studentUserId, parentId, undefined, isExistingParent)
       return result
     }
 
@@ -373,7 +419,7 @@ async function registerStudent(record: StudentRecord): Promise<RegistrationResul
     if (relationError) {
       result.error = `Failed to create relation: ${relationError.message}`
       console.error(`  ❌ ${result.error}`)
-      await rollbackPartialRegistration(result.parentUserId, result.studentUserId, parentId, studentId)
+      await rollbackPartialRegistration(result.parentUserId, result.studentUserId, parentId, studentId, isExistingParent)
       return result
     }
 
