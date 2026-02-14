@@ -34,6 +34,12 @@ export async function GET(request: Request) {
   })
 
   const cookieStore = await cookies()
+
+  // TODO: デバッグ — code_verifier cookie の存在確認（原因特定後に削除）
+  const allCookieNames = cookieStore.getAll().map((c) => c.name)
+  const authCookies = allCookieNames.filter((n) => n.includes("sb-") || n.includes("code"))
+  console.log("[auth/callback] auth関連cookie名:", authCookies)
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
