@@ -307,6 +307,33 @@
   $ psql <DB2026_CONNECTION> -c "SELECT grade, COUNT(*) FROM students GROUP BY grade"
   $ psql <DB2026_CONNECTION> -c "SELECT COUNT(*) FROM parent_child_relations WHERE student_id NOT IN (SELECT id FROM students)"
   □ 主要件数・整合性が問題ないことを確認
+
+□ 卒業処理の事後確認（⚠️ 必須: 指導者画面への旧生徒表示を防止）
+  # 卒業対象が coach_student_relations から除外されているか確認
+  $ psql <DB2026_CONNECTION> -c "
+    SELECT csr.student_id, s.full_name
+    FROM coach_student_relations csr
+    JOIN students s ON s.id = csr.student_id
+    WHERE csr.student_id IN (
+      SELECT student_id FROM _backup_graduated_csr
+    )
+  "
+  □ 結果が 0 件であること（残存している場合は relation 削除を再実施）
+
+  # BAN 状態の確認（卒業対象の auth.users.banned_until が設定済みか）
+  $ psql <DB2026_CONNECTION> -c "
+    SELECT au.email, au.banned_until, s.full_name
+    FROM students s
+    JOIN auth.users au ON au.id = s.user_id
+    WHERE s.id IN (SELECT student_id FROM _backup_graduated_csr)
+    ORDER BY au.banned_until NULLS FIRST
+  "
+  □ 全員の banned_until が設定済みであること（NULL がある場合は BAN を再実施）
+
+  # 注意: 卒業生の判定に students.grade は使用しない
+  # 繰り上げ後は grade=6 に現役生も含まれるため、
+  # 卒業対象リスト（graduating_students_*.csv / _backup_graduated_*）を基準にする
+  # 詳細: 03_data_strategy.md セクション 7.2
 ```
 
 ### Phase 2.5: 新小5生徒登録（00:35〜）

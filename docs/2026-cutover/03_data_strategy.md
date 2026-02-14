@@ -621,6 +621,66 @@ banGraduatedUsers(process.argv[2])
 - `csv-parse`: CSV パース用ライブラリ（`pnpm add csv-parse` で追加）
 - `tsx`: TypeScript 実行用（`pnpm add -D tsx` で追加）
 
+### 7.2 卒業生判定の基準と注意事項
+
+**卒業生の判定には `students.grade` を使用してはならない。**
+
+ランブックの実行順序は以下の通り:
+
+1. 卒業対象を CSV 化（`WHERE grade = 6` で抽出）→ `graduating_students_*.csv`
+2. 学年繰り上げ（`UPDATE students SET grade = 6 WHERE grade = 5`）
+3. 卒業処理（relation 削除 + auth BAN）
+
+繰り上げ（手順2）後は現役小6・新小5投入後の小5が混在するため、**`grade` 単体では卒業生を特定できない**。
+
+**卒業生判定の一次ソース（優先順）**:
+
+| 優先度 | ソース | 説明 |
+|--------|--------|------|
+| 1 | `graduating_students_*.csv` | 切替時に出力した卒業対象リスト |
+| 2 | `_backup_graduated_csr` / `_backup_graduated_pcr` | ソフト除外方式で作成したバックアップテーブル |
+| 3 | `auth.users.banned_until` | BAN 済みユーザー（SQL Editor / service role でのみ参照可） |
+
+**`auth.users` のアクセス制約**:
+
+- `auth.users` は Supabase 内部スキーマで、通常の RLS コンテキスト（anon / authenticated）からはアクセス不可
+- 確認は SQL Editor（service role）で実行する
+- アプリ層（`getCoachStudents()` 等）から `banned_until` を直接参照するガードは設計上困難
+  - 必要な場合は SECURITY DEFINER RPC を作成するか、relation 削除の徹底で代替する
+
+### 7.3 アプリ側ガードの方針（中長期）
+
+卒業処理の relation 削除漏れによる再発を防止するため、`coach_student_relations` にアクティブ管理カラムを追加する。
+
+**DDL 追加（実施時期: 次回年次切替前）**:
+
+```sql
+ALTER TABLE coach_student_relations
+  ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN unassigned_at TIMESTAMPTZ;
+```
+
+**アプリガード（`getCoachStudents()` 等）**:
+
+```typescript
+.eq("coach_id", coach.id)
+.eq("is_active", true)  // 追加
+```
+
+**卒業処理の変更**:
+
+```sql
+-- 物理削除の代わりに論理削除
+UPDATE coach_student_relations
+SET is_active = false, unassigned_at = NOW()
+WHERE student_id IN (<卒業対象IDs>);
+```
+
+**担当割当の運用改善**:
+
+- CROSS JOIN で全指導者×全生徒を紐付ける運用は再発リスクが高いため廃止する
+- 担当割当は明示的な student_id リストで UPSERT する方式に移行する
+
 ## 8. Master データ刷新
 
 ### 8.1 刷新対象
