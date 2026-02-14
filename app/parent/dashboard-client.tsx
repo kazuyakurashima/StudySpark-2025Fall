@@ -1917,23 +1917,22 @@ function ParentDashboardInner({
   // ページ表示時にも再取得（他ページで応援送信後の反映のため）
   useEffect(() => {
     const checkEncouragementStatus = async () => {
-      if (!children || children.length === 0 || !profile?.id) return
+      if (!children || children.length === 0) return
 
-      const { getDailySparkLevel } = await import("@/app/actions/daily-spark")
-      const statusMap: { [childId: number]: boolean } = {}
-
-      for (const child of children) {
-        try {
-          const level = await getDailySparkLevel(child.id, profile.id)
-          // "parent" または "both" なら応援済み
-          statusMap[child.id] = level === "parent" || level === "both"
-        } catch (error) {
-          console.error(`[EncouragementStatus] Error for child ${child.id}:`, error)
-          statusMap[child.id] = false
-        }
+      try {
+        const { getDailySparkLevel } = await import("@/app/actions/daily-spark")
+        const { fetchEncouragementStatusMap } = await import("@/lib/utils/check-encouragement-status")
+        const statusMap = await fetchEncouragementStatusMap(children, getDailySparkLevel)
+        setEncouragementStatus(statusMap)
+      } catch (error) {
+        console.error("[ParentDashboard] checkEncouragementStatus failed:", error)
+        const fallback: { [childId: number]: boolean } = {}
+        children.forEach((c) => {
+          const id = typeof c.id === "string" ? parseInt(c.id as string, 10) : c.id
+          if (Number.isInteger(id)) fallback[id] = false
+        })
+        setEncouragementStatus(fallback)
       }
-
-      setEncouragementStatus(statusMap)
     }
 
     // 初回実行
@@ -1951,7 +1950,7 @@ function ParentDashboardInner({
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange)
     }
-  }, [children, profile?.id])
+  }, [children])
 
   const greetingMessage = getGreetingMessage(userName, lastLoginInfo)
 

@@ -153,28 +153,20 @@ export default function ParentGoalNaviPage() {
     const checkEncouragementStatus = async () => {
       if (children.length === 0) return
 
-      const { getDailySparkLevel } = await import("@/app/actions/daily-spark")
-      const statusMap: { [childId: number]: boolean } = {}
-
-      // 保護者のuser_idを取得（仮にauth.uidを使用）
-      const { createClient } = await import("@/lib/supabase/client")
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) return
-
-      for (const child of children) {
-        try {
-          const childIdNumber = parseInt(child.id, 10)
-          const level = await getDailySparkLevel(childIdNumber, user.id)
-          statusMap[childIdNumber] = level === "parent" || level === "both"
-        } catch (error) {
-          console.error(`[EncouragementStatus] Error for child ${child.id}:`, error)
-          statusMap[parseInt(child.id, 10)] = false
-        }
+      try {
+        const { getDailySparkLevel } = await import("@/app/actions/daily-spark")
+        const { fetchEncouragementStatusMap } = await import("@/lib/utils/check-encouragement-status")
+        const statusMap = await fetchEncouragementStatusMap(children, getDailySparkLevel)
+        setEncouragementStatus(statusMap)
+      } catch (error) {
+        console.error("[ParentGoal] checkEncouragementStatus failed:", error)
+        const fallback: { [childId: number]: boolean } = {}
+        children.forEach((c) => {
+          const id = typeof c.id === "string" ? parseInt(c.id as string, 10) : c.id
+          if (Number.isInteger(id)) fallback[id] = false
+        })
+        setEncouragementStatus(fallback)
       }
-
-      setEncouragementStatus(statusMap)
     }
 
     // 初回実行

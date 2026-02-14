@@ -116,6 +116,8 @@ async function debugDailySpark() {
   }
 
   // 5. getDailySparkLevel の実行をシミュレート
+  // NOTE: デバッグ用スクリプトのため内部関数を直接呼び出し（認証バイパス）
+  // 本番コードでは必ず app/actions/daily-spark.ts 経由で呼ぶこと
   console.log(`\n🔧 Testing getDailySparkLevel logic...`)
   const { getDailySparkLevel } = await import("@/lib/utils/daily-spark")
   try {

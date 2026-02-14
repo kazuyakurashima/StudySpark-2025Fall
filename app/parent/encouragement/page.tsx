@@ -34,7 +34,7 @@ interface EncouragementLog extends StudyLogWithBatch {
 
 export default function ParentEncouragementPage() {
   const searchParams = useSearchParams()
-  const { profile, children, setSelectedChildId: setProviderChildId, selectedChildId: providerSelectedChildId } = useUserProfile()
+  const { children, setSelectedChildId: setProviderChildId, selectedChildId: providerSelectedChildId } = useUserProfile()
 
   // URLパラメータから child ID を取得
   const childParam = searchParams.get("child")
@@ -67,17 +67,22 @@ export default function ParentEncouragementPage() {
   // ページ表示時にも再取得（他ページで応援送信後の反映のため）
   useEffect(() => {
     const checkEncouragementStatus = async () => {
-      if (!children || children.length === 0 || !profile?.id) return
+      if (!children || children.length === 0) return
 
-      const { getDailySparkLevel } = await import("@/app/actions/daily-spark")
-      const statusMap: { [childId: number]: boolean } = {}
-
-      for (const child of children) {
-        const level = await getDailySparkLevel(child.id, profile.id)
-        statusMap[child.id] = level === "parent" || level === "both"
+      try {
+        const { getDailySparkLevel } = await import("@/app/actions/daily-spark")
+        const { fetchEncouragementStatusMap } = await import("@/lib/utils/check-encouragement-status")
+        const statusMap = await fetchEncouragementStatusMap(children, getDailySparkLevel)
+        setEncouragementStatus(statusMap)
+      } catch (error) {
+        console.error("[ParentEncouragement] checkEncouragementStatus failed:", error)
+        const fallback: { [childId: number]: boolean } = {}
+        children.forEach((c) => {
+          const id = typeof c.id === "string" ? parseInt(c.id as string, 10) : c.id
+          if (Number.isInteger(id)) fallback[id] = false
+        })
+        setEncouragementStatus(fallback)
       }
-
-      setEncouragementStatus(statusMap)
     }
 
     // 初回実行
@@ -95,7 +100,7 @@ export default function ParentEncouragementPage() {
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange)
     }
-  }, [children, profile?.id])
+  }, [children])
 
   // URL パラメータの child ID をプロバイダーに反映（初回のみ）
   useEffect(() => {
