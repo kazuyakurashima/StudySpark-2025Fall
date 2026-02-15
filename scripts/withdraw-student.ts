@@ -7,15 +7,16 @@
  *
  * 実行方法:
  *   set -a && source .env.local && set +a
- *   npx tsx scripts/withdraw-student.ts <login_id> [--dry-run] [--force]
+ *   npx tsx scripts/withdraw-student.ts <login_id|名前> [--dry-run] [--force] [--allow-local]
  *
  * 例:
  *   npx tsx scripts/withdraw-student.ts hana6 --dry-run
  *   npx tsx scripts/withdraw-student.ts hana6 --force
  *
  * オプション:
- *   --dry-run  実際には変更せず、対象を表示するのみ
- *   --force    確認プロンプトをスキップ
+ *   --dry-run      実際には変更せず、対象を表示するのみ
+ *   --force        確認プロンプトをスキップ
+ *   --allow-local  ローカル環境（localhost/127.0.0.1）への接続を許可
  *
  * 復元手順（必要な場合）:
  *   1. バックアップファイルを確認: scripts/backups/withdrawn_<login_id>_<YYYYMMDD_HHMM>.json
@@ -36,6 +37,45 @@ if (!supabaseUrl || !serviceRoleKey) {
   console.error('Please set:')
   console.error('  - NEXT_PUBLIC_SUPABASE_URL')
   console.error('  - SUPABASE_SERVICE_ROLE_KEY')
+  process.exit(1)
+}
+
+// 環境プリフライトチェック: ローカル環境への誤接続を防止
+// Supabase URL パターン:
+//   本番: https://<project_ref>.supabase.co  (project_ref は20文字の英数字)
+//   ローカル: http://127.0.0.1:54321 / http://localhost:54321
+//   その他: 判定不能なため 'unknown' として扱う
+function detectEnvironment(url: string): 'local' | 'production' | 'unknown' {
+  let host: string
+  try {
+    host = new URL(url).hostname
+  } catch {
+    console.error(`⚠️  NEXT_PUBLIC_SUPABASE_URL の形式が不正です: ${url}`)
+    console.error('   有効な URL を設定してください（例: https://xxxxx.supabase.co）')
+    process.exit(1)
+  }
+  if (host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.')) {
+    return 'local'
+  }
+  if (host.endsWith('.supabase.co')) {
+    return 'production'
+  }
+  return 'unknown'
+}
+
+const detectedEnv = detectEnvironment(supabaseUrl)
+const allowLocal = process.argv.includes('--allow-local')
+
+if (detectedEnv === 'local' && !allowLocal) {
+  console.error('⚠️  ローカル環境（localhost/127.0.0.1）に接続しようとしています')
+  console.error(`   NEXT_PUBLIC_SUPABASE_URL = ${supabaseUrl}`)
+  console.error('')
+  console.error('本番の退塾処理を行う場合は、本番環境の環境変数を読み込んでください:')
+  console.error('  vercel env pull .env.production.local --environment=production')
+  console.error('  set -a && source .env.production.local && set +a')
+  console.error('')
+  console.error('ローカル環境で実行する場合は --allow-local フラグを追加してください:')
+  console.error(`  npx tsx scripts/withdraw-student.ts <login_id> --allow-local`)
   process.exit(1)
 }
 
@@ -65,22 +105,38 @@ function getTimestamp(): string {
   return `${y}${m}${d}_${h}${min}`
 }
 
-async function findStudent(loginId: string): Promise<StudentInfo | null> {
-  // login_id で検索
-  const { data, error } = await supabase
+async function findStudent(input: string): Promise<StudentInfo | null> {
+  // login_id 完全一致で検索
+  const { data: exactMatch, error: exactError } = await supabase
     .from('students')
     .select('id, user_id, login_id, full_name, grade, course')
-    .eq('login_id', loginId)
-    .single()
+    .eq('login_id', input)
+    .maybeSingle()
 
-  if (error && error.code === 'PGRST116') {
-    // 見つからない場合
-    return null
+  if (exactError) {
+    throw new Error(`生徒検索エラー: ${exactError.message}`)
   }
-  if (error) {
-    throw new Error(`生徒検索エラー: ${error.message}`)
+  if (exactMatch) return exactMatch
+
+  // full_name 部分一致で検索（login_id で見つからない場合のフォールバック）
+  const { data: nameMatches, error: nameError } = await supabase
+    .from('students')
+    .select('id, user_id, login_id, full_name, grade, course')
+    .ilike('full_name', `%${input}%`)
+
+  if (nameError) {
+    throw new Error(`生徒検索エラー: ${nameError.message}`)
   }
-  return data
+  if (!nameMatches || nameMatches.length === 0) return null
+  if (nameMatches.length === 1) return nameMatches[0]
+
+  // 複数ヒット時は一覧表示して選択を促す
+  console.error(`⚠️  「${input}」に複数の生徒がヒットしました:`)
+  nameMatches.forEach((s, i) => {
+    console.error(`   ${i + 1}. ${s.full_name} (login_id: ${s.login_id}, 小${s.grade}年)`)
+  })
+  console.error('\nlogin_id を指定して再実行してください')
+  process.exit(1)
 }
 
 async function main() {
@@ -90,8 +146,9 @@ async function main() {
   const force = flags.includes('--force')
 
   if (args.length < 1) {
-    console.error('Usage: npx tsx scripts/withdraw-student.ts <login_id> [--dry-run] [--force]')
+    console.error('Usage: npx tsx scripts/withdraw-student.ts <login_id|名前> [--dry-run] [--force] [--allow-local]')
     console.error('Example: npx tsx scripts/withdraw-student.ts hana6')
+    console.error('         npx tsx scripts/withdraw-student.ts 寺門')
     process.exit(1)
   }
 
@@ -102,6 +159,7 @@ async function main() {
   console.log('='.repeat(60))
   console.log(`対象: ${input}`)
   console.log(`Supabase: ${supabaseUrl}`)
+  console.log(`環境: ${detectedEnv}`)
   console.log(`Mode: ${dryRun ? 'DRY-RUN（実際には変更しません）' : 'EXECUTE'}`)
   console.log('='.repeat(60))
 
@@ -111,7 +169,8 @@ async function main() {
 
   if (!student) {
     console.error(`❌ 生徒が見つかりません: ${input}`)
-    console.error('   login_id を確認してください')
+    console.error(`   login_id または氏名（部分一致）で検索しました`)
+    console.error(`   接続先: ${supabaseUrl} (${detectedEnv})`)
     process.exit(1)
   }
 

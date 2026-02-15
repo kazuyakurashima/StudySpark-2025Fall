@@ -12,17 +12,47 @@ NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIs...
 ```
 
+### 環境の確認（必須・初動で実施）
+
+**スクリプト実行前に、必ず接続先環境を確認すること。**
+`.env.local` がローカル Docker（`http://127.0.0.1:54321`）を向いている場合、本番データは操作できない。
+
+```bash
+# 1. 現在の接続先を確認
+grep NEXT_PUBLIC_SUPABASE_URL .env.local
+
+# 期待値: https://xxxxx.supabase.co（本番）
+# NG: http://127.0.0.1:54321 または http://localhost:54321（ローカル）
+```
+
+**本番環境変数の取得（Vercel プロジェクトの場合）:**
+
+```bash
+# Vercel から本番環境変数をプル（初回 or 環境変数更新時）
+vercel env pull .env.production.local --environment=production
+
+# 本番用環境変数を読み込み
+set -a && source .env.production.local && set +a
+
+# 2. 読み込み後、実際にシェルに反映された値を確認
+echo "$NEXT_PUBLIC_SUPABASE_URL"
+# 期待値: https://xxxxx.supabase.co（本番）
+```
+
+**ローカル環境変数の読み込み（開発・テスト用）:**
+
+```bash
+set -a && source .env.local && set +a
+echo "$NEXT_PUBLIC_SUPABASE_URL"
+```
+
+> **安全装置**: `withdraw-student.ts` は localhost/127.0.0.1 への接続を検知した場合、`--allow-local` フラグなしでは自動停止します。
+
 ### 依存関係
 
 ```bash
 pnpm add csv-parse iconv-lite
 pnpm add -D @types/node tsx
-```
-
-### 環境変数の読み込み
-
-```bash
-set -a && source .env.local && set +a
 ```
 
 ---
@@ -37,15 +67,20 @@ set -a && source .env.local && set +a
 ### 実行手順
 
 ```bash
-# 1. dry-run で対象を確認
-npx tsx scripts/withdraw-student.ts <login_id> --dry-run
+# 1. dry-run で対象を確認（login_id または氏名で検索可能）
+npx tsx scripts/withdraw-student.ts <login_id|名前> --dry-run
 
 # 2. 実行（確認プロンプトあり）
-npx tsx scripts/withdraw-student.ts <login_id>
+npx tsx scripts/withdraw-student.ts <login_id|名前>
 
 # 3. --force で確認プロンプトをスキップ
 npx tsx scripts/withdraw-student.ts <login_id> --force
+
+# ローカル環境で実行する場合（開発・テスト用）
+npx tsx scripts/withdraw-student.ts <login_id> --allow-local
 ```
+
+> スクリプト起動時に接続先URL・環境種別（local/production/unknown）が表示されます。想定と異なる場合は CTRL+C で中断してください。
 
 ### 事後確認
 

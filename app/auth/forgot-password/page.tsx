@@ -23,8 +23,13 @@ export default function ForgotPasswordPage() {
     try {
       const supabase = createClient()
 
-      // PKCE フロー: ブラウザ側で呼び出すことで code_verifier が
-      // ブラウザの cookie/storage に確実に保存される
+      // resetPasswordForEmail は必ずブラウザ側（createBrowserClient）で呼ぶこと。
+      // Server Action 経由だと code_verifier がサーバー側に生成され cookie に保存されない。
+      //
+      // redirectTo は PKCE code フローで使用される（Supabase が callback に code を付与）。
+      // 正規フロー（token_hash 方式）ではメールテンプレート側で直接
+      // /auth/reset-password に遷移するため、この redirectTo は使われない。
+      // 後方互換のために残している。
       const redirectTo = `${window.location.origin}/auth/callback?next=/auth/reset-password`
 
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
