@@ -65,10 +65,25 @@ JOIN auth.users au ON au.id = s.user_id
 WHERE s.login_id = '<login_id>';
 ```
 
+### バックアップについて
+
+- 保存先: `scripts/backups/withdrawn_<login_id>_<YYYYMMDD_HHMM>.json`（ローカル端末のみ）
+- `.gitignore` で Git 追跡対象外（PII を含むため）
+- 実行後、バックアップファイルが作成されたことを確認すること
+- 重要な退塾処理の場合、バックアップファイルを安全な場所にコピーしておくことを推奨
+
+**PII管理ルール:**
+- バックアップファイルには生徒氏名・ID等の個人情報が含まれる
+- **保存期間**: 退塾処理から 90日間（復元が必要ないと確認できた時点で削除可）
+- **削除**: `rm scripts/backups/withdrawn_<login_id>_*.json` で対象ファイルを削除
+- **アクセス権限**: 管理者のみがアクセスする端末で実行・保管すること
+- **共有禁止**: Slack・メール等でバックアップファイルを共有しないこと
+
 ### 復元手順（誤って退塾処理した場合）
 
-1. スクリプト実行時に出力された INSERT 文で relation を復元
-2. Supabase Dashboard > Auth > Users > 対象ユーザー > **Unban**
+1. バックアップファイルを確認: `scripts/backups/withdrawn_<login_id>_<YYYYMMDD_HHMM>.json`
+2. ファイル内の `restore_sql` の INSERT 文を SQL Editor で実行（`ON CONFLICT DO NOTHING` 付きのため再実行安全）
+3. Supabase Dashboard > Auth > Users > 対象ユーザー > **Unban**
 
 ---
 
@@ -125,26 +140,32 @@ SELECT setval('parent_child_relations_id_seq', COALESCE((SELECT MAX(id) FROM par
 
 新入塾生を指導者に割り当てる。
 
-### SQL テンプレート
+### 指導者IDの確認
 
-SQL Editor で以下を実行:
+割当前に対象の `coach_id` を確認:
 
 ```sql
--- 特定の指導者に特定の生徒を割当
+SELECT id, full_name, user_id FROM coaches ORDER BY id;
+```
+
+### SQL テンプレート
+
+SQL Editor で以下を実行（`coach_id` を直接指定して同名リスクを回避）:
+
+```sql
+-- 特定の指導者に特定の生徒を割当（coach_id で指定）
 INSERT INTO coach_student_relations (coach_id, student_id)
-SELECT c.id, s.id
-FROM coaches c, students s
-WHERE c.full_name = '指導者名'
-  AND s.login_id = '生徒のlogin_id'
+SELECT <coach_id>, s.id
+FROM students s
+WHERE s.login_id = '生徒のlogin_id'
 ON CONFLICT (coach_id, student_id) DO NOTHING;
 
--- 特定の指導者に全生徒を割当（非推奨: 明示リストを使うこと）
--- INSERT INTO coach_student_relations (coach_id, student_id)
--- SELECT c.id, s.id
--- FROM coaches c
--- CROSS JOIN students s
--- WHERE c.full_name = '指導者名'
--- ON CONFLICT (coach_id, student_id) DO NOTHING;
+-- 複数生徒を一括割当
+INSERT INTO coach_student_relations (coach_id, student_id)
+SELECT <coach_id>, s.id
+FROM students s
+WHERE s.login_id IN ('login_id_1', 'login_id_2', 'login_id_3')
+ON CONFLICT (coach_id, student_id) DO NOTHING;
 ```
 
 ### 割当確認
@@ -206,3 +227,9 @@ API 経由（未検証）:
 ```typescript
 await supabase.auth.admin.updateUserById(userId, { ban_duration: 'none' })
 ```
+
+---
+
+## 6. 中長期TODO
+
+- **退塾処理のトランザクション化**: 現在の `withdraw-student.ts` は非原子的（JS Client の個別API呼び出し）。退塾件数が増えた場合、Supabase RPC 関数で「バックアップ・削除・BAN」を1トランザクションに統合し、部分適用リスクを排除する

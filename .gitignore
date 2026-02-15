@@ -35,6 +35,9 @@ scripts/fix-coach-auth.ts
 # local seed data (contains sensitive data / PII)
 scripts/.seed-data.local.json
 
+# withdrawal backup data (contains PII)
+scripts/backups/
+
 # export data (contains PII)
 export/
 

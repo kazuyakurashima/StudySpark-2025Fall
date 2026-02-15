@@ -18,13 +18,14 @@
  *   --force    確認プロンプトをスキップ
  *
  * 復元手順（必要な場合）:
- *   1. バックアップテーブルから relation を復元:
- *      INSERT INTO coach_student_relations SELECT * FROM _backup_withdrawn_csr_YYYYMMDD_HHMM;
- *      INSERT INTO parent_child_relations SELECT * FROM _backup_withdrawn_pcr_YYYYMMDD_HHMM;
- *   2. BAN 解除: Supabase Dashboard > Auth > Users > 対象ユーザー > Unban
+ *   1. バックアップファイルを確認: scripts/backups/withdrawn_<login_id>_<YYYYMMDD_HHMM>.json
+ *   2. ファイル内の restore_sql の INSERT 文を SQL Editor で実行
+ *   3. BAN 解除: Supabase Dashboard > Auth > Users > 対象ユーザー > Unban
  */
 
 import { createClient } from '@supabase/supabase-js'
+import { writeFileSync, mkdirSync, existsSync } from 'fs'
+import { join } from 'path'
 
 // 環境変数チェック
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -122,15 +123,27 @@ async function main() {
   console.log(`   user_id: ${student.user_id}`)
 
   // 関連データの確認
-  const { data: csrData } = await supabase
+  const { data: csrData, error: csrFetchError } = await supabase
     .from('coach_student_relations')
     .select('id, coach_id, coaches(full_name)')
     .eq('student_id', student.id)
 
-  const { data: pcrData } = await supabase
+  if (csrFetchError) {
+    console.error(`❌ coach_student_relations 取得失敗: ${csrFetchError.message}`)
+    console.error('   関連データを正確に把握できないため、処理を中断します')
+    process.exit(1)
+  }
+
+  const { data: pcrData, error: pcrFetchError } = await supabase
     .from('parent_child_relations')
     .select('id, parent_id, parents(full_name)')
     .eq('student_id', student.id)
+
+  if (pcrFetchError) {
+    console.error(`❌ parent_child_relations 取得失敗: ${pcrFetchError.message}`)
+    console.error('   関連データを正確に把握できないため、処理を中断します')
+    process.exit(1)
+  }
 
   const csrCount = csrData?.length ?? 0
   const pcrCount = pcrData?.length ?? 0
@@ -164,40 +177,53 @@ async function main() {
   }
 
   const timestamp = getTimestamp()
-  const csrBackupTable = `_backup_withdrawn_csr_${timestamp}`
-  const pcrBackupTable = `_backup_withdrawn_pcr_${timestamp}`
 
-  // ステップ2: リレーションのバックアップ
+  // ステップ2: リレーションのバックアップ（JSONファイル保存）
+  const backupDir = join(process.cwd(), 'scripts', 'backups')
+  const backupFile = join(backupDir, `withdrawn_${student.login_id}_${timestamp}.json`)
+
   if (csrCount > 0 || pcrCount > 0) {
     console.log('\n💾 リレーションをバックアップ中...')
 
-    if (!dryRun) {
-      // バックアップテーブル作成 + relation 削除を1つの RPC/SQL で実行
-      // Supabase JS client では DDL (CREATE TABLE AS) が実行できないため、
-      // rpc 経由か直接 SQL を使う。ここでは relation の件数が少ないため
-      // JS client の DELETE で対応し、バックアップはログに記録する方式にする
+    const backupData = {
+      timestamp: new Date().toISOString(),
+      student: {
+        id: student.id,
+        user_id: student.user_id,
+        login_id: student.login_id,
+        full_name: student.full_name,
+        grade: student.grade,
+        course: student.course,
+      },
+      coach_student_relations: csrData ?? [],
+      parent_child_relations: pcrData ?? [],
+      restore_sql: [
+        ...(csrData ?? []).map((r: any) =>
+          `INSERT INTO coach_student_relations (coach_id, student_id) VALUES (${r.coach_id}, ${student.id}) ON CONFLICT (coach_id, student_id) DO NOTHING;`
+        ),
+        ...(pcrData ?? []).map((r: any) =>
+          `INSERT INTO parent_child_relations (parent_id, student_id) VALUES (${r.parent_id}, ${student.id}) ON CONFLICT (parent_id, student_id) DO NOTHING;`
+        ),
+      ],
+    }
 
-      // バックアップ情報をログに記録（復元用）
-      console.log(`\n📝 バックアップデータ（復元用に記録）:`)
-      if (csrData && csrData.length > 0) {
-        console.log(`   coach_student_relations:`)
-        csrData.forEach((r: any) => {
-          console.log(`     INSERT INTO coach_student_relations (coach_id, student_id) VALUES (${r.coach_id}, ${student.id});`)
-        })
+    if (!dryRun) {
+      if (!existsSync(backupDir)) {
+        mkdirSync(backupDir, { recursive: true })
       }
-      if (pcrData && pcrData.length > 0) {
-        console.log(`   parent_child_relations:`)
-        pcrData.forEach((r: any) => {
-          console.log(`     INSERT INTO parent_child_relations (parent_id, student_id) VALUES (${r.parent_id}, ${student.id});`)
-        })
-      }
+      writeFileSync(backupFile, JSON.stringify(backupData, null, 2), 'utf-8')
+      console.log(`   ✓ バックアップ保存: ${backupFile}`)
+      console.log(`\n📝 復元用 SQL:`)
+      backupData.restore_sql.forEach(sql => console.log(`     ${sql}`))
     } else {
-      console.log(`   [dry-run] バックアップテーブル: ${csrBackupTable}, ${pcrBackupTable}`)
+      console.log(`   [dry-run] バックアップ先: ${backupFile}`)
     }
   }
 
   // ステップ3: リレーション削除
+  // CSR → PCR の順で削除。PCR 失敗時は CSR を再投入して擬似ロールバックする
   console.log('\n🗑️  リレーションを削除中...')
+  let csrDeleted = false
 
   if (csrCount > 0) {
     if (dryRun) {
@@ -210,9 +236,12 @@ async function main() {
 
       if (csrDeleteError) {
         console.error(`   ❌ coach_student_relations 削除失敗: ${csrDeleteError.message}`)
-      } else {
-        console.log(`   ✓ coach_student_relations: ${csrCount} 件を削除`)
+        console.error('   ⚠️  後続処理（PCR削除・BAN）をスキップします')
+        console.error(`   バックアップファイル: ${backupFile}`)
+        process.exit(1)
       }
+      csrDeleted = true
+      console.log(`   ✓ coach_student_relations: ${csrCount} 件を削除`)
     }
   } else {
     console.log('   (coach_student_relations: 対象なし)')
@@ -229,16 +258,42 @@ async function main() {
 
       if (pcrDeleteError) {
         console.error(`   ❌ parent_child_relations 削除失敗: ${pcrDeleteError.message}`)
-      } else {
-        console.log(`   ✓ parent_child_relations: ${pcrCount} 件を削除`)
+
+        // CSR を擬似ロールバック（再投入）
+        if (csrDeleted && csrData && csrData.length > 0) {
+          console.error('   🔄 CSR を復元中...')
+          let restoreFailCount = 0
+          for (const r of csrData) {
+            const { error: restoreError } = await supabase
+              .from('coach_student_relations')
+              .upsert({ coach_id: (r as any).coach_id, student_id: student.id },
+                { onConflict: 'coach_id,student_id' })
+            if (restoreError) {
+              restoreFailCount++
+              console.error(`   ❌ CSR 復元失敗 (coach_id=${(r as any).coach_id}): ${restoreError.message}`)
+            }
+          }
+          if (restoreFailCount > 0) {
+            console.error(`   ⚠️  CSR 復元: ${restoreFailCount}/${csrData.length} 件が失敗`)
+            console.error('   手動で復元してください（バックアップファイルの restore_sql を参照）')
+          } else {
+            console.error('   ✓ CSR 復元完了')
+          }
+        }
+
+        console.error(`   バックアップファイル: ${backupFile}`)
+        process.exit(1)
       }
+      console.log(`   ✓ parent_child_relations: ${pcrCount} 件を削除`)
     }
   } else {
     console.log('   (parent_child_relations: 対象なし)')
   }
 
-  // ステップ4: auth.users BAN
+  // ステップ4: auth.users BAN（リレーション削除がすべて成功した場合のみ到達）
   console.log('\n🔒 auth.users を BAN 中...')
+
+  let banSuccess = false
 
   if (dryRun) {
     console.log(`   [dry-run] BAN 予定: ${student.user_id}`)
@@ -253,6 +308,7 @@ async function main() {
       console.error('   ⚠️  リレーションは既に削除済みです。BAN を手動で実施してください:')
       console.error(`      Supabase Dashboard > Auth > Users > ${student.login_id}@studyspark.local > Ban`)
     } else {
+      banSuccess = true
       console.log(`   ✓ BAN 完了 (${BAN_DURATION})`)
     }
   }
@@ -264,14 +320,20 @@ async function main() {
   console.log(`生徒: ${student.full_name} (${student.login_id})`)
   console.log(`coach_student_relations 削除: ${csrCount} 件`)
   console.log(`parent_child_relations 削除: ${pcrCount} 件`)
-  console.log(`auth BAN: ${dryRun ? '[dry-run]' : '完了'}`)
+  console.log(`auth BAN: ${dryRun ? '[dry-run]' : banSuccess ? '完了' : '❌ 失敗（手動対応必要）'}`)
 
   if (dryRun) {
     console.log('\n[dry-run] 実際には変更されていません。')
   } else {
     console.log('\n復元が必要な場合:')
-    console.log('  1. 上記の INSERT 文で relation を復元')
-    console.log('  2. Supabase Dashboard > Auth > Users > 対象ユーザー > Unban')
+    console.log(`  1. バックアップファイル: ${backupFile}`)
+    console.log('  2. restore_sql の INSERT 文を SQL Editor で実行')
+    console.log('  3. Supabase Dashboard > Auth > Users > 対象ユーザー > Unban')
+  }
+
+  if (!dryRun && !banSuccess) {
+    console.error('\n⚠️  BAN が未完了のため異常終了します')
+    process.exit(1)
   }
 
   console.log('\n✨ 完了')
