@@ -8,6 +8,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { createClient } from "@/lib/supabase/client"
 
+/**
+ * パスワードリセットページ
+ *
+ * 正規フロー（token_hash 方式）:
+ *   メールリンク → /auth/reset-password?token_hash=xxx&type=recovery
+ *   → verifyOtp でセッション確立 → パスワード変更
+ *   ※ Supabase メールテンプレートで token_hash 方式を設定する必要あり
+ *
+ * 後方互換（PKCE code 方式）:
+ *   メールリンク → Supabase verify → /auth/callback → /auth/reset-password?code=xxx
+ *   → exchangeCodeForSession でセッション確立
+ *   ※ code_verifier cookie 依存のため Vercel 環境で不安定
+ */
+
+const RESET_ERROR_MESSAGE = "リセットリンクが無効または期限切れです。もう一度パスワードリセットを申請してください。"
+const INVALID_LINK_MESSAGE = "無効なリセットリンクです。もう一度パスワードリセットを申請してください。"
+
 export default function ResetPasswordPage() {
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -20,31 +37,46 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     const initSession = async () => {
-      // まず既存セッションを確認。
+      const params = new URLSearchParams(window.location.search)
+      const code = params.get("code")
+      const tokenHash = params.get("token_hash")
+      const type = params.get("type")
+
+      // 正規フロー: token_hash + type=recovery（PKCE code_verifier 不要）
+      if (tokenHash && type === "recovery") {
+        const { error: verifyError } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: "recovery",
+        })
+        if (verifyError) {
+          console.error("[reset-password] verifyOtp failed:", verifyError.message)
+          setError(RESET_ERROR_MESSAGE)
+          return
+        }
+        window.history.replaceState({}, "", "/auth/reset-password")
+        setIsSessionReady(true)
+        return
+      }
+
+      // 後方互換: code パラメータ（PKCE フロー）
       // Supabase クライアントが URL の code を自動交換済みの場合があるため、
-      // その場合は手動 exchange を行わずにセッションを採用する。
+      // まず既存セッションを確認する。
       const {
         data: { session: existingSession },
       } = await supabase.auth.getSession()
 
-      const params = new URLSearchParams(window.location.search)
-      const code = params.get("code")
-
       if (existingSession) {
         if (code) {
-          // URL から code パラメータを除去（ブラウザ履歴からも消す）
           window.history.replaceState({}, "", "/auth/reset-password")
         }
         setIsSessionReady(true)
         return
       }
 
-      // URL に code がある場合、クライアント側で code → セッション交換
-      // （サーバー側 Route Handler で code_verifier が届かない場合のフォールバック）
       if (code) {
         const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
         if (exchangeError) {
-          // 交換失敗でも、既に自動交換済みの可能性があるため再確認
+          // 交換失敗でも、自動交換済みの可能性があるため再確認
           const {
             data: { session: sessionAfterFailedExchange },
           } = await supabase.auth.getSession()
@@ -53,17 +85,17 @@ export default function ResetPasswordPage() {
             setIsSessionReady(true)
             return
           }
-          setError("リセットリンクが無効または期限切れです。もう一度パスワードリセットを申請してください。")
+          console.error("[reset-password] exchangeCodeForSession failed:", exchangeError.message)
+          setError(RESET_ERROR_MESSAGE)
           return
         }
-        // URL から code パラメータを除去（ブラウザ履歴からも消す）
         window.history.replaceState({}, "", "/auth/reset-password")
         setIsSessionReady(true)
         return
       }
 
-      // code なし & セッションなし
-      setError("無効なリセットリンクです。もう一度パスワードリセットを申請してください。")
+      // code も token_hash もない場合
+      setError(INVALID_LINK_MESSAGE)
     }
 
     initSession()
@@ -74,7 +106,6 @@ export default function ResetPasswordPage() {
     setError("")
     setIsLoading(true)
 
-    // パスワード検証
     if (newPassword.length < 6) {
       setError("パスワードは6文字以上で設定してください")
       setIsLoading(false)
@@ -87,13 +118,13 @@ export default function ResetPasswordPage() {
       return
     }
 
-    // パスワード更新
     const { error: updateError } = await supabase.auth.updateUser({
       password: newPassword,
     })
 
     if (updateError) {
-      setError(updateError.message)
+      console.error("[reset-password] updateUser failed:", updateError.message)
+      setError("パスワードの変更に失敗しました。もう一度お試しください。")
       setIsLoading(false)
       return
     }
@@ -101,7 +132,6 @@ export default function ResetPasswordPage() {
     setSuccess(true)
     setIsLoading(false)
 
-    // 3秒後にログイン画面へリダイレクト
     setTimeout(() => {
       router.push("/")
     }, 3000)

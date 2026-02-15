@@ -5,17 +5,20 @@ import { cookies } from "next/headers"
 /**
  * Supabase Auth Callback Route Handler
  *
- * パスワードリセット・メール確認などで Supabase が発行する
- * ?code=... パラメータを受け取り、セッションに交換する。
+ * メール確認・パスワードリセット等で Supabase が発行する
+ * パラメータを受け取り、セッションに交換する。
  *
- * フロー:
- * 1. ユーザーがメール内リンクをクリック → /auth/callback?code=xxx
- * 2. この Route Handler が code をセッションに交換
- * 3. type に応じて適切なページへリダイレクト
+ * パスワードリセット:
+ *   正規フロー（token_hash 方式）ではこの callback を経由せず、
+ *   メールリンクから /auth/reset-password に直接遷移する。
+ *   Supabase メールテンプレートの変更が必要（後述）。
  *
- * 注意:
- * - Vercel 環境では PKCE code_verifier cookie が Route Handler に届かない場合がある
- * - その場合、code をクライアント側ページに渡してブラウザ側で exchange する
+ *   後方互換（PKCE code 方式）では callback 経由で code を受け取り、
+ *   クライアント側ページに転送する（サーバー側 exchange は行わない）。
+ *   code_verifier cookie 依存のため Vercel 環境で不安定。
+ *
+ * その他（メール確認等）:
+ *   サーバー側で code/token_hash → セッション交換を行う。
  */
 export async function GET(request: Request) {
   const url = new URL(request.url)
@@ -49,30 +52,32 @@ export async function GET(request: Request) {
     }
   )
 
+  // --- パスワードリセット（recovery）: クライアント側に転送 ---
+  // サーバー側で exchange/verify すると code が消費されるリスクがあるため、
+  // recovery はすべてクライアント側ページに委譲する。
+  const isRecovery = type === "recovery" || next === "/auth/reset-password"
+
+  if (code && isRecovery) {
+    return NextResponse.redirect(
+      `${origin}/auth/reset-password?code=${encodeURIComponent(code)}`
+    )
+  }
+  if (token_hash && isRecovery) {
+    return NextResponse.redirect(
+      `${origin}/auth/reset-password?token_hash=${encodeURIComponent(token_hash)}&type=recovery`
+    )
+  }
+
+  // --- その他のフロー: サーバー側でセッション交換 ---
   let exchangeError: Error | null = null
 
   if (code) {
-    // パスワードリセット（recovery）フローの場合:
-    // Vercel 環境ではサーバー側に code_verifier cookie が届かないため、
-    // サーバー側で exchangeCodeForSession すると code が消費されて
-    // クライアント側フォールバックも失敗する。
-    // → recovery の場合はサーバー側 exchange をスキップし、
-    //   クライアント側ページに code を直接渡す。
-    if (type === "recovery" || next === "/auth/reset-password") {
-      return NextResponse.redirect(
-        `${origin}/auth/reset-password?code=${encodeURIComponent(code)}`
-      )
-    }
-
-    // PKCE フロー: code → セッション交換（recovery 以外）
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     exchangeError = error
   } else if (token_hash && type) {
-    // token_hash フロー（メールテンプレート設定次第で発生）
     const { error } = await supabase.auth.verifyOtp({ token_hash, type })
     exchangeError = error
   } else {
-    // code も token_hash もない場合はエラー
     return NextResponse.redirect(`${origin}/?error=auth_callback_error`)
   }
 
