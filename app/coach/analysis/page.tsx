@@ -14,6 +14,8 @@ import {
   Minus,
   HelpCircle,
   Users,
+  ClipboardList,
+  ChevronRight,
 } from "lucide-react"
 import Link from "next/link"
 import { CoachBottomNavigation } from "@/components/coach-bottom-navigation"
@@ -482,6 +484,20 @@ export default function AnalysisPage() {
 
         {/* Loading State */}
         {isLoading && <AnalysisSkeleton />}
+
+        {/* 算数マスタープリントへのリンク */}
+        <Link href={`/coach/math-master?grade=${grade === "all" ? "5" : grade}`}>
+          <Card className="hover:bg-muted/30 transition-colors cursor-pointer">
+            <CardContent className="p-4 flex items-center gap-3">
+              <ClipboardList className="h-5 w-5 text-blue-500" />
+              <div className="flex-1">
+                <p className="text-sm font-medium">算数マスタープリント</p>
+                <p className="text-xs text-muted-foreground">設問別 ○/× 一覧・正答率</p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </CardContent>
+          </Card>
+        </Link>
 
         {/* Content */}
         {!isLoading && !error && (
