@@ -3,6 +3,12 @@ import { createClient } from "@/lib/supabase/route"
 
 export const dynamic = "force-dynamic"
 
+function mapRpcErrorStatus(message: string): number {
+  if (message.includes("Unauthorized")) return 403
+  if (message.includes("Invalid grade") || message.includes("not found")) return 400
+  return 500
+}
+
 /**
  * 算数マスタープリント サマリーAPI
  * 学年別の各回平均点・提出状況を取得
@@ -49,9 +55,10 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("[API] math-master summary RPC error:", error)
+      const status = mapRpcErrorStatus(error.message)
       return NextResponse.json(
-        { error: "データの取得に失敗しました" },
-        { status: 500 }
+        { error: status === 500 ? "データの取得に失敗しました" : error.message },
+        { status }
       )
     }
 

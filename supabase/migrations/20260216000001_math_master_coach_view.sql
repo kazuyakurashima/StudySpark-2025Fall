@@ -67,10 +67,18 @@ WHERE am.assessment_type = 'math_print'
   AND am.attempt_number = qs.display_order
   AND qs.subject_id = 1;  -- 算数のみ
 
--- 1-3. 算数セットの NOT NULL 制約（部分 CHECK で算数のみに適用）
-ALTER TABLE public.question_sets
-  ADD CONSTRAINT chk_math_assessment_master_id
-  CHECK (subject_id != 1 OR assessment_master_id IS NOT NULL);
+-- 1-3. 算数セットの NOT NULL 制約（部分 CHECK で算数のみに適用、冪等）
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'chk_math_assessment_master_id'
+      AND table_name = 'question_sets'
+  ) THEN
+    ALTER TABLE public.question_sets
+      ADD CONSTRAINT chk_math_assessment_master_id
+      CHECK (subject_id != 1 OR assessment_master_id IS NOT NULL);
+  END IF;
+END $$;
 
 -- 1-4. 1マスタ : 1セットの UNIQUE 制約
 CREATE UNIQUE INDEX IF NOT EXISTS uq_question_sets_assessment_master
