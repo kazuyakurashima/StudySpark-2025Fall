@@ -57,11 +57,14 @@ COMMENT ON COLUMN public.question_sets.assessment_master_id
   IS 'assessment_masters への明示的紐付け（算数セットは NOT NULL 必須）';
 
 -- 1-2. 既存データの紐付け（session_id + display_order → session_number + attempt_number）
+-- NOTE: PostgreSQL UPDATE ... FROM ではターゲットテーブルのエイリアスを
+--       FROM 句の JOIN 条件で参照できないため、カンマ結合 + WHERE で記述
 UPDATE public.question_sets qs
 SET assessment_master_id = am.id
-FROM public.assessment_masters am
-JOIN public.study_sessions ss ON ss.id = qs.session_id
-WHERE am.assessment_type = 'math_print'
+FROM public.assessment_masters am,
+     public.study_sessions ss
+WHERE ss.id = qs.session_id
+  AND am.assessment_type = 'math_print'
   AND am.grade = CASE WHEN qs.grade = 5 THEN '5年' ELSE '6年' END
   AND am.session_number = ss.session_number
   AND am.attempt_number = qs.display_order
