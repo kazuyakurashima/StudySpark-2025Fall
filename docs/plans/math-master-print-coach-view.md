@@ -51,7 +51,7 @@
 
 | 用途 | テーブル | 備考 |
 |------|---------|------|
-| 各回の平均点 | `answer_sessions.total_score` / `max_score` | auto-grading のみ |
+| 各回の平均点 | `answer_sessions.total_score` / `assessment_masters.max_score` | 満点の正式ソースは `assessment_masters.max_score` |
 | 設問別 ○/× | `student_answers.is_correct` | auto-grading のみ |
 | 設問別正答率 | `student_answers` 集計 | auto-grading のみ |
 

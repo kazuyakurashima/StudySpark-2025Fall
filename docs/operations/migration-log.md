@@ -44,5 +44,5 @@ admin_select_student_answers: 存在 ✓
 ### 備考
 
 - `supabase db push` は先行マイグレーション (20260206000002) が `study_logs` 71件の安全チェックで中断したため使用不可。本マイグレーションのみ SQL Editor で個別適用。
-- マイグレーション履歴テーブル (`supabase_migrations.schema_migrations`) には未登録。次回 `db push` 時に再適用されるが、全ステートメントが冪等のため問題なし。
+- マイグレーション履歴テーブル (`supabase_migrations.schema_migrations`) に手動 INSERT で登録済み。次回 `db push` 時にスキップされる。
 - UPDATE文の PostgreSQL `UPDATE ... FROM` 構文で `JOIN ... ON qs.*` が使用不可のバグを修正（カンマ結合 + WHERE に変更）。
