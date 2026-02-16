@@ -168,8 +168,8 @@ export function DetailMatrix({ questionSetId, onBack }: DetailMatrixProps) {
 }
 
 function ResultMark({ value }: { value: boolean | null | undefined }) {
-  if (value === true) return <span className="text-green-600 font-bold">\u25CB</span>
-  if (value === false) return <span className="text-red-500 font-bold">\u00D7</span>
+  if (value === true) return <span className="text-green-600 font-bold">○</span>
+  if (value === false) return <span className="text-red-500 font-bold">×</span>
   return <span className="text-muted-foreground">-</span>
 }
 
