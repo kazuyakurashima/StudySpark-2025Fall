@@ -2,17 +2,27 @@
 
 import { usePathname } from "next/navigation"
 import Link from "next/link"
-import { Home, Heart, BarChart3 } from "lucide-react"
+import { Home, Heart, ClipboardList, BarChart3 } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
+
+interface Tab {
+  id: string
+  label: string
+  icon: LucideIcon
+  href: string       // アクティブ判定用（パス部分のみ）
+  linkHref?: string  // Link の遷移先（クエリ付きの場合に使用）
+}
 
 /**
- * コーチ用ボトムナビゲーション（3項目）
+ * コーチ用ボトムナビゲーション（4項目）
  * - ホーム: 生徒一覧 + アラート + 応援待ちサマリー
  * - 応援: 全生徒横断の応援待ちリスト（アクション実行の場）
+ * - 算数: 算数マスタープリントの設問別 ○/× 一覧・正答率
  * - 分析: 全体傾向・生徒間比較・週次レポート（俯瞰の場）
  *
  * 設定はアバターメニュー（UserProfileHeader）に統合
  */
-const tabs = [
+const tabs: Tab[] = [
   {
     id: "home",
     label: "ホーム",
@@ -26,6 +36,13 @@ const tabs = [
     href: "/coach/encouragement",
   },
   {
+    id: "math-master",
+    label: "算数",
+    icon: ClipboardList,
+    href: "/coach/math-master",
+    linkHref: "/coach/math-master?grade=5",
+  },
+  {
     id: "analysis",
     label: "分析",
     icon: BarChart3,
@@ -33,16 +50,24 @@ const tabs = [
   },
 ]
 
+// Tailwind CSS は動的クラス名を静的解析できないため、完全なクラス名をマッピング
+const gridCols: Record<number, string> = {
+  3: "grid-cols-3",
+  4: "grid-cols-4",
+  5: "grid-cols-5",
+}
+
 export { CoachBottomNavigation }
 export default function CoachBottomNavigation() {
   const pathname = usePathname()
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-border z-50 safe-area-inset-bottom">
-      <div className="grid grid-cols-3 h-16">
+      <div className={`grid ${gridCols[tabs.length] ?? "grid-cols-4"} h-16`}>
         {tabs.map((tab) => {
           const Icon = tab.icon
           // ホームは完全一致、他はプレフィックスマッチ
+          // usePathname() はクエリパラメータを含まないため、href にクエリ不要
           const isActive = tab.id === "home"
             ? pathname === tab.href
             : pathname?.startsWith(tab.href) ?? false
@@ -50,7 +75,7 @@ export default function CoachBottomNavigation() {
           return (
             <Link
               key={tab.id}
-              href={tab.href}
+              href={tab.linkHref ?? tab.href}
               className={`flex flex-col items-center justify-center gap-1 transition-colors ${
                 isActive
                   ? "text-primary bg-primary/5 font-semibold"
