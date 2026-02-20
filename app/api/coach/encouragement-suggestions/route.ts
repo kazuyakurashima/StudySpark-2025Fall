@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { generateEncouragementSuggestions } from "@/lib/openai/encouragement"
+import { requireAuth } from "@/lib/api/auth"
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth(["coach", "admin"])
+  if ("error" in auth) return auth.error
+
   try {
     const body = await request.json()
     const { studentName, subject, understandingLevel, reflection, correctRate, streak } = body

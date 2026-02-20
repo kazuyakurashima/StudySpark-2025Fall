@@ -207,7 +207,7 @@ function GoalPageInner() {
             table: "profiles",
             filter: `id=eq.${user.id}`,
           },
-          (payload) => {
+          (payload: any) => {
             console.log("Profile updated:", payload);
             // アバターが更新されたら即座に反映（avatar_idを使用）
             if (payload.new && "avatar_id" in payload.new) {
@@ -259,7 +259,7 @@ function GoalPageInner() {
   const loadAvailableTests = async () => {
     const result = await getAvailableTests();
     if (result.tests) {
-      setAvailableTests(result.tests);
+      setAvailableTests(result.tests as any);
     }
   };
 
@@ -1294,7 +1294,7 @@ function GoalPageInner() {
                                   結果コース
                                 </div>
                                 <div className="font-bold text-lg text-primary">
-                                  {getCourseName(result.result_course)}
+                                  {getCourseName(result.result_course ?? "")}
                                 </div>
                               </div>
                               <div className="text-center p-3 bg-white rounded-lg">
@@ -1341,7 +1341,7 @@ function GoalPageInner() {
         </Tabs>
       </div>
 
-      <BottomNavigation />
+      <BottomNavigation activeTab="goal" />
     </div>
     </>
   );

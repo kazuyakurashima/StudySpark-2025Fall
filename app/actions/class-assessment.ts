@@ -516,13 +516,13 @@ export async function getStudentAssessments(
           id: item.id,
           student_id: item.student_id,
           status: item.status,
-          assessment_type: master.assessment_type,
+          assessment_type: master.assessment_type as AssessmentType,
           session_number: master.session_number,
           attempt_number: master.attempt_number,
           assessment_date: item.assessment_date,
           is_resubmission: item.is_resubmission,
           title: master.title || null,
-          description: master.description || null,
+          description: null,
           graded_at: item.updated_at || null,
           score: item.score,
           max_score: item.max_score_at_submission,
@@ -643,7 +643,7 @@ async function getPreviousComparisonsBatch(
   studentId: number,
   assessments: Array<{
     assessment_date: string
-    assessment_type: AssessmentType
+    assessment_type: string
     attempt_number: number
   }>
 ): Promise<Map<string, { score: number; percentage: number }>> {

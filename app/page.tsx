@@ -16,7 +16,7 @@ function SuccessMessageHandler({ setSuccessMessage }: { setSuccessMessage: (msg:
 
   useEffect(() => {
     // 登録完了時のメッセージ表示
-    if (searchParams.get("registered") === "true") {
+    if (searchParams?.get("registered") === "true") {
       setSuccessMessage("登録が完了しました。ログインしてください。")
     }
   }, [searchParams, setSuccessMessage])

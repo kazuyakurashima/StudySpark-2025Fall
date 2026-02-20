@@ -11,8 +11,8 @@ export type ExamType = keyof typeof EXAM_TYPES
 export type ExamYear = (typeof EXAM_YEARS)[number]
 
 export interface PastExamResult {
-  id: string
-  student_id: string
+  id: number
+  student_id: number
   exam_year: number
   exam_type: ExamType
   attempt_number: number

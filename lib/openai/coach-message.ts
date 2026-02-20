@@ -152,14 +152,7 @@ function getUserPrompt(context: CoachMessageContext): string {
   const totalRecentLogs = (context.recentLogs.today?.length || 0) +
                           (context.recentLogs.yesterday?.length || 0) +
                           (context.recentLogs.dayBeforeYesterday?.length || 0)
-  console.log("🔍 [AI Coach] Generating prompt with context:", JSON.stringify({
-    studentName: context.studentName,
-    grade: context.grade,
-    recentLogsCount: totalRecentLogs,
-    recentLogs: context.recentLogs,
-    weeklyProgressCount: context.weeklyProgress?.length || 0,
-    weeklyProgress: context.weeklyProgress
-  }, null, 2))
+  console.log(`🔍 [AI Coach] Generating prompt: logs=${totalRecentLogs} progress=${context.weeklyProgress?.length || 0}`)
 
   let prompt = `【生徒情報】
 名前: ${context.studentName}

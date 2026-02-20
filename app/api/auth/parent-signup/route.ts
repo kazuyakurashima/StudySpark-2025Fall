@@ -6,6 +6,26 @@ import { NextRequest, NextResponse } from "next/server"
  * Service Role Key を使用して子どもアカウントを作成
  */
 export async function POST(request: NextRequest) {
+  // Origin 検証（Service Role Key 操作のため必須）
+  const origin = request.headers.get("origin")
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+  if (siteUrl) {
+    try {
+      const allowedOrigin = new URL(siteUrl).origin
+      if (!origin || new URL(origin).origin !== allowedOrigin) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      }
+    } catch {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+  } else {
+    // NEXT_PUBLIC_SITE_URL 未設定時は localhost のみ許可（開発環境用）
+    const DEV_ALLOWED_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    if (!origin || !DEV_ALLOWED_ORIGINS.includes(new URL(origin).origin)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+  }
+
   try {
     const {
       parentUserId,
@@ -15,6 +35,8 @@ export async function POST(request: NextRequest) {
       childLoginId,
       childPassword,
     } = await request.json()
+
+    console.log(`[Registration] parent-signup: origin=${origin}`)
 
     // Service Role Key を使用した Supabase クライアント
     const supabaseAdmin = createClient(

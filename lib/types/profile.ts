@@ -58,7 +58,7 @@ export interface ChildProfile {
  */
 export interface ParentDashboardData {
   todayStatus: { message: string; createdAt?: string } | { error: string }
-  streak: { streak: number } | { error: string }
+  streak: { streak: number; maxStreak: number; lastStudyDate: string | null; todayStudied: boolean; streakState: "active" | "grace" | "warning" | "reset" } | { error: string }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   todayMission: { todayProgress: any[] } | { error: string }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -74,6 +74,6 @@ export interface ParentDashboardData {
 /**
  * 型ガード: エラーかどうかをチェック
  */
-export function isError<T>(result: T | { error: string }): result is { error: string } {
-  return 'error' in result && typeof result.error === 'string'
+export function isError<T extends object>(result: T | { error: string }): result is { error: string } {
+  return 'error' in result && typeof (result as { error?: unknown }).error === 'string'
 }

@@ -885,14 +885,15 @@ export async function getMathGradingHistory(input?: {
     }
 
     // RPC 結果を MathGradingHistoryItem[] に変換
-    const results: MathGradingHistoryItem[] = (rows || []).map((row: {
+    // RPC return type is generated with non-nullable fields, but actual SQL can return nulls
+    const results: MathGradingHistoryItem[] = ((rows || []) as unknown as Array<{
       question_set_id: number; title: string; session_number: number;
       question_count: number; latest_session_id: number | null;
       latest_attempt_number: number | null; latest_status: string | null;
       latest_total_score: number | null; latest_max_score: number | null;
       latest_answers_revealed: boolean | null; latest_completed_at: string | null;
       attempt_history: { attempt: number; score: number; maxScore: number; percentage: number; gradedAt: string }[];
-    }) => ({
+    }>).map((row) => ({
       questionSetId: row.question_set_id,
       title: row.title || `第${row.session_number}回`,
       sessionNumber: row.session_number,

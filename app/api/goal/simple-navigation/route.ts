@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getDefaultModel } from "@/lib/openai/client"
+import { requireAuth } from "@/lib/api/auth"
 import OpenAI from "openai"
 
 const openai = new OpenAI({
@@ -17,6 +18,9 @@ interface RequestBody {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth(["student"])
+  if ("error" in auth) return auth.error
+
   try {
     const body: RequestBody = await request.json()
     const { studentName, testName, testDate, targetCourse, targetClass, step, previousAnswer } = body

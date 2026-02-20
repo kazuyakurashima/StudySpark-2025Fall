@@ -260,6 +260,6 @@ export async function generateDailyStatusMessage(
     return { success: true, message }
   } catch (error) {
     console.error("Generate daily status error:", error)
-    return handleOpenAIError(error)
+    return { success: false as const, error: handleOpenAIError(error) }
   }
 }

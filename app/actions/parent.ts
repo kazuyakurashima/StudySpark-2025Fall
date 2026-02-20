@@ -33,7 +33,7 @@ async function verifyParentChildRelation(studentId: string) {
   const { data: relation, error: relationError } = await supabase
     .from("parent_child_relations")
     .select("student_id")
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .eq("parent_id", parent.id)
     .single()
 
@@ -45,7 +45,7 @@ async function verifyParentChildRelation(studentId: string) {
   const { data: student, error: studentError } = await supabase
     .from("students")
     .select("id, full_name, grade, user_id")
-    .eq("id", studentId)
+    .eq("id", Number(studentId))
     .single()
 
   if (studentError || !student) {
@@ -201,7 +201,7 @@ export async function getChildTestGoals(studentId: string) {
         )
       )
     `)
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .eq("test_schedules.test_types.grade", student.grade)
     .order("test_schedules.test_date", { ascending: false })
 
@@ -241,8 +241,8 @@ export async function getChildTestGoal(studentId: string, testScheduleId: string
         )
       )
     `)
-    .eq("student_id", studentId)
-    .eq("test_schedule_id", testScheduleId)
+    .eq("student_id", Number(studentId))
+    .eq("test_schedule_id", Number(testScheduleId))
     .single()
 
   if (goalError) {
@@ -267,15 +267,14 @@ export async function getChildReflections(studentId: string) {
     .from("coaching_sessions")
     .select(`
       id,
-      session_number,
       week_type,
-      this_week_accuracy,
-      last_week_accuracy,
-      summary,
+      week_start_date,
+      week_end_date,
+      summary_text,
       completed_at,
       created_at
     `)
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .not("completed_at", "is", null)
     .order("completed_at", { ascending: false })
 
@@ -301,16 +300,15 @@ export async function getChildReflection(studentId: string, sessionId: string) {
     .from("coaching_sessions")
     .select(`
       id,
-      session_number,
       week_type,
-      this_week_accuracy,
-      last_week_accuracy,
-      summary,
+      week_start_date,
+      week_end_date,
+      summary_text,
       completed_at,
       created_at
     `)
-    .eq("id", sessionId)
-    .eq("student_id", studentId)
+    .eq("id", Number(sessionId))
+    .eq("student_id", Number(studentId))
     .not("completed_at", "is", null)
     .single()
 
@@ -322,7 +320,7 @@ export async function getChildReflection(studentId: string, sessionId: string) {
   const { data: messages, error: messagesError } = await supabase
     .from("coaching_messages")
     .select("id, role, content, turn_number, created_at")
-    .eq("session_id", sessionId)
+    .eq("session_id", Number(sessionId))
     .order("turn_number", { ascending: true })
 
   if (messagesError) {
@@ -413,7 +411,7 @@ export async function getChildAchievementMapData(studentId: string) {
       study_content_types (content_name),
       study_sessions (session_number)
     `)
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .order("study_date", { ascending: true })
 
   if (logsError) {
@@ -455,7 +453,7 @@ export async function getChildStudyHistory(
       study_content_types (id, content_name),
       study_sessions (id, session_number, start_date, end_date)
     `)
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
 
   // 科目フィルタ
   if (params?.subjectFilter && params.subjectFilter !== "all") {
@@ -629,7 +627,7 @@ export async function getChildEncouragementHistory(
                 ...senderProfile,
                 nickname: senderProfile.nickname ?? senderProfile.display_name ?? "応援者",
                 display_name: senderProfile.display_name ?? senderProfile.nickname ?? "応援者",
-                avatar_id: senderProfile.avatar_id ?? senderProfile.avatar,
+                avatar_id: senderProfile.avatar_id,
               }
             : { display_name: "応援者", avatar_id: null, nickname: "応援者" }
 
@@ -720,7 +718,7 @@ export async function getChildCoachingHistory(
         sent_at
       )
     `)
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .eq("status", "completed")
 
   if (params?.periodFilter === "1week") {

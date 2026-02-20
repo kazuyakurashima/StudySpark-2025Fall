@@ -94,13 +94,15 @@ export async function determineWeekType() {
   const lastSundayStr = formatDateToJST(lastSunday)
 
   const thisWeekLogs = (allRecentLogs || []).filter(log => {
-    const sessionStartDate = log.study_sessions?.start_date
+    const sessions = log.study_sessions as { start_date: string; end_date: string } | { start_date: string; end_date: string }[] | null
+    const sessionStartDate = Array.isArray(sessions) ? sessions[0]?.start_date : sessions?.start_date
     if (!sessionStartDate) return false
     return sessionStartDate >= thisMondayStr
   })
 
   const lastWeekLogs = (allRecentLogs || []).filter(log => {
-    const sessionStartDate = log.study_sessions?.start_date
+    const sessions = log.study_sessions as { start_date: string; end_date: string } | { start_date: string; end_date: string }[] | null
+    const sessionStartDate = Array.isArray(sessions) ? sessions[0]?.start_date : sessions?.start_date
     if (!sessionStartDate) return false
     return sessionStartDate >= lastMondayStr && sessionStartDate <= lastSundayStr
   })
@@ -250,7 +252,7 @@ export async function saveCoachingMessage(
   const { error } = await supabase
     .from("coaching_messages")
     .insert({
-      session_id: sessionId,
+      session_id: Number(sessionId),
       role: role,
       content: content,
       turn_number: turnNumber,
@@ -278,7 +280,7 @@ export async function completeCoachingSession(sessionId: string, summary: string
       total_turns: totalTurns,
       completed_at: new Date().toISOString(),
     })
-    .eq("id", sessionId)
+    .eq("id", Number(sessionId))
 
   if (error) {
     return { error: error.message }
@@ -375,7 +377,7 @@ export async function getAchievementMapData(subjectId?: string) {
     .order("study_date", { ascending: true })
 
   if (subjectId) {
-    query = query.eq("subject_id", subjectId)
+    query = query.eq("subject_id", Number(subjectId))
   }
 
   const { data: logs, error } = await query
@@ -674,21 +676,38 @@ export async function getCoachingHistory(params?: {
           id,
           message,
           sent_at,
-          sender_profile:user_profiles!encouragement_messages_sender_id_fkey (
-            full_name,
-            nickname,
-            avatar,
-            role
-          )
+          sender_id,
+          sender_role
         `)
         .eq("student_id", student.id)
         .gte("sent_at", session.week_start_date)
         .lte("sent_at", session.week_end_date)
         .order("sent_at", { ascending: true })
 
+      // Fetch sender profiles separately
+      const senderIds = [...new Set((encouragements || []).map(e => e.sender_id))]
+      let senderProfiles: any[] = []
+      if (senderIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, nickname, display_name, avatar_id, role")
+          .in("id", senderIds)
+        senderProfiles = profiles || []
+      }
+
+      const encouragementsWithProfiles = (encouragements || []).map(e => {
+        const profile = senderProfiles.find((p: any) => p.id === e.sender_id)
+        return {
+          ...e,
+          sender_profile: profile
+            ? { full_name: profile.display_name, nickname: profile.nickname, avatar: profile.avatar_id, role: profile.role }
+            : { full_name: "応援者", nickname: "応援者", avatar: null, role: e.sender_role }
+        }
+      })
+
       return {
         ...session,
-        encouragements: encouragements || []
+        encouragements: encouragementsWithProfiles
       }
     })
   )
@@ -772,7 +791,7 @@ export async function getAssessmentHistory(filters?: {
         session_number
       )
     `)
-    .eq("student_id", targetStudentId)
+    .eq("student_id", Number(targetStudentId))
     .eq("status", "completed")
     .not("assessment_date", "is", null)
     .order("assessment_date", { ascending: false })
@@ -818,12 +837,12 @@ export async function getAssessmentHistory(filters?: {
       } else if (filters.sortBy === 'date_asc') {
         return new Date(a.assessment_date).getTime() - new Date(b.assessment_date).getTime()
       } else if (filters.sortBy === 'score_desc') {
-        const scoreA = a.max_score_at_submission > 0 ? (a.score / a.max_score_at_submission) * 100 : 0
-        const scoreB = b.max_score_at_submission > 0 ? (b.score / b.max_score_at_submission) * 100 : 0
+        const scoreA = (a.score != null && a.max_score_at_submission > 0) ? (a.score / a.max_score_at_submission) * 100 : 0
+        const scoreB = (b.score != null && b.max_score_at_submission > 0) ? (b.score / b.max_score_at_submission) * 100 : 0
         return scoreB - scoreA
       } else if (filters.sortBy === 'score_asc') {
-        const scoreA = a.max_score_at_submission > 0 ? (a.score / a.max_score_at_submission) * 100 : 0
-        const scoreB = b.max_score_at_submission > 0 ? (b.score / b.max_score_at_submission) * 100 : 0
+        const scoreA = (a.score != null && a.max_score_at_submission > 0) ? (a.score / a.max_score_at_submission) * 100 : 0
+        const scoreB = (b.score != null && b.max_score_at_submission > 0) ? (b.score / b.max_score_at_submission) * 100 : 0
         return scoreA - scoreB
       }
       return 0
@@ -909,7 +928,7 @@ export async function getAssessmentSummary(filters?: {
         session_number
       )
     `)
-    .eq("student_id", targetStudentId)
+    .eq("student_id", Number(targetStudentId))
     .eq("status", "completed")
     .not("assessment_date", "is", null)
     .order("assessment_date", { ascending: false })
@@ -950,7 +969,7 @@ export async function getAssessmentSummary(filters?: {
     if (recent.length === 0) return null
 
     const total = recent.reduce((sum, a) => {
-      const percentage = a.max_score_at_submission > 0
+      const percentage = (a.score != null && a.max_score_at_submission > 0)
         ? (a.score / a.max_score_at_submission) * 100
         : 0
       return sum + percentage
@@ -969,7 +988,7 @@ export async function getAssessmentSummary(filters?: {
         name: (latestMath as any).master?.title || null,
         score: latestMath.score,
         maxScore: latestMath.max_score_at_submission,
-        percentage: latestMath.max_score_at_submission > 0
+        percentage: (latestMath.score != null && latestMath.max_score_at_submission > 0)
           ? Math.round((latestMath.score / latestMath.max_score_at_submission) * 100)
           : 0,
         submittedAt: latestMath.assessment_date
@@ -979,7 +998,7 @@ export async function getAssessmentSummary(filters?: {
         name: (latestKanji as any).master?.title || null,
         score: latestKanji.score,
         maxScore: latestKanji.max_score_at_submission,
-        percentage: latestKanji.max_score_at_submission > 0
+        percentage: (latestKanji.score != null && latestKanji.max_score_at_submission > 0)
           ? Math.round((latestKanji.score / latestKanji.max_score_at_submission) * 100)
           : 0,
         submittedAt: latestKanji.assessment_date

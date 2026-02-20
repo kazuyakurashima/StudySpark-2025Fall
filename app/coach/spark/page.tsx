@@ -375,10 +375,10 @@ export default function CoachSparkPage() {
 
                           <div className="flex items-center gap-2">
                             {student.needsAttention && (
-                              <AlertTriangle className="h-4 w-4 text-red-500" title="要注意" />
+                              <AlertTriangle className="h-4 w-4 text-red-500" aria-label="要注意" />
                             )}
                             {!student.parentResponse && (
-                              <Clock className="h-4 w-4 text-yellow-500" title="保護者未応答" />
+                              <Clock className="h-4 w-4 text-yellow-500" aria-label="保護者未応答" />
                             )}
                             <Button
                               size="sm"

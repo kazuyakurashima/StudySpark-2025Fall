@@ -37,7 +37,7 @@ export default function ParentEncouragementPage() {
   const { profile, children, setSelectedChildId: setProviderChildId, selectedChildId: providerSelectedChildId } = useUserProfile()
 
   // URLパラメータから child ID を取得
-  const childParam = searchParams.get("child")
+  const childParam = searchParams?.get("child") ?? null
 
   const [selectedChild, setSelectedChild] = useState<string | null>(null)
   const [entries, setEntries] = useState<GroupedLogEntry<EncouragementLog>[]>([])

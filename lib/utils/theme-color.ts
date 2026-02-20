@@ -129,8 +129,8 @@ export function getThemeColorStyles(
     case "gradient":
       return {
         background: `linear-gradient(135deg,
-          ${hexWithAlpha(themeColor, alpha.light)} 0%,
-          ${hexWithAlpha(themeColor, alpha.medium)} 100%)`,
+          ${hexWithAlpha(themeColor, alphaMap.light.bg)} 0%,
+          ${hexWithAlpha(themeColor, alphaMap.medium.bg)} 100%)`,
       }
     default:
       return {}

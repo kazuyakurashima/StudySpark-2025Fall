@@ -619,11 +619,11 @@ async function generateTodayStatusMessage(
     let weeklyTrend: "improving" | "stable" | "declining" | "none" = "none"
     if (thisWeekLogs && thisWeekLogs.length > 0 && lastWeekLogs && lastWeekLogs.length > 0) {
       const thisWeekAccuracy =
-        thisWeekLogs.reduce((sum, log) => sum + log.correct_count, 0) /
-        thisWeekLogs.reduce((sum, log) => sum + log.total_problems, 0)
+        thisWeekLogs.reduce((sum: number, log: any) => sum + log.correct_count, 0) /
+        thisWeekLogs.reduce((sum: number, log: any) => sum + log.total_problems, 0)
       const lastWeekAccuracy =
-        lastWeekLogs.reduce((sum, log) => sum + log.correct_count, 0) /
-        lastWeekLogs.reduce((sum, log) => sum + log.total_problems, 0)
+        lastWeekLogs.reduce((sum: number, log: any) => sum + log.correct_count, 0) /
+        lastWeekLogs.reduce((sum: number, log: any) => sum + log.total_problems, 0)
 
       const diff = (thisWeekAccuracy - lastWeekAccuracy) * 100
       if (diff >= 10) {
@@ -665,7 +665,7 @@ async function generateTodayStatusMessage(
       grade: student.grade,
       course: student.course,
       todayLogs:
-        todayLogs?.map((log) => {
+        todayLogs?.map((log: any) => {
           const subject = Array.isArray(log.subjects) ? log.subjects[0] : log.subjects
           const content = Array.isArray(log.study_content_types)
             ? log.study_content_types[0]
@@ -1229,7 +1229,7 @@ export async function getStudentWeeklyProgress(studentId: number) {
     latestLogsMap.forEach((log) => {
       const subject = Array.isArray(log.subjects) ? log.subjects[0] : log.subjects
       const subjectName = subject?.name || "不明"
-      const subjectId = subject?.id
+      const subjectId = (subject as any)?.id
       const contentType = Array.isArray(log.study_content_types) ? log.study_content_types[0] : log.study_content_types
       const contentName = contentType?.content_name || "その他"
 
@@ -1274,7 +1274,7 @@ export async function getStudentWeeklyProgress(studentId: number) {
 
     console.log("🔍 [SERVER] Weekly progress - Final result:", JSON.stringify(progress, null, 2))
 
-    return { progress, sessionNumber: currentSession.session_number }
+    return { progress, sessionNumber: currentSession!.session_number }
   } catch (error) {
     console.error("🔍 [SERVER] Weekly progress - Unexpected error:", error)
     return { error: "予期しないエラーが発生しました" }

@@ -26,10 +26,12 @@ import {
 import { useUserProfile } from "@/lib/hooks/use-user-profile"
 
 interface Child {
-  id: string
+  id: number
   full_name: string
   display_name: string
   grade: number
+  user_id: string
+  avatar_id: string | null
 }
 
 interface TestSchedule {
@@ -71,10 +73,10 @@ export default function ParentGoalNaviPage() {
   const { setSelectedChildId: setProviderChildId, selectedChildId: providerSelectedChildId } = useUserProfile()
 
   // URLパラメータから child ID を取得
-  const childParam = searchParams.get("child")
+  const childParam = searchParams?.get("child") ?? null
 
   const [children, setChildren] = useState<Child[]>([])
-  const [selectedChildId, setSelectedChildId] = useState<string>("")
+  const [selectedChildId, setSelectedChildId] = useState<number | null>(null)
   const [selectedChild, setSelectedChild] = useState<Child | null>(null)
   const [availableTests, setAvailableTests] = useState<TestSchedule[]>([])
   const [testGoals, setTestGoals] = useState<TestGoal[]>([])
@@ -118,7 +120,7 @@ export default function ParentGoalNaviPage() {
   useEffect(() => {
     if (childParam && children.length > 0) {
       const childId = parseInt(childParam, 10)
-      const child = children.find(c => parseInt(c.id) === childId)
+      const child = children.find(c => c.id === childId)
       if (child) {
         setProviderChildId(childId)
       }
@@ -132,18 +134,18 @@ export default function ParentGoalNaviPage() {
 
     if (providerSelectedChildId !== null) {
       // プロバイダーから取得したIDで子どもを選択
-      const child = children.find(c => parseInt(c.id) === providerSelectedChildId)
+      const child = children.find(c => c.id === providerSelectedChildId)
       if (child) {
         console.log('🔍 [ゴールナビ] プロバイダーから子どもを選択:', child.full_name, child.id)
         setSelectedChildId(child.id)
         setSelectedChild(child)
       }
-    } else if (!selectedChildId && children.length > 0) {
+    } else if (selectedChildId === null && children.length > 0) {
       // プロバイダーに値がなく、まだ選択されていない場合は最初の子どもを選択
       console.log('🔍 [ゴールナビ] デフォルトで最初の子どもを選択:', children[0].full_name, children[0].id)
       setSelectedChildId(children[0].id)
       setSelectedChild(children[0])
-      setProviderChildId(parseInt(children[0].id, 10))
+      setProviderChildId(children[0].id)
     }
   }, [providerSelectedChildId, children, selectedChildId, setProviderChildId])
 
@@ -165,12 +167,11 @@ export default function ParentGoalNaviPage() {
 
       for (const child of children) {
         try {
-          const childIdNumber = parseInt(child.id, 10)
-          const level = await getDailySparkLevel(childIdNumber, user.id)
-          statusMap[childIdNumber] = level === "parent" || level === "both"
+          const level = await getDailySparkLevel(child.id, user.id)
+          statusMap[child.id] = level === "parent" || level === "both"
         } catch (error) {
           console.error(`[EncouragementStatus] Error for child ${child.id}:`, error)
-          statusMap[parseInt(child.id, 10)] = false
+          statusMap[child.id] = false
         }
       }
 
@@ -197,7 +198,7 @@ export default function ParentGoalNaviPage() {
   // 選択された子どものデータを読み込み
   useEffect(() => {
     const loadChildData = async () => {
-      if (!selectedChildId) {
+      if (selectedChildId === null) {
         console.log('🔍 [ゴールナビ] selectedChildIdがnullのためデータ読み込みスキップ')
         return
       }
@@ -236,11 +237,11 @@ export default function ParentGoalNaviPage() {
       }
 
       if (testsData.tests) {
-        setAvailableTests(testsData.tests)
+        setAvailableTests(testsData.tests as any)
       }
 
       if (goalsData.goals) {
-        setTestGoals(goalsData.goals)
+        setTestGoals(goalsData.goals as any)
       }
 
       if (resultsData.results) {
@@ -519,9 +520,9 @@ export default function ParentGoalNaviPage() {
 
           {/* 過去問演習タブ */}
           <TabsContent value="pastexam" className="space-y-4 mt-6">
-            {selectedChild && (
+            {selectedChild && selectedChildId !== null && (
               <ParentPastExamViewer
-                childId={selectedChildId}
+                childId={String(selectedChildId)}
                 childName={selectedChild.display_name || selectedChild.full_name}
               />
             )}

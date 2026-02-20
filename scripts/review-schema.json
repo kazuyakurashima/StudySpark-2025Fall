@@ -1,0 +1,42 @@
+{
+  "type": "object",
+  "required": ["approved", "issues", "summary"],
+  "additionalProperties": false,
+  "properties": {
+    "approved": {
+      "type": "boolean",
+      "description": "true if the code changes are acceptable, false if issues were found"
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["file", "line", "severity", "message"],
+        "additionalProperties": false,
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "Relative file path from project root"
+          },
+          "line": {
+            "type": ["integer", "null"],
+            "description": "Line number or null if not applicable"
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["error", "warning", "info"],
+            "description": "Issue severity level"
+          },
+          "message": {
+            "type": "string",
+            "description": "Description of the issue"
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "string",
+      "description": "Brief overall assessment in 1-2 sentences"
+    }
+  }
+}

@@ -38,8 +38,8 @@ export function GoalTab({ studentId }: GoalTabProps) {
           return
         }
 
-        const goals = (goalsResult.goals || []) as TestGoal[]
-        const results = (resultsResult.results || []) as TestResult[]
+        const goals = (goalsResult.goals || []) as unknown as TestGoal[]
+        const results = (resultsResult.results || []) as unknown as TestResult[]
         const merged = mergeGoalsAndResults(goals, results)
         setRecords(merged)
       } catch (e) {

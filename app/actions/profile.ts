@@ -268,7 +268,7 @@ export async function updateProfileCustomization(
  * コース情報を更新
  */
 export async function updateCourse(
-  course: string
+  course: "A" | "B" | "C" | "S"
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient()
 

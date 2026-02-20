@@ -62,7 +62,7 @@ export function EditCourseModal({ isOpen, onClose, onUpdate }: EditCourseModalPr
 
     try {
       // Server Actionでコース更新
-      const result = await updateCourse(selectedCourse)
+      const result = await updateCourse(selectedCourse as "A" | "B" | "C" | "S")
 
       if (result.success) {
         toast({

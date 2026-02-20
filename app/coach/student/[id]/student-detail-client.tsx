@@ -62,7 +62,7 @@ interface StudentData {
   id: string
   full_name: string
   nickname: string | null
-  grade: string
+  grade: number
   course: string | null
   avatar_id: string | null
   custom_avatar_url: string | null
@@ -480,7 +480,7 @@ export function StudentDetailClient({ studentId, initialData }: StudentDetailCli
             <AchievementMap
               viewerRole="coach"
               studentId={studentId}
-              studentGrade={getStudentGradeNumber(student.grade)}
+              studentGrade={student.grade}
               studentCourse={student.course || undefined}
             />
           </TabsContent>

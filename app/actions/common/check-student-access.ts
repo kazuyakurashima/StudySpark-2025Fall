@@ -27,7 +27,7 @@ export async function checkStudentAccess(
       .from("students")
       .select("id")
       .eq("user_id", userId)
-      .eq("id", studentId)
+      .eq("id", Number(studentId))
       .single()
 
     return !!student
@@ -47,7 +47,7 @@ export async function checkStudentAccess(
       .from("parent_child_relations")
       .select("id")
       .eq("parent_id", parent.id)
-      .eq("student_id", studentId)
+      .eq("student_id", Number(studentId))
       .single()
 
     return !!relation
@@ -67,7 +67,7 @@ export async function checkStudentAccess(
       .from("coach_student_relations")
       .select("id")
       .eq("coach_id", coach.id)
-      .eq("student_id", studentId)
+      .eq("student_id", Number(studentId))
       .single()
 
     return !!relation

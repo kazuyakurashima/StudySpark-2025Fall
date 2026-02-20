@@ -372,7 +372,7 @@ export default function CoachAssessmentInputPage() {
                                     第{m.session_number}回
                                     {m.assessment_type === "math_print" &&
                                       `${m.attempt_number === 1 ? "①" : "②"}`}
-                                    {m.description && ` ${m.description}`}
+                                    {m.title && ` ${m.title}`}
                                   </>
                                 )}
                                 （満点: {m.max_score}点）
@@ -409,19 +409,19 @@ export default function CoachAssessmentInputPage() {
                 <div className="flex items-center gap-2 text-sm flex-wrap">
                   <Badge
                     className={
-                      ASSESSMENT_TYPE_COLORS[selectedMaster.assessment_type].badge
+                      ASSESSMENT_TYPE_COLORS[selectedMaster.assessment_type as AssessmentType].badge
                     }
                   >
-                    {ASSESSMENT_TYPE_LABELS[selectedMaster.assessment_type]}
+                    {ASSESSMENT_TYPE_LABELS[selectedMaster.assessment_type as AssessmentType]}
                   </Badge>
                   <span className="text-muted-foreground">
                     第{selectedMaster.session_number}回
                     {selectedMaster.assessment_type === "math_print" &&
                       `${selectedMaster.attempt_number === 1 ? "①" : "②"}`}
                   </span>
-                  {(selectedMaster.title || selectedMaster.description) && (
+                  {selectedMaster.title && (
                     <span className="font-medium text-slate-700">
-                      {selectedMaster.title || selectedMaster.description}
+                      {selectedMaster.title}
                     </span>
                   )}
                   <span className="font-medium">

@@ -79,7 +79,11 @@ export default async function StudentDashboard() {
     batchFeedbacks: logsResult?.batchFeedbacks || {},
     legacyFeedbacks: logsResult?.legacyFeedbacks || {},
     recentMessages: messagesResult?.success && Array.isArray(messagesResult?.messages) ? messagesResult.messages : [],
-    lastLoginInfo: (loginInfo && 'lastLoginDays' in loginInfo) ? loginInfo : null,
+    lastLoginInfo: (loginInfo && 'lastLoginDays' in loginInfo && !('error' in loginInfo)) ? {
+      lastLoginDays: loginInfo.lastLoginDays ?? null,
+      lastLoginHours: (loginInfo as any).lastLoginHours ?? 0,
+      isFirstTime: loginInfo.isFirstTime ?? false,
+    } : null,
     todayProgress: Array.isArray(todayMission?.todayProgress) ? todayMission.todayProgress : [],
     yesterdayProgress: Array.isArray(yesterdayMission?.yesterdayProgress) ? yesterdayMission.yesterdayProgress : [],
     calendarData: calendar?.calendarData || {},

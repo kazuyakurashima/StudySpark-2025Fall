@@ -5,7 +5,6 @@ import {
   getTodayJST,
   getDateJST,
   getDaysAgoJST,
-  getYesterdayJST,
   getNowJSTISO,
 } from "@/lib/utils/date-jst"
 
@@ -69,7 +68,7 @@ export async function GET(request: Request) {
 
     let successCount = 0
     let failureCount = 0
-    const errors: { studentId: string; error: string }[] = []
+    const errors: { studentId: number; error: string }[] = []
 
     // 各生徒のメッセージを生成
     for (const student of students) {
@@ -101,14 +100,15 @@ export async function GET(request: Request) {
         const streakData = await getStudyStreakForStudent(studentId)
 
         // コンテキスト構築
+        const profile = (student as Record<string, unknown>).profiles as { display_name: string | null } | null
         const context: CoachMessageContext = {
           studentId: studentId,
-          studentName: (student as any).profiles?.display_name || "さん",
+          studentName: profile?.display_name ?? "さん",
           grade: student.grade,
-          course: student.course,
+          course: student.course ?? "",
           latestWill: willData?.will,
           latestGoal: willData?.goal,
-          recentLogs: logsData || [],
+          recentLogs: logsData,
           upcomingTest: testData || undefined,
           studyStreak: typeof streakData === "number" ? streakData : 0,
         }
@@ -132,7 +132,7 @@ export async function GET(request: Request) {
         const traceId = await createDailyCoachMessageTrace(
           entityId,
           student.user_id,
-          studentId,
+          String(studentId),
           promptSummary,
           result.message,
           false // 新規生成なのでcacheHit=false
@@ -188,12 +188,12 @@ export async function GET(request: Request) {
 /**
  * 最新のWillとGoalを取得
  */
-async function getLatestWillAndGoal(studentId: string): Promise<{ will?: string; goal?: string } | null> {
+async function getLatestWillAndGoal(studentId: number): Promise<{ will?: string; goal?: string } | null> {
   const supabase = await createClient()
 
   const { data } = await supabase
     .from("weekly_analysis")
-    .select("growth_areas, challenges")
+    .select("strengths, challenges")
     .eq("student_id", studentId)
     .order("week_start_date", { ascending: false })
     .limit(1)
@@ -202,7 +202,7 @@ async function getLatestWillAndGoal(studentId: string): Promise<{ will?: string;
   if (!data) return null
 
   return {
-    will: data.growth_areas || undefined,
+    will: data.strengths || undefined,
     goal: data.challenges || undefined,
   }
 }
@@ -210,7 +210,7 @@ async function getLatestWillAndGoal(studentId: string): Promise<{ will?: string;
 /**
  * 直近N日の学習ログ取得
  */
-async function getRecentStudyLogs(studentId: string, days: number = 3) {
+async function getRecentStudyLogs(studentId: number, days: number = 3): Promise<CoachMessageContext["recentLogs"]> {
   const supabase = await createClient()
 
   const cutoffDateStr = getDaysAgoJST(days)
@@ -229,46 +229,92 @@ async function getRecentStudyLogs(studentId: string, days: number = 3) {
     .order("study_date", { ascending: false })
     .limit(20)
 
-  if (!logs || logs.length === 0) return []
+  const todayStr = getTodayJST()
+  const yesterdayStr = getDateJST(-1)
+  const dayBeforeYesterdayStr = getDateJST(-2)
 
-  return logs.map((log: any) => ({
-    subject: log.subjects?.name || "不明",
-    content: log.study_content_types?.content_name || "",
-    correct: log.correct_count || 0,
-    total: log.total_problems || 0,
-    accuracy: log.total_problems > 0 ? Math.round((log.correct_count / log.total_problems) * 100) : 0,
-    date: log.study_date || "",
-  }))
+  type LogEntry = {
+    subject: string
+    content: string
+    correct: number
+    total: number
+    accuracy: number
+    date: string
+  }
+
+  const mapLog = (log: Record<string, unknown>): LogEntry => {
+    const subjects = log.subjects as { name: string } | null
+    const contentTypes = log.study_content_types as { content_name: string } | null
+    const correctCount = (log.correct_count as number) || 0
+    const totalProblems = (log.total_problems as number) || 0
+    return {
+      subject: subjects?.name || "不明",
+      content: contentTypes?.content_name || "",
+      correct: correctCount,
+      total: totalProblems,
+      accuracy: totalProblems > 0 ? Math.round((correctCount / totalProblems) * 100) : 0,
+      date: (log.study_date as string) || "",
+    }
+  }
+
+  const result: CoachMessageContext["recentLogs"] = {
+    today: [],
+    yesterday: [],
+    dayBeforeYesterday: [],
+  }
+
+  if (!logs || logs.length === 0) return result
+
+  for (const log of logs) {
+    const entry = mapLog(log as unknown as Record<string, unknown>)
+    if (entry.date === todayStr) {
+      result.today.push(entry)
+    } else if (entry.date === yesterdayStr) {
+      result.yesterday.push(entry)
+    } else if (entry.date === dayBeforeYesterdayStr) {
+      result.dayBeforeYesterday.push(entry)
+    }
+  }
+
+  return result
 }
 
 /**
  * 近日のテスト情報取得
  */
-async function getUpcomingTest(studentId: string) {
+async function getUpcomingTest(studentId: number) {
   const supabase = await createClient()
 
   const tomorrowStr = getDateJST(1)
 
-  const { data: test } = await supabase
+  const { data: tests } = await supabase
     .from("test_goals")
     .select(`
-      test_date,
-      test_types (name)
+      test_schedule_id,
+      test_schedules!inner (
+        test_date,
+        test_types (name)
+      )
     `)
     .eq("student_id", studentId)
-    .gte("test_date", tomorrowStr)
-    .order("test_date", { ascending: true })
-    .limit(1)
-    .single()
+    .gte("test_schedules.test_date", tomorrowStr)
+    .limit(5)
 
-  if (!test) return null
+  if (!tests || tests.length === 0) return null
 
+  // Sort by test_date and pick the earliest
+  type ScheduleData = { test_date: string; test_types: { name: string } | null }
+  const sorted = tests
+    .map((t) => t.test_schedules as unknown as ScheduleData)
+    .sort((a, b) => a.test_date.localeCompare(b.test_date))
+
+  const schedule = sorted[0]
   const { getDaysDifference } = await import("@/lib/utils/date-jst")
-  const daysUntil = getDaysDifference(tomorrowStr, test.test_date)
+  const daysUntil = getDaysDifference(tomorrowStr, schedule.test_date)
 
   return {
-    name: (test as any).test_types?.name || "テスト",
-    date: test.test_date,
+    name: schedule.test_types?.name || "テスト",
+    date: schedule.test_date,
     daysUntil,
   }
 }
@@ -276,7 +322,7 @@ async function getUpcomingTest(studentId: string) {
 /**
  * 連続学習日数を計算（特定の生徒）
  */
-async function getStudyStreakForStudent(studentId: string): Promise<number> {
+async function getStudyStreakForStudent(studentId: number): Promise<number> {
   const supabase = await createClient()
 
   const { data: logs } = await supabase

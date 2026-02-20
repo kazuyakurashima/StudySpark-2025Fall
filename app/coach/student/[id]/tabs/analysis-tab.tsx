@@ -19,8 +19,8 @@ import {
 } from "@/app/actions/weekly-analysis"
 
 interface WeeklyAnalysis {
-  id: string
-  student_id: string
+  id: number
+  student_id: number
   week_start_date: string
   week_end_date: string
   strengths: string
@@ -91,7 +91,7 @@ export function AnalysisTab({ studentId, studentName }: AnalysisTabProps) {
       if (result.error) {
         setError(result.error)
       } else {
-        setAnalysis(result.analysis || null)
+        setAnalysis((result.analysis as unknown as WeeklyAnalysis) || null)
       }
     } catch {
       setError("データの取得に失敗しました")
@@ -116,7 +116,7 @@ export function AnalysisTab({ studentId, studentName }: AnalysisTabProps) {
       if (result.error) {
         setError(result.error)
       } else {
-        setAnalysis(result.analysis || null)
+        setAnalysis((result.analysis as unknown as WeeklyAnalysis) || null)
       }
     } catch {
       setError("分析の生成に失敗しました")

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { generateGoalNavigationMessage } from "@/lib/openai/goal-coaching"
+import { requireAuth } from "@/lib/api/auth"
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth(["student"])
+  if ("error" in auth) return auth.error
+
   try {
     const {
       studentName,

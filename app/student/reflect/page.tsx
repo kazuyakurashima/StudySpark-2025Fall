@@ -66,7 +66,7 @@ function ReflectPageInner() {
   const [activeTab, setActiveTab] = useState<"achievement" | "assessment" | "history" | "encouragement" | "coaching">("achievement")
 
   useEffect(() => {
-    const tabParam = searchParams.get("tab")
+    const tabParam = searchParams?.get("tab") ?? null
     if (!tabParam) return
 
     // 後方互換: assessment-history → assessment に正規化
@@ -114,7 +114,7 @@ function ReflectPageInner() {
   const loadWeekType = async () => {
     const result = await determineWeekType()
     if (!result.error) {
-      setWeekType(result.weekType)
+      setWeekType(result.weekType ?? null)
       setWeekData(result)
     }
   }
@@ -172,7 +172,7 @@ function ReflectPageInner() {
 
     const result = await startCoachingSession(weekType)
     if (!result.error && result.sessionId) {
-      setSessionId(result.sessionId)
+      setSessionId(String(result.sessionId))
       setIsStarted(true)
     } else {
       alert(result.error || "セッション開始に失敗しました")
@@ -277,7 +277,7 @@ function ReflectPageInner() {
         )}
 
         {/* 5つのタブ表示 */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab as (value: string) => void} className="w-full">
           <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="achievement" className="flex items-center gap-1 text-xs sm:text-sm min-h-[44px] px-2 sm:px-3">
               <Target className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" aria-hidden="true" />
@@ -432,7 +432,7 @@ function ReflectPageInner() {
         </div>
       </div>
 
-      <BottomNavigation />
+      <BottomNavigation activeTab="reflect" />
     </>
   )
 }

@@ -522,7 +522,7 @@ const ParentTodayMissionCard = ({
           <CardTitle className="text-xl font-bold text-slate-800">
             {getModeTitle()}
           </CardTitle>
-          {missionData.completionStatus && (
+          {missionData.completionStatus && typeof missionData.completionStatus !== 'string' && (
             <div className="flex items-center gap-2 text-sm">
               <span className="font-semibold text-slate-700">
                 📝 <span className="text-blue-600">{missionData.completionStatus.inputCount}/{missionData.completionStatus.totalCount}</span> 記録
@@ -576,7 +576,7 @@ const ParentTodayMissionCard = ({
                     <div className="flex items-center gap-3">
                       <Button
                         onClick={() => {
-                          const childParam = selectedChild?.id ? `?child=${selectedChild.id}` : ""
+                          const childParam = selectedChildId ? `?child=${selectedChildId}` : ""
                           window.location.href = `/parent/reflect${childParam}`
                         }}
                         className="bg-primary hover:bg-primary/90 text-white"
@@ -698,7 +698,7 @@ const ParentTodayMissionCard = ({
                     他の科目は80%以上を達成しています
                   </p>
                   <p className="text-sm text-slate-600 font-semibold">
-                    {subjectPanels[0].subject}をクリアすれば全科目目標達成です！
+                    {'subject' in subjectPanels[0] && subjectPanels[0].subject}をクリアすれば全科目目標達成です！
                   </p>
                 </div>
               )}
@@ -1686,7 +1686,7 @@ function ParentDashboardInner({
     initialData && !isError(initialData.streak) ? initialData.streak.todayStudied : false
   )
   const [streakState, setStreakState] = useState<"active" | "grace" | "warning" | "reset">(
-    initialData && !isError(initialData.streak) ? initialData.streak.state : "reset"
+    initialData && !isError(initialData.streak) ? initialData.streak.streakState : "reset"
   )
   const [recentLogs, setRecentLogs] = useState<any[]>(
     initialData && !isError(initialData.recentLogs) ? initialData.recentLogs.logs : []
