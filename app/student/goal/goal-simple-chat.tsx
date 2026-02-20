@@ -94,7 +94,7 @@ export function GoalSimpleChat({
 
   useEffect(() => {
     if (initialThoughts) {
-      setCurrentThoughts(initialThoughts)
+      setGeneratedThoughts(initialThoughts)
     }
     if (!hasStartedRef.current) {
       startConversation()

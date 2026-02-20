@@ -28,15 +28,13 @@ export type AssessmentGrade = "5年" | "6年"
 /** テストマスタ（assessment_masters テーブル） */
 export interface AssessmentMaster {
   id: string
-  assessment_type: AssessmentType
-  grade: AssessmentGrade
+  assessment_type: string
+  grade: string
   session_number: number // 学習回（1〜19）
   attempt_number: number // 回数（算数:1-2, 漢字:1）
   max_score: number // 満点
   /** 項目名（例: マスタープリント小5下第1回①比の利用 / 漢字テスト 第3回） */
-  title?: string | null
-  /** 旧: 単元名など（DB未実装の場合はundefined/null） */
-  description?: string | null
+  title: string | null
   created_at: string
 }
 
@@ -63,7 +61,7 @@ export interface ClassAssessment {
   /** 入力時点の満点（マスタからコピー、不変） */
   max_score_at_submission: number
   /** 入力時点の学年（マスタからコピー、不変） */
-  grade_at_submission: AssessmentGrade
+  grade_at_submission: string
   /** 実施日（YYYY-MM-DD） */
   assessment_date: string
   /** 再提出フラグ（true=再提出、初回欠席→補習はfalse） */
@@ -72,7 +70,7 @@ export interface ClassAssessment {
   grader_id: string
   /** 管理者が修正した場合のユーザーID */
   modified_by: string | null
-  source: AssessmentSource
+  source: string
   created_at: string
   updated_at: string
 }

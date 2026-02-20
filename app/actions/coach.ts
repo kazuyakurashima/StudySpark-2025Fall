@@ -139,7 +139,7 @@ export async function getStudentDetail(studentId: string) {
     .from("coach_student_relations")
     .select("id")
     .eq("coach_id", coach.id)
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .single()
 
   if (!relation) {
@@ -149,8 +149,8 @@ export async function getStudentDetail(studentId: string) {
   // 生徒の詳細情報を取得
   const { data: student, error: studentError } = await supabase
     .from("students")
-    .select("id, user_id, full_name, grade, course, target_school, target_class")
-    .eq("id", studentId)
+    .select("id, user_id, full_name, grade, course")
+    .eq("id", Number(studentId))
     .single()
 
   if (studentError || !student) {
@@ -166,16 +166,16 @@ export async function getStudentDetail(studentId: string) {
 
   const studentWithProfile = {
     ...student,
-    nickname: profile?.nickname || null,
-    avatar_id: profile?.avatar_id || null,
-    custom_avatar_url: profile?.custom_avatar_url || null,
+    nickname: profile?.nickname ?? null,
+    avatar_id: profile?.avatar_id ?? null,
+    custom_avatar_url: profile?.custom_avatar_url ?? null,
   }
 
   // 学習履歴を取得（最新50件）
   const { data: studyLogs, error: logsError } = await supabase
     .from("study_logs")
     .select("*")
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .order("created_at", { ascending: false })
     .limit(50)
 
@@ -184,8 +184,8 @@ export async function getStudentDetail(studentId: string) {
   }
 
   // 連続日数を計算
-  const { data: streakData } = await supabase.rpc("calculate_streak", {
-    p_student_id: studentId,
+  const { data: streakData } = await supabase.rpc("calculate_streak" as any, {
+    p_student_id: Number(studentId),
   })
 
   // 今週の学習記録数（週リング相当）
@@ -200,7 +200,7 @@ export async function getStudentDetail(studentId: string) {
   const recentScore =
     recentLogs.length > 0
       ? Math.round(
-          (recentLogs.reduce((sum, log) => sum + (log.correct_count / log.total_questions) * 100, 0) /
+          (recentLogs.reduce((sum, log) => sum + (log.correct_count / log.total_problems) * 100, 0) /
             recentLogs.length) *
             10
         ) / 10
@@ -249,7 +249,7 @@ export async function getStudentLearningHistory(studentId: string, limit = 20) {
     .from("coach_student_relations")
     .select("id")
     .eq("coach_id", coach.id)
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .single()
 
   if (!relation) {
@@ -258,7 +258,7 @@ export async function getStudentLearningHistory(studentId: string, limit = 20) {
 
   // 学習履歴を取得（batch_idとリレーション情報を含む）
   // studentIdを数値に変換（DBのstudent_idがinteger型の場合）
-  const studentIdNum = parseInt(studentId, 10)
+  const studentIdNum = Number(studentId)
 
   const { data: studyLogs, error: logsError } = await supabase
     .from("study_logs")
@@ -386,7 +386,7 @@ export async function sendEncouragementToStudent(studentId: string, studyLogId: 
     .from("coach_student_relations")
     .select("id")
     .eq("coach_id", coach.id)
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .single()
 
   if (!relation) {
@@ -401,11 +401,11 @@ export async function sendEncouragementToStudent(studentId: string, studyLogId: 
   const { data: encouragement, error: saveError } = await supabase
     .from("encouragement_messages")
     .insert({
-      student_id: studentId,
+      student_id: Number(studentId),
       sender_id: user.id,  // auth.users.idを使用
-      sender_role: "coach",
+      sender_role: "coach" as const,
       message,
-      related_study_log_id: studyLogId,
+      related_study_log_id: Number(studyLogId),
       support_type: supportType,
     })
     .select()
@@ -477,8 +477,6 @@ export async function getCoachStudentLearningRecords(limit = 50) {
     return { error: "指導者情報が見つかりません" }
   }
 
-  console.log("[getCoachStudentLearningRecords] Coach ID:", coach.id)
-
   // 担当生徒のIDを取得
   const { data: relations, error: relationsError } = await supabase
     .from("coach_student_relations")
@@ -490,16 +488,11 @@ export async function getCoachStudentLearningRecords(limit = 50) {
     return { error: "担当生徒の取得に失敗しました" }
   }
 
-  console.log("[getCoachStudentLearningRecords] Relations:", relations)
-
   const studentIds = relations?.map((rel) => rel.student_id) || []
 
   if (studentIds.length === 0) {
-    console.log("[getCoachStudentLearningRecords] No students found, returning empty records")
     return { records: [] }
   }
-
-  console.log("[getCoachStudentLearningRecords] Fetching logs for student IDs:", studentIds)
 
   // 担当生徒の学習記録を取得（logged_at基準でソート）
   const { data: studyLogs, error: logsError } = await supabase
@@ -529,30 +522,15 @@ export async function getCoachStudentLearningRecords(limit = 50) {
     .order("logged_at", { ascending: false })
     .limit(limit)
 
-  console.log("[getCoachStudentLearningRecords] Query error:", logsError)
-
   if (logsError) {
     console.error("Failed to fetch study logs:", logsError)
     return { error: "学習記録の取得に失敗しました" }
-  }
-
-  // デバッグ: 取得したデータを確認
-  console.log("[getCoachStudentLearningRecords] Study logs count:", studyLogs?.length || 0)
-  if (studyLogs && studyLogs.length > 0) {
-    console.log("[getCoachStudentLearningRecords] First log sample:", JSON.stringify({
-      id: studyLogs[0].id,
-      student_id: studyLogs[0].student_id,
-      students: studyLogs[0].students,
-      subjects: studyLogs[0].subjects
-    }, null, 2))
   }
 
   // 生徒のuser_idを取得してprofilesからnickname/avatar_idを取得
   const studentUserIds = studyLogs
     ?.map((log: any) => log.students?.user_id)
     .filter(Boolean) || []
-
-  console.log("[getCoachStudentLearningRecords] Student user IDs:", studentUserIds)
 
   let profilesMap: Record<string, { nickname: string | null; avatar_id: string | null; custom_avatar_url: string | null }> = {}
 
@@ -633,19 +611,6 @@ export async function getCoachStudentLearningRecords(limit = 50) {
         })),
     }
   }) || []
-
-  console.log("[getCoachStudentLearningRecords] Final records count:", records.length)
-  if (records.length > 0) {
-    console.log("[getCoachStudentLearningRecords] First record sample:", JSON.stringify({
-      id: records[0].id,
-      studentId: records[0].studentId,
-      studentName: records[0].studentName,
-      studentNickname: records[0].studentNickname,
-      studentAvatar: records[0].studentAvatar,
-      grade: records[0].grade,
-      subject: records[0].subject
-    }, null, 2))
-  }
 
   return { records }
 }
@@ -1551,17 +1516,34 @@ export async function saveAssessmentScores(
     return { error: "指導者情報が見つかりません" }
   }
 
+  // マスタデータを取得（grade_at_submission, max_score_at_submission用）
+  const masterIds = [...new Set(scores.map((s) => s.masterId))]
+  const { data: masters } = await supabase
+    .from("assessment_masters")
+    .select("id, grade, max_score")
+    .in("id", masterIds)
+
+  const masterMap = new Map<string, { grade: string; max_score: number }>()
+  masters?.forEach((m) => {
+    masterMap.set(m.id, { grade: m.grade, max_score: m.max_score })
+  })
+
   // 一括保存（upsert）
   const dateToUse = assessmentDate || getTodayJST()
-  const upsertData = scores.map((score) => ({
-    student_id: parseInt(score.studentId, 10),
-    master_id: score.masterId,
-    score: score.status === 'completed' ? score.score : null,
-    status: score.status,
-    assessment_date: dateToUse,  // NOT NULL制約のため常に保存
-    grader_id: user.id,
-    is_resubmission: false,
-  }))
+  const upsertData = scores.map((score) => {
+    const master = masterMap.get(score.masterId)
+    return {
+      student_id: Number(score.studentId),
+      master_id: score.masterId,
+      score: score.status === 'completed' ? score.score : null,
+      status: score.status,
+      assessment_date: dateToUse,  // NOT NULL制約のため常に保存
+      grader_id: user.id,
+      is_resubmission: false,
+      grade_at_submission: master?.grade ?? "",
+      max_score_at_submission: master?.max_score ?? 0,
+    }
+  })
 
   const { error: saveError } = await supabase
     .from("class_assessments")

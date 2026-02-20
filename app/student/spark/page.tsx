@@ -29,5 +29,5 @@ export default async function SparkPage({
     redirect("/")
   }
 
-  return <SparkClient initialData={{ student }} preselectedSubject={searchParams.subject} />
+  return <SparkClient initialData={{ student: { ...student, course: student.course || "A" } }} preselectedSubject={searchParams.subject} />
 }

@@ -159,8 +159,9 @@ async function updateDenormalizedColumn(
   // ai_cacheの場合はentity_idで検索、それ以外はidで検索
   const idColumn = tableName === "ai_cache" ? "entity_id" : "id"
 
-  const { error } = await supabase
-    .from(tableName)
+  // Dynamic table access: tableName is validated above against tableMap
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase.from(tableName as any) as any)
     .update({ langfuse_trace_id: traceId })
     .eq(idColumn, entityId)
 

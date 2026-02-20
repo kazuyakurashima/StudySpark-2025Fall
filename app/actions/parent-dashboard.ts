@@ -92,7 +92,6 @@ export async function getParentChildren(): Promise<{ children: ChildProfile[]; e
  */
 export async function getParentDashboardData() {
   try {
-    console.log("🔍 [SERVER] getParentDashboardData called")
     const supabase = await createClient()
 
     // Get current user
@@ -100,13 +99,6 @@ export async function getParentDashboardData() {
       data: { user },
       error: userError,
     } = await supabase.auth.getUser()
-
-    console.log("🔍 [SERVER] User auth check:", {
-      hasUser: !!user,
-      userId: user?.id,
-      email: user?.email,
-      error: userError?.message
-    })
 
     if (userError || !user) {
       console.error("🔍 [SERVER] Auth error:", userError)
@@ -120,12 +112,6 @@ export async function getParentDashboardData() {
       .eq("id", user.id)
       .single()
 
-    console.log("🔍 [SERVER] Profile check:", {
-      hasProfile: !!profile,
-      role: profile?.role,
-      error: profileError?.message
-    })
-
     if (profileError) {
       console.error("🔍 [SERVER] Profile error:", profileError)
       return { error: "プロフィール情報の取得に失敗しました" }
@@ -137,13 +123,6 @@ export async function getParentDashboardData() {
       .select("id")
       .eq("user_id", user.id)
       .single()
-
-    console.log("🔍 [SERVER] Parent record check:", {
-      hasParent: !!parent,
-      parentData: parent,
-      error: parentError?.message,
-      errorDetails: parentError
-    })
 
     if (parentError || !parent) {
       console.error("🔍 [SERVER] Parent error:", parentError)
@@ -174,14 +153,11 @@ export async function getParentDashboardData() {
 
     // Fetch student and profile data for each student_id
     const studentIds = relations.map((r) => r.student_id)
-    console.log("🔍 [SERVER] Student IDs:", studentIds)
 
     const { data: students, error: studentsError } = await supabase
       .from("students")
       .select("id, full_name, grade, course, user_id")
       .in("id", studentIds)
-
-    console.log("🔍 [SERVER] Students query:", { count: students?.length, error: studentsError?.message })
 
     if (studentsError || !students) {
       console.error("🔍 [SERVER] Students error:", studentsError)
@@ -190,14 +166,11 @@ export async function getParentDashboardData() {
 
     // Fetch profiles for all students
     const userIds = students.map((s) => s.user_id).filter(Boolean)
-    console.log("🔍 [SERVER] User IDs for profiles:", userIds)
 
     const { data: profiles, error: profilesError } = await supabase
       .from("profiles")
       .select("id, display_name, avatar_id")
       .in("id", userIds)
-
-    console.log("🔍 [SERVER] Profiles query:", { count: profiles?.length, error: profilesError?.message })
 
     if (profilesError) {
       console.error("🔍 [SERVER] Profiles error:", profilesError)
@@ -225,12 +198,6 @@ export async function getParentDashboardData() {
             : null,
         },
       }
-    })
-
-    console.log("🔍 [SERVER] Returning data:", {
-      hasProfile: !!profile,
-      hasParent: !!parent,
-      childrenCount: children.length
     })
 
     return {
@@ -417,7 +384,6 @@ export async function getTodayLogCount(studentId: number) {
  */
 export async function getTodayStatusMessageAI(studentId: number) {
   try {
-    console.log("🔍 [SERVER] getTodayStatusMessageAI called for student:", studentId)
     const supabase = await createClient()
 
     const {
@@ -481,7 +447,6 @@ export async function getTodayStatusMessageAI(studentId: number) {
       .single()
 
     if (todayCache) {
-      console.log(`[Parent Status] Cache hit for today: ${todayCacheKey}`)
       const cachedData = JSON.parse(todayCache.cached_content)
       return {
         message: cachedData.message || cachedData,
@@ -499,14 +464,12 @@ export async function getTodayStatusMessageAI(studentId: number) {
       .limit(1)
 
     if (todayLogs && todayLogs.length > 0) {
-      console.log(`[Parent Status] Today's logs found, returning template immediately and generating AI in background`)
 
       // 🚀 改善: テンプレートメッセージを即座に返却（10-15秒の待機を回避）
       const templateResult = await getTodayStatusMessage(studentId)
 
       // バックグラウンドでAI生成（await せずに非同期実行）
       generateTodayStatusMessage(supabase, user.id, student, profile, todayStr, displayName)
-        .then(() => console.log(`[Parent Status] Background AI generation completed for ${displayName}`))
         .catch((err) => console.error(`[Parent Status] Background AI generation failed:`, err))
 
       return {
@@ -518,17 +481,13 @@ export async function getTodayStatusMessageAI(studentId: number) {
 
     // === STEP 3: 昨日のキャッシュをチェック ===
     const yesterdayCacheKey = `daily_status_yesterday_${studentId}_${yesterdayStr}`
-    console.log(`[Parent Status] Checking yesterday cache: ${yesterdayCacheKey}`)
     const { data: yesterdayCache, error: yesterdayCacheError } = await supabase
       .from("ai_cache")
       .select("cached_content, entity_id, created_at")
       .eq("cache_key", yesterdayCacheKey)
       .single()
 
-    console.log(`[Parent Status] Yesterday cache result:`, { found: !!yesterdayCache, error: yesterdayCacheError?.message })
-
     if (yesterdayCache) {
-      console.log(`[Parent Status] Cache hit for yesterday: ${yesterdayCacheKey}`)
       const cachedData = JSON.parse(yesterdayCache.cached_content)
       const message = cachedData.message || cachedData
       const prefix = cachedData.metadata?.prefix_message || "昨日の様子です"
@@ -542,7 +501,6 @@ export async function getTodayStatusMessageAI(studentId: number) {
     }
 
     // === STEP 4: フォールバック ===
-    console.log(`[Parent Status] No cache found, falling back to template`)
     return getTodayStatusMessage(studentId)
   } catch (error) {
     console.error("Get today status message AI error:", error)
@@ -619,11 +577,11 @@ async function generateTodayStatusMessage(
     let weeklyTrend: "improving" | "stable" | "declining" | "none" = "none"
     if (thisWeekLogs && thisWeekLogs.length > 0 && lastWeekLogs && lastWeekLogs.length > 0) {
       const thisWeekAccuracy =
-        thisWeekLogs.reduce((sum, log) => sum + log.correct_count, 0) /
-        thisWeekLogs.reduce((sum, log) => sum + log.total_problems, 0)
+        thisWeekLogs.reduce((sum: number, log: any) => sum + log.correct_count, 0) /
+        thisWeekLogs.reduce((sum: number, log: any) => sum + log.total_problems, 0)
       const lastWeekAccuracy =
-        lastWeekLogs.reduce((sum, log) => sum + log.correct_count, 0) /
-        lastWeekLogs.reduce((sum, log) => sum + log.total_problems, 0)
+        lastWeekLogs.reduce((sum: number, log: any) => sum + log.correct_count, 0) /
+        lastWeekLogs.reduce((sum: number, log: any) => sum + log.total_problems, 0)
 
       const diff = (thisWeekAccuracy - lastWeekAccuracy) * 100
       if (diff >= 10) {
@@ -665,7 +623,7 @@ async function generateTodayStatusMessage(
       grade: student.grade,
       course: student.course,
       todayLogs:
-        todayLogs?.map((log) => {
+        todayLogs?.map((log: any) => {
           const subject = Array.isArray(log.subjects) ? log.subjects[0] : log.subjects
           const content = Array.isArray(log.study_content_types)
             ? log.study_content_types[0]
@@ -748,8 +706,6 @@ async function generateTodayStatusMessage(
       langfuse_trace_id: traceId,
       student_id: studentId,
     })
-
-    console.log(`[Parent Status] ✅ Generated and cached (realtime): ${todayCacheKey} (trace: ${traceId})`)
 
     return { message: result.message, createdAt: new Date().toISOString() }
   } catch (error) {
@@ -919,8 +875,6 @@ export async function getStudentTodayMissionData(studentId: number) {
     const { getTodayJST } = await import("@/lib/utils/date-jst")
     const todayDateStr = getTodayJST()
 
-    console.log("🔍 [PARENT] getStudentTodayMissionData - student_id:", studentId, "grade:", student.grade, "today:", todayDateStr)
-
     // Find this week's study session
     const { data: currentSession, error: sessionError } = await supabase
       .from("study_sessions")
@@ -934,8 +888,6 @@ export async function getStudentTodayMissionData(studentId: number) {
       console.error("No current session found for parent today mission:", sessionError)
       return { todayProgress: [] }
     }
-
-    console.log("🔍 [PARENT] getStudentTodayMissionData - current session_id:", currentSession.id)
 
     // Get today's logs for this week's session only
     const { data: todayLogs, error: logsError } = await supabase
@@ -1001,9 +953,6 @@ export async function getStudentTodayMissionData(studentId: number) {
       logs: data.logs,
     }))
 
-    console.log("🔍 [PARENT] getStudentTodayMissionData - todayLogs count:", todayLogs?.length || 0)
-    console.log("🔍 [PARENT] getStudentTodayMissionData - todayProgress:", JSON.stringify(todayProgress, null, 2))
-
     return { todayProgress }
   } catch (error) {
     console.error("Get student today mission data error:", error)
@@ -1016,14 +965,11 @@ export async function getStudentTodayMissionData(studentId: number) {
  */
 export async function getStudentWeeklyProgress(studentId: number) {
   try {
-    console.log("🔍 [SERVER] getStudentWeeklyProgress called for student:", studentId)
     const supabase = await createClient()
 
     const {
       data: { user },
     } = await supabase.auth.getUser()
-
-    console.log("🔍 [SERVER] User authenticated:", !!user, "User ID:", user?.id)
 
     if (!user) {
       console.error("🔍 [SERVER] No authenticated user")
@@ -1032,8 +978,6 @@ export async function getStudentWeeklyProgress(studentId: number) {
 
     // Verify parent-child relationship
     const { data: parent } = await supabase.from("parents").select("id").eq("user_id", user.id).single()
-
-    console.log("🔍 [SERVER] Parent found:", !!parent, "Parent ID:", parent?.id)
 
     if (!parent) {
       console.error("🔍 [SERVER] No parent record found for user")
@@ -1075,9 +1019,6 @@ export async function getStudentWeeklyProgress(studentId: number) {
     })
     const todayStr = formatter.format(now)
 
-    console.log("🔍 [SERVER] Weekly progress - Today (JST):", todayStr)
-    console.log("🔍 [SERVER] Weekly progress - Student grade:", student.grade)
-
     // Find this week's study session
     const { data: currentSession, error: sessionError } = await supabase
       .from("study_sessions")
@@ -1086,9 +1027,6 @@ export async function getStudentWeeklyProgress(studentId: number) {
       .lte("start_date", todayStr)
       .gte("end_date", todayStr)
       .single()
-
-    console.log("🔍 [SERVER] Weekly progress - Current session:", JSON.stringify(currentSession, null, 2))
-    console.log("🔍 [SERVER] Weekly progress - Session error:", sessionError)
 
     let logs
     let logsError
@@ -1151,16 +1089,12 @@ export async function getStudentWeeklyProgress(studentId: number) {
       sessionNumber = currentSession.session_number
     }
 
-    console.log("🔍 [SERVER] Weekly progress - Logs count:", logs?.length)
-    console.log("🔍 [SERVER] Weekly progress - Logs error:", logsError)
-
     if (logsError) {
       console.error("🔍 [SERVER] Get student weekly progress error:", logsError)
       return { error: "週次進捗の取得に失敗しました" }
     }
 
     if (!logs || logs.length === 0) {
-      console.log("🔍 [SERVER] Weekly progress - No logs found, returning empty array")
       return { progress: [], sessionNumber }
     }
 
@@ -1229,7 +1163,7 @@ export async function getStudentWeeklyProgress(studentId: number) {
     latestLogsMap.forEach((log) => {
       const subject = Array.isArray(log.subjects) ? log.subjects[0] : log.subjects
       const subjectName = subject?.name || "不明"
-      const subjectId = subject?.id
+      const subjectId = (subject as any)?.id
       const contentType = Array.isArray(log.study_content_types) ? log.study_content_types[0] : log.study_content_types
       const contentName = contentType?.content_name || "その他"
 
@@ -1272,9 +1206,7 @@ export async function getStudentWeeklyProgress(studentId: number) {
       }))
     }))
 
-    console.log("🔍 [SERVER] Weekly progress - Final result:", JSON.stringify(progress, null, 2))
-
-    return { progress, sessionNumber: currentSession.session_number }
+    return { progress, sessionNumber: currentSession!.session_number }
   } catch (error) {
     console.error("🔍 [SERVER] Weekly progress - Unexpected error:", error)
     return { error: "予期しないエラーが発生しました" }

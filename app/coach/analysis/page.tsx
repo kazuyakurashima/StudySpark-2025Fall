@@ -367,7 +367,7 @@ export default function AnalysisPage() {
   const searchParams = useSearchParams()
 
   // URLから学年フィルタを取得
-  const gradeParam = searchParams.get("grade")
+  const gradeParam = searchParams?.get("grade") ?? null
   const initialGrade: GradeFilter =
     gradeParam === "5" || gradeParam === "6" ? gradeParam : "all"
 
@@ -388,7 +388,7 @@ export default function AnalysisPage() {
   // 学年フィルタ変更時にURLを更新
   const handleGradeChange = (newGrade: GradeFilter) => {
     setGrade(newGrade)
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams(searchParams?.toString() ?? "")
     if (newGrade === "all") {
       params.delete("grade")
     } else {

@@ -11,7 +11,7 @@
 //     ここでは sanitizeAnswerConfig の純粋関数部分をテスト対象とする。
 //     Server Actions の統合テストは E2E テストで担保する。
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
 import { sanitizeAnswerConfig } from '@/lib/math-answer-utils'
 
 // ============================================================
@@ -253,15 +253,23 @@ describe('sanitizeAnswerConfig — 正答漏えい防止', () => {
 // Supabase モックを使用した Server Actions テスト
 
 // Server Actions は vi.mock の後にインポート
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const {
-  startMathRetry,
-  getMathDraftAnswers,
-  submitAndGradeMathAnswers,
-  getMathQuestionsForAnswering,
-  getMathGradeResult,
-  revealMathAnswers,
-} = await import('@/app/actions/math-answer')
+// Dynamic import is needed after vi.mock() setup
+let startMathRetry: Awaited<typeof import('@/app/actions/math-answer')>['startMathRetry']
+let getMathDraftAnswers: Awaited<typeof import('@/app/actions/math-answer')>['getMathDraftAnswers']
+let submitAndGradeMathAnswers: Awaited<typeof import('@/app/actions/math-answer')>['submitAndGradeMathAnswers']
+let getMathQuestionsForAnswering: Awaited<typeof import('@/app/actions/math-answer')>['getMathQuestionsForAnswering']
+let getMathGradeResult: Awaited<typeof import('@/app/actions/math-answer')>['getMathGradeResult']
+let revealMathAnswers: Awaited<typeof import('@/app/actions/math-answer')>['revealMathAnswers']
+
+beforeAll(async () => {
+  const mod = await import('@/app/actions/math-answer')
+  startMathRetry = mod.startMathRetry
+  getMathDraftAnswers = mod.getMathDraftAnswers
+  submitAndGradeMathAnswers = mod.submitAndGradeMathAnswers
+  getMathQuestionsForAnswering = mod.getMathQuestionsForAnswering
+  getMathGradeResult = mod.getMathGradeResult
+  revealMathAnswers = mod.revealMathAnswers
+})
 
 describe('リトライ関連テスト — Server Actions (Supabase モック)', () => {
   beforeEach(() => {

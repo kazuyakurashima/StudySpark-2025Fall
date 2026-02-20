@@ -100,7 +100,6 @@ export function prefetchCoachDashboard() {
     .then((data: CoachDashboardData) => {
       // SWR キャッシュにデータを登録（revalidate: false で再取得しない）
       mutate(key, data, { revalidate: false })
-      console.log("[Prefetch] Coach dashboard cache populated")
       return data
     })
     .catch((err) => {

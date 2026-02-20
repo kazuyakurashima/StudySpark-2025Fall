@@ -106,7 +106,7 @@ export async function GET(request: Request) {
 
     let successCount = 0
     let failureCount = 0
-    const errors: { parentId: string; studentId: string; error: string }[] = []
+    const errors: { parentId: number; studentId: number; error: string }[] = []
 
     // 各保護者の各子どものメッセージを生成
     for (const parent of parents) {
@@ -117,7 +117,7 @@ export async function GET(request: Request) {
         if (!student) continue
 
         try {
-          const studentId = student.id
+          const studentId: number = Number(student.id)
           const cacheKey = `daily_status_yesterday_${studentId}_${yesterdayStr}`
 
           // 既にキャッシュ存在チェック
@@ -153,10 +153,10 @@ export async function GET(request: Request) {
           // 連続学習日数を取得
           const streak = await getStudyStreakForStudent(studentId)
 
-          // 最近の振り返りコメントを取得
+          // 最近の振り返りコメントを取得（coaching_messages -> coaching_sessions経由）
           const { data: recentReflection } = await supabase
-            .from("coaching_messages")
-            .select("summary")
+            .from("coaching_sessions")
+            .select("summary_text")
             .eq("student_id", studentId)
             .order("created_at", { ascending: false })
             .limit(1)
@@ -181,7 +181,7 @@ export async function GET(request: Request) {
             })),
             studyStreak: streak,
             weeklyTrend,
-            recentReflection: recentReflection?.summary || undefined,
+            recentReflection: recentReflection?.summary_text || undefined,
             upcomingTest: upcomingTest || undefined,
           }
 
@@ -215,7 +215,7 @@ export async function GET(request: Request) {
           const traceId = await createDailyStatusTrace(
             entityId,
             parent.user_id,
-            studentId,
+            String(studentId),
             promptSummary,
             result.message,
             false, // 新規生成なのでcacheHit=false
@@ -283,7 +283,7 @@ export async function GET(request: Request) {
  * 週次トレンドを計算
  */
 async function calculateWeeklyTrend(
-  studentId: string,
+  studentId: number,
   todayStr: string
 ): Promise<"improving" | "stable" | "declining" | "none"> {
   const supabase = createServiceClient()
@@ -335,7 +335,7 @@ function calculateAverageAccuracy(logs: any[]): number {
 /**
  * 連続学習日数を計算（特定の生徒）
  */
-async function getStudyStreakForStudent(studentId: string): Promise<number> {
+async function getStudyStreakForStudent(studentId: number): Promise<number> {
   const supabase = createServiceClient()
 
   const { data: logs } = await supabase
@@ -377,29 +377,48 @@ async function getStudyStreakForStudent(studentId: string): Promise<number> {
 /**
  * 近日のテスト情報取得
  */
-async function getUpcomingTest(studentId: string, todayStr: string) {
+async function getUpcomingTest(studentId: number, todayStr: string) {
   const supabase = createServiceClient()
 
-  const { data: test } = await supabase
+  // test_goals has test_schedule_id (FK to test_schedules), not test_date directly
+  // Join through test_schedules to get test_date and test_types
+  const { data: goals } = await supabase
     .from("test_goals")
     .select(`
-      test_date,
-      test_types (name)
+      test_schedule_id,
+      test_schedules (
+        test_date,
+        test_types (name)
+      )
     `)
     .eq("student_id", studentId)
-    .gte("test_date", todayStr)
-    .order("test_date", { ascending: true })
-    .limit(1)
-    .single()
 
-  if (!test) return null
+  if (!goals || goals.length === 0) return null
+
+  // Filter for upcoming tests and find the nearest one
+  const upcomingGoals = goals
+    .filter((g) => {
+      const schedule = g.test_schedules as any
+      return schedule?.test_date && schedule.test_date >= todayStr
+    })
+    .sort((a, b) => {
+      const dateA = (a.test_schedules as any)?.test_date || ""
+      const dateB = (b.test_schedules as any)?.test_date || ""
+      return dateA.localeCompare(dateB)
+    })
+
+  if (upcomingGoals.length === 0) return null
+
+  const nearest = upcomingGoals[0]
+  const schedule = nearest.test_schedules as any
+  const testDate = schedule.test_date as string
 
   const { getDaysDifference } = await import("@/lib/utils/date-jst")
-  const daysUntil = getDaysDifference(todayStr, test.test_date)
+  const daysUntil = getDaysDifference(todayStr, testDate)
 
   return {
-    name: (test as any).test_types?.name || "テスト",
-    date: test.test_date,
+    name: schedule.test_types?.name || "テスト",
+    date: testDate,
     daysUntil,
   }
 }

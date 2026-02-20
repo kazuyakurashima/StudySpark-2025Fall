@@ -57,7 +57,7 @@ export default async function StudentDetailPage({ params }: PageProps) {
     .from("coach_student_relations")
     .select("id")
     .eq("coach_id", coach.id)
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .single()
 
   if (!relation) {
@@ -79,7 +79,7 @@ export default async function StudentDetailPage({ params }: PageProps) {
         custom_avatar_url
       )
     `)
-    .eq("id", studentId)
+    .eq("id", Number(studentId))
     .single()
 
   if (studentError || !student) {
@@ -99,7 +99,7 @@ export default async function StudentDetailPage({ params }: PageProps) {
       total_problems,
       subjects (name)
     `)
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .gte("study_date", weekAgoJST)
     .order("study_date", { ascending: false })
     .limit(20)
@@ -114,7 +114,7 @@ export default async function StudentDetailPage({ params }: PageProps) {
   const { data: allLogs } = await supabase
     .from("study_logs")
     .select("study_date")
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .order("study_date", { ascending: false })
     .limit(100)
 

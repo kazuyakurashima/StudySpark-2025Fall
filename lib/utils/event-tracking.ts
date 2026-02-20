@@ -58,7 +58,7 @@ export async function recordEvent(
       student_id: options.studentId || null,
       user_role: userRole,
       event_type: eventType,
-      event_data: eventData,
+      event_data: eventData as import("@/types/supabase").Json,
       langfuse_trace_id: options.langfuseTraceId || null,
       content_id: options.contentId || null,
     })

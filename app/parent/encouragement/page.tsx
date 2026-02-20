@@ -37,7 +37,7 @@ export default function ParentEncouragementPage() {
   const { profile, children, setSelectedChildId: setProviderChildId, selectedChildId: providerSelectedChildId } = useUserProfile()
 
   // URLパラメータから child ID を取得
-  const childParam = searchParams.get("child")
+  const childParam = searchParams?.get("child") ?? null
 
   const [selectedChild, setSelectedChild] = useState<string | null>(null)
   const [entries, setEntries] = useState<GroupedLogEntry<EncouragementLog>[]>([])
@@ -116,13 +116,11 @@ export default function ParentEncouragementPage() {
       // プロバイダーから取得したIDで子どもを選択
       const child = children.find(c => c.id === providerSelectedChildId)
       if (child) {
-        console.log('[応援機能] プロバイダーから子どもを選択:', child.nickname, child.id)
         setSelectedChild(String(child.id))
       }
     } else if (!selectedChild) {
       // プロバイダーにまだ値がない場合で、selectedChildもない場合は最初の子どもを設定
       const firstChildId = children[0].id
-      console.log('[応援機能] デフォルトで最初の子供を設定:', children[0].nickname, children[0].id, firstChildId)
       setSelectedChild(String(children[0].id))
       setProviderChildId(firstChildId)
     }
@@ -139,7 +137,6 @@ export default function ParentEncouragementPage() {
 
   const loadStudyLogs = async (reset = true) => {
     if (!selectedChild) {
-      console.log('[応援機能] selectedChildがnullのためスキップ')
       return
     }
 
@@ -150,19 +147,13 @@ export default function ParentEncouragementPage() {
     }
 
     const offset = reset ? 0 : rawLogCount
-    console.log('[応援機能] 学習記録を取得中...', { selectedChild, filters, offset, reset })
-
     const result = await getStudyLogsForEncouragement(selectedChild, {
       ...filters,
       limit: 30, // バッチグループ化を考慮して多めに取得
       offset,
     })
 
-    console.log('[応援機能] 取得結果:', result)
-
     if (result.success) {
-      console.log('[応援機能] ログ数:', result.logs.length, '総数:', result.totalCount)
-
       // ログにsubjectフィールドを追加（groupLogsByBatchが必要とする）
       const logsWithSubject = result.logs.map((log: any) => ({
         ...log,

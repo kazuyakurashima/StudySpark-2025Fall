@@ -28,27 +28,11 @@ export async function generateReflectMessage(
   context: ReflectContext
 ): Promise<{ message?: string; error?: string }> {
   try {
-    console.log("=== Reflect Message Generation Started (v2.0) ===")
-    console.log("Context:", JSON.stringify({
-      studentName: context.studentName,
-      weekType: context.weekType,
-      thisWeekAccuracy: context.thisWeekAccuracy,
-      lastWeekAccuracy: context.lastWeekAccuracy,
-      accuracyDiff: context.accuracyDiff,
-      turnNumber: context.turnNumber,
-      conversationLength: context.conversationHistory.length,
-    }, null, 2))
-
     const openai = getOpenAIClient()
     const systemPrompt = getReflectSystemPrompt()
     const userPrompt = getReflectUserPrompt(context)
 
-    console.log("System Prompt:", systemPrompt)
-    console.log("User Prompt:", userPrompt)
-    console.log("Conversation History:", JSON.stringify(context.conversationHistory, null, 2))
-
     const model = getDefaultModel()
-    console.log("Using Model:", model)
 
     const response = await openai.chat.completions.create({
       model,
@@ -62,9 +46,6 @@ export async function generateReflectMessage(
       ],
       max_completion_tokens: 800,
     })
-
-    console.log("API Response:", JSON.stringify(response, null, 2))
-    console.log("Token Usage:", JSON.stringify(response.usage, null, 2))
 
     let message = response.choices[0]?.message?.content
 
@@ -89,13 +70,7 @@ export async function generateReflectMessage(
 
     if (shouldAppendMeta) {
       message = message.trimEnd() + "\n\n[META:SESSION_CAN_END]"
-      console.log("✅ Appended metadata tag for session end")
-      console.log(`  - GROW完了: ${hasCompletedGROWCheck}`)
-      console.log(`  - クロージング表現: ${isClosingTurn}`)
     }
-
-    console.log("✅ Generated Message:", message)
-    console.log("=== Reflect Message Generation Completed ===")
 
     return { message }
   } catch (error) {
@@ -111,14 +86,6 @@ export async function generateReflectSummary(
   context: ReflectContext
 ): Promise<{ summary?: string; error?: string }> {
   try {
-    console.log("=== Reflect Summary Generation Started ===")
-    console.log("Context:", JSON.stringify({
-      studentName: context.studentName,
-      weekType: context.weekType,
-      accuracyDiff: context.accuracyDiff,
-      conversationLength: context.conversationHistory.length,
-    }, null, 2))
-
     const openai = getOpenAIClient()
     const systemPrompt = `あなたは小学生の学習を支援するAIコーチです。
 週次振り返り対話の内容から、生徒の気づきと成長をまとめてください。
@@ -145,12 +112,7 @@ ${conversationSummary}
 週タイプ: ${context.weekType === "growth" ? "成長週" : context.weekType === "stable" ? "安定週" : context.weekType === "challenge" ? "挑戦週" : "特別週"}
 正答率の変化: ${context.accuracyDiff >= 0 ? "+" : ""}${context.accuracyDiff}%`
 
-    console.log("System Prompt:", systemPrompt)
-    console.log("User Prompt:", userPrompt)
-    console.log("Conversation Summary:", conversationSummary)
-
     const model = getDefaultModel()
-    console.log("Using Model:", model)
 
     const response = await openai.chat.completions.create({
       model,
@@ -161,18 +123,12 @@ ${conversationSummary}
       max_completion_tokens: 500,
     })
 
-    console.log("API Response:", JSON.stringify(response, null, 2))
-    console.log("Token Usage:", JSON.stringify(response.usage, null, 2))
-
     const summary = response.choices[0]?.message?.content
 
     if (!summary) {
       console.error("❌ Summary is empty")
       return { error: "サマリー生成に失敗しました" }
     }
-
-    console.log("✅ Generated Summary:", summary)
-    console.log("=== Reflect Summary Generation Completed ===")
 
     return { summary }
   } catch (error) {

@@ -34,7 +34,7 @@ export async function getStudentDashboardData() {
     // Get student profile
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("display_name, avatar_id, nickname")
+      .select("display_name, avatar_id, nickname, theme_color")
       .eq("id", user.id)
       .single()
 
@@ -123,19 +123,16 @@ export async function getAICoachMessage() {
         .eq("cache_key", cacheKey)
 
       const message = JSON.parse(cached.cached_content) as string
-      console.log(`[Coach Message] Cache HIT: ${cacheKey}`)
       return { message, createdAt: cached.created_at }
     }
 
     // キャッシュミス - テンプレートを即返却 & AI生成はバックグラウンドで実行
-    console.log(`[Coach Message] Cache MISS: ${cacheKey}, returning template and generating AI in background`)
 
     // 🚀 改善: テンプレートメッセージを即座に返却（3-5秒の待機を回避）
     const templateMessage = getTemplateMessage(displayName)
 
     // バックグラウンドでAI生成（await せずに非同期実行）
     generateAndCacheCoachMessage(supabase, user.id, student, displayName, cacheKey)
-      .then(() => console.log(`[Coach Message] Background AI generation completed for ${displayName}`))
       .catch((err) => console.error(`[Coach Message] Background AI generation failed:`, err))
 
     return {
@@ -152,9 +149,9 @@ export async function getAICoachMessage() {
 
     if (user) {
       const { data: student } = await supabase
-        .from("students")
+        .from("profiles")
         .select("display_name")
-        .eq("user_id", user.id)
+        .eq("id", user.id)
         .single()
 
       return { message: getTemplateMessage(student?.display_name || "さん") }
@@ -254,7 +251,6 @@ async function generateAndCacheCoachMessage(
       created_at: now,
     })
 
-    console.log(`[Coach Message] ✅ Background AI generated and cached: ${cacheKey} (trace: ${traceId})`)
   } catch (error) {
     console.error("[Coach Message] Background generation failed:", error)
     throw error
@@ -269,17 +265,17 @@ async function getLatestWillAndGoalForCoach(studentId: string): Promise<{ will?:
 
   const { data } = await supabase
     .from("weekly_analysis")
-    .select("growth_areas, challenges")
-    .eq("student_id", studentId)
+    .select("strengths, challenges")
+    .eq("student_id", Number(studentId))
     .order("week_start_date", { ascending: false })
     .limit(1)
     .single()
 
   if (!data) return null
 
-  // growth_areasとchallengesからWill/Goal抽出（簡易版）
+  // strengthsとchallengesからWill/Goal抽出（簡易版）
   return {
-    will: data.growth_areas || undefined,
+    will: data.strengths || undefined,
     goal: data.challenges || undefined,
   }
 }
@@ -296,13 +292,6 @@ async function getRecentStudyLogsForCoach(studentId: string, days: number = 3) {
   const yesterdayStr = getYesterdayJST()
   const dayBeforeYesterdayStr = getDaysAgoJST(2)
 
-  console.log("🔍 [Coach Logs] Fetching logs for:", {
-    studentId,
-    today: todayStr,
-    yesterday: yesterdayStr,
-    dayBeforeYesterday: dayBeforeYesterdayStr,
-  })
-
   const { data: logs, error } = await supabase
     .from("study_logs")
     .select(`
@@ -313,7 +302,7 @@ async function getRecentStudyLogsForCoach(studentId: string, days: number = 3) {
       subjects (name),
       study_content_types (content_name)
     `)
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .gte("study_date", dayBeforeYesterdayStr)
     .lte("study_date", todayStr)
     .order("study_date", { ascending: false })
@@ -327,12 +316,7 @@ async function getRecentStudyLogsForCoach(studentId: string, days: number = 3) {
     return { today: [], yesterday: [], dayBeforeYesterday: [] }
   }
 
-  console.log("🔍 [Coach Logs] Query result:", {
-    count: logs?.length,
-  })
-
   if (!logs || logs.length === 0) {
-    console.log("🔍 [Coach Logs] No logs found")
     return { today: [], yesterday: [], dayBeforeYesterday: [] }
   }
 
@@ -361,12 +345,6 @@ async function getRecentStudyLogsForCoach(studentId: string, days: number = 3) {
     }
   })
 
-  console.log("🔍 [Coach Logs] Logs by day:", {
-    today: todayLogs.length,
-    yesterday: yesterdayLogs.length,
-    dayBeforeYesterday: dayBeforeYesterdayLogs.length,
-  })
-
   return {
     today: todayLogs,
     yesterday: yesterdayLogs,
@@ -384,8 +362,6 @@ async function getWeeklyCumulativeProgress(studentId: number) {
   const { getTodayJST } = await import("@/lib/utils/date-jst")
   const todayStr = getTodayJST()
 
-  console.log("🔍 [Coach Weekly] Fetching weekly progress for student:", studentId)
-
   try {
     // student.idから直接gradeを取得
     const { data: student, error: studentError } = await supabase
@@ -398,8 +374,6 @@ async function getWeeklyCumulativeProgress(studentId: number) {
       console.error("🔍 [Coach Weekly] Student not found:", studentError)
       return { progress: [] }
     }
-
-    console.log("🔍 [Coach Weekly] Student grade:", student.grade)
 
     // 今週のstudy_sessionを取得
     const { data: currentSession, error: sessionError } = await supabase
@@ -415,13 +389,6 @@ async function getWeeklyCumulativeProgress(studentId: number) {
       return { progress: [] }
     }
 
-    console.log("🔍 [Coach Weekly] Current session:", {
-      id: currentSession.id,
-      number: currentSession.session_number,
-      start: currentSession.start_date,
-      end: currentSession.end_date,
-    })
-
     // 今週の全ログを取得（logged_at降順で取得）
     const { data: logs, error: logsError } = await supabase
       .from("study_logs")
@@ -434,7 +401,7 @@ async function getWeeklyCumulativeProgress(studentId: number) {
         subjects (id, name),
         study_content_types (id, content_name)
       `)
-      .eq("student_id", studentId)
+      .eq("student_id", Number(studentId))
       .eq("session_id", currentSession.id)
       .order("logged_at", { ascending: false })
 
@@ -444,11 +411,8 @@ async function getWeeklyCumulativeProgress(studentId: number) {
     }
 
     if (!logs || logs.length === 0) {
-      console.log("🔍 [Coach Weekly] No logs found for this session")
       return { progress: [] }
     }
-
-    console.log("🔍 [Coach Weekly] Fetched", logs.length, "logs")
 
     // 科目×学習内容の組み合わせごとに最新のログのみを保持
     // （getWeeklySubjectProgress()と同じロジック）
@@ -467,8 +431,6 @@ async function getWeeklyCumulativeProgress(studentId: number) {
       }
     })
 
-    console.log("🔍 [Coach Weekly] Latest logs count:", latestLogsMap.size)
-
     // 科目別に集計（最新ログのみを使用）
     const subjectMap: {
       [subject: string]: {
@@ -478,8 +440,7 @@ async function getWeeklyCumulativeProgress(studentId: number) {
     } = {}
 
     latestLogsMap.forEach((log) => {
-      const subject = Array.isArray(log.subjects) ? log.subjects[0]?.name : log.subjects?.name
-      const subjectName = subject || "不明"
+      const subjectName = log.subjects?.name || "不明"
 
       if (!subjectMap[subjectName]) {
         subjectMap[subjectName] = { weekCorrect: 0, weekTotal: 0 }
@@ -487,8 +448,6 @@ async function getWeeklyCumulativeProgress(studentId: number) {
       subjectMap[subjectName].weekCorrect += log.correct_count || 0
       subjectMap[subjectName].weekTotal += log.total_problems || 0
     })
-
-    console.log("🔍 [Coach Weekly] Aggregated by subject:", subjectMap)
 
     // 科目順序を固定（算→国→理→社）
     const subjectOrder = ["算数", "国語", "理科", "社会"]
@@ -517,8 +476,6 @@ async function getWeeklyCumulativeProgress(studentId: number) {
         }
       })
 
-    console.log("🔍 [Coach Weekly] Final progress (sorted):", progress)
-
     return { progress }
   } catch (error) {
     console.error("🔍 [Coach Weekly] Unexpected error:", error)
@@ -535,25 +492,31 @@ async function getUpcomingTestForCoach(studentId: string) {
 
   const today = getTodayJST()
 
-  const { data: test } = await supabase
+  const { data: goals } = await supabase
     .from("test_goals")
     .select(`
-      test_date,
-      test_types (name)
+      test_schedules (
+        test_date,
+        test_types (name)
+      )
     `)
-    .eq("student_id", studentId)
-    .gte("test_date", today)
-    .order("test_date", { ascending: true })
-    .limit(1)
-    .single()
+    .eq("student_id", Number(studentId))
 
-  if (!test) return null
+  if (!goals || goals.length === 0) return null
 
-  const daysUntil = getDaysDifference(today, test.test_date)
+  // test_schedules 経由で test_date を取得し、今日以降のものをフィルタ
+  const upcoming = goals
+    .filter(g => g.test_schedules && g.test_schedules.test_date >= today)
+    .sort((a, b) => a.test_schedules!.test_date.localeCompare(b.test_schedules!.test_date))
+
+  if (upcoming.length === 0) return null
+
+  const schedule = upcoming[0].test_schedules!
+  const daysUntil = getDaysDifference(today, schedule.test_date)
 
   return {
-    name: (test as any).test_types?.name || "テスト",
-    date: test.test_date,
+    name: schedule.test_types?.name || "テスト",
+    date: schedule.test_date,
     daysUntil,
   }
 }
@@ -855,9 +818,6 @@ export async function getWeeklySubjectProgress() {
     })
     const todayStr = formatter.format(now) // Returns YYYY-MM-DD
 
-    console.log("🔍 [SERVER] Weekly progress - Today (JST):", todayStr)
-    console.log("🔍 [SERVER] Weekly progress - Student grade:", student.grade)
-
     // Find this week's study session
     const { data: currentSession, error: sessionError } = await supabase
       .from("study_sessions")
@@ -866,9 +826,6 @@ export async function getWeeklySubjectProgress() {
       .lte("start_date", todayStr)
       .gte("end_date", todayStr)
       .single()
-
-    console.log("🔍 [SERVER] Weekly progress - Current session:", JSON.stringify(currentSession, null, 2))
-    console.log("🔍 [SERVER] Weekly progress - Session error:", sessionError)
 
     if (sessionError || !currentSession) {
       console.error("No current session found:", sessionError)
@@ -886,7 +843,7 @@ export async function getWeeklySubjectProgress() {
         subject_id,
         study_content_type_id,
         logged_at,
-        subjects (name, color_code),
+        subjects (id, name, color_code),
         study_content_types (id, content_name)
       `
       )
@@ -960,10 +917,10 @@ export async function getWeeklySubjectProgress() {
     } = {}
 
     latestLogsMap.forEach((log) => {
-      const subject = Array.isArray(log.subjects) ? log.subjects[0] : log.subjects
+      const subject = log.subjects
       const subjectName = subject?.name || "不明"
       const subjectId = subject?.id
-      const contentType = Array.isArray(log.study_content_types) ? log.study_content_types[0] : log.study_content_types
+      const contentType = log.study_content_types
       const contentName = contentType?.content_name || "その他"
 
       if (!subjectMap[subjectName]) {
@@ -1111,8 +1068,6 @@ export async function getTodayMissionData() {
     const { getTodayJST } = await import("@/lib/utils/date-jst")
     const todayDateStr = getTodayJST()
 
-    console.log("🔍 [getTodayMissionData] student_id:", student.id, "grade:", student.grade, "today:", todayDateStr)
-
     // Find this week's study session
     const { data: currentSession, error: sessionError } = await supabase
       .from("study_sessions")
@@ -1126,8 +1081,6 @@ export async function getTodayMissionData() {
       console.error("No current session found for today's mission:", sessionError)
       return { todayProgress: [] }
     }
-
-    console.log("🔍 [getTodayMissionData] current session_id:", currentSession.id)
 
     // Get today's logs for this week's session only
     const { data: todayLogs, error: logsError } = await supabase
@@ -1152,8 +1105,6 @@ export async function getTodayMissionData() {
       return { error: "今日のミッションデータの取得に失敗しました" }
     }
 
-    console.log("🔍 [getTodayMissionData] todayLogs count:", todayLogs?.length || 0)
-
     // Aggregate by subject
     const subjectMap: { [key: string]: { totalCorrect: number; totalProblems: number; logCount: number } } = {}
 
@@ -1175,8 +1126,6 @@ export async function getTodayMissionData() {
       totalProblems: data.totalProblems,
       logCount: data.logCount, // 入力回数を追加
     }))
-
-    console.log("🔍 [getTodayMissionData] todayProgress:", JSON.stringify(todayProgress, null, 2))
 
     return { todayProgress }
   } catch (error) {
@@ -1544,7 +1493,7 @@ async function getTodayMissionForCoach(studentId: string) {
       total_problems,
       subjects (name)
     `)
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .in("study_date", [todayDateStr, yesterdayDateStr])
 
   if (todayError) {

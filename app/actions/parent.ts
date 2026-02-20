@@ -33,7 +33,7 @@ async function verifyParentChildRelation(studentId: string) {
   const { data: relation, error: relationError } = await supabase
     .from("parent_child_relations")
     .select("student_id")
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .eq("parent_id", parent.id)
     .single()
 
@@ -45,7 +45,7 @@ async function verifyParentChildRelation(studentId: string) {
   const { data: student, error: studentError } = await supabase
     .from("students")
     .select("id, full_name, grade, user_id")
-    .eq("id", studentId)
+    .eq("id", Number(studentId))
     .single()
 
   if (studentError || !student) {
@@ -79,14 +79,10 @@ async function verifyParentChildRelation(studentId: string) {
 export async function getParentChildren() {
   const supabase = await createClient()
 
-  console.log("🔍 [SERVER] getParentChildren called")
-
   // 現在のユーザー取得
   const {
     data: { user },
   } = await supabase.auth.getUser()
-
-  console.log("🔍 [SERVER] User:", user?.id, user?.email)
 
   if (!user) {
     return { error: "ログインが必要です" }
@@ -98,8 +94,6 @@ export async function getParentChildren() {
     .select("id")
     .eq("user_id", user.id)
     .single()
-
-  console.log("🔍 [SERVER] Parent:", parent?.id, "Error:", parentError?.message)
 
   if (parentError || !parent) {
     return { error: "保護者情報が見つかりません" }
@@ -117,27 +111,21 @@ export async function getParentChildren() {
     .select("student_id")
     .eq("parent_id", parent.id)
 
-  console.log("🔍 [SERVER] Relations count:", relations?.length, "Error:", relationsError?.message)
-
   if (relationsError) {
     return { error: "子ども情報の取得に失敗しました" }
   }
 
   if (!relations || relations.length === 0) {
-    console.log("🔍 [SERVER] No relations found")
     return { children: [] }
   }
 
   // student_id一覧からstudentsデータを取得
   const studentIds = relations.map((r) => r.student_id)
-  console.log("🔍 [SERVER] Student IDs:", studentIds)
 
   const { data: students, error: studentsError } = await adminClient
     .from("students")
     .select("id, full_name, grade, user_id")
     .in("id", studentIds)
-
-  console.log("🔍 [SERVER] Students count:", students?.length, "Error:", studentsError?.message)
 
   if (studentsError || !students) {
     return { error: "生徒情報の取得に失敗しました" }
@@ -149,8 +137,6 @@ export async function getParentChildren() {
     .from("profiles")
     .select("id, display_name, avatar_id")
     .in("id", userIds)
-
-  console.log("🔍 [SERVER] Profiles count:", profiles?.length, "Error:", profilesError?.message)
 
   // studentsデータとprofilesデータをマージ
   const profileMap = new Map(profiles?.map(p => [p.id, p]) || [])
@@ -165,8 +151,6 @@ export async function getParentChildren() {
       avatar_id: profile?.avatar_id || null
     }
   })
-
-  console.log("🔍 [SERVER] Final children:", JSON.stringify(children, null, 2))
 
   return { children }
 }
@@ -201,7 +185,7 @@ export async function getChildTestGoals(studentId: string) {
         )
       )
     `)
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .eq("test_schedules.test_types.grade", student.grade)
     .order("test_schedules.test_date", { ascending: false })
 
@@ -241,8 +225,8 @@ export async function getChildTestGoal(studentId: string, testScheduleId: string
         )
       )
     `)
-    .eq("student_id", studentId)
-    .eq("test_schedule_id", testScheduleId)
+    .eq("student_id", Number(studentId))
+    .eq("test_schedule_id", Number(testScheduleId))
     .single()
 
   if (goalError) {
@@ -267,15 +251,14 @@ export async function getChildReflections(studentId: string) {
     .from("coaching_sessions")
     .select(`
       id,
-      session_number,
       week_type,
-      this_week_accuracy,
-      last_week_accuracy,
-      summary,
+      week_start_date,
+      week_end_date,
+      summary_text,
       completed_at,
       created_at
     `)
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .not("completed_at", "is", null)
     .order("completed_at", { ascending: false })
 
@@ -301,16 +284,15 @@ export async function getChildReflection(studentId: string, sessionId: string) {
     .from("coaching_sessions")
     .select(`
       id,
-      session_number,
       week_type,
-      this_week_accuracy,
-      last_week_accuracy,
-      summary,
+      week_start_date,
+      week_end_date,
+      summary_text,
       completed_at,
       created_at
     `)
-    .eq("id", sessionId)
-    .eq("student_id", studentId)
+    .eq("id", Number(sessionId))
+    .eq("student_id", Number(studentId))
     .not("completed_at", "is", null)
     .single()
 
@@ -322,7 +304,7 @@ export async function getChildReflection(studentId: string, sessionId: string) {
   const { data: messages, error: messagesError } = await supabase
     .from("coaching_messages")
     .select("id, role, content, turn_number, created_at")
-    .eq("session_id", sessionId)
+    .eq("session_id", Number(sessionId))
     .order("turn_number", { ascending: true })
 
   if (messagesError) {
@@ -413,7 +395,7 @@ export async function getChildAchievementMapData(studentId: string) {
       study_content_types (content_name),
       study_sessions (session_number)
     `)
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .order("study_date", { ascending: true })
 
   if (logsError) {
@@ -455,7 +437,7 @@ export async function getChildStudyHistory(
       study_content_types (id, content_name),
       study_sessions (id, session_number, start_date, end_date)
     `)
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
 
   // 科目フィルタ
   if (params?.subjectFilter && params.subjectFilter !== "all") {
@@ -532,7 +514,6 @@ export async function getChildEncouragementHistory(
     displayMode?: string
   }
 ) {
-  console.log("[DEBUG getChildEncouragementHistory] Called with:", { studentId, params })
 
   const supabase = await createClient()
 
@@ -550,11 +531,8 @@ export async function getChildEncouragementHistory(
   const hasAccess = await checkStudentAccess(user.id, studentId)
 
   if (!hasAccess) {
-    console.log("[DEBUG getChildEncouragementHistory] Access denied")
     return { error: "アクセス権限がありません" }
   }
-
-  console.log("[DEBUG getChildEncouragementHistory] Access granted")
 
   let query = supabase
     .from("encouragement_messages")
@@ -599,15 +577,11 @@ export async function getChildEncouragementHistory(
 
   const { data: messages, error: queryError } = await query
 
-  console.log("[DEBUG getChildEncouragementHistory] Query result:", { messagesCount: messages?.length, error: queryError })
-
   if (queryError) {
-    console.log("[DEBUG getChildEncouragementHistory] Query error:", queryError.message)
     return { error: queryError.message }
   }
 
   let processedMessages = messages || []
-  console.log("[DEBUG getChildEncouragementHistory] Processing messages:", processedMessages.length)
 
   // 送信者のプロフィール情報を取得（RPC経由で安全に取得）
   if (processedMessages.length > 0) {
@@ -618,8 +592,6 @@ export async function getChildEncouragementHistory(
         sender_ids: senderIds,
       })
 
-      console.log("[DEBUG getChildEncouragementHistory] Sender profiles:", { profilesCount: senderProfiles?.length, error: senderError })
-
       if (!senderError && senderProfiles) {
         // メッセージに送信者プロフィールを追加
         processedMessages = processedMessages.map(msg => {
@@ -629,7 +601,7 @@ export async function getChildEncouragementHistory(
                 ...senderProfile,
                 nickname: senderProfile.nickname ?? senderProfile.display_name ?? "応援者",
                 display_name: senderProfile.display_name ?? senderProfile.nickname ?? "応援者",
-                avatar_id: senderProfile.avatar_id ?? senderProfile.avatar,
+                avatar_id: senderProfile.avatar_id,
               }
             : { display_name: "応援者", avatar_id: null, nickname: "応援者" }
 
@@ -682,7 +654,6 @@ export async function getChildEncouragementHistory(
     })
   }
 
-  console.log("[DEBUG getChildEncouragementHistory] Returning messages:", processedMessages.length)
   return { messages: processedMessages }
 }
 
@@ -720,7 +691,7 @@ export async function getChildCoachingHistory(
         sent_at
       )
     `)
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .eq("status", "completed")
 
   if (params?.periodFilter === "1week") {

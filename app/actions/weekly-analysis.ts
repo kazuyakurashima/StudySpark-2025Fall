@@ -24,7 +24,7 @@ export async function getWeeklyStudyData(studentId: string, weekStartDate: Date,
       subjects (name)
     `
     )
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .gte("study_date", formatDateToJST(weekStartDate))
     .lte("study_date", formatDateToJST(weekEndDate))
     .order("study_date", { ascending: false })
@@ -87,7 +87,7 @@ export async function getWeeklyEncouragementData(
   const { data: messages, error } = await supabase
     .from("encouragement_messages")
     .select("id, support_type, sender_role, created_at")
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .gte("created_at", getJSTDayStartISO(formatDateToJST(weekStartDate)))
     .lte("created_at", getJSTDayEndISO(formatDateToJST(weekEndDate)))
     .order("created_at", { ascending: false })
@@ -125,7 +125,7 @@ export async function getWeeklyReflectionData(studentId: string, weekStartDate: 
   const { data: reflections, error } = await supabase
     .from("coaching_sessions")
     .select("id, week_start_date, completed_at, summary_text")
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .gte("week_start_date", formatDateToJST(weekStartDate))
     .lte("week_start_date", formatDateToJST(weekEndDate))
     .not("completed_at", "is", null)
@@ -163,8 +163,6 @@ export async function getWeeklyAnalysisData(studentId: string, weekStartDate: Da
   if (studyResult.error) return { error: studyResult.error }
   if (encouragementResult.error) return { error: encouragementResult.error }
   if (reflectionResult.error) return { error: reflectionResult.error }
-  if (goalResult.error) return { error: goalResult.error }
-
   return {
     study: studyResult,
     encouragement: encouragementResult,
@@ -183,7 +181,7 @@ export async function generateWeeklyAnalysis(studentId: string, weekStartDate: D
   const { data: student, error: studentError } = await supabase
     .from("students")
     .select("full_name, grade, course")
-    .eq("id", studentId)
+    .eq("id", Number(studentId))
     .single()
 
   if (studentError || !student) {
@@ -233,7 +231,7 @@ export async function generateWeeklyAnalysis(studentId: string, weekStartDate: D
       .from("weekly_analysis")
       .upsert(
         {
-          student_id: studentId,
+          student_id: Number(studentId),
           week_start_date: formatDateToJST(weekStartDate),
           week_end_date: formatDateToJST(weekEndDate),
           strengths: analysis.strengths,
@@ -334,7 +332,7 @@ export async function getStoredWeeklyAnalysis(studentId: string, weekStartDate: 
   const { data, error } = await supabase
     .from("weekly_analysis")
     .select("*")
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .eq("week_start_date", formatDateToJST(weekStartDate))
     .single()
 
@@ -365,7 +363,7 @@ export async function generateWeeklyAnalysisForBatch(studentId: string, weekStar
   const { data: student, error: studentError } = await supabase
     .from("students")
     .select("full_name, grade, course")
-    .eq("id", studentId)
+    .eq("id", Number(studentId))
     .single()
 
   if (studentError || !student) {
@@ -386,7 +384,7 @@ export async function generateWeeklyAnalysisForBatch(studentId: string, weekStar
       subjects (name)
     `
     )
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .gte("study_date", formatDateToJST(weekStartDate))
     .lte("study_date", formatDateToJST(weekEndDate))
     .order("study_date", { ascending: false })
@@ -432,7 +430,7 @@ export async function generateWeeklyAnalysisForBatch(studentId: string, weekStar
   const { data: messages } = await supabase
     .from("encouragement_messages")
     .select("id, support_type, sender_role, created_at")
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .gte("created_at", getJSTDayStartISO(formatDateToJST(weekStartDate)))
     .lte("created_at", getJSTDayEndISO(formatDateToJST(weekEndDate)))
 
@@ -453,7 +451,7 @@ export async function generateWeeklyAnalysisForBatch(studentId: string, weekStar
   const { data: reflections } = await supabase
     .from("coaching_sessions")
     .select("id, week_start_date, completed_at, summary_text")
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .gte("week_start_date", formatDateToJST(weekStartDate))
     .lte("week_start_date", formatDateToJST(weekEndDate))
     .not("completed_at", "is", null)
@@ -504,7 +502,7 @@ export async function generateWeeklyAnalysisForBatch(studentId: string, weekStar
       .from("weekly_analysis")
       .upsert(
         {
-          student_id: studentId,
+          student_id: Number(studentId),
           week_start_date: formatDateToJST(weekStartDate),
           week_end_date: formatDateToJST(weekEndDate),
           strengths: analysis.strengths,

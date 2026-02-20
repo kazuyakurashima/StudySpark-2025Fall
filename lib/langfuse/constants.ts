@@ -21,6 +21,7 @@ export type EntityType = (typeof ENTITY_TYPES)[keyof typeof ENTITY_TYPES]
 export const SCORE_NAMES = {
   // リアルタイムスコア（ユーザーフィードバック）
   USER_FEEDBACK: "user_feedback",
+  MESSAGE_HELPFUL: "message_helpful",
 
   // バッチスコア（自動計算）
   MISSION_COMPLETED: "mission_completed",

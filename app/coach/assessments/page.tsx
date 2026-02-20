@@ -158,11 +158,8 @@ export default function CoachAssessmentInputPage() {
   // 得点入力
   const handleScoreChange = useCallback(
     (studentId: string, value: string) => {
-      console.log('[得点入力]', { studentId, value, maxScore: selectedMaster?.max_score })
-
       // 数値のみ許可
       if (value !== "" && !/^\d+$/.test(value)) {
-        console.log('[得点入力] 数値以外の入力を拒否:', value)
         return
       }
 
@@ -171,11 +168,9 @@ export default function CoachAssessmentInputPage() {
 
       // 満点を超える場合は制限
       if (numValue !== null && numValue > maxScore) {
-        console.log('[得点入力] 満点超過を拒否:', numValue, '>', maxScore)
         return
       }
 
-      console.log('[得点入力] 更新:', { status: value === "" ? "not_submitted" : "completed", score: value })
       updateInput(studentId, {
         status: value === "" ? "not_submitted" : "completed",
         score: value,
@@ -372,7 +367,7 @@ export default function CoachAssessmentInputPage() {
                                     第{m.session_number}回
                                     {m.assessment_type === "math_print" &&
                                       `${m.attempt_number === 1 ? "①" : "②"}`}
-                                    {m.description && ` ${m.description}`}
+                                    {m.title && ` ${m.title}`}
                                   </>
                                 )}
                                 （満点: {m.max_score}点）
@@ -409,19 +404,19 @@ export default function CoachAssessmentInputPage() {
                 <div className="flex items-center gap-2 text-sm flex-wrap">
                   <Badge
                     className={
-                      ASSESSMENT_TYPE_COLORS[selectedMaster.assessment_type].badge
+                      ASSESSMENT_TYPE_COLORS[selectedMaster.assessment_type as AssessmentType].badge
                     }
                   >
-                    {ASSESSMENT_TYPE_LABELS[selectedMaster.assessment_type]}
+                    {ASSESSMENT_TYPE_LABELS[selectedMaster.assessment_type as AssessmentType]}
                   </Badge>
                   <span className="text-muted-foreground">
                     第{selectedMaster.session_number}回
                     {selectedMaster.assessment_type === "math_print" &&
                       `${selectedMaster.attempt_number === 1 ? "①" : "②"}`}
                   </span>
-                  {(selectedMaster.title || selectedMaster.description) && (
+                  {selectedMaster.title && (
                     <span className="font-medium text-slate-700">
-                      {selectedMaster.title || selectedMaster.description}
+                      {selectedMaster.title}
                     </span>
                   )}
                   <span className="font-medium">

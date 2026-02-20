@@ -105,11 +105,8 @@ export async function generateEncouragementMessages(
     // キャッシュチェック
     const cachedMessages = await getCachedMessages(cacheKey)
     if (cachedMessages) {
-      console.log("Cache hit for encouragement messages:", cacheKey)
       return { success: true, messages: cachedMessages }
     }
-
-    console.log("Cache miss, generating new messages:", cacheKey)
 
     // OpenAI API呼び出し
     const openai = getOpenAIClient()

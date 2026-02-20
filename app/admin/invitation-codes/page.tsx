@@ -49,7 +49,7 @@ export default function InvitationCodesPage() {
   }
 
   const handleToggleCode = async (codeId: string) => {
-    const result = await toggleInvitationCode(codeId)
+    const result = await toggleInvitationCode(Number(codeId))
 
     if (result.error) {
       alert(`エラー: ${result.error}`)
@@ -215,7 +215,6 @@ export default function InvitationCodesPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => handleToggleCode(code.id)}
-                            disabled={isExpired(code.expires_at)}
                           >
                             {code.is_active ? (
                               <>

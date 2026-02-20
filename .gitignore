@@ -48,3 +48,8 @@ export/
 .agents/
 .cursor/
 .kiro/
+
+# Codex review loop transient files
+.codex-review.json
+.codex-review-raw.txt
+.codex-review-prev.json

@@ -229,11 +229,8 @@ export async function generateDailyStatusMessage(
     // キャッシュチェック
     const cachedMessage = await getCachedMessage(cacheKey)
     if (cachedMessage) {
-      console.log("Cache hit for daily status:", cacheKey)
       return { success: true, message: cachedMessage }
     }
-
-    console.log("Cache miss, generating new daily status:", cacheKey)
 
     // OpenAI API呼び出し
     const openai = getOpenAIClient()
@@ -260,6 +257,6 @@ export async function generateDailyStatusMessage(
     return { success: true, message }
   } catch (error) {
     console.error("Generate daily status error:", error)
-    return handleOpenAIError(error)
+    return { success: false as const, error: handleOpenAIError(error) }
   }
 }

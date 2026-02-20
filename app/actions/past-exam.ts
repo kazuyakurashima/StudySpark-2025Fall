@@ -181,7 +181,7 @@ export async function savePastExamResult(data: {
  * 過去問結果を更新（振り返りの追加・編集など）
  */
 export async function updatePastExamResult(
-  id: string,
+  id: number | string,
   data: {
     score?: number
     reflection?: string
@@ -213,13 +213,20 @@ export async function updatePastExamResult(
     return { error: "得点は0〜100の範囲で入力してください" }
   }
 
+  const updatePayload: {
+    score?: number
+    reflection?: string
+    taken_at?: string
+    updated_at: string
+  } = {
+    ...data,
+    updated_at: new Date().toISOString(),
+  }
+
   const { data: result, error } = await supabase
     .from("past_exam_results")
-    .update({
-      ...data,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id)
+    .update(updatePayload)
+    .eq("id", Number(id))
     .eq("student_id", student.id)
     .select()
     .single()
@@ -236,7 +243,7 @@ export async function updatePastExamResult(
 /**
  * 過去問結果を削除
  */
-export async function deletePastExamResult(id: string) {
+export async function deletePastExamResult(id: number | string) {
   const supabase = await createClient()
 
   const {
@@ -260,7 +267,7 @@ export async function deletePastExamResult(id: string) {
   const { error } = await supabase
     .from("past_exam_results")
     .delete()
-    .eq("id", id)
+    .eq("id", Number(id))
     .eq("student_id", student.id)
 
   if (error) {
@@ -357,7 +364,7 @@ export async function getChildPastExamResults(childStudentId: string) {
   const { data: childStudent } = await supabase
     .from("students")
     .select("id, grade")
-    .eq("id", childStudentId)
+    .eq("id", Number(childStudentId))
     .single()
 
   if (!childStudent) {
@@ -372,7 +379,7 @@ export async function getChildPastExamResults(childStudentId: string) {
   const { data: results, error } = await supabase
     .from("past_exam_results")
     .select("*")
-    .eq("student_id", childStudentId)
+    .eq("student_id", Number(childStudentId))
     .order("exam_year", { ascending: false })
     .order("exam_type", { ascending: true })
     .order("attempt_number", { ascending: true })
@@ -418,8 +425,8 @@ export async function getStudentPastExamResultsForCoach(studentId: string) {
   // 生徒の学年を確認（小学6年生のみ）
   const { data: student } = await supabase
     .from("students")
-    .select("id, grade, full_name, nickname")
-    .eq("id", studentId)
+    .select("id, grade, full_name")
+    .eq("id", Number(studentId))
     .single()
 
   if (!student) {
@@ -430,7 +437,7 @@ export async function getStudentPastExamResultsForCoach(studentId: string) {
     return {
       error: "過去問演習は小学6年生のみ利用可能です",
       notGrade6: true,
-      studentName: student.nickname || student.full_name,
+      studentName: student.full_name,
       grade: student.grade
     }
   }
@@ -439,7 +446,7 @@ export async function getStudentPastExamResultsForCoach(studentId: string) {
   const { data: results, error } = await supabase
     .from("past_exam_results")
     .select("*")
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .order("exam_year", { ascending: false })
     .order("exam_type", { ascending: true })
     .order("attempt_number", { ascending: true })
@@ -452,7 +459,7 @@ export async function getStudentPastExamResultsForCoach(studentId: string) {
   return {
     results: results as PastExamResult[],
     studentId,
-    studentName: student.nickname || student.full_name
+    studentName: student.full_name
   }
 }
 
@@ -515,7 +522,6 @@ export async function getAllStudentsPastExamSummaryForCoach() {
     .select(`
       id,
       full_name,
-      nickname,
       grade,
       past_exam_results (
         id,
@@ -535,30 +541,38 @@ export async function getAllStudentsPastExamSummaryForCoach() {
   }
 
   // サマリー情報を構築
+  type ExamResultRow = {
+    id: number
+    exam_year: number
+    exam_type: string
+    attempt_number: number
+    score: number
+  }
+
   const summaries = students?.map(student => {
-    const results = student.past_exam_results || []
-    const tekisei1 = results.filter((r: any) => r.exam_type === "tekisei_1")
-    const tekisei2 = results.filter((r: any) => r.exam_type === "tekisei_2")
+    const results: ExamResultRow[] = student.past_exam_results || []
+    const tekisei1 = results.filter((r) => r.exam_type === "tekisei_1")
+    const tekisei2 = results.filter((r) => r.exam_type === "tekisei_2")
 
     return {
       studentId: student.id,
-      studentName: student.nickname || student.full_name,
+      studentName: student.full_name,
       fullName: student.full_name,
       grade: student.grade,
       totalResults: results.length,
       avgTekisei1: tekisei1.length > 0
-        ? Math.round(tekisei1.reduce((sum: number, r: any) => sum + r.score, 0) / tekisei1.length)
+        ? Math.round(tekisei1.reduce((sum, r) => sum + r.score, 0) / tekisei1.length)
         : null,
       avgTekisei2: tekisei2.length > 0
-        ? Math.round(tekisei2.reduce((sum: number, r: any) => sum + r.score, 0) / tekisei2.length)
+        ? Math.round(tekisei2.reduce((sum, r) => sum + r.score, 0) / tekisei2.length)
         : null,
       maxTekisei1: tekisei1.length > 0
-        ? Math.max(...tekisei1.map((r: any) => r.score))
+        ? Math.max(...tekisei1.map((r) => r.score))
         : null,
       maxTekisei2: tekisei2.length > 0
-        ? Math.max(...tekisei2.map((r: any) => r.score))
+        ? Math.max(...tekisei2.map((r) => r.score))
         : null,
-      yearsWithResults: [...new Set(results.map((r: any) => r.exam_year))].length,
+      yearsWithResults: [...new Set(results.map((r) => r.exam_year))].length,
     }
   }) || []
 

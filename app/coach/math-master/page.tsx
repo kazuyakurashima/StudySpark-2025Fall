@@ -17,7 +17,7 @@ export default function MathMasterPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const gradeParam = searchParams.get("grade")
+  const gradeParam = searchParams?.get("grade") ?? null
   const initialGrade: GradeTab = gradeParam === "6" ? 6 : 5
 
   const [grade, setGrade] = useState<GradeTab>(initialGrade)

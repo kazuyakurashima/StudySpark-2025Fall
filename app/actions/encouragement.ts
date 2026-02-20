@@ -40,7 +40,7 @@ export async function getStudyLogsForEncouragement(
   const { data: rpcData, error: rpcError } = await supabase.rpc("get_study_logs_for_encouragement", {
     p_student_id: parseInt(studentId),
     p_has_encouragement: filters?.hasEncouragement || "all",
-    p_subject_id: subjectId,
+    p_subject_id: subjectId ?? undefined,
     p_sort_by: filters?.sortBy || "date",
     p_sort_order: filters?.sortOrder || "desc",
     p_limit: filters?.limit || 10,
@@ -154,12 +154,12 @@ export async function sendQuickEncouragement(
   const message = QUICK_ENCOURAGEMENT_TEMPLATES[quickType]
 
   const { error } = await supabase.from("encouragement_messages").insert({
-    student_id: studentId,
+    student_id: Number(studentId),
     sender_id: user.id,
     sender_role: "parent",
     support_type: "quick",
     message,
-    related_study_log_id: studyLogId,
+    related_study_log_id: Number(studyLogId),
   })
 
   if (error) {
@@ -172,7 +172,7 @@ export async function sendQuickEncouragement(
   await recordEncouragementSent(
     user.id,
     "parent",
-    parseInt(studentId),
+    Number(studentId),
     message.length,
     batchContext ? {
       isBatch: batchContext.isBatch,
@@ -230,7 +230,7 @@ export async function generateAIEncouragement(studentId: string, studyLogId: str
   const { data: studentData } = await adminClient
     .from("students")
     .select("id, full_name")
-    .eq("id", studentId)
+    .eq("id", Number(studentId))
     .single()
 
   if (!studentData) {
@@ -329,12 +329,12 @@ export async function sendCustomEncouragement(
   }
 
   const { error } = await supabase.from("encouragement_messages").insert({
-    student_id: studentId,
+    student_id: Number(studentId),
     sender_id: user.id,
     sender_role: "parent",
     support_type: supportType,
     message: message.trim(),
-    related_study_log_id: studyLogId,
+    related_study_log_id: studyLogId ? Number(studyLogId) : null,
   })
 
   if (error) {
@@ -359,7 +359,7 @@ export async function sendCustomEncouragement(
   await recordEncouragementSent(
     user.id,
     "parent",
-    parseInt(studentId),
+    Number(studentId),
     message.trim().length,
     {
       isBatch: batchInfo?.isBatch ?? false,
@@ -387,13 +387,13 @@ export async function getEncouragementHistory(studentId: string) {
       sender_role,
       created_at,
       related_study_log_id,
-      study_logs(
+      study_logs:related_study_log_id(
         study_date,
         subjects(name),
         study_sessions(session_number)
       )
     `)
-    .eq("student_id", studentId)
+    .eq("student_id", Number(studentId))
     .order("created_at", { ascending: false })
 
   if (error) {
@@ -609,12 +609,12 @@ export async function sendCoachQuickEncouragement(studentId: string, studyLogId:
   const message = QUICK_ENCOURAGEMENT_TEMPLATES[quickType]
 
   const { error } = await supabase.from("encouragement_messages").insert({
-    student_id: studentId,
+    student_id: Number(studentId),
     sender_id: user.id,
     sender_role: "coach",
     support_type: "quick",
     message,
-    related_study_log_id: studyLogId,
+    related_study_log_id: Number(studyLogId),
   })
 
   if (error) {
@@ -627,7 +627,7 @@ export async function sendCoachQuickEncouragement(studentId: string, studyLogId:
   await recordEncouragementSent(
     user.id,
     "coach",
-    parseInt(studentId),
+    Number(studentId),
     message.length,
     batchContext ? {
       isBatch: batchContext.isBatch,
@@ -664,7 +664,7 @@ export async function generateCoachAIEncouragement(studentId: string, studyLogId
   const { data: coachData } = await supabase.from("coaches").select("id, profiles!coaches_user_id_fkey(display_name)").eq("user_id", user.id).single()
 
   // 生徒情報を取得
-  const { data: studentData } = await supabase.from("students").select("id, full_name").eq("id", studentId).single()
+  const { data: studentData } = await supabase.from("students").select("id, full_name").eq("id", Number(studentId)).single()
 
   if (!studentData) {
     return { success: false as const, error: "生徒情報が見つかりません" }
@@ -761,12 +761,12 @@ export async function sendCoachCustomEncouragement(
   }
 
   const { error } = await supabase.from("encouragement_messages").insert({
-    student_id: studentId,
+    student_id: Number(studentId),
     sender_id: user.id,
     sender_role: "coach",
     support_type: supportType,
     message: message.trim(),
-    related_study_log_id: studyLogId,
+    related_study_log_id: studyLogId ? Number(studyLogId) : null,
   })
 
   if (error) {
@@ -791,7 +791,7 @@ export async function sendCoachCustomEncouragement(
   await recordEncouragementSent(
     user.id,
     "coach",
-    parseInt(studentId),
+    Number(studentId),
     message.trim().length,
     {
       isBatch: batchInfo?.isBatch ?? false,
@@ -893,7 +893,6 @@ export async function getRecentEncouragementMessages() {
 
   // デバッグログ（開発環境のみ）
   if (process.env.NODE_ENV === "development") {
-    console.log("🔍 [getRecentEncouragementMessages] Sender profiles count:", senderProfiles?.length || 0)
   }
 
   // 送信者情報をマージ（段階的フォールバック: nickname → display_name → "応援者"）
@@ -1081,8 +1080,8 @@ export async function markEncouragementAsRead(messageId: string) {
 
   const { error } = await supabase
     .from("encouragement_messages")
-    .update({ is_read: true, read_at: getNowJSTISO() })
-    .eq("id", messageId)
+    .update({ read_at: getNowJSTISO() })
+    .eq("id", Number(messageId))
 
   if (error) {
     console.error("Error marking encouragement as read:", error)

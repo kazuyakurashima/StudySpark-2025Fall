@@ -37,21 +37,21 @@ import {
 import { useUserProfile } from "@/lib/hooks/use-user-profile"
 
 interface Child {
-  id: string
+  id: number
   full_name: string
   display_name: string
   avatar_id: string | null
   grade: number
+  user_id: string
 }
 
 interface Reflection {
-  id: string
-  session_number: number
-  week_type: "growth" | "stable" | "challenge" | "special"
-  this_week_accuracy: number
-  last_week_accuracy: number
-  summary: string
-  completed_at: string
+  id: number
+  week_type: string | null
+  week_start_date: string
+  week_end_date: string
+  summary_text: string | null
+  completed_at: string | null
   created_at: string
 }
 
@@ -60,7 +60,7 @@ export default function ParentReflectPage() {
   const { profile, setSelectedChildId: setProviderChildId, selectedChildId: providerSelectedChildId } = useUserProfile()
 
   // URLパラメータから初期タブを取得
-  const tabParam = searchParams.get("tab")
+  const tabParam = searchParams?.get("tab") ?? null
 
   // 後方互換: map → achievement, assessment-history → assessment に正規化
   const normalizedTab = tabParam === "map" ? "achievement"
@@ -72,10 +72,10 @@ export default function ParentReflectPage() {
     : "achievement"
 
   // URLパラメータから child ID を取得
-  const childParam = searchParams.get("child")
+  const childParam = searchParams?.get("child") ?? null
 
   const [children, setChildren] = useState<Child[]>([])
-  const [selectedChildId, setSelectedChildId] = useState<string>("")
+  const [selectedChildId, setSelectedChildId] = useState<number | null>(null)
   const [selectedChild, setSelectedChild] = useState<Child | null>(null)
   const [reflections, setReflections] = useState<Reflection[]>([])
   const [selectedReflection, setSelectedReflection] = useState<Reflection | null>(null)
@@ -86,7 +86,7 @@ export default function ParentReflectPage() {
 
   // URLパラメータの変更を監視してタブを更新
   useEffect(() => {
-    const tabParam = searchParams.get("tab")
+    const tabParam = searchParams?.get("tab") ?? null
     if (!tabParam) return
 
     // 後方互換: map → achievement, assessment-history → assessment に正規化
@@ -116,7 +116,7 @@ export default function ParentReflectPage() {
   useEffect(() => {
     if (childParam && children.length > 0) {
       const childId = parseInt(childParam, 10)
-      const child = children.find(c => parseInt(c.id) === childId)
+      const child = children.find(c => c.id === childId)
       if (child) {
         setProviderChildId(childId)
       }
@@ -129,7 +129,7 @@ export default function ParentReflectPage() {
 
     if (providerSelectedChildId !== null) {
       // プロバイダーから取得したIDで子どもを選択
-      const child = children.find(c => parseInt(c.id) === providerSelectedChildId)
+      const child = children.find(c => c.id === providerSelectedChildId)
       if (child) {
         setSelectedChildId(child.id)
         setSelectedChild(child)
@@ -143,7 +143,7 @@ export default function ParentReflectPage() {
   // 選択された子どものデータを読み込み
   useEffect(() => {
     const loadChildData = async () => {
-      if (!selectedChildId) return
+      if (selectedChildId === null) return
 
       const child = children.find((c) => c.id === selectedChildId)
       if (child) {
@@ -151,7 +151,7 @@ export default function ParentReflectPage() {
       }
 
       // 振り返り一覧取得
-      const { reflections } = await getChildReflections(selectedChildId)
+      const { reflections } = await getChildReflections(String(selectedChildId))
       if (reflections) {
         setReflections(reflections)
       }
@@ -170,7 +170,7 @@ export default function ParentReflectPage() {
       const statusMap: { [childId: number]: boolean } = {}
 
       for (const child of children) {
-        const childIdNumber = parseInt(child.id, 10)
+        const childIdNumber = child.id
         const level = await getDailySparkLevel(childIdNumber, profile.id)
         statusMap[childIdNumber] = level === "parent" || level === "both"
       }
@@ -314,7 +314,7 @@ export default function ParentReflectPage() {
                 studentGrade={selectedChild.grade}
                 studentCourse="B"
                 viewerRole="parent"
-                studentId={selectedChildId}
+                studentId={selectedChildId !== null ? String(selectedChildId) : undefined}
               />
             )}
           </TabsContent>
@@ -336,21 +336,21 @@ export default function ParentReflectPage() {
                 </CardContent>
               </Card>
             ) : (
-              <AssessmentHistory studentId={selectedChild.id} />
+              <AssessmentHistory studentId={String(selectedChild.id)} />
             )}
           </TabsContent>
 
           {/* 学習履歴タブ */}
           <TabsContent value="history" className="space-y-4">
-            {selectedChildId && (
-              <StudyHistory viewerRole="parent" studentId={selectedChildId} />
+            {selectedChildId !== null && (
+              <StudyHistory viewerRole="parent" studentId={String(selectedChildId)} />
             )}
           </TabsContent>
 
           {/* 応援履歴タブ */}
           <TabsContent value="encouragement" className="space-y-4">
-            {selectedChildId && (
-              <EncouragementHistory viewerRole="parent" studentId={selectedChildId} />
+            {selectedChildId !== null && (
+              <EncouragementHistory viewerRole="parent" studentId={String(selectedChildId)} />
             )}
           </TabsContent>
 
@@ -365,9 +365,8 @@ export default function ParentReflectPage() {
             ) : (
               <div className="space-y-3">
                 {reflections.map((reflection) => {
-                  const weekTypeInfo = getWeekTypeLabel(reflection.week_type)
+                  const weekTypeInfo = getWeekTypeLabel(reflection.week_type || "stable")
                   const Icon = weekTypeInfo.icon
-                  const accuracyDiff = reflection.this_week_accuracy - reflection.last_week_accuracy
 
                   return (
                     <Card key={reflection.id} className="hover:shadow-md transition-shadow">
@@ -377,39 +376,11 @@ export default function ParentReflectPage() {
                             <div className="flex items-center gap-2 mb-2">
                               <Icon className={`h-5 w-5 ${weekTypeInfo.color}`} />
                               <span className="font-medium">{weekTypeInfo.label}</span>
-                              <Badge variant="outline">第{reflection.session_number}週</Badge>
+                              <Badge variant="outline">{reflection.week_start_date} 〜 {reflection.week_end_date}</Badge>
                             </div>
                             <p className="text-sm text-gray-600">
-                              {formatDate(reflection.completed_at)}
+                              {reflection.completed_at ? formatDate(reflection.completed_at) : ""}
                             </p>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-sm text-gray-600 mb-1">正答率の変化</div>
-                            <div className="flex items-center gap-1">
-                              {accuracyDiff > 0 ? (
-                                <TrendingUp className="h-4 w-4 text-green-600" />
-                              ) : accuracyDiff < 0 ? (
-                                <TrendingDown className="h-4 w-4 text-red-600" />
-                              ) : (
-                                <Minus className="h-4 w-4 text-gray-600" />
-                              )}
-                              <span
-                                className={`font-medium ${
-                                  accuracyDiff > 0
-                                    ? "text-green-600"
-                                    : accuracyDiff < 0
-                                    ? "text-red-600"
-                                    : "text-gray-600"
-                                }`}
-                              >
-                                {accuracyDiff > 0 ? "+" : ""}
-                                {accuracyDiff.toFixed(1)}%
-                              </span>
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              {reflection.last_week_accuracy.toFixed(1)}% →{" "}
-                              {reflection.this_week_accuracy.toFixed(1)}%
-                            </div>
                           </div>
                         </div>
                       </CardHeader>
@@ -422,7 +393,7 @@ export default function ParentReflectPage() {
                             </span>
                           </div>
                           <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-                            {reflection.summary}
+                            {reflection.summary_text || "サマリーはまだ生成されていません"}
                           </p>
                         </div>
                       </CardContent>

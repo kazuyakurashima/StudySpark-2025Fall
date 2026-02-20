@@ -1,6 +1,6 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
+import { createClient, createAdminClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { headers } from "next/headers"
 
@@ -58,8 +58,6 @@ export async function universalLogin(input: string, password: string) {
     console.error("[Login] Profile not found for user:", authData.user.id)
     return { error: "プロフィールが見つかりません" }
   }
-
-  console.log("[Login] Success for user:", authData.user.email, "role:", profile.role)
 
   // 5. ロール別リダイレクト
   const role = profile.role
@@ -278,6 +276,7 @@ export async function parentSignUp(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Origin": origin,
       },
       body: JSON.stringify({
         parentUserId: authData.user.id,
@@ -372,7 +371,10 @@ export async function sendPasswordResetEmail(email: string) {
 }
 
 /**
- * 生徒のパスワードリセット (保護者専用)
+ * 生徒のパスワードリセット (保護者/指導者/管理者)
+ *
+ * Server Action 内で createAdminClient を直接使用し、
+ * 公開 API Route を経由しない（攻撃面の排除）。
  */
 export async function resetStudentPassword(
   studentId: string,
@@ -380,7 +382,7 @@ export async function resetStudentPassword(
 ) {
   const supabase = await createClient()
 
-  // 現在のユーザーが保護者であることを確認
+  // 認証チェック
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -389,76 +391,94 @@ export async function resetStudentPassword(
     return { error: "ログインが必要です" }
   }
 
+  // ロール確認（parent / coach / admin のみ許可）
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
     .eq("id", user.id)
     .single()
 
-  if (!profile || profile.role !== "parent") {
-    return { error: "保護者のみ実行可能です" }
+  if (!profile || !["parent", "coach", "admin"].includes(profile.role)) {
+    return { error: "権限がありません" }
   }
 
-  // 保護者と生徒の親子関係を確認
-  const { data: parentRecord } = await supabase
-    .from("parents")
-    .select("id")
-    .eq("user_id", user.id)
-    .single()
-
-  if (!parentRecord) {
-    return { error: "保護者レコードが見つかりません" }
+  // パスワードバリデーション
+  if (!newPassword || newPassword.length < 6) {
+    return { error: "パスワードは6文字以上で設定してください" }
   }
 
-  const { data: relation } = await supabase
-    .from("parent_child_relations")
-    .select("*")
-    .eq("parent_id", parentRecord.id)
-    .eq("student_id", studentId)
-    .single()
+  // 親の場合: 親子関係を検証（parents.id 経由）
+  if (profile.role === "parent") {
+    const { data: parentRecord } = await supabase
+      .from("parents")
+      .select("id")
+      .eq("user_id", user.id)
+      .single()
 
-  if (!relation) {
-    return { error: "指定された生徒との親子関係が見つかりません" }
+    if (!parentRecord) {
+      return { error: "保護者レコードが見つかりません" }
+    }
+
+    const { data: relation } = await supabase
+      .from("parent_child_relations")
+      .select("id")
+      .eq("parent_id", parentRecord.id)
+      .eq("student_id", Number(studentId))
+      .single()
+
+    if (!relation) {
+      return { error: "指定された生徒との親子関係が見つかりません" }
+    }
   }
 
-  // 生徒のuser_idを取得
+  // 指導者の場合: 担当関係を検証（coaches.id 経由）
+  if (profile.role === "coach") {
+    const { data: coachRecord } = await supabase
+      .from("coaches")
+      .select("id")
+      .eq("user_id", user.id)
+      .single()
+
+    if (!coachRecord) {
+      return { error: "指導者レコードが見つかりません" }
+    }
+
+    const { data: relation } = await supabase
+      .from("coach_student_relations")
+      .select("id")
+      .eq("coach_id", coachRecord.id)
+      .eq("student_id", Number(studentId))
+      .single()
+
+    if (!relation) {
+      return { error: "指定された生徒との担当関係が見つかりません" }
+    }
+  }
+
+  // students.id → students.user_id（UUID）に変換
   const { data: student } = await supabase
     .from("students")
     .select("user_id")
-    .eq("id", studentId)
+    .eq("id", Number(studentId))
     .single()
 
   if (!student) {
     return { error: "生徒が見つかりません" }
   }
 
-  // API Route経由でパスワードを更新（サービスロールキーが必要）
-  try {
-    const headersList = await headers()
-    const origin = headersList.get("origin") || "http://localhost:3000"
+  // パスワード更新（Service Role Key、auth.users.id で実行）
+  const adminClient = createAdminClient()
+  const { error } = await adminClient.auth.admin.updateUserById(
+    student.user_id,
+    { password: newPassword }
+  )
 
-    const response = await fetch(`${origin}/api/auth/reset-student-password`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        userId: student.user_id,
-        newPassword,
-      }),
-    })
+  if (error) {
+    return { error: `パスワード更新エラー: ${error.message}` }
+  }
 
-    const result = await response.json()
-
-    if (!response.ok || result.error) {
-      return { error: result.error || "パスワードリセットに失敗しました" }
-    }
-
-    return {
-      success: true,
-      message: "生徒のパスワードを変更しました",
-    }
-  } catch (error) {
-    return { error: "サーバーエラーが発生しました" }
+  return {
+    success: true,
+    message: "生徒のパスワードを変更しました",
   }
 }

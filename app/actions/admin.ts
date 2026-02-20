@@ -40,6 +40,7 @@ export async function getSystemStats() {
   }
 
   const { supabase } = authResult
+  if (!supabase) return { error: "認証エラー" }
 
   try {
     // ユーザー数（各ロール別）
@@ -67,7 +68,7 @@ export async function getSystemStats() {
 
     // 応援メッセージ数
     const { count: encouragementsCount } = await supabase
-      .from("encouragements")
+      .from("encouragement_messages")
       .select("id", { count: "exact", head: true })
 
     // 今日の学習記録数（JST基準）
@@ -116,6 +117,7 @@ export async function getRecentAuditLogs(limit = 10) {
   }
 
   const { supabase } = authResult
+  if (!supabase) return { error: "認証エラー" }
 
   const { data: logs, error } = await supabase
     .from("audit_logs")
@@ -147,6 +149,7 @@ export async function getAuditLogs(params?: {
   }
 
   const { supabase } = authResult
+  if (!supabase) return { error: "認証エラー" }
   const { tableName, operation, userId, limit = 50, offset = 0 } = params || {}
 
   let query = supabase
@@ -186,6 +189,7 @@ export async function getInvitationCodes() {
   }
 
   const { supabase } = authResult
+  if (!supabase) return { error: "認証エラー" }
 
   const { data: codes, error } = await supabase
     .from("invitation_codes")
@@ -210,6 +214,7 @@ export async function generateInvitationCode(role: "parent" | "coach", expiresIn
   }
 
   const { supabase, admin } = authResult
+  if (!supabase || !admin) return { error: "認証エラー" }
 
   // ランダムな8文字のコードを生成
   const code = Math.random().toString(36).substring(2, 10).toUpperCase()
@@ -223,7 +228,7 @@ export async function generateInvitationCode(role: "parent" | "coach", expiresIn
       code,
       role,
       expires_at: expiresAt.toISOString(),
-      created_by: admin.id,
+      created_by: admin.user_id,
     })
     .select()
     .single()
@@ -238,19 +243,21 @@ export async function generateInvitationCode(role: "parent" | "coach", expiresIn
 
 /**
  * 招待コードの有効/無効を切り替え
+ * expires_at を使って有効/無効を制御する（過去日=無効、未来日=有効）
  */
-export async function toggleInvitationCode(codeId: string) {
+export async function toggleInvitationCode(codeId: number) {
   const authResult = await getAuthenticatedAdmin()
   if (authResult.error) {
     return { error: authResult.error }
   }
 
   const { supabase } = authResult
+  if (!supabase) return { error: "認証エラー" }
 
   // 現在の状態を取得
   const { data: currentCode, error: fetchError } = await supabase
     .from("invitation_codes")
-    .select("is_active")
+    .select("expires_at")
     .eq("id", codeId)
     .single()
 
@@ -258,10 +265,26 @@ export async function toggleInvitationCode(codeId: string) {
     return { error: "招待コードが見つかりません" }
   }
 
-  // 状態を反転
+  // expires_at が過去 or null → 有効化（30日後に設定）、未来 → 無効化（過去日に設定）
+  const now = new Date()
+  const isCurrentlyActive = currentCode.expires_at
+    ? new Date(currentCode.expires_at) > now
+    : false
+
+  let newExpiresAt: string
+  if (isCurrentlyActive) {
+    // 無効化: 過去の日付に設定
+    newExpiresAt = new Date("2000-01-01T00:00:00Z").toISOString()
+  } else {
+    // 有効化: 30日後に設定
+    const future = new Date()
+    future.setDate(future.getDate() + 30)
+    newExpiresAt = future.toISOString()
+  }
+
   const { error: updateError } = await supabase
     .from("invitation_codes")
-    .update({ is_active: !currentCode.is_active })
+    .update({ expires_at: newExpiresAt, is_active: !isCurrentlyActive })
     .eq("id", codeId)
 
   if (updateError) {
@@ -282,25 +305,26 @@ export async function getAllUsers() {
   }
 
   const { supabase } = authResult
+  if (!supabase) return { error: "認証エラー" }
 
   try {
     // 各ロールのユーザー情報を取得
     const [students, parents, coaches, admins] = await Promise.all([
       supabase
         .from("students")
-        .select("id, user_id, login_id, display_name, grade, course, created_at")
+        .select("id, user_id, login_id, full_name, grade, course, created_at")
         .order("created_at", { ascending: false }),
       supabase
         .from("parents")
-        .select("id, user_id, display_name, email, created_at")
+        .select("id, user_id, full_name, created_at")
         .order("created_at", { ascending: false }),
       supabase
         .from("coaches")
-        .select("id, user_id, full_name, email, created_at")
+        .select("id, user_id, full_name, created_at")
         .order("created_at", { ascending: false }),
       supabase
         .from("admins")
-        .select("id, user_id, full_name, email, created_at")
+        .select("id, user_id, full_name, created_at")
         .order("created_at", { ascending: false }),
     ])
 
@@ -332,26 +356,27 @@ export async function searchUsers(query: string) {
   }
 
   const { supabase } = authResult
+  if (!supabase) return { error: "認証エラー" }
 
   try {
     // 各テーブルで検索
     const [students, parents, coaches, admins] = await Promise.all([
       supabase
         .from("students")
-        .select("id, user_id, login_id, display_name, grade, course, created_at")
-        .or(`login_id.ilike.%${query}%,display_name.ilike.%${query}%`),
+        .select("id, user_id, login_id, full_name, grade, course, created_at")
+        .or(`login_id.ilike.%${query}%,full_name.ilike.%${query}%`),
       supabase
         .from("parents")
-        .select("id, user_id, display_name, email, created_at")
-        .or(`display_name.ilike.%${query}%,email.ilike.%${query}%`),
+        .select("id, user_id, full_name, created_at")
+        .or(`full_name.ilike.%${query}%`),
       supabase
         .from("coaches")
-        .select("id, user_id, full_name, email, created_at")
-        .or(`full_name.ilike.%${query}%,email.ilike.%${query}%`),
+        .select("id, user_id, full_name, created_at")
+        .or(`full_name.ilike.%${query}%`),
       supabase
         .from("admins")
-        .select("id, user_id, full_name, email, created_at")
-        .or(`full_name.ilike.%${query}%,email.ilike.%${query}%`),
+        .select("id, user_id, full_name, created_at")
+        .or(`full_name.ilike.%${query}%`),
     ])
 
     const allUsers = [
@@ -380,6 +405,7 @@ export async function getSystemSettings() {
   }
 
   const { supabase } = authResult
+  if (!supabase) return { error: "認証エラー" }
 
   const { data: settings, error } = await supabase
     .from("system_settings")
@@ -404,6 +430,7 @@ export async function updateSystemSetting(key: string, value: string) {
   }
 
   const { supabase } = authResult
+  if (!supabase) return { error: "認証エラー" }
 
   const { error } = await supabase
     .from("system_settings")

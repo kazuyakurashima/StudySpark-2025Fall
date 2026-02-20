@@ -26,6 +26,7 @@ function logStructured(context: NotificationContext) {
       console.warn(JSON.stringify(logData))
       break
     default:
+      // eslint-disable-next-line no-console
       console.log(JSON.stringify(logData))
   }
 }

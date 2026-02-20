@@ -57,7 +57,6 @@ export function UserProfileProvider({
           return parsedId
         }
         // 無効な場合はlocalStorageをクリア
-        console.log('[useUserProfile] Invalid savedChildId in localStorage, clearing:', parsedId)
         localStorage.removeItem("selectedChildId")
       }
     }
@@ -88,11 +87,8 @@ export function UserProfileProvider({
 
       // 保護者の場合、子供リストを取得（初期データがない場合のみ）
       if (result.profile?.role === "parent" && !initialChildren) {
-        console.log('[useUserProfile] Fetching parent children...')
         const childrenResult = await getParentChildren()
-        console.log('[useUserProfile] getParentChildren result:', childrenResult)
         if (!childrenResult.error && childrenResult.children.length > 0) {
-          console.log('[useUserProfile] Setting children list:', childrenResult.children)
           setChildrenList(childrenResult.children)
 
           // 有効な子供IDを選択（localStorage → 最初の子供）
@@ -106,9 +102,6 @@ export function UserProfileProvider({
               const parsedId = parseInt(savedChildId)
               if (availableIds.includes(parsedId)) {
                 validChildId = parsedId
-                console.log('[useUserProfile] Restored valid child ID from localStorage:', validChildId)
-              } else {
-                console.log('[useUserProfile] Saved child ID not in current children list, ignoring:', parsedId)
               }
             }
           }
@@ -116,7 +109,6 @@ export function UserProfileProvider({
           // localStorageが無効または存在しない場合は最初の子供を選択
           if (!validChildId) {
             validChildId = childrenResult.children[0].id
-            console.log('[useUserProfile] Selecting first child as default:', validChildId)
           }
 
           setSelectedChildIdState(validChildId)
