@@ -893,7 +893,6 @@ export async function getRecentEncouragementMessages() {
 
   // デバッグログ（開発環境のみ）
   if (process.env.NODE_ENV === "development") {
-    console.log("🔍 [getRecentEncouragementMessages] Sender profiles count:", senderProfiles?.length || 0)
   }
 
   // 送信者情報をマージ（段階的フォールバック: nickname → display_name → "応援者"）

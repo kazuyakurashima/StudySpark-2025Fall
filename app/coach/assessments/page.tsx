@@ -158,11 +158,8 @@ export default function CoachAssessmentInputPage() {
   // 得点入力
   const handleScoreChange = useCallback(
     (studentId: string, value: string) => {
-      console.log('[得点入力]', { studentId, value, maxScore: selectedMaster?.max_score })
-
       // 数値のみ許可
       if (value !== "" && !/^\d+$/.test(value)) {
-        console.log('[得点入力] 数値以外の入力を拒否:', value)
         return
       }
 
@@ -171,11 +168,9 @@ export default function CoachAssessmentInputPage() {
 
       // 満点を超える場合は制限
       if (numValue !== null && numValue > maxScore) {
-        console.log('[得点入力] 満点超過を拒否:', numValue, '>', maxScore)
         return
       }
 
-      console.log('[得点入力] 更新:', { status: value === "" ? "not_submitted" : "completed", score: value })
       updateInput(studentId, {
         status: value === "" ? "not_submitted" : "completed",
         score: value,

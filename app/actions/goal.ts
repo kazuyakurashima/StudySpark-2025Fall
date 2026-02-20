@@ -58,11 +58,6 @@ export async function getAvailableTests() {
     .gte("goal_setting_end_date", formatDateToJST(tokyoNow))
     .order("test_date", { ascending: true })
 
-  console.log("🔍 [getAvailableTests] tokyoNow:", tokyoNow.toISOString())
-  console.log("🔍 [getAvailableTests] student.grade:", student.grade)
-  console.log("🔍 [getAvailableTests] tests count:", tests?.length || 0)
-  console.log("🔍 [getAvailableTests] testsError:", testsError)
-
   if (testsError) {
     return { error: testsError.message }
   }
@@ -233,10 +228,6 @@ export async function getAllTestGoals() {
     .eq("student_id", student.id)
     .order("created_at", { ascending: false })
 
-  console.log("🔍 [getAllTestGoals] student.id:", student.id)
-  console.log("🔍 [getAllTestGoals] goals:", goals)
-  console.log("🔍 [getAllTestGoals] error:", goalsError)
-
   if (goalsError) {
     return { error: goalsError.message }
   }
@@ -354,7 +345,6 @@ export async function saveSimpleTestResult(
   resultCourse: string,
   resultClass: number
 ) {
-  console.log("🔍 [saveSimpleTestResult] Called with:", { testScheduleId, resultCourse, resultClass });
 
   const supabase = await createClient()
 
@@ -378,9 +368,6 @@ export async function saveSimpleTestResult(
     return { success: false, error: "生徒情報が見つかりません" }
   }
 
-  console.log("🔍 [saveSimpleTestResult] Student ID:", student.id);
-  console.log("🔍 [saveSimpleTestResult] Current course:", student.course, "Result course:", resultCourse);
-
   const numericTestScheduleId = Number(testScheduleId)
 
   // 既存の結果をチェック
@@ -390,8 +377,6 @@ export async function saveSimpleTestResult(
     .eq("student_id", student.id)
     .eq("test_schedule_id", numericTestScheduleId)
     .maybeSingle()
-
-  console.log("🔍 [saveSimpleTestResult] Existing result:", existingResult);
 
   if (existingResult) {
     return { success: false, error: "この結果は既に入力されています" }
@@ -406,16 +391,11 @@ export async function saveSimpleTestResult(
     result_entered_at: new Date().toISOString(),
   };
 
-  console.log("🔍 [saveSimpleTestResult] Inserting data:", insertData);
-
   const { data: newResult, error: insertError } = await supabase
     .from("test_results")
     .insert(insertData)
     .select()
     .single()
-
-  console.log("🔍 [saveSimpleTestResult] Insert result:", newResult);
-  console.log("🔍 [saveSimpleTestResult] Insert error:", insertError);
 
   if (insertError) {
     return { success: false, error: insertError.message }
@@ -423,7 +403,6 @@ export async function saveSimpleTestResult(
 
   // 現在のコースと入力結果のコースが異なる場合、コースを更新
   if (student.course !== resultCourse) {
-    console.log("🔍 [saveSimpleTestResult] Updating course from", student.course, "to", resultCourse);
 
     const { error: updateCourseError } = await supabase
       .from("students")
@@ -434,7 +413,6 @@ export async function saveSimpleTestResult(
       console.error("🔍 [saveSimpleTestResult] Error updating course:", updateCourseError);
       // コース更新エラーは致命的ではないので、結果保存は成功として返す
     } else {
-      console.log("🔍 [saveSimpleTestResult] Course updated successfully");
     }
   }
 
@@ -626,10 +604,6 @@ export async function getAllTestResults() {
     .eq("test_schedules.test_types.grade", student.grade)
     .order("result_entered_at", { ascending: false })
 
-  console.log("🔍 [getAllTestResults] student.id:", student.id)
-  console.log("🔍 [getAllTestResults] results:", results)
-  console.log("🔍 [getAllTestResults] error:", resultsError)
-
   if (resultsError) {
     return { error: resultsError.message }
   }
@@ -659,7 +633,6 @@ export async function getAllTestResults() {
  * 保護者用: 特定の生徒の利用可能なテスト一覧を取得
  */
 export async function getAvailableTestsForStudent(studentId: string | number) {
-  console.log('🔍 [getAvailableTestsForStudent] studentId:', studentId)
   const supabase = await createClient()
 
   // 生徒情報取得
@@ -669,10 +642,7 @@ export async function getAvailableTestsForStudent(studentId: string | number) {
     .eq("id", Number(studentId))
     .single()
 
-  console.log('🔍 [getAvailableTestsForStudent] student:', student, 'error:', studentError)
-
   if (studentError || !student) {
-    console.log('🔍 [getAvailableTestsForStudent] 生徒情報エラー')
     return { error: "生徒情報が見つかりません" }
   }
 
@@ -698,8 +668,6 @@ export async function getAvailableTestsForStudent(studentId: string | number) {
     .gte("goal_setting_end_date", formatDateToJST(tokyoNow))
     .order("test_date", { ascending: true })
 
-  console.log('🔍 [getAvailableTestsForStudent] tests count:', tests?.length, 'error:', testsError)
-
   if (testsError) {
     return { error: testsError.message }
   }
@@ -710,8 +678,6 @@ export async function getAvailableTestsForStudent(studentId: string | number) {
     return tokyoNow >= startDate && tokyoNow <= endDate
   })
 
-  console.log('🔍 [getAvailableTestsForStudent] availableTests count:', availableTests.length)
-
   return { tests: availableTests }
 }
 
@@ -719,7 +685,6 @@ export async function getAvailableTestsForStudent(studentId: string | number) {
  * 保護者用: 特定の生徒の全テスト結果を取得
  */
 export async function getAllTestResultsForStudent(studentId: string | number) {
-  console.log('🔍 [getAllTestResultsForStudent] studentId:', studentId)
   const supabase = await createClient()
 
   // 生徒情報取得
@@ -729,10 +694,7 @@ export async function getAllTestResultsForStudent(studentId: string | number) {
     .eq("id", Number(studentId))
     .single()
 
-  console.log('🔍 [getAllTestResultsForStudent] student:', student, 'error:', studentError)
-
   if (studentError || !student) {
-    console.log('🔍 [getAllTestResultsForStudent] 生徒情報エラー')
     return { error: "生徒情報が見つかりません" }
   }
 
@@ -754,8 +716,6 @@ export async function getAllTestResultsForStudent(studentId: string | number) {
     .eq("student_id", student.id)
     .eq("test_schedules.test_types.grade", student.grade)
     .order("result_entered_at", { ascending: false })
-
-  console.log('🔍 [getAllTestResultsForStudent] results:', results?.length, 'error:', resultsError)
 
   if (resultsError) {
     return { error: resultsError.message }
@@ -786,7 +746,6 @@ export async function getAllTestResultsForStudent(studentId: string | number) {
  * 保護者用: 特定の生徒の全テスト目標を取得
  */
 export async function getAllTestGoalsForStudent(studentId: string | number) {
-  console.log('🔍 [getAllTestGoalsForStudent] studentId:', studentId)
   const supabase = await createClient()
 
   const { data: goals, error: goalsError } = await supabase
@@ -810,8 +769,6 @@ export async function getAllTestGoalsForStudent(studentId: string | number) {
     `)
     .eq("student_id", Number(studentId))
     .order("created_at", { ascending: false })
-
-  console.log('🔍 [getAllTestGoalsForStudent] goals:', goals?.length, 'error:', goalsError)
 
   if (goalsError) {
     return { error: goalsError.message }

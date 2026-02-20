@@ -147,7 +147,6 @@ export function prefetchChildDashboard(childId: number) {
     .then((data: ParentDashboardData) => {
       // SWR キャッシュにデータを登録（revalidate: false で再取得しない）
       mutate(key, data, { revalidate: false })
-      console.log("🚀 [Prefetch] Cache populated for child:", childId)
       return data
     })
     .catch(err => {

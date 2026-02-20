@@ -208,7 +208,6 @@ function GoalPageInner() {
             filter: `id=eq.${user.id}`,
           },
           (payload: any) => {
-            console.log("Profile updated:", payload);
             // アバターが更新されたら即座に反映（avatar_idを使用）
             if (payload.new && "avatar_id" in payload.new) {
               setStudentAvatar((payload.new as any).avatar_id || "student1");
@@ -264,39 +263,23 @@ function GoalPageInner() {
   };
 
   const loadTestGoals = async () => {
-    console.log("🔍 [CLIENT] loadTestGoals: Starting...");
     const result = await getAllTestGoals();
-    console.log("🔍 [CLIENT] loadTestGoals result:", result);
     if (result.goals) {
-      console.log("🔍 [CLIENT] loadTestGoals: Setting goals, count:", result.goals.length);
       setTestGoals(result.goals as any);
-    } else {
-      console.log("🔍 [CLIENT] loadTestGoals: No goals found or error:", result.error);
     }
   };
 
   const loadAvailableTestsForResult = async () => {
     const result = await getAvailableTestsForResult();
-    console.log("🔍 [loadAvailableTestsForResult] result:", result);
     if (result.goals) {
-      console.log("🔍 [loadAvailableTestsForResult] Available tests:");
-      result.goals.forEach((goal: any, idx: number) => {
-        console.log(`  [${idx}] Schedule ID: ${goal.test_schedule_id}, Has Goal: ${!!goal.id}, Test: ${goal.test_schedules?.test_types?.name}`);
-      });
       setAvailableTestsForResult(result.goals as any);
     }
   };
 
   const loadTestResults = async () => {
-    console.log("🔍 [CLIENT] loadTestResults: Starting...");
     const result = await getAllTestResults();
-    console.log("🔍 [CLIENT] loadTestResults result:", result);
     if (result.results) {
-      console.log("🔍 [CLIENT] loadTestResults: Setting results, count:", result.results.length);
-      console.log("🔍 [CLIENT] loadTestResults: Results data:", JSON.stringify(result.results, null, 2));
       setTestResults(result.results as any);
-    } else {
-      console.log("🔍 [CLIENT] loadTestResults: No results found or error:", result.error);
     }
   };
 
@@ -443,11 +426,6 @@ function GoalPageInner() {
       alert("結果のコースを選択してください");
       return;
     }
-
-    console.log("🔍 [handleSaveResult] selectedGoalForResult:", selectedGoalForResult);
-    console.log("🔍 [handleSaveResult] test_schedule_id:", selectedGoalForResult.test_schedule_id);
-    console.log("🔍 [handleSaveResult] resultCourse:", resultCourse);
-    console.log("🔍 [handleSaveResult] resultClass:", resultClass[0]);
 
     setIsSavingResult(true);
 

@@ -36,8 +36,6 @@ export async function POST(request: NextRequest) {
       childPassword,
     } = await request.json()
 
-    console.log(`[Registration] parent-signup: origin=${origin}`)
-
     // Service Role Key を使用した Supabase クライアント
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,

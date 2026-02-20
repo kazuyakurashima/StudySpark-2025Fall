@@ -148,12 +148,6 @@ function getUserPrompt(context: CoachMessageContext): string {
   const month = today.getMonth() + 1
   const season = month >= 3 && month <= 5 ? "春" : month >= 6 && month <= 8 ? "夏" : month >= 9 && month <= 11 ? "秋" : "冬"
 
-  // デバッグログ
-  const totalRecentLogs = (context.recentLogs.today?.length || 0) +
-                          (context.recentLogs.yesterday?.length || 0) +
-                          (context.recentLogs.dayBeforeYesterday?.length || 0)
-  console.log(`🔍 [AI Coach] Generating prompt: logs=${totalRecentLogs} progress=${context.weeklyProgress?.length || 0}`)
-
   let prompt = `【生徒情報】
 名前: ${context.studentName}
 学年: 小学${context.grade}年生

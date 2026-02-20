@@ -40,8 +40,6 @@ export async function POST(request: NextRequest) {
   try {
     const { parent, children }: { parent: ParentData; children: ChildData[] } = await request.json()
 
-    console.log(`[Registration] parent-register: origin=${origin} children=${children?.length || 0}`)
-
     // バリデーション
     if (!parent || !parent.email || !parent.password || !parent.fullName || !parent.fullNameKana) {
       return NextResponse.json(

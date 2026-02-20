@@ -28,9 +28,6 @@ export async function generateReflectMessage(
   context: ReflectContext
 ): Promise<{ message?: string; error?: string }> {
   try {
-    console.log("=== Reflect Message Generation Started (v2.0) ===")
-    console.log(`Reflect: turn=${context.turnNumber} weekType=${context.weekType}`)
-
     const openai = getOpenAIClient()
     const systemPrompt = getReflectSystemPrompt()
     const userPrompt = getReflectUserPrompt(context)
@@ -49,8 +46,6 @@ export async function generateReflectMessage(
       ],
       max_completion_tokens: 800,
     })
-
-    console.log(`Reflect API: tokens=${response.usage?.total_tokens ?? "N/A"}`)
 
     let message = response.choices[0]?.message?.content
 
@@ -75,13 +70,7 @@ export async function generateReflectMessage(
 
     if (shouldAppendMeta) {
       message = message.trimEnd() + "\n\n[META:SESSION_CAN_END]"
-      console.log("✅ Appended metadata tag for session end")
-      console.log(`  - GROW完了: ${hasCompletedGROWCheck}`)
-      console.log(`  - クロージング表現: ${isClosingTurn}`)
     }
-
-    console.log(`Reflect message generated: length=${message.length}`)
-    console.log("=== Reflect Message Generation Completed ===")
 
     return { message }
   } catch (error) {
@@ -97,9 +86,6 @@ export async function generateReflectSummary(
   context: ReflectContext
 ): Promise<{ summary?: string; error?: string }> {
   try {
-    console.log("=== Reflect Summary Generation Started ===")
-    console.log(`Summary: weekType=${context.weekType} turns=${context.conversationHistory.length}`)
-
     const openai = getOpenAIClient()
     const systemPrompt = `あなたは小学生の学習を支援するAIコーチです。
 週次振り返り対話の内容から、生徒の気づきと成長をまとめてください。
@@ -137,17 +123,12 @@ ${conversationSummary}
       max_completion_tokens: 500,
     })
 
-    console.log(`Summary API: tokens=${response.usage?.total_tokens ?? "N/A"}`)
-
     const summary = response.choices[0]?.message?.content
 
     if (!summary) {
       console.error("❌ Summary is empty")
       return { error: "サマリー生成に失敗しました" }
     }
-
-    console.log(`Summary generated: length=${summary.length}`)
-    console.log("=== Reflect Summary Generation Completed ===")
 
     return { summary }
   } catch (error) {

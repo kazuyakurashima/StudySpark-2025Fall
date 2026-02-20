@@ -151,11 +151,6 @@ export default function CoachSparkPage() {
   const handleSendBulkMessage = () => {
     if (selectedStudents.length === 0 || !bulkMessage.trim()) return
 
-    console.log("Sending bulk message:", {
-      students: selectedStudents,
-      message: bulkMessage,
-    })
-
     alert(`${selectedStudents.length}名の生徒にメッセージを送信しました！`)
     setBulkMessage("")
     setSelectedStudents([])
@@ -163,11 +158,6 @@ export default function CoachSparkPage() {
 
   const handleQuickMessage = (message: string) => {
     if (selectedStudents.length === 0) return
-
-    console.log("Sending quick message:", {
-      students: selectedStudents,
-      message,
-    })
 
     alert(`${selectedStudents.length}名の生徒にメッセージを送信しました！`)
     setSelectedStudents([])

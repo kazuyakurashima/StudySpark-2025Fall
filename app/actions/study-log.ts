@@ -234,7 +234,6 @@ export async function saveStudyLog(logs: StudyLogInput[]): Promise<SaveStudyLogR
     const batchId = existingBatchId || crypto.randomUUID()
 
     // デバッグログ
-    console.log(`saveStudyLog: ${logsToInsert.length} records to insert, ${logsToUpdate.length} records to update`)
 
     // Track saved study log IDs for return value
     const savedStudyLogIds: number[] = []
@@ -259,7 +258,6 @@ export async function saveStudyLog(logs: StudyLogInput[]): Promise<SaveStudyLogR
       if (insertedLogs) {
         savedStudyLogIds.push(...insertedLogs.map(log => log.id))
       }
-      console.log(`Successfully inserted ${logsToInsert.length} study logs with batch_id: ${batchId}`)
     }
 
     // Update existing logs (batch_id がなければ付与)
@@ -297,7 +295,6 @@ export async function saveStudyLog(logs: StudyLogInput[]): Promise<SaveStudyLogR
         }
 
         savedStudyLogIds.push(log.id)
-        console.log(`Successfully updated study log id: ${log.id}`)
       }
     }
 

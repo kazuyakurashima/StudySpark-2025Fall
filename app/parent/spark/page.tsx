@@ -130,7 +130,6 @@ const quickSupportIcons = [
   { type: "thumbsup", label: "よくできました", emoji: "👍", icon: null },
 ]
 
-
 export default function ParentSparkPage() {
   const [selectedChild, setSelectedChild] = useState("child1")
   const [isSending, setIsSending] = useState(false)
@@ -167,7 +166,6 @@ export default function ParentSparkPage() {
     const record = sparkRecords.find((r) => r.id === recordId)
 
     setTimeout(() => {
-      console.log(`Sent quick support: ${label} to ${record?.childName}`)
       alert(`「${label}」を送信しました！`)
       setIsSending(false)
     }, 500)
@@ -212,7 +210,6 @@ export default function ParentSparkPage() {
     const record = sparkRecords.find((r) => r.id === currentRecordId)
 
     setTimeout(() => {
-      console.log(`Sent message: ${selectedMessage} to ${record?.childName}`)
       alert("応援メッセージを送信しました！")
       setShowAIDialog(false)
       setSelectedMessage("")

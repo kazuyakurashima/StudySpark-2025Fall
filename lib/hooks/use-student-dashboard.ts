@@ -161,7 +161,6 @@ export function prefetchStudentDashboard() {
     .then((data: StudentDashboardData) => {
       // SWR キャッシュにデータを登録（revalidate: false で再取得しない）
       mutate(key, data, { revalidate: false })
-      console.log("🚀 [Prefetch] Student dashboard cache populated")
       return data
     })
     .catch((err) => {

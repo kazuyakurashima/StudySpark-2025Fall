@@ -79,14 +79,10 @@ async function verifyParentChildRelation(studentId: string) {
 export async function getParentChildren() {
   const supabase = await createClient()
 
-  console.log("🔍 [SERVER] getParentChildren called")
-
   // 現在のユーザー取得
   const {
     data: { user },
   } = await supabase.auth.getUser()
-
-  console.log("🔍 [SERVER] User:", user?.id, user?.email)
 
   if (!user) {
     return { error: "ログインが必要です" }
@@ -98,8 +94,6 @@ export async function getParentChildren() {
     .select("id")
     .eq("user_id", user.id)
     .single()
-
-  console.log("🔍 [SERVER] Parent:", parent?.id, "Error:", parentError?.message)
 
   if (parentError || !parent) {
     return { error: "保護者情報が見つかりません" }
@@ -117,27 +111,21 @@ export async function getParentChildren() {
     .select("student_id")
     .eq("parent_id", parent.id)
 
-  console.log("🔍 [SERVER] Relations count:", relations?.length, "Error:", relationsError?.message)
-
   if (relationsError) {
     return { error: "子ども情報の取得に失敗しました" }
   }
 
   if (!relations || relations.length === 0) {
-    console.log("🔍 [SERVER] No relations found")
     return { children: [] }
   }
 
   // student_id一覧からstudentsデータを取得
   const studentIds = relations.map((r) => r.student_id)
-  console.log("🔍 [SERVER] Student IDs:", studentIds)
 
   const { data: students, error: studentsError } = await adminClient
     .from("students")
     .select("id, full_name, grade, user_id")
     .in("id", studentIds)
-
-  console.log("🔍 [SERVER] Students count:", students?.length, "Error:", studentsError?.message)
 
   if (studentsError || !students) {
     return { error: "生徒情報の取得に失敗しました" }
@@ -149,8 +137,6 @@ export async function getParentChildren() {
     .from("profiles")
     .select("id, display_name, avatar_id")
     .in("id", userIds)
-
-  console.log("🔍 [SERVER] Profiles count:", profiles?.length, "Error:", profilesError?.message)
 
   // studentsデータとprofilesデータをマージ
   const profileMap = new Map(profiles?.map(p => [p.id, p]) || [])
@@ -165,8 +151,6 @@ export async function getParentChildren() {
       avatar_id: profile?.avatar_id || null
     }
   })
-
-  console.log("🔍 [SERVER] Final children:", JSON.stringify(children, null, 2))
 
   return { children }
 }
@@ -530,7 +514,6 @@ export async function getChildEncouragementHistory(
     displayMode?: string
   }
 ) {
-  console.log("[DEBUG getChildEncouragementHistory] Called with:", { studentId, params })
 
   const supabase = await createClient()
 
@@ -548,11 +531,8 @@ export async function getChildEncouragementHistory(
   const hasAccess = await checkStudentAccess(user.id, studentId)
 
   if (!hasAccess) {
-    console.log("[DEBUG getChildEncouragementHistory] Access denied")
     return { error: "アクセス権限がありません" }
   }
-
-  console.log("[DEBUG getChildEncouragementHistory] Access granted")
 
   let query = supabase
     .from("encouragement_messages")
@@ -597,15 +577,11 @@ export async function getChildEncouragementHistory(
 
   const { data: messages, error: queryError } = await query
 
-  console.log("[DEBUG getChildEncouragementHistory] Query result:", { messagesCount: messages?.length, error: queryError })
-
   if (queryError) {
-    console.log("[DEBUG getChildEncouragementHistory] Query error:", queryError.message)
     return { error: queryError.message }
   }
 
   let processedMessages = messages || []
-  console.log("[DEBUG getChildEncouragementHistory] Processing messages:", processedMessages.length)
 
   // 送信者のプロフィール情報を取得（RPC経由で安全に取得）
   if (processedMessages.length > 0) {
@@ -615,8 +591,6 @@ export async function getChildEncouragementHistory(
       const { data: senderProfiles, error: senderError } = await supabase.rpc("get_sender_profiles", {
         sender_ids: senderIds,
       })
-
-      console.log("[DEBUG getChildEncouragementHistory] Sender profiles:", { profilesCount: senderProfiles?.length, error: senderError })
 
       if (!senderError && senderProfiles) {
         // メッセージに送信者プロフィールを追加
@@ -680,7 +654,6 @@ export async function getChildEncouragementHistory(
     })
   }
 
-  console.log("[DEBUG getChildEncouragementHistory] Returning messages:", processedMessages.length)
   return { messages: processedMessages }
 }
 

@@ -90,10 +90,8 @@ export default function ParentGoalNaviPage() {
   // 子ども一覧を読み込み（選択は別のuseEffectで処理）
   useEffect(() => {
     const loadChildren = async () => {
-      console.log("🔍 [CLIENT] Loading children...")
       try {
         const result = await getParentChildren()
-        console.log("🔍 [CLIENT] Children response:", result)
 
         if (result.error) {
           console.error("🔍 [CLIENT] Error from API:", result.error)
@@ -102,7 +100,6 @@ export default function ParentGoalNaviPage() {
         }
 
         if (result.children) {
-          console.log("🔍 [CLIENT] Setting children:", result.children)
           setChildren(result.children)
           // 子どもの選択は別のuseEffectで処理（URLパラメータ or プロバイダー or デフォルト）
         }
@@ -136,13 +133,11 @@ export default function ParentGoalNaviPage() {
       // プロバイダーから取得したIDで子どもを選択
       const child = children.find(c => c.id === providerSelectedChildId)
       if (child) {
-        console.log('🔍 [ゴールナビ] プロバイダーから子どもを選択:', child.full_name, child.id)
         setSelectedChildId(child.id)
         setSelectedChild(child)
       }
     } else if (selectedChildId === null && children.length > 0) {
       // プロバイダーに値がなく、まだ選択されていない場合は最初の子どもを選択
-      console.log('🔍 [ゴールナビ] デフォルトで最初の子どもを選択:', children[0].full_name, children[0].id)
       setSelectedChildId(children[0].id)
       setSelectedChild(children[0])
       setProviderChildId(children[0].id)
@@ -199,14 +194,11 @@ export default function ParentGoalNaviPage() {
   useEffect(() => {
     const loadChildData = async () => {
       if (selectedChildId === null) {
-        console.log('🔍 [ゴールナビ] selectedChildIdがnullのためデータ読み込みスキップ')
         return
       }
 
       // エラー状態をリセット
       setDataError(null)
-
-      console.log('🔍 [ゴールナビ] 子どものテストデータを読み込み中:', selectedChildId, 'type:', typeof selectedChildId)
 
       // studentIdを使って生徒のデータを取得
       const [testsData, goalsData, resultsData] = await Promise.all([
@@ -225,10 +217,6 @@ export default function ParentGoalNaviPage() {
       if (resultsData.error) {
         console.error('🔍 [ゴールナビ] 結果取得エラー:', resultsData.error)
       }
-
-      console.log('🔍 [ゴールナビ] 利用可能なテスト:', testsData.tests?.length || 0, testsData.error ? `(エラー: ${testsData.error})` : '')
-      console.log('🔍 [ゴールナビ] 設定済みの目標:', goalsData.goals?.length || 0, goalsData.error ? `(エラー: ${goalsData.error})` : '')
-      console.log('🔍 [ゴールナビ] 入力済みの結果:', resultsData.results?.length || 0, resultsData.error ? `(エラー: ${resultsData.error})` : '')
 
       // エラーがあればUIに表示
       if (testsData.error || goalsData.error || resultsData.error) {

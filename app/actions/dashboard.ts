@@ -123,19 +123,16 @@ export async function getAICoachMessage() {
         .eq("cache_key", cacheKey)
 
       const message = JSON.parse(cached.cached_content) as string
-      console.log(`[Coach Message] Cache HIT: ${cacheKey}`)
       return { message, createdAt: cached.created_at }
     }
 
     // キャッシュミス - テンプレートを即返却 & AI生成はバックグラウンドで実行
-    console.log(`[Coach Message] Cache MISS: ${cacheKey}, returning template and generating AI in background`)
 
     // 🚀 改善: テンプレートメッセージを即座に返却（3-5秒の待機を回避）
     const templateMessage = getTemplateMessage(displayName)
 
     // バックグラウンドでAI生成（await せずに非同期実行）
     generateAndCacheCoachMessage(supabase, user.id, student, displayName, cacheKey)
-      .then(() => console.log(`[Coach Message] Background AI generation completed for ${displayName}`))
       .catch((err) => console.error(`[Coach Message] Background AI generation failed:`, err))
 
     return {
@@ -254,7 +251,6 @@ async function generateAndCacheCoachMessage(
       created_at: now,
     })
 
-    console.log(`[Coach Message] ✅ Background AI generated and cached: ${cacheKey} (trace: ${traceId})`)
   } catch (error) {
     console.error("[Coach Message] Background generation failed:", error)
     throw error
@@ -296,13 +292,6 @@ async function getRecentStudyLogsForCoach(studentId: string, days: number = 3) {
   const yesterdayStr = getYesterdayJST()
   const dayBeforeYesterdayStr = getDaysAgoJST(2)
 
-  console.log("🔍 [Coach Logs] Fetching logs for:", {
-    studentId,
-    today: todayStr,
-    yesterday: yesterdayStr,
-    dayBeforeYesterday: dayBeforeYesterdayStr,
-  })
-
   const { data: logs, error } = await supabase
     .from("study_logs")
     .select(`
@@ -327,12 +316,7 @@ async function getRecentStudyLogsForCoach(studentId: string, days: number = 3) {
     return { today: [], yesterday: [], dayBeforeYesterday: [] }
   }
 
-  console.log("🔍 [Coach Logs] Query result:", {
-    count: logs?.length,
-  })
-
   if (!logs || logs.length === 0) {
-    console.log("🔍 [Coach Logs] No logs found")
     return { today: [], yesterday: [], dayBeforeYesterday: [] }
   }
 
@@ -361,12 +345,6 @@ async function getRecentStudyLogsForCoach(studentId: string, days: number = 3) {
     }
   })
 
-  console.log("🔍 [Coach Logs] Logs by day:", {
-    today: todayLogs.length,
-    yesterday: yesterdayLogs.length,
-    dayBeforeYesterday: dayBeforeYesterdayLogs.length,
-  })
-
   return {
     today: todayLogs,
     yesterday: yesterdayLogs,
@@ -384,8 +362,6 @@ async function getWeeklyCumulativeProgress(studentId: number) {
   const { getTodayJST } = await import("@/lib/utils/date-jst")
   const todayStr = getTodayJST()
 
-  console.log("🔍 [Coach Weekly] Fetching weekly progress for student:", studentId)
-
   try {
     // student.idから直接gradeを取得
     const { data: student, error: studentError } = await supabase
@@ -398,8 +374,6 @@ async function getWeeklyCumulativeProgress(studentId: number) {
       console.error("🔍 [Coach Weekly] Student not found:", studentError)
       return { progress: [] }
     }
-
-    console.log("🔍 [Coach Weekly] Student grade:", student.grade)
 
     // 今週のstudy_sessionを取得
     const { data: currentSession, error: sessionError } = await supabase
@@ -414,13 +388,6 @@ async function getWeeklyCumulativeProgress(studentId: number) {
       console.error("🔍 [Coach Weekly] No current session found:", sessionError)
       return { progress: [] }
     }
-
-    console.log("🔍 [Coach Weekly] Current session:", {
-      id: currentSession.id,
-      number: currentSession.session_number,
-      start: currentSession.start_date,
-      end: currentSession.end_date,
-    })
 
     // 今週の全ログを取得（logged_at降順で取得）
     const { data: logs, error: logsError } = await supabase
@@ -444,11 +411,8 @@ async function getWeeklyCumulativeProgress(studentId: number) {
     }
 
     if (!logs || logs.length === 0) {
-      console.log("🔍 [Coach Weekly] No logs found for this session")
       return { progress: [] }
     }
-
-    console.log("🔍 [Coach Weekly] Fetched", logs.length, "logs")
 
     // 科目×学習内容の組み合わせごとに最新のログのみを保持
     // （getWeeklySubjectProgress()と同じロジック）
@@ -467,8 +431,6 @@ async function getWeeklyCumulativeProgress(studentId: number) {
       }
     })
 
-    console.log("🔍 [Coach Weekly] Latest logs count:", latestLogsMap.size)
-
     // 科目別に集計（最新ログのみを使用）
     const subjectMap: {
       [subject: string]: {
@@ -486,8 +448,6 @@ async function getWeeklyCumulativeProgress(studentId: number) {
       subjectMap[subjectName].weekCorrect += log.correct_count || 0
       subjectMap[subjectName].weekTotal += log.total_problems || 0
     })
-
-    console.log("🔍 [Coach Weekly] Aggregated by subject:", subjectMap)
 
     // 科目順序を固定（算→国→理→社）
     const subjectOrder = ["算数", "国語", "理科", "社会"]
@@ -515,8 +475,6 @@ async function getWeeklyCumulativeProgress(studentId: number) {
           remainingToTarget,
         }
       })
-
-    console.log("🔍 [Coach Weekly] Final progress (sorted):", progress)
 
     return { progress }
   } catch (error) {
@@ -860,9 +818,6 @@ export async function getWeeklySubjectProgress() {
     })
     const todayStr = formatter.format(now) // Returns YYYY-MM-DD
 
-    console.log("🔍 [SERVER] Weekly progress - Today (JST):", todayStr)
-    console.log("🔍 [SERVER] Weekly progress - Student grade:", student.grade)
-
     // Find this week's study session
     const { data: currentSession, error: sessionError } = await supabase
       .from("study_sessions")
@@ -871,9 +826,6 @@ export async function getWeeklySubjectProgress() {
       .lte("start_date", todayStr)
       .gte("end_date", todayStr)
       .single()
-
-    console.log("🔍 [SERVER] Weekly progress - Current session:", JSON.stringify(currentSession, null, 2))
-    console.log("🔍 [SERVER] Weekly progress - Session error:", sessionError)
 
     if (sessionError || !currentSession) {
       console.error("No current session found:", sessionError)
@@ -1116,8 +1068,6 @@ export async function getTodayMissionData() {
     const { getTodayJST } = await import("@/lib/utils/date-jst")
     const todayDateStr = getTodayJST()
 
-    console.log("🔍 [getTodayMissionData] student_id:", student.id, "grade:", student.grade, "today:", todayDateStr)
-
     // Find this week's study session
     const { data: currentSession, error: sessionError } = await supabase
       .from("study_sessions")
@@ -1131,8 +1081,6 @@ export async function getTodayMissionData() {
       console.error("No current session found for today's mission:", sessionError)
       return { todayProgress: [] }
     }
-
-    console.log("🔍 [getTodayMissionData] current session_id:", currentSession.id)
 
     // Get today's logs for this week's session only
     const { data: todayLogs, error: logsError } = await supabase
@@ -1157,8 +1105,6 @@ export async function getTodayMissionData() {
       return { error: "今日のミッションデータの取得に失敗しました" }
     }
 
-    console.log("🔍 [getTodayMissionData] todayLogs count:", todayLogs?.length || 0)
-
     // Aggregate by subject
     const subjectMap: { [key: string]: { totalCorrect: number; totalProblems: number; logCount: number } } = {}
 
@@ -1180,8 +1126,6 @@ export async function getTodayMissionData() {
       totalProblems: data.totalProblems,
       logCount: data.logCount, // 入力回数を追加
     }))
-
-    console.log("🔍 [getTodayMissionData] todayProgress:", JSON.stringify(todayProgress, null, 2))
 
     return { todayProgress }
   } catch (error) {

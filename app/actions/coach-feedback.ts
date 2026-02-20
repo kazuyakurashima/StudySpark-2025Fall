@@ -255,7 +255,6 @@ export async function generateCoachFeedback(
 
   // batch_idで取得できなかった場合、studyLogIdsでフォールバック検証（レガシー対応）
   if (!batchLogs || batchLogs.length === 0) {
-    console.log("No logs found with batch_id, falling back to legacy mode")
     return await generateLegacyFeedback(
       supabase,
       verifiedStudentId,
@@ -332,9 +331,7 @@ export async function generateCoachFeedback(
   // ========================================
   // 4. 既存フィードバック確認（サービスロール）- batch_id で検索
   // ========================================
-  console.log("Creating admin client...")
   const adminClient = createAdminClient()
-  console.log("Admin client created successfully")
 
   const { data: existing } = await adminClient
     .from("coach_feedbacks")
@@ -345,15 +342,12 @@ export async function generateCoachFeedback(
   // 振り返りテキストがある場合、既存フィードバックを削除して再生成
   // （ユーザーが後から振り返りを追加した場合に対応）
   if (existing && data.reflectionText && data.reflectionText.trim()) {
-    console.log("[Coach Feedback] Reflection text provided but cache exists - regenerating. batch:", verifiedBatchId)
     // 既存フィードバックを削除
     await adminClient
       .from("coach_feedbacks")
       .delete()
       .eq("id", existing.id)
-    console.log("[Coach Feedback] Deleted existing feedback for regeneration")
   } else if (existing) {
-    console.log("[Coach Feedback] Cache HIT - returning existing feedback for batch:", verifiedBatchId)
     return {
       success: true,
       feedback: existing.feedback_text,
@@ -361,7 +355,6 @@ export async function generateCoachFeedback(
       savedToDb: true,
     }
   }
-  console.log("[Coach Feedback] Cache MISS - generating new feedback for batch:", verifiedBatchId)
 
   // ========================================
   // 5. AI生成（タイムアウト付き）
@@ -388,9 +381,6 @@ export async function generateCoachFeedback(
     const promptHash = getPromptHash(systemPrompt, userPrompt)
 
     // デバッグログ: reflectionTextがプロンプトに含まれているか確認
-    console.log("[Coach Feedback] Timeout:", timeoutMs, "ms for", data.subjects.length, "subjects")
-    console.log("[Coach Feedback] reflectionText received:", data.reflectionText || "(empty)")
-    console.log("[Coach Feedback] userPrompt:", userPrompt)
 
     const generation = trace?.generation({
       name: "generate-feedback",
@@ -424,15 +414,6 @@ export async function generateCoachFeedback(
     // ========================================
     // 6. DB保存（サービスロール）- batch_id ベース
     // ========================================
-    console.log("Attempting coach_feedback insert with:", {
-      batch_id: verifiedBatchId,
-      study_log_id: representativeStudyLogId,
-      student_id: verifiedStudentId,
-      session_id: verifiedSessionId,
-      feedback_length: generatedFeedback.length,
-      prompt_version: PROMPT_VERSION,
-    })
-
     const { error: insertError } = await adminClient.from("coach_feedbacks").insert({
       batch_id: verifiedBatchId,
       study_log_id: representativeStudyLogId, // 代表の1件を設定（NOT NULL維持）
@@ -525,11 +506,9 @@ export async function generateCoachFeedback(
 
       if (!fallbackInsertError) {
         savedFallbackToDb = true
-        console.log("[Coach Feedback] Fallback message saved to DB")
       } else if (fallbackInsertError.code === "23505") {
         // UNIQUE違反 - 既存フィードバックがある（並行リクエストなど）
         // 既存を返すため savedToDb = true とみなす
-        console.log("[Coach Feedback] Fallback insert UNIQUE conflict - existing feedback found")
         savedFallbackToDb = true
       } else {
         // その他のエラーをログ
@@ -740,8 +719,6 @@ async function generateLegacyFeedback(
     const userPrompt = getUserPrompt(data)
     const promptHash = getPromptHash(systemPrompt, userPrompt)
 
-    console.log("[Coach Feedback Legacy] Timeout:", timeoutMs, "ms for", data.subjects.length, "subjects")
-
     const generation = trace?.generation({
       name: "generate-feedback-legacy",
       model: getDefaultModel(),
@@ -846,10 +823,8 @@ async function generateLegacyFeedback(
 
       if (!fallbackInsertError) {
         savedFallbackToDb = true
-        console.log("[Coach Feedback Legacy] Fallback message saved to DB")
       } else if (fallbackInsertError.code === "23505") {
         // UNIQUE違反 - 既存フィードバックがある
-        console.log("[Coach Feedback Legacy] Fallback insert UNIQUE conflict - existing feedback found")
         savedFallbackToDb = true
       } else {
         console.error("[Coach Feedback Legacy] Failed to save fallback:", {

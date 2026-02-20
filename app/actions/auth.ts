@@ -59,8 +59,6 @@ export async function universalLogin(input: string, password: string) {
     return { error: "プロフィールが見つかりません" }
   }
 
-  console.log(`[Login] Success: role=${profile.role}`)
-
   // 5. ロール別リダイレクト
   const role = profile.role
   const setupCompleted = profile.setup_completed

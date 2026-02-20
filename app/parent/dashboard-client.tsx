@@ -1772,8 +1772,6 @@ function ParentDashboardInner({
   // 🚀 改善: 初期データをサーバーから受け取った場合は即座に表示
   useEffect(() => {
     if (initialData && initialSelectedChild) {
-      console.log("✅ [CLIENT] Using initial server data for child:", initialSelectedChild.id)
-
       // discriminated union を適切に処理
       if (!isError(initialData.todayStatus)) {
         setTodayStatusMessage(initialData.todayStatus.message)
@@ -1824,7 +1822,6 @@ function ParentDashboardInner({
   // Update children list when profileChildren is loaded
   useEffect(() => {
     if (!profileLoading && profileChildren.length > 0) {
-      console.log("🔍 [CLIENT] Updating children list from profile:", profileChildren)
       setChildren(profileChildren)
     }
   }, [profileLoading, profileChildren])
@@ -1832,8 +1829,6 @@ function ParentDashboardInner({
   // 🚀 SWR: データが更新されたら各stateに反映
   useEffect(() => {
     if (!swrData) return
-
-    console.log("🚀 [SWR] Data received for child:", swrData.childId)
 
     // ステータスメッセージ
     if (!swrData.todayStatus.error) {
@@ -1883,7 +1878,6 @@ function ParentDashboardInner({
       setIsReflectCompleted(swrData.reflection.completed)
     }
 
-    console.log("✅ [SWR] All state updated from SWR data")
   }, [swrData])
 
   // 🚀 SWR: ローディング状態を同期

@@ -39,8 +39,6 @@ export function EncouragementHistory({
   const loadHistory = async () => {
     setLoading(true)
 
-    console.log("[DEBUG EncouragementHistory] Loading with:", { viewerRole, studentId, subjectFilter, periodFilter, sortBy, displayMode })
-
     // viewerRoleに応じて適切なAPIを呼び出す（保護者・指導者は同じAPI）
     const result = (viewerRole === "parent" || viewerRole === "coach") && studentId
       ? await getChildEncouragementHistory(studentId, {
@@ -55,8 +53,6 @@ export function EncouragementHistory({
           sortBy,
           displayMode,
         })
-
-    console.log("[DEBUG EncouragementHistory] API result:", { error: result.error, messagesCount: result.messages?.length })
 
     if (!result.error) {
       // 親APIの場合、フィールド名を正規化

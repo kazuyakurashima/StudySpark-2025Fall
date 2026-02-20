@@ -477,8 +477,6 @@ export async function getCoachStudentLearningRecords(limit = 50) {
     return { error: "指導者情報が見つかりません" }
   }
 
-  console.log("[getCoachStudentLearningRecords] Coach ID:", coach.id)
-
   // 担当生徒のIDを取得
   const { data: relations, error: relationsError } = await supabase
     .from("coach_student_relations")
@@ -490,16 +488,11 @@ export async function getCoachStudentLearningRecords(limit = 50) {
     return { error: "担当生徒の取得に失敗しました" }
   }
 
-  console.log("[getCoachStudentLearningRecords] Relations:", relations)
-
   const studentIds = relations?.map((rel) => rel.student_id) || []
 
   if (studentIds.length === 0) {
-    console.log("[getCoachStudentLearningRecords] No students found, returning empty records")
     return { records: [] }
   }
-
-  console.log("[getCoachStudentLearningRecords] Fetching logs for student IDs:", studentIds)
 
   // 担当生徒の学習記録を取得（logged_at基準でソート）
   const { data: studyLogs, error: logsError } = await supabase
@@ -529,30 +522,15 @@ export async function getCoachStudentLearningRecords(limit = 50) {
     .order("logged_at", { ascending: false })
     .limit(limit)
 
-  console.log("[getCoachStudentLearningRecords] Query error:", logsError)
-
   if (logsError) {
     console.error("Failed to fetch study logs:", logsError)
     return { error: "学習記録の取得に失敗しました" }
-  }
-
-  // デバッグ: 取得したデータを確認
-  console.log("[getCoachStudentLearningRecords] Study logs count:", studyLogs?.length || 0)
-  if (studyLogs && studyLogs.length > 0) {
-    console.log("[getCoachStudentLearningRecords] First log sample:", JSON.stringify({
-      id: studyLogs[0].id,
-      student_id: studyLogs[0].student_id,
-      students: studyLogs[0].students,
-      subjects: studyLogs[0].subjects
-    }, null, 2))
   }
 
   // 生徒のuser_idを取得してprofilesからnickname/avatar_idを取得
   const studentUserIds = studyLogs
     ?.map((log: any) => log.students?.user_id)
     .filter(Boolean) || []
-
-  console.log("[getCoachStudentLearningRecords] Student user IDs:", studentUserIds)
 
   let profilesMap: Record<string, { nickname: string | null; avatar_id: string | null; custom_avatar_url: string | null }> = {}
 
@@ -633,19 +611,6 @@ export async function getCoachStudentLearningRecords(limit = 50) {
         })),
     }
   }) || []
-
-  console.log("[getCoachStudentLearningRecords] Final records count:", records.length)
-  if (records.length > 0) {
-    console.log("[getCoachStudentLearningRecords] First record sample:", JSON.stringify({
-      id: records[0].id,
-      studentId: records[0].studentId,
-      studentName: records[0].studentName,
-      studentNickname: records[0].studentNickname,
-      studentAvatar: records[0].studentAvatar,
-      grade: records[0].grade,
-      subject: records[0].subject
-    }, null, 2))
-  }
 
   return { records }
 }

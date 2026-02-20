@@ -132,16 +132,10 @@ export async function determineWeekType() {
   const nextWeekSundayEnd = new Date(nextWeekSunday)
   nextWeekSundayEnd.setHours(23, 59, 59, 999)
 
-  console.log("=== 特別週判定 ===")
-  console.log("今週月曜日:", formatDateToJST(thisMonday))
-  console.log("来週日曜日:", formatDateToJST(nextWeekSunday))
-
   const { data: upcomingTests } = await supabase
     .from("test_schedules")
     .select("test_date, test_types(name, grade)")
     .eq("test_date", formatDateToJST(nextWeekSunday))
-
-  console.log("来週日曜日のテスト:", upcomingTests)
 
   const hasUpcomingTest = upcomingTests && upcomingTests.length > 0
 

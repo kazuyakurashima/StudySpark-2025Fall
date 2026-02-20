@@ -47,7 +47,6 @@ export async function sendPendingScores(
   scoresCreated = pendingScores.length
 
   if (scoresCreated === 0) {
-    console.log(`[BatchHelper:${batchName}] No pending scores to send`)
     return createBatchRunResult(
       batchName,
       scoresCreated,
@@ -57,9 +56,6 @@ export async function sendPendingScores(
     )
   }
 
-  console.log(
-    `[BatchHelper:${batchName}] Sending ${scoresCreated} pending scores...`
-  )
 
   // スコアを送信
   for (const score of pendingScores) {
@@ -232,10 +228,6 @@ export async function monitorPendingScores(
         threshold,
         samples,
       }
-    )
-  } else {
-    console.log(
-      `[BatchHelper] Pending scores: ${pendingCount} (threshold: ${threshold})`
     )
   }
 }
