@@ -861,9 +861,10 @@ export async function getMathGradingHistory(input?: {
         if (!coachId) return { results: [], summary: emptySummary, error: '指導者情報が見つかりません' }
         const { data: coachRel } = await admin
           .from('coach_student_relations')
-          .select('id')
+          .select('id, students!inner(id)')
           .eq('student_id', targetStudentId)
           .eq('coach_id', coachId)
+          .is('students.graduated_at', null)
           .single()
         if (!coachRel) return { results: [], summary: emptySummary, error: 'アクセス権限がありません' }
       } else if (profile.role !== 'admin') {

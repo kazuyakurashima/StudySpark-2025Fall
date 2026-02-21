@@ -65,9 +65,10 @@ export async function checkStudentAccess(
 
     const { data: relation } = await supabase
       .from("coach_student_relations")
-      .select("id")
+      .select("id, students!inner(id)")
       .eq("coach_id", coach.id)
       .eq("student_id", Number(studentId))
+      .is("students.graduated_at", null)
       .single()
 
     return !!relation

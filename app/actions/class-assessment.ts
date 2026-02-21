@@ -152,9 +152,10 @@ export async function createAssessment(
 
       const { data: relation } = await supabase
         .from("coach_student_relations")
-        .select("id")
+        .select("id, students!inner(id)")
         .eq("coach_id", coach.id)
         .eq("student_id", input.student_id)
+        .is("students.graduated_at", null)
         .single()
 
       if (!relation) {
@@ -754,12 +755,12 @@ export async function getCoachAssessments(options?: {
       return { success: false, error: "指導者情報が見つかりません" }
     }
 
-    // 担当生徒一覧取得
+    // 担当生徒一覧取得（卒業生を除外）
     const { data: relations } = await supabase
       .from("coach_student_relations")
       .select(
         `
-        student:students (
+        student:students!inner (
           id,
           full_name,
           grade,
@@ -771,6 +772,7 @@ export async function getCoachAssessments(options?: {
       `
       )
       .eq("coach_id", coach.id)
+      .is("student.graduated_at", null)
 
     if (!relations || relations.length === 0) {
       return { success: true, data: [] }

@@ -52,12 +52,13 @@ export default async function StudentDetailPage({ params }: PageProps) {
     redirect("/coach")
   }
 
-  // この生徒が自分の担当かチェック
+  // この生徒が自分の担当かチェック（卒業生を除外）
   const { data: relation } = await supabase
     .from("coach_student_relations")
-    .select("id")
+    .select("id, students!inner(id)")
     .eq("coach_id", coach.id)
     .eq("student_id", Number(studentId))
+    .is("students.graduated_at", null)
     .single()
 
   if (!relation) {

@@ -1342,6 +1342,7 @@ export type Database = {
           full_name: string
           furigana: string | null
           grade: number
+          graduated_at: string | null
           id: number
           last_study_date: string | null
           login_id: string
@@ -1357,6 +1358,7 @@ export type Database = {
           full_name: string
           furigana?: string | null
           grade: number
+          graduated_at?: string | null
           id?: number
           last_study_date?: string | null
           login_id: string
@@ -1372,6 +1374,7 @@ export type Database = {
           full_name?: string
           furigana?: string | null
           grade?: number
+          graduated_at?: string | null
           id?: number
           last_study_date?: string | null
           login_id?: string

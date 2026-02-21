@@ -427,14 +427,15 @@ export async function getCoachStudents() {
     return { success: false as const, error: "指導者情報が見つかりません" }
   }
 
-  // 担当生徒を取得
+  // 担当生徒を取得（卒業生を除外）
   const { data, error } = await supabase
     .from("coach_student_relations")
     .select(`
       student_id,
-      students(id, full_name, grade, profiles!students_user_id_fkey(avatar_id, nickname, custom_avatar_url))
+      students!inner(id, full_name, grade, profiles!students_user_id_fkey(avatar_id, nickname, custom_avatar_url))
     `)
     .eq("coach_id", coachData.id)
+    .is("students.graduated_at", null)
 
   if (error) {
     console.error("Error fetching coach students:", error)

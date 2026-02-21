@@ -499,11 +499,12 @@ export async function getAllStudentsPastExamSummaryForCoach() {
     return { error: "指導者情報が見つかりません" }
   }
 
-  // 担当生徒のIDを取得
+  // 担当生徒のIDを取得（卒業生を除外）
   const { data: relations, error: relationsError } = await supabase
     .from("coach_student_relations")
-    .select("student_id")
+    .select("student_id, students!inner(id)")
     .eq("coach_id", coach.id)
+    .is("students.graduated_at", null)
 
   if (relationsError) {
     console.error("Failed to fetch coach-student relations:", relationsError)

@@ -40,13 +40,13 @@ export async function getCoachStudents() {
     return { error: "指導者情報が見つかりません" }
   }
 
-  // 担当生徒の関係を取得
+  // 担当生徒の関係を取得（卒業生を除外）
   const { data: relations, error: relationsError } = await supabase
     .from("coach_student_relations")
     .select(
       `
       student_id,
-      students (
+      students!inner (
         id,
         user_id,
         full_name,
@@ -56,6 +56,7 @@ export async function getCoachStudents() {
     `
     )
     .eq("coach_id", coach.id)
+    .is("students.graduated_at", null)
 
   if (relationsError) {
     console.error("Failed to fetch coach-student relations:", relationsError)
@@ -134,12 +135,13 @@ export async function getStudentDetail(studentId: string) {
     return { error: "指導者情報が見つかりません" }
   }
 
-  // 担当生徒かチェック
+  // 担当生徒かチェック（卒業生を除外）
   const { data: relation } = await supabase
     .from("coach_student_relations")
-    .select("id")
+    .select("id, students!inner(id)")
     .eq("coach_id", coach.id)
     .eq("student_id", Number(studentId))
+    .is("students.graduated_at", null)
     .single()
 
   if (!relation) {
@@ -244,12 +246,13 @@ export async function getStudentLearningHistory(studentId: string, limit = 20) {
     return { error: "指導者情報が見つかりません" }
   }
 
-  // 担当生徒かチェック
+  // 担当生徒かチェック（卒業生を除外）
   const { data: relation } = await supabase
     .from("coach_student_relations")
-    .select("id")
+    .select("id, students!inner(id)")
     .eq("coach_id", coach.id)
     .eq("student_id", Number(studentId))
+    .is("students.graduated_at", null)
     .single()
 
   if (!relation) {
@@ -381,12 +384,13 @@ export async function sendEncouragementToStudent(studentId: string, studyLogId: 
     return { error: "指導者情報が見つかりません" }
   }
 
-  // 担当生徒かチェック
+  // 担当生徒かチェック（卒業生を除外）
   const { data: relation } = await supabase
     .from("coach_student_relations")
-    .select("id")
+    .select("id, students!inner(id)")
     .eq("coach_id", coach.id)
     .eq("student_id", Number(studentId))
+    .is("students.graduated_at", null)
     .single()
 
   if (!relation) {
@@ -477,11 +481,12 @@ export async function getCoachStudentLearningRecords(limit = 50) {
     return { error: "指導者情報が見つかりません" }
   }
 
-  // 担当生徒のIDを取得
+  // 担当生徒のIDを取得（卒業生を除外）
   const { data: relations, error: relationsError } = await supabase
     .from("coach_student_relations")
-    .select("student_id")
+    .select("student_id, students!inner(id)")
     .eq("coach_id", coach.id)
+    .is("students.graduated_at", null)
 
   if (relationsError) {
     console.error("Failed to fetch coach-student relations:", relationsError)
@@ -785,12 +790,12 @@ export async function getCoachAnalysisData(
     return { ...emptyResult, error: "指導者情報が見つかりません" }
   }
 
-  // 担当生徒を取得
+  // 担当生徒を取得（卒業生を除外）
   const { data: relations, error: relationsError } = await supabase
     .from("coach_student_relations")
     .select(`
       student_id,
-      students (
+      students!inner (
         id,
         user_id,
         full_name,
@@ -798,6 +803,7 @@ export async function getCoachAnalysisData(
       )
     `)
     .eq("coach_id", coach.id)
+    .is("students.graduated_at", null)
 
   if (relationsError) {
     console.error("Failed to fetch coach-student relations:", relationsError)
@@ -1032,12 +1038,12 @@ export async function getInactiveStudents(thresholdDays = 7) {
     return { error: "指導者情報が見つかりません" }
   }
 
-  // 担当生徒を取得
+  // 担当生徒を取得（卒業生を除外）
   const { data: relations, error: relationsError } = await supabase
     .from("coach_student_relations")
     .select(`
       student_id,
-      students (
+      students!inner (
         id,
         user_id,
         full_name,
@@ -1045,6 +1051,7 @@ export async function getInactiveStudents(thresholdDays = 7) {
       )
     `)
     .eq("coach_id", coach.id)
+    .is("students.graduated_at", null)
 
   if (relationsError) {
     console.error("Failed to fetch coach-student relations:", relationsError)
@@ -1194,11 +1201,12 @@ export async function getUnconfirmedSessions() {
     return { error: "指導者情報が見つかりません" }
   }
 
-  // 担当生徒を取得
+  // 担当生徒を取得（卒業生を除外）
   const { data: relations, error: relationsError } = await supabase
     .from("coach_student_relations")
-    .select("student_id, students(grade)")
+    .select("student_id, students!inner(grade)")
     .eq("coach_id", coach.id)
+    .is("students.graduated_at", null)
 
   if (relationsError) {
     return { error: "担当生徒の取得に失敗しました" }
@@ -1337,12 +1345,12 @@ export async function getAssessmentInputData(
     return { error: "指導者情報が見つかりません" }
   }
 
-  // 担当生徒を取得
+  // 担当生徒を取得（卒業生を除外）
   const { data: relations, error: relationsError } = await supabase
     .from("coach_student_relations")
     .select(`
       student_id,
-      students (
+      students!inner (
         id,
         user_id,
         full_name,
@@ -1350,6 +1358,7 @@ export async function getAssessmentInputData(
       )
     `)
     .eq("coach_id", coach.id)
+    .is("students.graduated_at", null)
 
   if (relationsError) {
     return { error: "担当生徒の取得に失敗しました" }

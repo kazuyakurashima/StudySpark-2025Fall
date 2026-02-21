@@ -445,9 +445,10 @@ export async function resetStudentPassword(
 
     const { data: relation } = await supabase
       .from("coach_student_relations")
-      .select("id")
+      .select("id, students!inner(id)")
       .eq("coach_id", coachRecord.id)
       .eq("student_id", Number(studentId))
+      .is("students.graduated_at", null)
       .single()
 
     if (!relation) {
