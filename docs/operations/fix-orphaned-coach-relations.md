@@ -6,23 +6,17 @@
 
 ## 2. 原因
 
-2026-02-07 の卒業処理（`03_data_strategy.md` Section 7.2 実績）で `coach_student_relations` の削除が一部の指導者にしか適用されなかった。
+2つの層の問題が重なっている:
 
-`04_cutover_runbook.md:343` に定義された削除クエリ:
+1. **運用層**: 2026-02-07 の卒業処理で `coach_student_relations` の削除が一部の指導者にしか適用されなかった（`04_cutover_runbook.md:345` の DELETE が不完全実行）
+2. **設計層**: `getCoachStudents()` に卒業生を除外するフィルタがなく、relation が残存すると必ず表示される（アプリ層防御がゼロ）
 
-```sql
-DELETE FROM coach_student_relations
-WHERE student_id IN (SELECT id FROM _graduating_ids_YYYYMMDD_HHMM);
-```
-
-は **全指導者** の該当リレーションを削除するが、何らかの理由で kazuya 以外の指導者分が残存した。
-
-## 3. 修正手順
+## 3. 修正手順（DB 運用修正）
 
 ### 3.1 テーブル探索（卒業対象IDソースの特定）
 
 ```sql
--- _graduating_ids_* が優先度1（03_data_strategy.md:638）
+-- _graduating_ids_* が優先度1（03_data_strategy.md Section 7.3）
 -- _backup_graduated_* が優先度2
 -- ⚠️ LIKE の _ はワイルドカードのためエスケープ必須
 SELECT tablename
@@ -42,7 +36,7 @@ ORDER BY tablename DESC;
 
 ```sql
 -- 卒業対象IDソースは _graduating_ids_* を一次ソースとする
--- （03_data_strategy.md:638, 04_cutover_runbook.md:304）
+-- （03_data_strategy.md Section 7.3, 04_cutover_runbook.md:304）
 SELECT
   csr.coach_id,
   c.full_name AS coach_name,
@@ -83,23 +77,52 @@ COMMIT;
 - 削除件数: ___ 件
 - 対象 coach_id 一覧: ___
 
-### 3.4 事後確認
+### 3.4 `graduated_at` の設定
 
-`04_cutover_runbook.md:381-412` の事後確認クエリを実行:
+卒業生にアプリ層防御用の `graduated_at` を設定する。
+**⚠️ 事前に `students` テーブルに `graduated_at` カラムが存在することを確認すること。**
+（マイグレーション未適用の場合は先にデプロイが必要）
+
+```sql
+-- 再実行安全（COALESCE で既存値を保持）
+UPDATE students SET graduated_at = COALESCE(graduated_at, NOW())
+WHERE id IN (
+  SELECT id FROM _graduating_ids_YYYYMMDD_HHMM
+)
+RETURNING id, full_name, graduated_at;
+```
+
+**注意**: `graduated_at` を設定しただけでは防御にならない。アプリコード（`WHERE graduated_at IS NULL`）のデプロイ後に初めて有効化される。効力発生の順序:
+1. DB マイグレーション（`graduated_at` カラム追加）
+2. アプリコードのデプロイ（フィルタ追加）
+3. `graduated_at` の設定（本ステップ）
+4. 事後確認（3.5）
+
+### 3.5 事後確認
+
+`04_cutover_runbook.md` の事後確認クエリを実行:
 
 ```sql
 WITH target_ids AS (
   SELECT id FROM _graduating_ids_YYYYMMDD_HHMM
 )
 -- (1) relation 残存確認
-SELECT 'relation_残存' AS check_type, csr.student_id, s.full_name, NULL AS banned_until
+SELECT 'relation_残存' AS check_type, csr.student_id, s.full_name, NULL AS detail
 FROM coach_student_relations csr
 JOIN students s ON s.id = csr.student_id
 WHERE csr.student_id IN (SELECT id FROM target_ids)
 
 UNION ALL
 
--- (2) BAN 状態確認（SQL Editor / service role でのみ実行可）
+-- (2) graduated_at 未設定確認
+SELECT 'graduated_at_未設定', s.id, s.full_name, NULL
+FROM students s
+WHERE s.id IN (SELECT id FROM target_ids)
+  AND s.graduated_at IS NULL
+
+UNION ALL
+
+-- (3) BAN 状態確認（SQL Editor / service role でのみ実行可）
 SELECT 'BAN_未設定', s.id, s.full_name, au.banned_until::TEXT
 FROM students s
 JOIN auth.users au ON au.id = s.user_id
@@ -112,9 +135,10 @@ ORDER BY check_type, full_name;
 **完了条件:**
 - [ ] 結果が 0 件であること
 - [ ] `relation_残存` が出た場合 → 3.3 を再実行
+- [ ] `graduated_at_未設定` が出た場合 → 3.4 を再実行
 - [ ] `BAN_未設定` が出た場合 → `scripts/ban-graduated-users.ts` を再実行
 
-### 3.5 UI 確認
+### 3.6 UI 確認
 
 - [ ] 全指導者アカウントでログインし、旧小6 が表示されないことを確認
   - `kazuya@studyspark.jp`（修正前から正常）
@@ -132,19 +156,29 @@ ORDER BY check_type, full_name;
 | 4 | `auth.users.banned_until` | `SELECT s.id FROM students s JOIN auth.users au ON s.user_id = au.id WHERE au.banned_until IS NOT NULL` |
 
 **注意:** `students.grade` は卒業生判定に使用してはならない（繰り上げ後は現役小6と区別不可）。
-（`03_data_strategy.md:626, :634`）
+（`03_data_strategy.md` Section 7.3）
 
-## 5. 再発防止（中長期）
+## 5. 再発防止
 
-`03_data_strategy.md` Section 7.3 に定義済み:
+### 5.1 即時対応: `graduated_at` + アプリフィルタ（今回実施）
+
+`03_data_strategy.md` Section 7.1 で定義:
+
+- `students` テーブルに `graduated_at TIMESTAMPTZ` カラム追加
+- `getCoachStudents()` 等で `.is("students.graduated_at", null)` フィルタ追加
+- relation 削除漏れがあっても、アプリ層で卒業生を弾ける防御層を確立
+
+### 5.2 中長期: `is_active` カラム（次回年次切替前）
+
+`03_data_strategy.md` Section 7.4 で定義:
 
 - `coach_student_relations` に `is_active` + `unassigned_at` カラム追加
 - 卒業処理を物理削除から論理削除に変更
-- `getCoachStudents()` 等 16 箇所に `.eq("is_active", true)` フィルタ追加
-- 実施時期: 次回年次切替前
+- 16 箇所に `.eq("is_active", true)` フィルタ追加
 
 ## 6. 参照ドキュメント
 
-- `docs/2026-cutover/03_data_strategy.md` Section 7.2（卒業生判定基準）
-- `docs/2026-cutover/04_cutover_runbook.md` Phase 2 Step 2-3（リレーション削除）
-- `docs/2026-cutover/04_cutover_runbook.md` 事後確認（relation 残存 + BAN 確認）
+- `docs/2026-cutover/03_data_strategy.md` Section 7.1（方針 + `graduated_at` 設計）
+- `docs/2026-cutover/03_data_strategy.md` Section 7.3（卒業生判定基準）
+- `docs/2026-cutover/04_cutover_runbook.md` Phase 2 Step 2-3（`graduated_at` 設定 + リレーション削除）
+- `docs/2026-cutover/04_cutover_runbook.md` 事後確認（relation 残存 + `graduated_at` + BAN 確認）

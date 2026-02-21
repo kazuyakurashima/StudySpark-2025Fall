@@ -387,7 +387,7 @@ psql <DB2026_CONNECTION> -c "DELETE FROM profiles WHERE id IN (SELECT id FROM au
 
 # 2-3. profiles 系テーブルをインポート
 psql <DB2026_CONNECTION> -c "COPY profiles FROM STDIN WITH CSV HEADER" < profiles.csv
-psql <DB2026_CONNECTION> -c "COPY students FROM STDIN WITH CSV HEADER" < students.csv
+psql <DB2026_CONNECTION> -c "COPY students(id, user_id, login_id, full_name, furigana, grade, course, created_at, updated_at) FROM STDIN WITH CSV HEADER" < students.csv
 psql <DB2026_CONNECTION> -c "COPY parents FROM STDIN WITH CSV HEADER" < parents.csv
 psql <DB2026_CONNECTION> -c "COPY coaches FROM STDIN WITH CSV HEADER" < coaches.csv
 psql <DB2026_CONNECTION> -c "COPY admins FROM STDIN WITH CSV HEADER" < admins.csv
@@ -486,19 +486,45 @@ WHERE grade = 5;
 -- [Decision Needed] 下記参照
 ```
 
-## 7. [Decision Needed] 6年生卒業後のアカウント扱い
+## 7. 6年生卒業後のアカウント扱い
 
-現行スキーマの students テーブルには卒業フラグや有効/無効カラムが存在しないため、無効化や機能制限は Auth 側の制御またはアプリ側での対応が必要となる。
+### 7.1 方針: B（無効化）+ `graduated_at` によるアプリ層防御
 
-### 7.1 選択肢
+**決定**: ログイン不可（auth BAN）+ データ保持 + `graduated_at` カラムでアプリ側から卒業判定可能にする。
 
-| 選択肢 | 説明 | auth.users | students | 備考 |
-|--------|------|-----------|----------|------|
-| **A: 削除** | 完全削除 | DELETE | DELETE | CASCADE DELETE |
-| **B: 無効化** | ログイン不可、データ保持 | Admin APIでBAN | 保持（grade=6のまま） | 追加カラム不要 |
-| **C: 保持** | そのまま保持 | 変更なし | 変更なし | 機能制限が必要ならアプリ側対応 |
+| 層 | 手段 | 効果 |
+|----|------|------|
+| **DB** | `students.graduated_at` を設定 | アプリ側で卒業生を除外可能（防御層1） |
+| **DB** | `coach_student_relations` / `parent_child_relations` を削除 | 指導者・保護者画面から非表示（防御層2） |
+| **Auth** | `auth.users` を BAN | ログイン不可（防御層3） |
 
-### 7.2 推奨案: B（無効化）
+**注意**: `graduated_at` 設定だけでは防御にならない。アプリ側コード（`WHERE graduated_at IS NULL`）のデプロイ後に初めて有効化される。効力発生の順序:
+1. DB マイグレーション（`graduated_at` カラム追加）
+2. アプリコードのデプロイ（フィルタ追加）
+3. 卒業処理の実行（`graduated_at` 設定 + relation 削除 + auth BAN）
+4. 事後確認（relation 残存0件 + BAN 確認 + UI 確認）
+
+**`graduated_at` の DDL**（次回 cutover のマイグレーションに含める）:
+
+```sql
+ALTER TABLE students ADD COLUMN graduated_at TIMESTAMPTZ;
+```
+
+**アプリガード（`getCoachStudents()` 等）**:
+
+```typescript
+.from("coach_student_relations")
+.select(`
+  student_id,
+  students!inner (
+    id, user_id, full_name, grade, course, graduated_at
+  )
+`)
+.eq("coach_id", coach.id)
+.is("students.graduated_at", null)  // 卒業生を除外
+```
+
+### 7.2 卒業処理の実装方法
 
 理由:
 - データは分析・監査目的で保持したい場合がある
@@ -534,21 +560,26 @@ done < graduating_students_20260201.csv
 実際の切替ではデータ復元可能性を重視し、BAN＋リレーション退避で対応:
 
 ```sql
--- 1. バックアップテーブル作成
+-- 1. graduated_at を設定（アプリ層防御、再実行安全）
+UPDATE students SET graduated_at = COALESCE(graduated_at, NOW())
+WHERE id IN (<対象IDs>);
+
+-- 2. バックアップテーブル作成
 CREATE TABLE IF NOT EXISTS _backup_graduated_csr AS
 SELECT * FROM coach_student_relations WHERE student_id IN (<対象IDs>);
 CREATE TABLE IF NOT EXISTS _backup_graduated_pcr AS
 SELECT * FROM parent_child_relations WHERE student_id IN (<対象IDs>);
 
--- 2. リレーション削除（指導者画面から非表示）
+-- 3. リレーション削除（指導者画面から非表示）
 DELETE FROM coach_student_relations WHERE student_id IN (<対象IDs>);
 DELETE FROM parent_child_relations WHERE student_id IN (<対象IDs>);
 
--- 3. auth.users BAN（ログイン不可）
+-- 4. auth.users BAN（ログイン不可）
 UPDATE auth.users SET banned_until = '2099-12-31'
 WHERE id IN (SELECT user_id FROM students WHERE id IN (<対象IDs>));
 
 -- 復元手順:
+-- UPDATE students SET graduated_at = NULL WHERE id IN (<対象IDs>);
 -- INSERT INTO coach_student_relations SELECT * FROM _backup_graduated_csr;
 -- INSERT INTO parent_child_relations SELECT * FROM _backup_graduated_pcr;
 -- UPDATE auth.users SET banned_until = NULL WHERE ...;
@@ -621,7 +652,7 @@ banGraduatedUsers(process.argv[2])
 - `csv-parse`: CSV パース用ライブラリ（`pnpm add csv-parse` で追加）
 - `tsx`: TypeScript 実行用（`pnpm add -D tsx` で追加）
 
-### 7.2 卒業生判定の基準と注意事項
+### 7.3 卒業生判定の基準と注意事項
 
 **卒業生の判定には `students.grade` を使用してはならない。**
 
@@ -663,7 +694,7 @@ CREATE TABLE _graduating_ids_YYYYMMDD_HHMM (
 - アプリ層（`getCoachStudents()` 等）から `banned_until` を直接参照するガードは設計上困難
   - 必要な場合は SECURITY DEFINER RPC を作成するか、relation 削除の徹底で代替する
 
-### 7.3 アプリ側ガードの方針（中長期）
+### 7.4 アプリ側ガードの追加方針（中長期: `is_active` カラム）
 
 卒業処理の relation 削除漏れによる再発を防止するため、`coach_student_relations` にアクティブ管理カラムを追加する。
 

@@ -258,7 +258,8 @@
 
   # Step 3: profiles 系テーブルをインポート
   $ psql <DB2026_CONNECTION> -c "COPY profiles FROM STDIN WITH CSV HEADER" < profiles.csv
-  $ psql <DB2026_CONNECTION> -c "COPY students FROM STDIN WITH CSV HEADER" < students.csv
+  $ psql <DB2026_CONNECTION> -c "COPY students(id, user_id, login_id, full_name, furigana, grade, course, created_at, updated_at) FROM STDIN WITH CSV HEADER" < students.csv
+  # ⚠️ graduated_at カラムは DB2025 の CSV に存在しないため列指定 COPY を使用
   $ psql <DB2026_CONNECTION> -c "COPY parents FROM STDIN WITH CSV HEADER" < parents.csv
   $ psql <DB2026_CONNECTION> -c "COPY coaches FROM STDIN WITH CSV HEADER" < coaches.csv
   $ psql <DB2026_CONNECTION> -c "COPY admins FROM STDIN WITH CSV HEADER" < admins.csv
@@ -339,6 +340,10 @@
     UNION ALL
     SELECT 'pcr', COUNT(*) FROM _backup_graduated_pcr_20270201_0030;
 
+    -- graduated_at 設定（アプリ層防御、再実行安全）
+    UPDATE students SET graduated_at = COALESCE(graduated_at, NOW())
+    WHERE id IN (SELECT id FROM _graduating_ids_20270201_0030);
+
     -- リレーション削除（指導者画面・保護者画面から非表示）
     DELETE FROM coach_student_relations
     WHERE student_id IN (SELECT id FROM _graduating_ids_20270201_0030);
@@ -365,6 +370,7 @@
     - 再実行でも失敗する場合: Supabase Dashboard (Auth > Users) から手動 BAN、またはプロジェクト管理者にエスカレーション
 
   # 復元手順（必要な場合のみ）:
+  # UPDATE students SET graduated_at = NULL WHERE id IN (SELECT id FROM _graduating_ids_20270201_0030);
   # INSERT INTO coach_student_relations SELECT * FROM _backup_graduated_csr_20270201_0030;
   # INSERT INTO parent_child_relations SELECT * FROM _backup_graduated_pcr_20270201_0030;
   # → BAN 解除は Supabase Dashboard (Auth > Users > Unban)
@@ -398,7 +404,15 @@
 
     UNION ALL
 
-    -- (2) BAN 状態確認（SQL Editor / service role でのみ実行可）
+    -- (2) graduated_at 未設定確認
+    SELECT 'graduated_at_未設定', s.id, s.full_name, NULL
+    FROM students s
+    WHERE s.id IN (SELECT id FROM target_ids)
+      AND s.graduated_at IS NULL
+
+    UNION ALL
+
+    -- (3) BAN 状態確認（SQL Editor / service role でのみ実行可）
     SELECT 'BAN_未設定', s.id, s.full_name, au.banned_until::TEXT
     FROM students s
     JOIN auth.users au ON au.id = s.user_id
@@ -409,13 +423,15 @@
   SQL
   □ 結果が 0 件であること
   □ relation_残存 が出た場合 → ステップ2+3を再実施
+  □ graduated_at_未設定 が出た場合 → UPDATE students SET graduated_at = COALESCE(graduated_at, NOW()) WHERE id IN (...) を再実施
   □ BAN_未設定 が出た場合 → ステップ4を再実施
 
   # 注意事項:
   # - 卒業生の判定に students.grade は使用しない（繰り上げ後は現役生も grade=6）
   # - 一次ソースは graduating_students_*.csv（_graduating_ids_* テーブル経由）
   # - auth.users はアプリ層（RLS コンテキスト）からアクセス不可、SQL Editor 専用
-  # - 詳細: 03_data_strategy.md セクション 7.2
+  # - graduated_at はアプリ層防御のため必須（relation 削除漏れ時のフォールバック）
+  # - 詳細: 03_data_strategy.md セクション 7.1, 7.3
 ```
 
 ### Phase 2.5: 新小5生徒登録（00:35〜）
