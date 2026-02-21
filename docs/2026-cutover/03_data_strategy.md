@@ -660,7 +660,7 @@ banGraduatedUsers(process.argv[2])
 
 1. 卒業対象を CSV 化（`WHERE grade = 6` で抽出）→ `graduating_students_*.csv`
 2. 学年繰り上げ（`UPDATE students SET grade = 6 WHERE grade = 5`）
-3. 卒業処理（relation 削除 + auth BAN）
+3. 卒業処理（`graduated_at` 設定 + relation 削除 + auth BAN）
 
 繰り上げ（手順2）後は現役小6・新小5投入後の小5が混在するため、**`grade` 単体では卒業生を特定できない**。
 

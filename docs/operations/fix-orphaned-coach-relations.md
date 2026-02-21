@@ -8,7 +8,7 @@
 
 2つの層の問題が重なっている:
 
-1. **運用層**: 2026-02-07 の卒業処理で `coach_student_relations` の削除が一部の指導者にしか適用されなかった（`04_cutover_runbook.md:345` の DELETE が不完全実行）
+1. **運用層**: 2026-02-07 の卒業処理で `coach_student_relations` の削除が一部の指導者にしか適用されなかった（`04_cutover_runbook.md` Phase 2 卒業処理の DELETE が不完全実行）
 2. **設計層**: `getCoachStudents()` に卒業生を除外するフィルタがなく、relation が残存すると必ず表示される（アプリ層防御がゼロ）
 
 ## 3. 修正手順（DB 運用修正）

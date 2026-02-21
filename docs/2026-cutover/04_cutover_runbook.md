@@ -294,7 +294,7 @@
   $ psql <DB2026_CONNECTION> -c "UPDATE students SET grade = 6 WHERE grade = 5"
   □ 更新件数を記録: ___ 件
 
-□ 卒業処理（正規フロー: 対象ID登録 → バックアップ+削除 → BAN）
+□ 卒業処理（正規フロー: 対象ID登録 → graduated_at設定+バックアップ+削除 → BAN）
 
   # ⚠️ テーブル名のタイムスタンプは実行時刻に置き換えること（例: 20270201_0030）
   # 同日再実行時の上書き防止のため YYYYMMDD_HHMM 形式を使用する
