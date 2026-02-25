@@ -5,12 +5,12 @@ Usage:
     python3 scripts/generate-math-questions-sql.py > supabase/seeds/math_questions_2026.sql
 
 入力: ユーザー提供の模範解答データ (このスクリプト内にハードコード)
-出力: question_sets + questions の INSERT SQL (458問)
+出力: question_sets + questions の INSERT SQL (468問)
 
 データソース:
-    マスタープリント 小5上 第1回〜第4回 (①②) = 277問
-    マスタープリント 小6上 第1回〜第4回 (①②) = 181問 → 実際は177問
-    合計: 458問 (計画書 01_Math-AutoGrading-Plan.md Section 2-3 準拠)
+    マスタープリント 小5上 第1回〜第4回 (①②) = 281問
+    マスタープリント 小6上 第1回〜第4回 (①②) = 187問（第2回②に10問追加）
+    合計: 468問 (計画書 01_Math-AutoGrading-Plan.md Section 2-3 準拠 + 追加分)
 """
 import json
 import sys
@@ -51,7 +51,7 @@ def mp(slots, values, template=None):
     }
 
 # ============================================================================
-# 問題データ定義 (全458問)
+# 問題データ定義 (全468問)
 # ============================================================================
 
 SETS = [
@@ -308,7 +308,7 @@ SETS = [
         ],
     },
     # ================================================================
-    # 小6 第2回② 規則性 (6問)
+    # 小6 第2回② 規則性 (16問)
     # ================================================================
     {
         "grade": 6, "session": 2, "order": 2, "title": "第2回② 規則性",
@@ -323,6 +323,27 @@ SETS = [
                    {"①":"151","②":"13","③":"124","④":"16"}),
                 nu("4", None),
                 nu("7", None),
+            ]),
+            ("数表", [
+                mp([("①",""),("②",""),("③行",""),("③列","")],
+                   {"①":"100","②":"103","③行":"13","③列":"6"},
+                   template="①{①}，②{②}，③{③行}行目の{③列}列目"),
+                mp([("①",""),("②",""),("③","")],
+                   {"①":"512","②":"49","③":"171"}),
+            ]),
+            ("日暦算", [
+                nu("6","日"),
+                nu("3","日"),
+                sel(["木曜日"], ["月曜日","火曜日","水曜日","金曜日","土曜日","日曜日"]),
+                sel(["土曜日"], ["月曜日","火曜日","水曜日","木曜日","金曜日","日曜日"]),
+                nu("2034","年"),
+            ]),
+            ("規則性の入試問題", [
+                sel(["月曜日"], ["火曜日","水曜日","木曜日","金曜日","土曜日","日曜日"]),
+                sel(["土曜日"], ["月曜日","火曜日","水曜日","木曜日","金曜日","日曜日"]),
+                mp([("①",""),("②",""),("③段",""),("③番","")],
+                   {"①":"37","②":"559","③段":"13","③番":"6"},
+                   template="①{①}，②{②}，③{③段}段目の{③番}番目"),
             ]),
         ],
     },
@@ -546,17 +567,18 @@ def generate_sql():
     """全体の SQL を生成"""
     lines = []
     lines.append("-- ============================================================================")
-    lines.append("-- 算数自動採点 — 本番問題データ (458問)")
-    lines.append("-- ============================================================================")
-    lines.append("-- 生成元: scripts/generate-math-questions-sql.py")
-    lines.append("-- 再生成: python3 scripts/generate-math-questions-sql.py > supabase/seeds/math_questions_2026.sql")
-    lines.append("--")
-    lines.append("-- 内容:")
     # 実データから問題数を集計
     g5_count = sum(sum(len(qs) for _, qs in s["sections"])
                    for s in SETS if s["grade"] == 5)
     g6_count = sum(sum(len(qs) for _, qs in s["sections"])
                    for s in SETS if s["grade"] == 6)
+    grand_total = g5_count + g6_count
+    lines.append(f"-- 算数自動採点 — 本番問題データ ({grand_total}問)")
+    lines.append("-- ============================================================================")
+    lines.append("-- 生成元: scripts/generate-math-questions-sql.py")
+    lines.append("-- 再生成: python3 scripts/generate-math-questions-sql.py > supabase/seeds/math_questions_2026.sql")
+    lines.append("--")
+    lines.append("-- 内容:")
     lines.append(f"--   小5上 第1回〜第4回 (①②×4 = 8セット, {g5_count}問)")
     lines.append(f"--   小6上 第1回〜第4回 (①②×4 = 8セット, {g6_count}問)")
     lines.append("--   fraction 型: 0問 (今後追加可能)")
@@ -654,7 +676,7 @@ def generate_sql():
 # メイン
 # ============================================================================
 
-EXPECTED_TOTAL = 458  # G5: 281 + G6: 177
+EXPECTED_TOTAL = 468  # G5: 281 + G6: 187（第2回②に10問追加）
 
 if __name__ == "__main__":
     total = validate()

@@ -1,12 +1,12 @@
 -- ============================================================================
--- 算数自動採点 — 本番問題データ (458問)
+-- 算数自動採点 — 本番問題データ (468問)
 -- ============================================================================
 -- 生成元: scripts/generate-math-questions-sql.py
 -- 再生成: python3 scripts/generate-math-questions-sql.py > supabase/seeds/math_questions_2026.sql
 --
 -- 内容:
 --   小5上 第1回〜第4回 (①②×4 = 8セット, 281問)
---   小6上 第1回〜第4回 (①②×4 = 8セット, 177問)
+--   小6上 第1回〜第4回 (①②×4 = 8セット, 187問)
 --   fraction 型: 0問 (今後追加可能)
 --
 -- 注意: approved済みセットはスキップ、draft は approved に昇格して再投入
@@ -833,7 +833,7 @@ BEGIN
   END IF;  -- approved / ELSE
 
   -- ========================================
-  -- 小6 第2回② 規則性 (6問)
+  -- 小6 第2回② 規則性 (16問)
   -- ========================================
   SELECT id INTO STRICT v_sid
   FROM public.study_sessions WHERE grade = 6 AND session_number = 2;
@@ -867,14 +867,29 @@ BEGIN
       (question_set_id, question_number, section_name, answer_type,
        correct_answer, unit_label, answer_config, points, display_order)
     VALUES
+    -- 方陣算 (3問)
     (v_qs, '(1)', '方陣算', 'multi_part', NULL, NULL, '{"slots": [{"label": "①", "unit": "個"}, {"label": "②", "unit": "個"}], "correct_values": {"①": "225", "②": "56"}, "template": "①{①}個，②{②}個"}', 1, 1),
     (v_qs, '(2)', '方陣算', 'multi_part', NULL, NULL, '{"slots": [{"label": "①", "unit": "個"}, {"label": "②", "unit": "個"}], "correct_values": {"①": "78", "②": "33"}, "template": "①{①}個，②{②}個"}', 1, 2),
     (v_qs, '(3)', '方陣算', 'numeric', '235', '個', NULL, 1, 3),
+    -- 周期算② (3問)
     (v_qs, '(1)', '周期算②', 'multi_part', NULL, NULL, '{"slots": [{"label": "①", "unit": "㎠"}, {"label": "②", "unit": "枚"}, {"label": "③", "unit": "㎝"}, {"label": "④", "unit": "枚"}], "correct_values": {"①": "151", "②": "13", "③": "124", "④": "16"}, "template": "①{①}㎠，②{②}枚，③{③}㎝，④{④}枚"}', 1, 4),
     (v_qs, '(2)', '周期算②', 'numeric', '4', NULL, NULL, 1, 5),
-    (v_qs, '(3)', '周期算②', 'numeric', '7', NULL, NULL, 1, 6);
+    (v_qs, '(3)', '周期算②', 'numeric', '7', NULL, NULL, 1, 6),
+    -- 数表 (2問)
+    (v_qs, '(1)', '数表', 'multi_part', NULL, NULL, '{"slots": [{"label": "①", "unit": ""}, {"label": "②", "unit": ""}, {"label": "③行", "unit": ""}, {"label": "③列", "unit": ""}], "correct_values": {"①": "100", "②": "103", "③行": "13", "③列": "6"}, "template": "①{①}，②{②}，③{③行}行目の{③列}列目"}', 1, 7),
+    (v_qs, '(2)', '数表', 'multi_part', NULL, NULL, '{"slots": [{"label": "①", "unit": ""}, {"label": "②", "unit": ""}, {"label": "③", "unit": ""}], "correct_values": {"①": "512", "②": "49", "③": "171"}, "template": "①{①}，②{②}，③{③}"}', 1, 8),
+    -- 日暦算 (5問: (1)(2)=numeric, (3)(4)=selection/曜日, (5)=numeric)
+    (v_qs, '(1)', '日暦算', 'numeric', '6', '日', NULL, 1, 9),
+    (v_qs, '(2)', '日暦算', 'numeric', '3', '日', NULL, 1, 10),
+    (v_qs, '(3)', '日暦算', 'selection', NULL, NULL, '{"correct_values": ["木曜日"], "dummy_values": ["月曜日", "火曜日", "水曜日", "金曜日", "土曜日", "日曜日"]}', 1, 11),
+    (v_qs, '(4)', '日暦算', 'selection', NULL, NULL, '{"correct_values": ["土曜日"], "dummy_values": ["月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "日曜日"]}', 1, 12),
+    (v_qs, '(5)', '日暦算', 'numeric', '2034', '年', NULL, 1, 13),
+    -- 規則性の入試問題 (3問: (1)(2)=selection/曜日, (3)=multi_part)
+    (v_qs, '(1)', '規則性の入試問題', 'selection', NULL, NULL, '{"correct_values": ["月曜日"], "dummy_values": ["火曜日", "水曜日", "木曜日", "金曜日", "土曜日", "日曜日"]}', 1, 14),
+    (v_qs, '(2)', '規則性の入試問題', 'selection', NULL, NULL, '{"correct_values": ["土曜日"], "dummy_values": ["月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "日曜日"]}', 1, 15),
+    (v_qs, '(3)', '規則性の入試問題', 'multi_part', NULL, NULL, '{"slots": [{"label": "①", "unit": ""}, {"label": "②", "unit": ""}, {"label": "③段", "unit": ""}, {"label": "③番", "unit": ""}], "correct_values": {"①": "37", "②": "559", "③段": "13", "③番": "6"}, "template": "①{①}，②{②}，③{③段}段目の{③番}番目"}', 1, 16);
 
-    v_count := v_count + 6;
+    v_count := v_count + 16;
   END IF;  -- approved / ELSE
 
   -- ========================================
