@@ -42,32 +42,55 @@ export function AssessmentHistory({ studentId }: AssessmentHistoryProps = {}) {
           return
         }
 
+        // 算数自動採点のエラーは致命的ではない（他のデータは表示継続）
+        if (mathAutoResult.error) {
+          console.error('Math auto grading history fetch failed:', mathAutoResult.error)
+        }
+
         // class_assessments のデータ
         const classAssessments = (historyResult.assessments || []) as AssessmentData[]
 
         // 算数自動採点データを AssessmentData 形式に変換してマージ
+        // latestAttempt が in_progress（再挑戦中）でも、過去に graded 履歴があれば表示する
         const mathAutoAssessments: AssessmentData[] = (mathAutoResult.results || [])
-          .filter(r => r.latestAttempt && r.latestAttempt.status === 'graded')
-          .map(r => ({
-            id: `math_auto_${r.questionSetId}`,
-            score: r.latestAttempt!.score,
-            max_score_at_submission: r.latestAttempt!.maxScore,
-            assessment_date: r.latestAttempt!.gradedAt
-              ? r.latestAttempt!.gradedAt.split('T')[0]
-              : new Date().toISOString().split('T')[0],
-            graded_at: r.latestAttempt!.gradedAt || undefined,
-            master: {
+          .filter(r =>
+            (r.latestAttempt?.status === 'graded') ||
+            (r.latestAttempt?.status === 'in_progress' && r.attemptHistory.length > 0)
+          )
+          .flatMap(r => {
+            // latestAttempt が graded ならそれを使用、
+            // そうでなければ attemptHistory の最新 graded を使用
+            // （attemptHistory は RPC の graded_history CTE で attempt_number ASC 順）
+            const useLatest = r.latestAttempt?.status === 'graded'
+            const lastHistory = r.attemptHistory[r.attemptHistory.length - 1]
+            if (!useLatest && !lastHistory) return []
+
+            const score = useLatest ? r.latestAttempt!.score : lastHistory!.score
+            const maxScore = useLatest ? r.latestAttempt!.maxScore : lastHistory!.maxScore
+            const gradedAt = useLatest ? r.latestAttempt!.gradedAt : lastHistory!.gradedAt
+
+            const item: AssessmentData = {
               id: `math_auto_${r.questionSetId}`,
-              title: r.title,
-              assessment_type: 'math_auto_grading',
-              max_score: r.latestAttempt!.maxScore,
-              session_number: r.sessionNumber,
-            },
-            attemptHistory: r.attemptHistory.map(h => ({
-              attempt: h.attempt,
-              percentage: h.percentage,
-            })),
-          }))
+              score,
+              max_score_at_submission: maxScore,
+              assessment_date: gradedAt
+                ? gradedAt.split('T')[0]
+                : new Date().toISOString().split('T')[0],
+              graded_at: gradedAt || undefined,
+              master: {
+                id: `math_auto_${r.questionSetId}`,
+                title: r.title,
+                assessment_type: 'math_auto_grading',
+                max_score: maxScore,
+                session_number: r.sessionNumber,
+              },
+              attemptHistory: r.attemptHistory.map(h => ({
+                attempt: h.attempt,
+                percentage: h.percentage,
+              })),
+            }
+            return [item]
+          })
 
         // 日付降順でマージソート（テスト済み: assessment-sort.test.ts）
         const mergedAssessments = [...classAssessments, ...mathAutoAssessments]
@@ -79,14 +102,14 @@ export function AssessmentHistory({ studentId }: AssessmentHistoryProps = {}) {
         const baseSummary = summaryResult as AssessmentSummary
         const mathAutoSummary = mathAutoResult.summary
 
-        // 最新の算数自動採点を見つける（gradedAt タイムスタンプで比較）
-        const latestGradedResult = (mathAutoResult.results || [])
-          .filter(r => r.latestAttempt?.status === 'graded' && r.latestAttempt.gradedAt)
-          .sort((a, b) => (b.latestAttempt!.gradedAt || '').localeCompare(a.latestAttempt!.gradedAt || ''))
-        const latestSource = latestGradedResult[0] ?? null
-        const latestMathAuto = latestSource ? mathAutoAssessments.find(
-          a => a.id === `math_auto_${latestSource.questionSetId}`
-        ) ?? null : null
+        // 最新の算数自動採点を見つける（graded_at タイムスタンプで比較）
+        // mathAutoAssessments は既に attemptHistory フォールバック済みなので直接使用
+        const latestMathAuto = mathAutoAssessments.length > 0
+          ? [...mathAutoAssessments]
+              .filter(a => a.graded_at)
+              .sort((a, b) => (b.graded_at || '').localeCompare(a.graded_at || ''))
+              [0] ?? null
+          : null
 
         const enrichedSummary: AssessmentSummary = {
           latest: {

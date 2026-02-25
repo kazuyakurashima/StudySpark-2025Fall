@@ -16,7 +16,7 @@ interface AssessmentTrendChartProps {
 export function AssessmentTrendChart({ assessments, loading }: AssessmentTrendChartProps) {
   // データがある種類を自動検出して初期選択
   const defaultType = useMemo<ChartType>(() => {
-    const types: ChartType[] = ['math_print', 'kanji_test', 'math_auto_grading']
+    const types: ChartType[] = ['math_auto_grading', 'math_print', 'kanji_test']
     for (const t of types) {
       if (assessments.some(a => a.master?.assessment_type === t)) return t
     }

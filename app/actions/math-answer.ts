@@ -931,6 +931,18 @@ export async function getMathGradingHistory(input?: {
           latestGradedAt = r.latestAttempt.gradedAt
           latestScore = r.latestAttempt.score
         }
+      } else if (r.attemptHistory.length > 0) {
+        // 再挑戦中（latest=in_progress）だが過去に graded 履歴あり
+        // → completedSets にカウント（過去に採点済み）。inProgressSets とは排他。
+        completedSets++
+        // attemptHistory は RPC の graded_history CTE で attempt_number ASC 順
+        const lastGraded = r.attemptHistory[r.attemptHistory.length - 1]
+        totalPercentage += lastGraded.percentage
+        gradedCount++
+        if (!latestGradedAt || (lastGraded.gradedAt && lastGraded.gradedAt > latestGradedAt)) {
+          latestGradedAt = lastGraded.gradedAt
+          latestScore = lastGraded.score
+        }
       } else {
         inProgressSets++
       }
