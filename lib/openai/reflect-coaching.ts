@@ -1,6 +1,6 @@
 import { getOpenAIClient, getDefaultModel } from "./client"
 
-interface ReflectContext {
+export interface ReflectContext {
   studentName: string
   weekType: "growth" | "stable" | "challenge" | "special"
   thisWeekAccuracy: number
@@ -9,6 +9,12 @@ interface ReflectContext {
   upcomingTest?: { test_types: { name: string }, test_date: string } | null
   conversationHistory: { role: "assistant" | "user"; content: string }[]
   turnNumber: number
+}
+
+/** SSEイベント型 */
+export type StreamEvent = {
+  type: "delta" | "done" | "meta" | "error"
+  content: string
 }
 
 /**
@@ -77,6 +83,74 @@ export async function generateReflectMessage(
     console.error("Reflect AI dialogue error:", error)
     return { error: error instanceof Error ? error.message : "AI対話でエラーが発生しました" }
   }
+}
+
+/**
+ * 週次振り返りAI対話メッセージ生成（ストリーミング版）
+ *
+ * SSE経由でトークンを逐次送信し、体感速度を大幅に改善する。
+ * META判定はストリーム完了後に行う（全文が必要なため）。
+ *
+ * @param context - 振り返りコンテキスト
+ * @param signal - AbortSignal（クライアント離脱時のコスト漏れ防止）
+ */
+export async function* generateReflectMessageStream(
+  context: ReflectContext,
+  signal?: AbortSignal
+): AsyncGenerator<StreamEvent> {
+  const openai = getOpenAIClient()
+  const model = getDefaultModel()
+  const systemPrompt = getReflectSystemPrompt()
+  const userPrompt = getReflectUserPrompt(context)
+
+  const stream = await openai.chat.completions.create(
+    {
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...context.conversationHistory.map((msg) => ({
+          role: msg.role as "assistant" | "user",
+          content: msg.content,
+        })),
+        { role: "user", content: userPrompt },
+      ],
+      max_completion_tokens: 800,
+      stream: true,
+    },
+    {
+      signal, // OpenAI SDK v6: 第2引数でAbortSignalを渡す
+    }
+  )
+
+  let fullContent = ""
+  for await (const chunk of stream) {
+    if (signal?.aborted) break
+    const delta = chunk.choices[0]?.delta?.content
+    if (delta) {
+      fullContent += delta
+      yield { type: "delta", content: delta }
+    }
+  }
+
+  // Abort済みの場合はdone/metaを送らない
+  if (signal?.aborted) return
+
+  // META判定（全文完成後に評価。既存ロジックを流用）
+  const hasCompletedGROWCheck =
+    context.turnNumber >= 3 && hasCompletedGROW(context.conversationHistory)
+  const hasClosingExpression =
+    /素敵な一週間|良い一週間|楽しみにして|応援して|来週も|頑張ってね|それでは|では、/.test(
+      fullContent
+    )
+  const isClosingTurn = context.turnNumber >= 5 && hasClosingExpression
+  const shouldAppendMeta =
+    hasCompletedGROWCheck || isClosingTurn || context.turnNumber >= 6
+
+  if (shouldAppendMeta) {
+    yield { type: "meta", content: "SESSION_CAN_END" }
+  }
+
+  yield { type: "done", content: fullContent }
 }
 
 /**
