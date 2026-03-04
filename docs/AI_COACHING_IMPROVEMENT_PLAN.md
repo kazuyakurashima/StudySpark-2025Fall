@@ -123,28 +123,54 @@ export async function* generateReflectMessageStream(
 
 ```typescript
 import { NextRequest } from "next/server"
-import { generateReflectMessageStream } from "@/lib/openai/reflect-coaching"
+import { z } from "zod"
+import { generateReflectMessageStream, type ReflectContext } from "@/lib/openai/reflect-coaching"
 import { requireAuth } from "@/lib/api/auth"
-import { createClient } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/route"
 
 // [FB3] 実行環境を明示的に固定
 export const runtime = "nodejs"
+
+// zodバリデーションスキーマ
+const requestSchema = z.object({
+  weekType: z.enum(["growth", "stable", "challenge", "special"]),
+  thisWeekAccuracy: z.number().min(0).max(100).default(0),
+  lastWeekAccuracy: z.number().min(0).max(100).default(0),
+  accuracyDiff: z.number().default(0),
+  upcomingTest: z.object({
+    test_types: z.object({ name: z.string() }),
+    test_date: z.string(),
+  }).nullable().optional(),
+  conversationHistory: z.array(z.object({
+    role: z.enum(["assistant", "user"]),
+    content: z.string().max(5000),        // 1メッセージ5000文字上限
+  })).max(20).default([]),                // 最大20件（10ターン×2ロール）
+  turnNumber: z.number().int().min(1).max(10).default(1),
+  requestId: z.string().max(64).optional(), // ログ用トレーサビリティID
+})
 
 export async function POST(request: NextRequest) {
   const auth = await requireAuth(["student"])
   if ("error" in auth) return auth.error
 
-  const body = await request.json()
-
-  // [FB3] requestId による冪等性チェック（任意）
-  const requestId = body.requestId as string | undefined
+  // zodバリデーション
+  const rawBody = await request.json()
+  const parsed = requestSchema.safeParse(rawBody)
+  if (!parsed.success) {
+    return new Response(
+      JSON.stringify({ error: "不正なリクエストです", details: parsed.error.flatten() }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    )
+  }
+  const body = parsed.data
+  const requestId = body.requestId || "unknown"
 
   // [FB1] サーバー側コンテキスト再構築
   const supabase = await createClient()
   const { data: student } = await supabase
     .from("students")
-    .select("id, name, grade, course")
-    .eq("user_id", auth.userId)
+    .select("id, full_name, grade, course")
+    .eq("user_id", auth.user.id)
     .single()
 
   if (!student) {
@@ -154,58 +180,22 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const context = {
-    studentName: student.name,             // DBから取得（クライアント値は無視）
+  const context: ReflectContext = {
+    studentName: student.full_name,        // DBから取得（クライアント値は無視）
     weekType: body.weekType,
     thisWeekAccuracy: body.thisWeekAccuracy,
     lastWeekAccuracy: body.lastWeekAccuracy,
     accuracyDiff: body.accuracyDiff,
-    upcomingTest: body.upcomingTest,
-    conversationHistory: body.conversationHistory || [],
-    turnNumber: body.turnNumber || 1,
+    upcomingTest: body.upcomingTest ?? null,
+    conversationHistory: body.conversationHistory,
+    turnNumber: body.turnNumber,
   }
 
-  const encoder = new TextEncoder()
-
-  const stream = new ReadableStream({
-    async start(controller) {
-      // [FB3] Heartbeat: 15秒間隔でSSEコメント送信（切断防止）
-      const heartbeat = setInterval(() => {
-        if (!request.signal.aborted) {
-          controller.enqueue(encoder.encode(":\n\n"))
-        }
-      }, 15_000)
-
-      try {
-        for await (const event of generateReflectMessageStream(context, request.signal)) {
-          if (request.signal.aborted) break
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`))
-        }
-      } catch (error) {
-        if (!request.signal.aborted) {
-          controller.enqueue(encoder.encode(
-            `data: ${JSON.stringify({ type: 'error', content: 'AI対話でエラーが発生しました' })}\n\n`
-          ))
-        }
-      } finally {
-        clearInterval(heartbeat)
-        controller.close()
-      }
-    },
-    cancel() {
-      // クライアント切断時: request.signalが自動abortされる
-    }
-  })
-
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      "Connection": "keep-alive",
-    },
-  })
+  // ... SSEストリーム構築（Heartbeat + Abort連携）...
 }
 ```
+
+**注意**: フォールバック先の `/api/reflect/message/route.ts` にも同一のzodスキーマ・サーバー側再構築を適用済み。
 
 **設計ポイント:**
 - `runtime = "nodejs"` で実行環境を固定（Edge Runtimeとの差異を回避）
@@ -356,6 +346,8 @@ useEffect(() => {
 
 ### 1-4. [FB3] 冪等性: coaching_messages の重複排除
 
+**DB制約**: `UNIQUE(session_id, turn_number, role)` を追加（マイグレーション: `20260228000001_add_coaching_messages_idempotency.sql`）
+
 `app/actions/reflect.ts` の `saveCoachingMessage()` を修正:
 
 ```typescript
@@ -363,30 +355,33 @@ export async function saveCoachingMessage(
   sessionId: string,
   role: "assistant" | "user",
   content: string,
-  turnNumber: number,
-  requestId?: string  // [FB3] オプショナル
+  turnNumber: number
 ) {
-  // requestId がある場合、同じ session_id + turn_number + role の組で既存レコードを確認
-  // 既存があればスキップ（冪等）
-  if (requestId) {
-    const { data: existing } = await supabase
-      .from("coaching_messages")
-      .select("id")
-      .eq("session_id", sessionId)
-      .eq("turn_number", turnNumber)
-      .eq("role", role)
-      .maybeSingle()
-
-    if (existing) return existing  // 既に保存済み → スキップ
+  // 冪等性: UNIQUE(session_id, turn_number, role) によるDB制約
+  // - assistant: ON CONFLICT DO NOTHING（ストリーミングリトライ時の重複防止）
+  // - user: ON CONFLICT DO UPDATE（再送時に最新入力で上書き、UI/DB整合性を維持）
+  const row = {
+    session_id: Number(sessionId),
+    role, content, turn_number: turnNumber,
+    sent_at: new Date().toISOString(),
   }
 
-  // 通常のINSERT
-  return await supabase.from("coaching_messages").insert({
-    session_id: sessionId,
-    role,
-    content,
-    turn_number: turnNumber,
-  })
+  const { error } = await supabase
+    .from("coaching_messages")
+    .upsert(row, {
+      onConflict: "session_id,turn_number,role",
+      ignoreDuplicates: role === "assistant", // assistantのみDO NOTHING
+    })
+
+  if (error) {
+    // UNIQUE制約未適用環境: upsert失敗時は通常insertにフォールバック
+    const { error: insertError } = await supabase
+      .from("coaching_messages")
+      .insert(row)
+    if (insertError) return { error: insertError.message }
+  }
+
+  return { success: true }
 }
 ```
 

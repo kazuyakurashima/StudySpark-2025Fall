@@ -22,10 +22,10 @@ const requestSchema = z.object({
   }).nullable().optional(),
   conversationHistory: z.array(z.object({
     role: z.enum(["assistant", "user"]),
-    content: z.string(),
-  })).default([]),
+    content: z.string().max(5000),
+  })).max(20).default([]),
   turnNumber: z.number().int().min(1).max(10).default(1),
-  requestId: z.string().optional(),
+  requestId: z.string().max(64).optional(),
 })
 
 export async function POST(request: NextRequest) {
