@@ -2,7 +2,9 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { createClient as createSupabaseClient } from "@supabase/supabase-js"
-import { getOpenAIClient, handleOpenAIError, getDefaultModel } from "@/lib/openai/client"
+import { getOpenAIClient, getDefaultModel } from "@/lib/openai/client"
+import { getGeminiClient, getModelForModule } from "@/lib/llm/client"
+import { sanitizeForLog } from "@/lib/llm/logger"
 import { formatDateToJST, getJSTDayStartISO, getJSTDayEndISO } from "@/lib/utils/date-jst"
 
 /**
@@ -199,29 +201,7 @@ export async function generateWeeklyAnalysis(studentId: string, weekStartDate: D
   const prompt = buildAnalysisPrompt(student, analysisData, weekStartDate, weekEndDate)
 
   try {
-    const openai = getOpenAIClient()
-
-    const response = await openai.chat.completions.create({
-      model: getDefaultModel(),
-      messages: [
-        {
-          role: "system",
-          content:
-            "あなたは中学受験指導の専門家です。生徒の週次学習データを分析し、指導者向けの具体的なフィードバックを提供してください。",
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      max_completion_tokens: 800,
-    })
-
-    const content = response.choices[0]?.message?.content
-
-    if (!content) {
-      throw new Error("AI分析の生成に失敗しました")
-    }
+    const content = await generateAnalysisContent(prompt)
 
     // 結果をパース（強み・課題・アドバイスに分割）
     const analysis = parseAnalysisResponse(content)
@@ -254,10 +234,49 @@ export async function generateWeeklyAnalysis(studentId: string, weekStartDate: D
 
     return { analysis: savedAnalysis }
   } catch (error) {
-    console.error("Generate weekly analysis error:", error)
-    const errorMessage = handleOpenAIError(error)
+    console.error("Generate weekly analysis error:", sanitizeForLog(error))
+    const errorMessage = error instanceof Error ? error.message : "AI分析の生成に失敗しました"
     return { error: errorMessage }
   }
+}
+
+const ANALYSIS_SYSTEM_PROMPT = "あなたは中学受験指導の専門家です。生徒の週次学習データを分析し、指導者向けの具体的なフィードバックを提供してください。"
+
+/**
+ * AI分析コンテンツ生成（プロバイダ分岐）
+ */
+async function generateAnalysisContent(userPrompt: string): Promise<string> {
+  const { provider, model } = getModelForModule("batch", "batch")
+
+  if (provider === "gemini") {
+    const client = getGeminiClient()
+    const response = await client.models.generateContent({
+      model,
+      config: {
+        systemInstruction: ANALYSIS_SYSTEM_PROMPT,
+        maxOutputTokens: 800,
+      },
+      contents: [
+        { role: "user" as const, parts: [{ text: userPrompt }] },
+      ],
+    })
+    const content = response.text
+    if (!content) throw new Error("AI分析の生成に失敗しました")
+    return content
+  }
+
+  const openai = getOpenAIClient()
+  const response = await openai.chat.completions.create({
+    model: getDefaultModel(),
+    messages: [
+      { role: "system", content: ANALYSIS_SYSTEM_PROMPT },
+      { role: "user", content: userPrompt },
+    ],
+    max_completion_tokens: 800,
+  })
+  const content = response.choices[0]?.message?.content
+  if (!content) throw new Error("AI分析の生成に失敗しました")
+  return content
 }
 
 /**
@@ -470,29 +489,7 @@ export async function generateWeeklyAnalysisForBatch(studentId: string, weekStar
   const prompt = buildAnalysisPrompt(student, analysisData, weekStartDate, weekEndDate)
 
   try {
-    const openai = getOpenAIClient()
-
-    const response = await openai.chat.completions.create({
-      model: getDefaultModel(),
-      messages: [
-        {
-          role: "system",
-          content:
-            "あなたは中学受験指導の専門家です。生徒の週次学習データを分析し、指導者向けの具体的なフィードバックを提供してください。",
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      max_completion_tokens: 800,
-    })
-
-    const content = response.choices[0]?.message?.content
-
-    if (!content) {
-      throw new Error("AI分析の生成に失敗しました")
-    }
+    const content = await generateAnalysisContent(prompt)
 
     // 結果をパース
     const analysis = parseAnalysisResponse(content)
@@ -525,8 +522,8 @@ export async function generateWeeklyAnalysisForBatch(studentId: string, weekStar
 
     return { analysis: savedAnalysis }
   } catch (error) {
-    console.error("Generate weekly analysis error:", error)
-    const errorMessage = handleOpenAIError(error)
+    console.error("Generate weekly analysis error (batch):", sanitizeForLog(error))
+    const errorMessage = error instanceof Error ? error.message : "AI分析の生成に失敗しました"
     return { error: errorMessage }
   }
 }

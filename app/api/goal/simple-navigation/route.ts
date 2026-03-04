@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getDefaultModel } from "@/lib/openai/client"
+import { getOpenAIClient, getDefaultModel } from "@/lib/openai/client"
+import { getGeminiClient, getModelForModule } from "@/lib/llm/client"
+import { sanitizeForLog } from "@/lib/llm/logger"
 import { requireAuth } from "@/lib/api/auth"
-import OpenAI from "openai"
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
 
 interface RequestBody {
   studentName: string
@@ -23,7 +20,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body: RequestBody = await request.json()
-    const { studentName, testName, testDate, targetCourse, targetClass, step, previousAnswer } = body
+    const { studentName, testName, testDate, targetCourse, targetClass, step } = body
 
     let systemPrompt = ""
     let userPrompt = ""
@@ -67,17 +64,33 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const model = getDefaultModel()
-    const completion = await openai.chat.completions.create({
-      model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      max_completion_tokens: 300,
-    })
+    // AI呼び出し（プロバイダ分岐）
+    const { provider, model } = getModelForModule("goal", "realtime")
+    let message: string | undefined
 
-    const message = completion.choices[0]?.message?.content?.trim()
+    if (provider === "gemini") {
+      const client = getGeminiClient()
+      const response = await client.models.generateContent({
+        model,
+        config: {
+          systemInstruction: systemPrompt,
+          maxOutputTokens: 300,
+        },
+        contents: [{ role: "user" as const, parts: [{ text: userPrompt }] }],
+      })
+      message = response.text?.trim()
+    } else {
+      const openai = getOpenAIClient()
+      const completion = await openai.chat.completions.create({
+        model: getDefaultModel(),
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        max_completion_tokens: 300,
+      })
+      message = completion.choices[0]?.message?.content?.trim()
+    }
 
     if (!message) {
       return NextResponse.json({ error: "メッセージ生成に失敗しました" }, { status: 500 })
@@ -85,7 +98,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ message })
   } catch (error) {
-    console.error("AI対話エラー:", error)
+    console.error("AI対話エラー:", sanitizeForLog(error))
     return NextResponse.json({ error: "AI対話中にエラーが発生しました" }, { status: 500 })
   }
 }

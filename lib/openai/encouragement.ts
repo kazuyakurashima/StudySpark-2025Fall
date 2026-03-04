@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
-import { getOpenAIClient, handleOpenAIError, getDefaultModel } from "./client"
+import { getOpenAIClient, getDefaultModel } from "./client"
+import { getGeminiClient, getModelForModule } from "../llm/client"
+import { sanitizeForLog } from "../llm/logger"
 import {
   getEncouragementSystemPrompt,
   getEncouragementUserPrompt,
@@ -108,31 +110,47 @@ export async function generateEncouragementMessages(
       return { success: true, messages: cachedMessages }
     }
 
-    // OpenAI API呼び出し
-    const openai = getOpenAIClient()
+    // LLM呼び出し（プロバイダ分岐）
+    const { provider, model } = getModelForModule("batch", "structured")
     const systemPrompt = getEncouragementSystemPrompt(context.senderRole)
     const userPrompt = getEncouragementUserPrompt(context)
 
-    const completion = await openai.chat.completions.create({
-      model: getDefaultModel(),
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      max_completion_tokens: 800,
-      response_format: { type: "json_object" },
-    })
+    let responseText: string
+    if (provider === "gemini") {
+      const client = getGeminiClient()
+      const response = await client.models.generateContent({
+        model,
+        config: {
+          systemInstruction: systemPrompt,
+          maxOutputTokens: 800,
+          responseMimeType: "application/json",
+        },
+        contents: [{ role: "user" as const, parts: [{ text: userPrompt }] }],
+      })
+      responseText = response.text?.trim() || ""
+    } else {
+      const openai = getOpenAIClient()
+      const completion = await openai.chat.completions.create({
+        model: getDefaultModel(),
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        max_completion_tokens: 800,
+        response_format: { type: "json_object" },
+      })
+      responseText = completion.choices[0]?.message?.content || ""
+    }
 
-    const responseText = completion.choices[0]?.message?.content
     if (!responseText) {
-      throw new Error("No response from OpenAI API")
+      throw new Error("AI応答の生成に失敗しました")
     }
 
     const response = JSON.parse(responseText)
     const messages = response.messages as string[]
 
     if (!Array.isArray(messages) || messages.length !== 3) {
-      throw new Error("Invalid response format from OpenAI API")
+      throw new Error("AI応答のフォーマットが不正です")
     }
 
     // キャッシュに保存
@@ -140,7 +158,8 @@ export async function generateEncouragementMessages(
 
     return { success: true, messages }
   } catch (error) {
-    const errorMessage = handleOpenAIError(error)
+    console.error("Encouragement generation error:", sanitizeForLog(error))
+    const errorMessage = error instanceof Error ? error.message : "応援メッセージの生成に失敗しました"
     return { success: false, error: errorMessage }
   }
 }
@@ -157,7 +176,7 @@ export async function generateEncouragementSuggestions(input: {
   streak: number
 }): Promise<{ suggestions?: string[]; error?: string }> {
   try {
-    const openai = getOpenAIClient()
+    const { provider, model } = getModelForModule("coach", "structured")
 
     const systemPrompt = `あなたは中学受験を目指す小学生を指導するプロのコーチです。生徒の学習状況に基づいて、具体的で前向きな応援メッセージを3つ提案してください。
 
@@ -177,25 +196,42 @@ export async function generateEncouragementSuggestions(input: {
 この生徒への応援メッセージを3つ提案してください。JSON形式で返してください：
 {"suggestions": ["メッセージ1", "メッセージ2", "メッセージ3"]}`
 
-    const completion = await openai.chat.completions.create({
-      model: getDefaultModel(),
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      max_completion_tokens: 600,
-      response_format: { type: "json_object" },
-    })
+    let responseText: string
+    if (provider === "gemini") {
+      const client = getGeminiClient()
+      const response = await client.models.generateContent({
+        model,
+        config: {
+          systemInstruction: systemPrompt,
+          maxOutputTokens: 600,
+          responseMimeType: "application/json",
+        },
+        contents: [{ role: "user" as const, parts: [{ text: userPrompt }] }],
+      })
+      responseText = response.text?.trim() || ""
+    } else {
+      const openai = getOpenAIClient()
+      const completion = await openai.chat.completions.create({
+        model: getDefaultModel(),
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        max_completion_tokens: 600,
+        response_format: { type: "json_object" },
+      })
+      responseText = completion.choices[0]?.message?.content || ""
+    }
 
-    const responseText = completion.choices[0]?.message?.content
     if (!responseText) {
-      throw new Error("No response from OpenAI API")
+      throw new Error("AI応答の生成に失敗しました")
     }
 
     const response = JSON.parse(responseText)
     return { suggestions: response.suggestions as string[] }
   } catch (error) {
-    const errorMessage = handleOpenAIError(error)
+    console.error("Encouragement suggestions error:", sanitizeForLog(error))
+    const errorMessage = error instanceof Error ? error.message : "提案メッセージの生成に失敗しました"
     return { error: errorMessage }
   }
 }

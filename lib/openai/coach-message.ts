@@ -1,4 +1,6 @@
 import { getOpenAIClient, getDefaultModel } from "./client"
+import { getGeminiClient, getModelForModule } from "../llm/client"
+import { sanitizeForLog } from "../llm/logger"
 
 export interface CoachMessageContext {
   studentId: number
@@ -371,6 +373,17 @@ function getUserPrompt(context: CoachMessageContext): string {
 export async function generateCoachMessage(
   context: CoachMessageContext
 ): Promise<{ success: true; message: string } | { success: false; error: string }> {
+  const { provider, model } = getModelForModule("coach", "batch")
+
+  if (provider === "gemini") {
+    return generateCoachMessageGemini(context, model)
+  }
+  return generateCoachMessageOpenAI(context)
+}
+
+async function generateCoachMessageOpenAI(
+  context: CoachMessageContext
+): Promise<{ success: true; message: string } | { success: false; error: string }> {
   try {
     const openai = getOpenAIClient()
     const model = getDefaultModel()
@@ -381,7 +394,7 @@ export async function generateCoachMessage(
         { role: "system", content: getSystemPrompt() },
         { role: "user", content: getUserPrompt(context) },
       ],
-      max_completion_tokens: 500, // 60-100文字メッセージ + 複雑なケースの余裕
+      max_completion_tokens: 500,
     })
 
     const message = completion.choices[0]?.message?.content?.trim()
@@ -391,19 +404,49 @@ export async function generateCoachMessage(
       throw new Error("OpenAI returned empty message")
     }
 
-    // 文字数チェック（60-100文字推奨、150文字まで許容）
     if (message.length > 150) {
       console.warn(`Coach message too long: ${message.length} chars`)
     }
 
     return { success: true, message }
   } catch (error) {
-    console.error("Generate coach message error:", error)
+    console.error("Generate coach message error (OpenAI):", sanitizeForLog(error))
+    return { success: false, error: error instanceof Error ? error.message : "AI生成中にエラーが発生しました" }
+  }
+}
 
-    if (error instanceof Error) {
-      return { success: false, error: error.message }
+async function generateCoachMessageGemini(
+  context: CoachMessageContext,
+  model: string
+): Promise<{ success: true; message: string } | { success: false; error: string }> {
+  try {
+    const client = getGeminiClient()
+
+    const response = await client.models.generateContent({
+      model,
+      config: {
+        systemInstruction: getSystemPrompt(),
+        maxOutputTokens: 500,
+      },
+      contents: [
+        { role: "user" as const, parts: [{ text: getUserPrompt(context) }] },
+      ],
+    })
+
+    const message = response.text?.trim()
+
+    if (!message) {
+      console.error("[Coach Message] Empty message from Gemini")
+      throw new Error("Gemini returned empty message")
     }
 
-    return { success: false, error: "AI生成中にエラーが発生しました" }
+    if (message.length > 150) {
+      console.warn(`Coach message too long: ${message.length} chars`)
+    }
+
+    return { success: true, message }
+  } catch (error) {
+    console.error("Generate coach message error (Gemini):", sanitizeForLog(error))
+    return { success: false, error: error instanceof Error ? error.message : "AI生成中にエラーが発生しました" }
   }
 }

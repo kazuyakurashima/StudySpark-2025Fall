@@ -1,6 +1,7 @@
 import { getOpenAIClient, getDefaultModel } from "./client"
 import { getGeminiClient, getModelForModule } from "../llm/client"
 import { sanitizeForLog } from "../llm/logger"
+import { buildGeminiContents } from "../llm/gemini-utils"
 
 export interface ReflectContext {
   studentName: string
@@ -339,36 +340,6 @@ async function generateReflectSummaryGemini(
     console.error("Reflect summary generation error (Gemini):", sanitizeForLog(error))
     return { error: error instanceof Error ? error.message : "サマリー生成でエラーが発生しました" }
   }
-}
-
-/**
- * Gemini contents配列を構築（連続userロール回避）
- *
- * Gemini APIは同一ロールの連続メッセージを許容しない場合がある。
- * conversationHistoryの末尾がuserの場合、userPromptをそのメッセージに結合する。
- */
-function buildGeminiContents(
-  conversationHistory: { role: "assistant" | "user"; content: string }[],
-  userPrompt: string
-): Array<{ role: "user" | "model"; parts: Array<{ text: string }> }> {
-  const mapped = conversationHistory.map((msg) => ({
-    role: msg.role === "assistant" ? "model" as const : "user" as const,
-    parts: [{ text: msg.content }],
-  }))
-
-  // 末尾がuserなら、userPromptを結合して連続userを回避
-  if (mapped.length > 0 && mapped[mapped.length - 1].role === "user") {
-    mapped[mapped.length - 1] = {
-      role: "user" as const,
-      parts: [
-        ...mapped[mapped.length - 1].parts,
-        { text: userPrompt },
-      ],
-    }
-    return mapped
-  }
-
-  return [...mapped, { role: "user" as const, parts: [{ text: userPrompt }] }]
 }
 
 /**

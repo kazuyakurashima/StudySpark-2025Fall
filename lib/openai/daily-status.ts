@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
-import { getOpenAIClient, handleOpenAIError, getDefaultModel } from "./client"
+import { getOpenAIClient, getDefaultModel } from "./client"
+import { getGeminiClient, getModelForModule } from "../llm/client"
+import { sanitizeForLog } from "../llm/logger"
 import crypto from "crypto"
 
 export interface DailyStatusContext {
@@ -232,23 +234,40 @@ export async function generateDailyStatusMessage(
       return { success: true, message: cachedMessage }
     }
 
-    // OpenAI API呼び出し
-    const openai = getOpenAIClient()
-    const model = getDefaultModel()
+    // LLM呼び出し（プロバイダ分岐）
+    const { provider, model } = getModelForModule("batch", "batch")
+    const systemPrompt = getSystemPrompt()
+    const userPrompt = getUserPrompt(context)
 
-    const completion = await openai.chat.completions.create({
-      model,
-      messages: [
-        { role: "system", content: getSystemPrompt() },
-        { role: "user", content: getUserPrompt(context) },
-      ],
-      max_completion_tokens: 500,
-    })
-
-    const message = completion.choices[0]?.message?.content?.trim()
+    let message: string
+    if (provider === "gemini") {
+      const client = getGeminiClient()
+      const response = await client.models.generateContent({
+        model,
+        config: {
+          systemInstruction: systemPrompt,
+          maxOutputTokens: 500,
+        },
+        contents: [
+          { role: "user" as const, parts: [{ text: userPrompt }] },
+        ],
+      })
+      message = response.text?.trim() || ""
+    } else {
+      const openai = getOpenAIClient()
+      const completion = await openai.chat.completions.create({
+        model: getDefaultModel(),
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        max_completion_tokens: 500,
+      })
+      message = completion.choices[0]?.message?.content?.trim() || ""
+    }
 
     if (!message) {
-      throw new Error("OpenAI returned empty message")
+      throw new Error(`${provider === "gemini" ? "Gemini" : "OpenAI"} returned empty message`)
     }
 
     // キャッシュに保存
@@ -256,7 +275,8 @@ export async function generateDailyStatusMessage(
 
     return { success: true, message }
   } catch (error) {
-    console.error("Generate daily status error:", error)
-    return { success: false as const, error: handleOpenAIError(error) }
+    console.error("Generate daily status error:", sanitizeForLog(error))
+    const errorMessage = error instanceof Error ? error.message : "AI生成中にエラーが発生しました"
+    return { success: false as const, error: errorMessage }
   }
 }

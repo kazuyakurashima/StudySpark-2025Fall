@@ -2,6 +2,8 @@
 
 import { getLangfuseClient, flushLangfuse } from "@/lib/langfuse/client"
 import { getOpenAIClient, getDefaultModel } from "@/lib/openai/client"
+import { getGeminiClient, getModelForModule } from "@/lib/llm/client"
+import { sanitizeForLog } from "@/lib/llm/logger"
 import { createClient, createAdminClient } from "@/lib/supabase/server"
 import crypto from "crypto"
 
@@ -150,6 +152,51 @@ function getFallbackFeedback(data: StudyDataForFeedback): string {
   } else {
     return `今日も学習に挑戦したね！その努力が大事だよ！`
   }
+}
+
+/**
+ * LLM呼び出し（プロバイダ分岐 + AbortSignal対応）
+ */
+async function callLLM(
+  systemPrompt: string,
+  userPrompt: string,
+  signal: AbortSignal
+): Promise<{ text: string; provider: string; model: string }> {
+  const { provider, model } = getModelForModule("coach", "realtime")
+
+  if (provider === "gemini") {
+    const client = getGeminiClient()
+    const response = await client.models.generateContent({
+      model,
+      config: {
+        systemInstruction: systemPrompt,
+        maxOutputTokens: 150,
+        abortSignal: signal,
+      },
+      contents: [{ role: "user" as const, parts: [{ text: userPrompt }] }],
+    })
+    const text = response.text?.trim()
+    if (!text) throw new Error("AI応答の生成に失敗しました")
+    return { text, provider, model }
+  }
+
+  // OpenAI
+  const openai = getOpenAIClient()
+  const openaiModel = getDefaultModel()
+  const response = await openai.chat.completions.create(
+    {
+      model: openaiModel,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      max_completion_tokens: 150,
+    },
+    { signal }
+  )
+  const text = response.choices[0]?.message?.content?.trim()
+  if (!text) throw new Error("AI応答の生成に失敗しました")
+  return { text, provider, model: openaiModel }
 }
 
 // ============================================================================
@@ -375,41 +422,28 @@ export async function generateCoachFeedback(
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
   try {
-    const openai = getOpenAIClient()
     const systemPrompt = getSystemPrompt()
     const userPrompt = getUserPrompt(data)
     const promptHash = getPromptHash(systemPrompt, userPrompt)
 
-    // デバッグログ: reflectionTextがプロンプトに含まれているか確認
-
     const generation = trace?.generation({
       name: "generate-feedback",
-      model: getDefaultModel(),
+      model: "auto",
       input: { systemPrompt, userPrompt },
       metadata: { promptVersion: PROMPT_VERSION, promptHash },
     })
 
-    const response = await openai.chat.completions.create(
-      {
-        model: getDefaultModel(),
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        max_completion_tokens: 150,
-      },
-      { signal: controller.signal }
-    )
+    const llmResult = await callLLM(systemPrompt, userPrompt, controller.signal)
 
     clearTimeout(timeoutId)
 
-    const generatedFeedback = response.choices[0]?.message?.content?.trim() || null
+    const generatedFeedback = llmResult.text
 
-    if (!generatedFeedback) {
-      throw new Error("Empty response from OpenAI")
-    }
-
-    generation?.end({ output: generatedFeedback })
+    generation?.end({
+      output: generatedFeedback,
+      model: llmResult.model,
+      metadata: { provider: llmResult.provider },
+    })
 
     // ========================================
     // 6. DB保存（サービスロール）- batch_id ベース
@@ -476,13 +510,13 @@ export async function generateCoachFeedback(
     const errorMessage = error instanceof Error ? error.message : "Unknown error"
 
     // 詳細なエラーログ
-    console.error("[Coach Feedback] Generation failed:", {
+    console.error("[Coach Feedback] Generation failed:", sanitizeForLog({
       isTimeout: isAborted,
       error: errorMessage,
       batchId: verifiedBatchId,
       studentId: verifiedStudentId,
       subjectCount: data.subjects.length,
-    })
+    }))
 
     trace?.update({
       metadata: { error: errorMessage, isTimeout: isAborted },
@@ -714,39 +748,28 @@ async function generateLegacyFeedback(
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
   try {
-    const openai = getOpenAIClient()
     const systemPrompt = getSystemPrompt()
     const userPrompt = getUserPrompt(data)
     const promptHash = getPromptHash(systemPrompt, userPrompt)
 
     const generation = trace?.generation({
       name: "generate-feedback-legacy",
-      model: getDefaultModel(),
+      model: "auto",
       input: { systemPrompt, userPrompt },
       metadata: { promptVersion: PROMPT_VERSION, promptHash },
     })
 
-    const response = await openai.chat.completions.create(
-      {
-        model: getDefaultModel(),
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        max_completion_tokens: 150,
-      },
-      { signal: controller.signal }
-    )
+    const llmResult = await callLLM(systemPrompt, userPrompt, controller.signal)
 
     clearTimeout(timeoutId)
 
-    const generatedFeedback = response.choices[0]?.message?.content?.trim() || null
+    const generatedFeedback = llmResult.text
 
-    if (!generatedFeedback) {
-      throw new Error("Empty response from OpenAI")
-    }
-
-    generation?.end({ output: generatedFeedback })
+    generation?.end({
+      output: generatedFeedback,
+      model: llmResult.model,
+      metadata: { provider: llmResult.provider },
+    })
 
     // DB保存（レガシーモード: batch_id なし）
     const { error: insertError } = await adminClient.from("coach_feedbacks").insert({
@@ -798,13 +821,13 @@ async function generateLegacyFeedback(
     const errorMessage = error instanceof Error ? error.message : "Unknown error"
 
     // 詳細なエラーログ
-    console.error("[Coach Feedback Legacy] Generation failed:", {
+    console.error("[Coach Feedback Legacy] Generation failed:", sanitizeForLog({
       isTimeout: isAborted,
       error: errorMessage,
       studentId: verifiedStudentId,
       studyLogId: representativeStudyLogId,
       subjectCount: data.subjects.length,
-    })
+    }))
 
     // フォールバックメッセージをDBに保存を試みる
     const fallbackMessage = getFallbackFeedback(data)

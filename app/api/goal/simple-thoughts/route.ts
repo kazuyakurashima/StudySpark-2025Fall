@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getDefaultModel } from "@/lib/openai/client"
+import { getOpenAIClient, getDefaultModel } from "@/lib/openai/client"
+import { getGeminiClient, getModelForModule } from "@/lib/llm/client"
+import { sanitizeForLog } from "@/lib/llm/logger"
 import { requireAuth } from "@/lib/api/auth"
-import OpenAI from "openai"
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
 
 interface Message {
   id: number
@@ -71,17 +68,33 @@ export async function POST(request: NextRequest) {
 
 上記の対話内容をもとに、「今回の思い」を生成してください。`
 
-    const model = getDefaultModel()
-    const completion = await openai.chat.completions.create({
-      model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      max_completion_tokens: 500,
-    })
+    // AI呼び出し（プロバイダ分岐）
+    const { provider, model } = getModelForModule("goal", "realtime")
+    let thoughts: string | undefined
 
-    const thoughts = completion.choices[0]?.message?.content?.trim()
+    if (provider === "gemini") {
+      const client = getGeminiClient()
+      const response = await client.models.generateContent({
+        model,
+        config: {
+          systemInstruction: systemPrompt,
+          maxOutputTokens: 500,
+        },
+        contents: [{ role: "user" as const, parts: [{ text: userPrompt }] }],
+      })
+      thoughts = response.text?.trim()
+    } else {
+      const openai = getOpenAIClient()
+      const completion = await openai.chat.completions.create({
+        model: getDefaultModel(),
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        max_completion_tokens: 500,
+      })
+      thoughts = completion.choices[0]?.message?.content?.trim()
+    }
 
     if (!thoughts) {
       return NextResponse.json({ error: "思い生成に失敗しました" }, { status: 500 })
@@ -89,7 +102,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ thoughts })
   } catch (error) {
-    console.error("思い生成エラー:", error)
+    console.error("思い生成エラー:", sanitizeForLog(error))
     return NextResponse.json({ error: "思い生成中にエラーが発生しました" }, { status: 500 })
   }
 }
