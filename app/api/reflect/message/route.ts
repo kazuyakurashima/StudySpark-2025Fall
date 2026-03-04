@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { generateReflectMessage } from "@/lib/openai/reflect-coaching"
+import { getModelForModule } from "@/lib/llm/client"
+import { sanitizeForLog } from "@/lib/llm/logger"
 import { requireAuth } from "@/lib/api/auth"
 import { createClient } from "@/lib/supabase/route"
 
@@ -61,6 +63,8 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const { provider, model: llmModel } = getModelForModule("reflect", "realtime")
+    console.log(`[Reflect message] provider=${provider} model=${llmModel}`)
     const { message, error } = await generateReflectMessage({
       studentName: student.full_name, // DBから取得（クライアント値は無視）
       weekType: body.weekType,
@@ -78,7 +82,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ message })
   } catch (error) {
-    console.error("Reflect message API error:", error)
+    console.error("Reflect message API error:", sanitizeForLog(error))
     return NextResponse.json({ error: "サーバーエラーが発生しました" }, { status: 500 })
   }
 }

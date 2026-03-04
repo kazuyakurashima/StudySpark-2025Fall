@@ -1,4 +1,6 @@
 import { getOpenAIClient, getDefaultModel } from "./client"
+import { getGeminiClient, getModelForModule } from "../llm/client"
+import { sanitizeForLog } from "../llm/logger"
 
 export interface ReflectContext {
   studentName: string
@@ -33,6 +35,17 @@ export type StreamEvent = {
 export async function generateReflectMessage(
   context: ReflectContext
 ): Promise<{ message?: string; error?: string }> {
+  const { provider, model } = getModelForModule("reflect", "realtime")
+
+  if (provider === "gemini") {
+    return generateReflectMessageGemini(context, model)
+  }
+  return generateReflectMessageOpenAI(context)
+}
+
+async function generateReflectMessageOpenAI(
+  context: ReflectContext
+): Promise<{ message?: string; error?: string }> {
   try {
     const openai = getOpenAIClient()
     const systemPrompt = getReflectSystemPrompt()
@@ -60,19 +73,8 @@ export async function generateReflectMessage(
       return { error: "AIからの応答が空でした" }
     }
 
-    // 🆕 クロージングまたはフォールバック時にメタタグを付与
-    // A案: GROW完了判定（語彙拡張済み）
-    const hasCompletedGROWCheck = context.turnNumber >= 3 && hasCompletedGROW(context.conversationHistory)
-
-    // B案: 生成されたAIメッセージにクロージング表現が含まれるか（語尾変化を許容）
-    const hasClosingExpression = /素敵な一週間|良い一週間|楽しみにして|応援して|来週も|頑張ってね|それでは|では、/.test(message)
-    const isClosingTurn = context.turnNumber >= 5 && hasClosingExpression
-
-    const shouldAppendMeta = (
-      hasCompletedGROWCheck || // A案: GROW完了
-      isClosingTurn ||          // B案: クロージング表現検出
-      (context.turnNumber >= 6) // フォールバック
-    )
+    // クロージングまたはフォールバック時にメタタグを付与
+    const shouldAppendMeta = checkShouldAppendMeta(context, message)
 
     if (shouldAppendMeta) {
       message = message.trimEnd() + "\n\n[META:SESSION_CAN_END]"
@@ -80,7 +82,47 @@ export async function generateReflectMessage(
 
     return { message }
   } catch (error) {
-    console.error("Reflect AI dialogue error:", error)
+    console.error("Reflect AI dialogue error (OpenAI):", sanitizeForLog(error))
+    return { error: error instanceof Error ? error.message : "AI対話でエラーが発生しました" }
+  }
+}
+
+async function generateReflectMessageGemini(
+  context: ReflectContext,
+  model: string
+): Promise<{ message?: string; error?: string }> {
+  try {
+    const client = getGeminiClient()
+    const systemPrompt = getReflectSystemPrompt()
+    const userPrompt = getReflectUserPrompt(context)
+
+    const contents = buildGeminiContents(context.conversationHistory, userPrompt)
+
+    const response = await client.models.generateContent({
+      model,
+      config: {
+        systemInstruction: systemPrompt,
+        maxOutputTokens: 800,
+      },
+      contents,
+    })
+
+    let message = response.text
+
+    if (!message) {
+      console.error("❌ Gemini response content is empty")
+      return { error: "AIからの応答が空でした" }
+    }
+
+    const shouldAppendMeta = checkShouldAppendMeta(context, message)
+
+    if (shouldAppendMeta) {
+      message = message.trimEnd() + "\n\n[META:SESSION_CAN_END]"
+    }
+
+    return { message }
+  } catch (error) {
+    console.error("Reflect AI dialogue error (Gemini):", sanitizeForLog(error))
     return { error: error instanceof Error ? error.message : "AI対話でエラーが発生しました" }
   }
 }
@@ -95,6 +137,19 @@ export async function generateReflectMessage(
  * @param signal - AbortSignal（クライアント離脱時のコスト漏れ防止）
  */
 export async function* generateReflectMessageStream(
+  context: ReflectContext,
+  signal?: AbortSignal
+): AsyncGenerator<StreamEvent> {
+  const { provider, model } = getModelForModule("reflect", "realtime")
+
+  if (provider === "gemini") {
+    yield* generateReflectMessageStreamGemini(context, model, signal)
+  } else {
+    yield* generateReflectMessageStreamOpenAI(context, signal)
+  }
+}
+
+async function* generateReflectMessageStreamOpenAI(
   context: ReflectContext,
   signal?: AbortSignal
 ): AsyncGenerator<StreamEvent> {
@@ -132,21 +187,49 @@ export async function* generateReflectMessageStream(
     }
   }
 
-  // Abort済みの場合はdone/metaを送らない
   if (signal?.aborted) return
 
-  // META判定（全文完成後に評価。既存ロジックを流用）
-  const hasCompletedGROWCheck =
-    context.turnNumber >= 3 && hasCompletedGROW(context.conversationHistory)
-  const hasClosingExpression =
-    /素敵な一週間|良い一週間|楽しみにして|応援して|来週も|頑張ってね|それでは|では、/.test(
-      fullContent
-    )
-  const isClosingTurn = context.turnNumber >= 5 && hasClosingExpression
-  const shouldAppendMeta =
-    hasCompletedGROWCheck || isClosingTurn || context.turnNumber >= 6
+  if (checkShouldAppendMeta(context, fullContent)) {
+    yield { type: "meta", content: "SESSION_CAN_END" }
+  }
 
-  if (shouldAppendMeta) {
+  yield { type: "done", content: fullContent }
+}
+
+async function* generateReflectMessageStreamGemini(
+  context: ReflectContext,
+  model: string,
+  signal?: AbortSignal
+): AsyncGenerator<StreamEvent> {
+  const client = getGeminiClient()
+  const systemPrompt = getReflectSystemPrompt()
+  const userPrompt = getReflectUserPrompt(context)
+
+  const contents = buildGeminiContents(context.conversationHistory, userPrompt)
+
+  const response = await client.models.generateContentStream({
+    model,
+    config: {
+      systemInstruction: systemPrompt,
+      maxOutputTokens: 800,
+      abortSignal: signal,
+    },
+    contents,
+  })
+
+  let fullContent = ""
+  for await (const chunk of response) {
+    if (signal?.aborted) break
+    const delta = chunk.text
+    if (delta) {
+      fullContent += delta
+      yield { type: "delta", content: delta }
+    }
+  }
+
+  if (signal?.aborted) return
+
+  if (checkShouldAppendMeta(context, fullContent)) {
     yield { type: "meta", content: "SESSION_CAN_END" }
   }
 
@@ -159,9 +242,15 @@ export async function* generateReflectMessageStream(
 export async function generateReflectSummary(
   context: ReflectContext
 ): Promise<{ summary?: string; error?: string }> {
-  try {
-    const openai = getOpenAIClient()
-    const systemPrompt = `あなたは小学生の学習を支援するAIコーチです。
+  const { provider, model } = getModelForModule("reflect", "realtime")
+
+  if (provider === "gemini") {
+    return generateReflectSummaryGemini(context, model)
+  }
+  return generateReflectSummaryOpenAI(context)
+}
+
+const SUMMARY_SYSTEM_PROMPT = `あなたは小学生の学習を支援するAIコーチです。
 週次振り返り対話の内容から、生徒の気づきと成長をまとめてください。
 
 # 出力形式
@@ -175,23 +264,31 @@ export async function generateReflectSummary(
 - 成長マインドセット：能力は努力で伸びることを強調
 - 具体的：抽象的ではなく、対話内容に基づく具体的な記述`
 
-    const conversationSummary = context.conversationHistory
-      .map((msg, i) => `${i + 1}. ${msg.role === "assistant" ? "AIコーチ" : context.studentName}: ${msg.content}`)
-      .join("\n")
+function buildSummaryUserPrompt(context: ReflectContext): string {
+  const conversationSummary = context.conversationHistory
+    .map((msg, i) => `${i + 1}. ${msg.role === "assistant" ? "AIコーチ" : context.studentName}: ${msg.content}`)
+    .join("\n")
 
-    const userPrompt = `以下の対話内容から、振り返りサマリーを生成してください：
+  return `以下の対話内容から、振り返りサマリーを生成してください：
 
 ${conversationSummary}
 
 週タイプ: ${context.weekType === "growth" ? "成長週" : context.weekType === "stable" ? "安定週" : context.weekType === "challenge" ? "挑戦週" : "特別週"}
 正答率の変化: ${context.accuracyDiff >= 0 ? "+" : ""}${context.accuracyDiff}%`
+}
 
+async function generateReflectSummaryOpenAI(
+  context: ReflectContext
+): Promise<{ summary?: string; error?: string }> {
+  try {
+    const openai = getOpenAIClient()
     const model = getDefaultModel()
+    const userPrompt = buildSummaryUserPrompt(context)
 
     const response = await openai.chat.completions.create({
       model,
       messages: [
-        { role: "system", content: systemPrompt },
+        { role: "system", content: SUMMARY_SYSTEM_PROMPT },
         { role: "user", content: userPrompt },
       ],
       max_completion_tokens: 500,
@@ -206,9 +303,85 @@ ${conversationSummary}
 
     return { summary }
   } catch (error) {
-    console.error("Reflect summary generation error:", error)
+    console.error("Reflect summary generation error (OpenAI):", sanitizeForLog(error))
     return { error: error instanceof Error ? error.message : "サマリー生成でエラーが発生しました" }
   }
+}
+
+async function generateReflectSummaryGemini(
+  context: ReflectContext,
+  model: string
+): Promise<{ summary?: string; error?: string }> {
+  try {
+    const client = getGeminiClient()
+    const userPrompt = buildSummaryUserPrompt(context)
+
+    const response = await client.models.generateContent({
+      model,
+      config: {
+        systemInstruction: SUMMARY_SYSTEM_PROMPT,
+        maxOutputTokens: 500,
+      },
+      contents: [
+        { role: "user" as const, parts: [{ text: userPrompt }] },
+      ],
+    })
+
+    const summary = response.text
+
+    if (!summary) {
+      console.error("❌ Gemini summary is empty")
+      return { error: "サマリー生成に失敗しました" }
+    }
+
+    return { summary }
+  } catch (error) {
+    console.error("Reflect summary generation error (Gemini):", sanitizeForLog(error))
+    return { error: error instanceof Error ? error.message : "サマリー生成でエラーが発生しました" }
+  }
+}
+
+/**
+ * Gemini contents配列を構築（連続userロール回避）
+ *
+ * Gemini APIは同一ロールの連続メッセージを許容しない場合がある。
+ * conversationHistoryの末尾がuserの場合、userPromptをそのメッセージに結合する。
+ */
+function buildGeminiContents(
+  conversationHistory: { role: "assistant" | "user"; content: string }[],
+  userPrompt: string
+): Array<{ role: "user" | "model"; parts: Array<{ text: string }> }> {
+  const mapped = conversationHistory.map((msg) => ({
+    role: msg.role === "assistant" ? "model" as const : "user" as const,
+    parts: [{ text: msg.content }],
+  }))
+
+  // 末尾がuserなら、userPromptを結合して連続userを回避
+  if (mapped.length > 0 && mapped[mapped.length - 1].role === "user") {
+    mapped[mapped.length - 1] = {
+      role: "user" as const,
+      parts: [
+        ...mapped[mapped.length - 1].parts,
+        { text: userPrompt },
+      ],
+    }
+    return mapped
+  }
+
+  return [...mapped, { role: "user" as const, parts: [{ text: userPrompt }] }]
+}
+
+/**
+ * META判定ロジック（プロバイダ共通）
+ * GROW完了・クロージング表現・ターン上限でセッション終了可能か判定
+ */
+function checkShouldAppendMeta(context: ReflectContext, message: string): boolean {
+  const hasCompletedGROWCheck =
+    context.turnNumber >= 3 && hasCompletedGROW(context.conversationHistory)
+  const hasClosingExpression =
+    /素敵な一週間|良い一週間|楽しみにして|応援して|来週も|頑張ってね|それでは|では、/.test(message)
+  const isClosingTurn = context.turnNumber >= 5 && hasClosingExpression
+  return hasCompletedGROWCheck || isClosingTurn || context.turnNumber >= 6
 }
 
 /**

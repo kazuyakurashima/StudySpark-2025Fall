@@ -4,6 +4,8 @@ import {
   generateReflectMessageStream,
   type ReflectContext,
 } from "@/lib/openai/reflect-coaching"
+import { getModelForModule } from "@/lib/llm/client"
+import { sanitizeForLog } from "@/lib/llm/logger"
 import { requireAuth } from "@/lib/api/auth"
 import { createClient } from "@/lib/supabase/route"
 
@@ -70,6 +72,21 @@ export async function POST(request: NextRequest) {
   // トレーサビリティ: クライアント送信のrequestIdをログに記録
   const requestId = body.requestId || "unknown"
 
+  let provider: string
+  let llmModel: string
+  try {
+    const resolved = getModelForModule("reflect", "realtime")
+    provider = resolved.provider
+    llmModel = resolved.model
+  } catch (error) {
+    console.error(`[Reflect stream] getModelForModule failed [requestId=${requestId}]:`, sanitizeForLog(error))
+    return new Response(
+      JSON.stringify({ error: "LLM設定の解決に失敗しました" }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    )
+  }
+  console.log(`[Reflect stream] requestId=${requestId} provider=${provider} model=${llmModel}`)
+
   // DB検証済みの値でコンテキストを構築
   const context: ReflectContext = {
     studentName: student.full_name, // DBから取得（クライアント値は無視）
@@ -110,7 +127,7 @@ export async function POST(request: NextRequest) {
         }
       } catch (error) {
         if (!request.signal.aborted) {
-          console.error(`Reflect stream error [requestId=${requestId}]:`, error)
+          console.error(`Reflect stream error [requestId=${requestId}]:`, sanitizeForLog(error))
           controller.enqueue(
             encoder.encode(
               `data: ${JSON.stringify({ type: "error", content: "AI対話でエラーが発生しました" })}\n\n`
