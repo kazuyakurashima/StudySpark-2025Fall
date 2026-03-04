@@ -733,14 +733,22 @@ Langfuseトレースに以下を追加:
 
 | ファイル | 操作 | 内容 |
 |---------|------|------|
-| `package.json` | 修正 | `@google/genai` 追加 |
-| `lib/llm/client.ts` | **新規** | Gemini/OpenAI切替クライアント |
-| `lib/llm/types.ts` | **新規** | プロバイダ共通型定義 |
+| `package.json` | 修正 | `@google/genai`, `server-only` 追加 + `engines: >=20` |
+| `lib/llm/types.ts` | **新規** | プロバイダ共通型定義（`LLMMessage`, `LLMGenerateOptions`, `LLMStreamEvent`） |
+| `lib/llm/client.ts` | **新規** | Gemini/OpenAI切替クライアント（`import "server-only"` ガード付き） |
+| `lib/llm/logger.ts` | **新規** | PIIマスキング（`sanitizeForLog`）。呼び出し元はPhase 1.5a-2以降で追加 |
+| `.env.example` | 修正 | Gemini関連環境変数セクション追加 |
+| `.nvmrc` | **新規** | Node 22指定（`@google/genai` が Node>=20 を要求） |
+| `lib/llm/__tests__/` | **新規** | `getProvider`, `getModel`, `sanitizeForLog` ユニットテスト |
 
 #### 設計
 
 ```typescript
 // lib/llm/types.ts
+export type LLMProvider = "gemini" | "openai"
+export type LLMModule = "reflect" | "goal" | "coach" | "batch"
+export type ModelTier = "realtime" | "structured" | "batch"
+
 export interface LLMMessage {
   role: "system" | "user" | "assistant"
   content: string
@@ -754,14 +762,16 @@ export interface LLMGenerateOptions {
   responseFormat?: "text" | "json"
 }
 
+// "meta" はSSEセッション制御用（Phase 1のSESSION_CAN_ENDなど）
 export interface LLMStreamEvent {
-  type: "delta" | "done" | "error"
+  type: "delta" | "done" | "meta" | "error"
   content: string
 }
 ```
 
 ```typescript
 // lib/llm/client.ts
+import "server-only"
 import { GoogleGenAI } from "@google/genai"
 
 let geminiClient: GoogleGenAI | null = null
@@ -775,7 +785,19 @@ export function getGeminiClient(): GoogleGenAI {
   return geminiClient
 }
 
+// getProvider(): 不正値はthrow（サイレントフォールバック防止）
+// getModel(provider, tier): プロバイダ連動でモデルID取得
+// getModelForModule(module, tier): モジュール→プロバイダ→モデルの一括解決
+
 // 既存の getOpenAIClient() も残す（フォールバック用）
+```
+
+```typescript
+// lib/llm/logger.ts — PIIマスキング
+// 再帰スタック方式でサイクル検出（共有参照は正常にコピー）
+// MAX_DEPTH超過時は "[MAX_DEPTH]" に安全打ち切り
+// 呼び出し元: Phase 1.5a-2以降で各モジュールのLLMログ出力箇所に追加
+export function sanitizeForLog(obj: unknown): unknown { /* ... */ }
 ```
 
 **注意:** `lib/openai/` は即座にリネームしない。`lib/llm/` にクライアント層を新設し、各モジュールが段階的に移行する。旧パスは全移行完了後に削除。

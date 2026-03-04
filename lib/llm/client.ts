@@ -36,12 +36,36 @@ export function getGeminiClient(): GoogleGenAI {
  */
 export function getProvider(module?: LLMModule): LLMProvider {
   if (module) {
-    const override = process.env[`AI_PROVIDER_${module.toUpperCase()}`]?.toLowerCase()
-    if (override === "gemini" || override === "openai") return override
+    const envKey = `AI_PROVIDER_${module.toUpperCase()}`
+    const raw = process.env[envKey]
+    if (raw !== undefined) {
+      const trimmed = raw.trim().toLowerCase()
+      if (trimmed === "gemini" || trimmed === "openai") return trimmed
+      throw new Error(`${envKey}="${raw}" is invalid. Expected "gemini" or "openai"`)
+    }
   }
-  const global = process.env.AI_PROVIDER?.toLowerCase()
-  if (global === "gemini" || global === "openai") return global
+  const raw = process.env.AI_PROVIDER
+  if (raw !== undefined) {
+    const trimmed = raw.trim().toLowerCase()
+    if (trimmed === "gemini" || trimmed === "openai") return trimmed
+    throw new Error(`AI_PROVIDER="${raw}" is invalid. Expected "gemini" or "openai"`)
+  }
   return "openai"
+}
+
+// --- モジュール＋ティア一括解決ヘルパー ---
+
+/**
+ * モジュール名とモデル用途からプロバイダ判定＋モデルID取得を一括で行う。
+ * 各機能モジュールからの呼び出しを簡潔にする。
+ */
+export function getModelForModule(
+  module: LLMModule,
+  tier: ModelTier,
+): { provider: LLMProvider; model: string } {
+  const provider = getProvider(module)
+  const model = getModel(provider, tier)
+  return { provider, model }
 }
 
 // --- モデル取得（プロバイダ連動） ---

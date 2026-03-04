@@ -20,7 +20,16 @@ export interface LLMMessage {
   content: string
 }
 
-/** ストリーミングイベント型 */
+/** LLM呼び出し共通オプション（Phase 1.5a-2以降で各モジュールが使用） */
+export interface LLMGenerateOptions {
+  model: string
+  messages: LLMMessage[]
+  maxOutputTokens?: number
+  signal?: AbortSignal
+  responseFormat?: "text" | "json"
+}
+
+/** ストリーミングイベント型（delta: 差分, done: 完了全文, meta: セッション制御, error: エラー） */
 export interface LLMStreamEvent {
   type: "delta" | "done" | "meta" | "error"
   content: string

@@ -36,6 +36,23 @@ export function sanitizeForLog(obj: unknown): unknown {
     let result: unknown
     if (Array.isArray(value)) {
       result = value.map((item) => walk(item, depth + 1))
+    } else if (value instanceof Error) {
+      // Error の非列挙プロパティ + 列挙プロパティ(status, code等)をマージ
+      // message/stack はPII(プロンプト内容等)を含みうるためマスク
+      const errObj: Record<string, unknown> = {
+        name: value.name,
+        message: "[REDACTED]",
+        stack: "[REDACTED]",
+      }
+      // APIError等の列挙プロパティ(status, code, type)も走査
+      for (const [key, v] of Object.entries(value)) {
+        if (PII_FIELDS.has(key)) {
+          errObj[key] = "[REDACTED]"
+        } else {
+          errObj[key] = walk(v, depth + 1)
+        }
+      }
+      result = errObj
     } else {
       const sanitized: Record<string, unknown> = {}
       for (const [key, v] of Object.entries(value)) {
