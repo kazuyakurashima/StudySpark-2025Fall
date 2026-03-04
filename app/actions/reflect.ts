@@ -243,18 +243,32 @@ export async function saveCoachingMessage(
 ) {
   const supabase = await createClient()
 
+  // 冪等性: UNIQUE(session_id, turn_number, role) + ON CONFLICT DO NOTHING
+  // DB制約により原子的に重複を防止（select→insertの競合状態を回避）
+  const row = {
+    session_id: Number(sessionId),
+    role: role,
+    content: content,
+    turn_number: turnNumber,
+    sent_at: new Date().toISOString(),
+  }
+
   const { error } = await supabase
     .from("coaching_messages")
-    .insert({
-      session_id: Number(sessionId),
-      role: role,
-      content: content,
-      turn_number: turnNumber,
-      sent_at: new Date().toISOString(),
+    .upsert(row, {
+      onConflict: "session_id,turn_number,role",
+      ignoreDuplicates: true, // ON CONFLICT DO NOTHING
     })
 
   if (error) {
-    return { error: error.message }
+    // UNIQUE制約未適用環境: upsert失敗時は通常insertにフォールバック
+    const { error: insertError } = await supabase
+      .from("coaching_messages")
+      .insert(row)
+
+    if (insertError) {
+      return { error: insertError.message }
+    }
   }
 
   return { success: true }
