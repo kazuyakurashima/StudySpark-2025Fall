@@ -67,4 +67,10 @@ export const METADATA_KEYS = {
   MESSAGE_ROLE: "message_role",
   ACCURACY_RATE: "accuracy_rate",
   COMPLETION_RATE: "completion_rate",
+  // パフォーマンス計測（Phase 2）
+  // ※ prompt_build は llm_ttft に包含（async generator 内部で構築されるため分離不可）
+  PERF_DB_MS: "perf_db_ms",
+  PERF_LLM_TTFT_MS: "perf_llm_ttft_ms",
+  PERF_LLM_TTLB_MS: "perf_llm_ttlb_ms",
+  PERF_TOTAL_MS: "perf_total_ms",
 } as const

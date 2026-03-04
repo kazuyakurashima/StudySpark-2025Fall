@@ -8,6 +8,8 @@ import { getModelForModule } from "@/lib/llm/client"
 import { sanitizeForLog } from "@/lib/llm/logger"
 import { requireAuth } from "@/lib/api/auth"
 import { createClient } from "@/lib/supabase/route"
+import { PerfTimer } from "@/lib/utils/perf-timer"
+import { getLangfuseClient } from "@/lib/langfuse/client"
 
 // 実行環境を明示的に固定（Edge Runtimeとの差異を回避）
 export const runtime = "nodejs"
@@ -31,6 +33,9 @@ const requestSchema = z.object({
 })
 
 export async function POST(request: NextRequest) {
+  const timer = new PerfTimer()
+  timer.mark("request_start")
+
   const auth = await requireAuth(["student"])
   if ("error" in auth) return auth.error
 
@@ -55,6 +60,7 @@ export async function POST(request: NextRequest) {
   const body = parsed.data
 
   // サーバー側コンテキスト再構築: クライアント送信値のstudentNameは信頼しない
+  timer.mark("db_start")
   const supabase = await createClient()
   const { data: student } = await supabase
     .from("students")
@@ -68,6 +74,9 @@ export async function POST(request: NextRequest) {
       { status: 404, headers: { "Content-Type": "application/json" } }
     )
   }
+
+  timer.mark("db_done")
+  timer.measure("db", "db_start")
 
   // トレーサビリティ: クライアント送信のrequestIdをログに記録
   const requestId = body.requestId || "unknown"
@@ -115,12 +124,35 @@ export async function POST(request: NextRequest) {
         }
       }, 15_000)
 
+      let fullContent = ""
+      let firstTokenReceived = false
+
       try {
+        // stream_start: プロンプト構築+API呼び出しの直前
+        // ※ 実際のプロンプト構築はgenerator内で行われるため、
+        //    TTFTはプロンプト構築+API latencyの合算値となる
+        timer.mark("stream_start")
+
         for await (const event of generateReflectMessageStream(
           context,
           request.signal
         )) {
           if (request.signal.aborted) break
+
+          // TTFT計測: 最初のdeltaイベントで初トークン到着時刻を記録
+          if (event.type === "delta" && !firstTokenReceived) {
+            timer.mark("first_token")
+            timer.measure("llm_ttft", "stream_start")
+            firstTokenReceived = true
+          }
+
+          // TTLB計測: doneイベントで最終トークン到着時刻を記録
+          if (event.type === "done") {
+            timer.mark("last_token")
+            timer.measure("llm_ttlb", "stream_start")
+            fullContent = event.content
+          }
+
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify(event)}\n\n`)
           )
@@ -136,7 +168,49 @@ export async function POST(request: NextRequest) {
         }
       } finally {
         clearInterval(heartbeat)
+
+        // 総時間計測
+        timer.mark("response_done")
+        timer.measure("total", "request_start")
+
+        const perfMetrics = timer.toMetadata()
+        console.log(`[Reflect stream] perf [requestId=${requestId}]:`, perfMetrics)
+
+        // SSE接続を先に閉じ、テレメトリはバックグラウンドで永続化
         controller.close()
+
+        // Langfuseトレース: saveTrace/denormalizationパイプラインを経由せず
+        // 直接クライアントで記録（SSEストリームにはDB上のメッセージIDが無いため）
+        try {
+          const langfuse = getLangfuseClient()
+          if (langfuse) {
+            const trace = langfuse.trace({
+              name: "reflect-stream",
+              userId: auth.user.id,
+              metadata: {
+                weekType: body.weekType,
+                turnNumber: body.turnNumber,
+                provider,
+                model: llmModel,
+                requestId,
+                ...perfMetrics,
+              },
+            })
+            trace.generation({
+              name: "reflect-stream-generation",
+              input: JSON.stringify({ weekType: body.weekType, turnNumber: body.turnNumber }),
+              output: fullContent,
+              metadata: perfMetrics,
+            })
+            // サーバレス環境でのメトリクス欠損防止: 3秒上限付きflush
+            await Promise.race([
+              langfuse.flushAsync(),
+              new Promise(resolve => setTimeout(resolve, 3_000)),
+            ]).catch(() => {})
+          }
+        } catch (e) {
+          console.error("[Reflect stream] trace error:", sanitizeForLog(e))
+        }
       }
     },
     cancel() {

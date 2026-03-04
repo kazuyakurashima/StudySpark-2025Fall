@@ -22,7 +22,8 @@ export async function createCoachingMessageTrace(
   userId: string,
   input: string,
   output: string,
-  cacheHit: boolean = false
+  cacheHit: boolean = false,
+  performanceMetrics?: Record<string, number>
 ): Promise<string | null> {
   const traceId = uuidv4()
 
@@ -35,6 +36,7 @@ export async function createCoachingMessageTrace(
     output,
     metadata: {
       cache_hit: cacheHit,
+      ...performanceMetrics,
     },
     tags: [cacheHit ? TAGS.CACHE_HIT : TAGS.CACHE_MISS],
   })
