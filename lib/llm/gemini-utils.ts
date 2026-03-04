@@ -11,31 +11,37 @@ export type GeminiContent = {
 }
 
 /**
- * Gemini contents配列を構築（連続同一ロール回避）
+ * メッセージ配列をGemini contents形式に変換（連続同一ロール回避）
  *
- * Gemini APIは同一ロールの連続メッセージを許容しない場合がある。
- * conversationHistoryの末尾がuserの場合、userPromptをそのメッセージのpartsに結合する。
+ * assistant → model にロール変換し、連続する同一ロールのメッセージをpartsに結合する。
+ * 全モジュール共通の基盤関数。
+ */
+export function toGeminiContents(
+  messages: Array<{ role: "assistant" | "user"; content: string }>
+): GeminiContent[] {
+  return messages.reduce<GeminiContent[]>((acc, msg) => {
+    const geminiRole = msg.role === "assistant" ? "model" as const : "user" as const
+    if (acc.length > 0 && acc[acc.length - 1].role === geminiRole) {
+      acc[acc.length - 1].parts.push({ text: msg.content })
+    } else {
+      acc.push({ role: geminiRole, parts: [{ text: msg.content }] })
+    }
+    return acc
+  }, [])
+}
+
+/**
+ * Gemini contents配列を構築（末尾にuserPromptを追加）
+ *
+ * conversationHistory + 末尾userPrompt パターン用。
+ * 末尾がuserの場合はpartsに結合し、連続userを回避する。
  */
 export function buildGeminiContents(
   conversationHistory: { role: "assistant" | "user"; content: string }[],
   userPrompt: string
 ): GeminiContent[] {
-  const mapped: GeminiContent[] = conversationHistory.map((msg) => ({
-    role: msg.role === "assistant" ? "model" as const : "user" as const,
-    parts: [{ text: msg.content }],
-  }))
-
-  // 末尾がuserなら、userPromptを結合して連続userを回避
-  if (mapped.length > 0 && mapped[mapped.length - 1].role === "user") {
-    mapped[mapped.length - 1] = {
-      role: "user" as const,
-      parts: [
-        ...mapped[mapped.length - 1].parts,
-        { text: userPrompt },
-      ],
-    }
-    return mapped
-  }
-
-  return [...mapped, { role: "user" as const, parts: [{ text: userPrompt }] }]
+  return toGeminiContents([
+    ...conversationHistory,
+    { role: "user" as const, content: userPrompt },
+  ])
 }

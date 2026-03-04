@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getOpenAIClient, getDefaultModel } from "@/lib/openai/client"
+import { getOpenAIClient } from "@/lib/openai/client"
 import { getGeminiClient, getModelForModule } from "@/lib/llm/client"
 import { sanitizeForLog } from "@/lib/llm/logger"
 import { requireAuth } from "@/lib/api/auth"
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     } else {
       const openai = getOpenAIClient()
       const completion = await openai.chat.completions.create({
-        model: getDefaultModel(),
+        model,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

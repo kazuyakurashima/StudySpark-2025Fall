@@ -1,4 +1,4 @@
-import { getOpenAIClient, getDefaultModel } from "./client"
+import { getOpenAIClient } from "./client"
 import { getGeminiClient, getModelForModule } from "../llm/client"
 import { sanitizeForLog } from "../llm/logger"
 
@@ -378,15 +378,15 @@ export async function generateCoachMessage(
   if (provider === "gemini") {
     return generateCoachMessageGemini(context, model)
   }
-  return generateCoachMessageOpenAI(context)
+  return generateCoachMessageOpenAI(context, model)
 }
 
 async function generateCoachMessageOpenAI(
-  context: CoachMessageContext
+  context: CoachMessageContext,
+  model: string
 ): Promise<{ success: true; message: string } | { success: false; error: string }> {
   try {
     const openai = getOpenAIClient()
-    const model = getDefaultModel()
 
     const completion = await openai.chat.completions.create({
       model,

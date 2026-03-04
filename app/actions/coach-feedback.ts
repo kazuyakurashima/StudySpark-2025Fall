@@ -1,7 +1,7 @@
 "use server"
 
 import { getLangfuseClient, flushLangfuse } from "@/lib/langfuse/client"
-import { getOpenAIClient, getDefaultModel } from "@/lib/openai/client"
+import { getOpenAIClient } from "@/lib/openai/client"
 import { getGeminiClient, getModelForModule } from "@/lib/llm/client"
 import { sanitizeForLog } from "@/lib/llm/logger"
 import { createClient, createAdminClient } from "@/lib/supabase/server"
@@ -182,10 +182,9 @@ async function callLLM(
 
   // OpenAI
   const openai = getOpenAIClient()
-  const openaiModel = getDefaultModel()
   const response = await openai.chat.completions.create(
     {
-      model: openaiModel,
+      model,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -196,7 +195,7 @@ async function callLLM(
   )
   const text = response.choices[0]?.message?.content?.trim()
   if (!text) throw new Error("AI応答の生成に失敗しました")
-  return { text, provider, model: openaiModel }
+  return { text, provider, model }
 }
 
 // ============================================================================
@@ -238,7 +237,7 @@ export async function generateCoachFeedback(
   } = await supabase.auth.getUser()
 
   if (authError || !user) {
-    console.error("Authentication failed:", authError)
+    console.error("Authentication failed:", sanitizeForLog(authError))
     return {
       success: false,
       error: "認証エラー: ログインしてください",
@@ -255,7 +254,7 @@ export async function generateCoachFeedback(
     .single()
 
   if (studentError || !studentRecord) {
-    console.error("Student lookup failed:", studentError)
+    console.error("Student lookup failed:", sanitizeForLog(studentError))
     return {
       success: false,
       error: "生徒情報の取得に失敗しました",
@@ -266,10 +265,10 @@ export async function generateCoachFeedback(
 
   // クライアントが渡したstudentIdと照合
   if (studentRecord.id !== clientStudentId) {
-    console.error("Student ID mismatch:", {
+    console.error("Student ID mismatch:", sanitizeForLog({
       expected: studentRecord.id,
       received: clientStudentId,
-    })
+    }))
     return {
       success: false,
       error: "権限エラー: 他の生徒のデータにはアクセスできません",
@@ -291,7 +290,7 @@ export async function generateCoachFeedback(
     .eq("batch_id", clientBatchId)
 
   if (batchError) {
-    console.error("Batch logs lookup failed:", batchError)
+    console.error("Batch logs lookup failed:", sanitizeForLog(batchError))
     return {
       success: false,
       error: "学習記録の取得に失敗しました",
@@ -316,11 +315,11 @@ export async function generateCoachFeedback(
   const allClientIdsInBatch = clientStudyLogIds.every(id => batchLogIds.has(id))
 
   if (!allClientIdsInBatch) {
-    console.error("[Coach Feedback] Validation failed - studyLogIds mismatch:", {
+    console.error("[Coach Feedback] Validation failed - studyLogIds mismatch:", sanitizeForLog({
       clientIds: clientStudyLogIds,
       batchIds: Array.from(batchLogIds),
       batchId: clientBatchId,
-    })
+    }))
     return {
       success: false,
       error: "学習記録の整合性エラー",
@@ -331,11 +330,11 @@ export async function generateCoachFeedback(
 
   // 全ログが同一student_id か検証
   if (!batchLogs.every(log => log.student_id === verifiedStudentId)) {
-    console.error("[Coach Feedback] Validation failed - student ownership mismatch:", {
+    console.error("[Coach Feedback] Validation failed - student ownership mismatch:", sanitizeForLog({
       verifiedStudentId,
       batchStudentIds: batchLogs.map(log => log.student_id),
       batchId: clientBatchId,
-    })
+    }))
     return {
       success: false,
       error: "権限エラー: この学習記録へのアクセス権がありません",
@@ -346,11 +345,11 @@ export async function generateCoachFeedback(
 
   // 全ログが同一session_id か検証（エラーにする）
   if (!batchLogs.every(log => log.session_id === clientSessionId)) {
-    console.error("[Coach Feedback] Validation failed - session inconsistency:", {
+    console.error("[Coach Feedback] Validation failed - session inconsistency:", sanitizeForLog({
       clientSessionId,
       batchId: clientBatchId,
       batchSessionIds: batchLogs.map(log => log.session_id),
-    })
+    }))
     return {
       success: false,
       error: "セッション情報の整合性エラー",
@@ -479,7 +478,7 @@ export async function generateCoachFeedback(
       }
 
       // DB保存失敗 - 生成済みフィードバックは返すが、保存失敗を明示
-      console.error("Failed to save feedback to DB:", {
+      console.error("Failed to save feedback to DB:", sanitizeForLog({
         code: insertError.code,
         message: insertError.message,
         details: insertError.details,
@@ -490,7 +489,7 @@ export async function generateCoachFeedback(
           student_id: verifiedStudentId,
           session_id: verifiedSessionId,
         },
-      })
+      }))
       return {
         success: true,
         feedback: generatedFeedback,
@@ -546,15 +545,15 @@ export async function generateCoachFeedback(
         savedFallbackToDb = true
       } else {
         // その他のエラーをログ
-        console.error("[Coach Feedback] Failed to save fallback:", {
+        console.error("[Coach Feedback] Failed to save fallback:", sanitizeForLog({
           code: fallbackInsertError.code,
           message: fallbackInsertError.message,
           details: fallbackInsertError.details,
           hint: fallbackInsertError.hint,
-        })
+        }))
       }
     } catch (saveError) {
-      console.error("[Coach Feedback] Exception saving fallback:", saveError)
+      console.error("[Coach Feedback] Exception saving fallback:", sanitizeForLog(saveError))
     }
 
     return {
@@ -645,7 +644,7 @@ export async function retryCoachFeedbackSave(
       // 既に保存済み
       return { success: true }
     }
-    console.error("Retry save failed:", insertError)
+    console.error("Retry save failed:", sanitizeForLog(insertError))
     return { success: false, error: "保存に失敗しました" }
   }
 
@@ -801,7 +800,7 @@ async function generateLegacyFeedback(
         }
       }
 
-      console.error("Failed to save legacy feedback to DB:", insertError)
+      console.error("Failed to save legacy feedback to DB:", sanitizeForLog(insertError))
       return {
         success: true,
         feedback: generatedFeedback,
@@ -850,15 +849,15 @@ async function generateLegacyFeedback(
         // UNIQUE違反 - 既存フィードバックがある
         savedFallbackToDb = true
       } else {
-        console.error("[Coach Feedback Legacy] Failed to save fallback:", {
+        console.error("[Coach Feedback Legacy] Failed to save fallback:", sanitizeForLog({
           code: fallbackInsertError.code,
           message: fallbackInsertError.message,
           details: fallbackInsertError.details,
           hint: fallbackInsertError.hint,
-        })
+        }))
       }
     } catch (saveError) {
-      console.error("[Coach Feedback Legacy] Exception saving fallback:", saveError)
+      console.error("[Coach Feedback Legacy] Exception saving fallback:", sanitizeForLog(saveError))
     }
 
     return {

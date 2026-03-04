@@ -1,6 +1,7 @@
-import { getOpenAIClient, getDefaultModel } from "./client"
+import { getOpenAIClient } from "./client"
 import { getGeminiClient, getModelForModule } from "../llm/client"
 import { sanitizeForLog } from "../llm/logger"
+import { toGeminiContents } from "../llm/gemini-utils"
 import {
   getGoalNavigationSystemPrompt,
   getGoalNavigationStepPrompt,
@@ -18,11 +19,12 @@ export async function generateGoalNavigationMessage(
   if (provider === "gemini") {
     return generateGoalNavigationMessageGemini(context, model)
   }
-  return generateGoalNavigationMessageOpenAI(context)
+  return generateGoalNavigationMessageOpenAI(context, model)
 }
 
 async function generateGoalNavigationMessageOpenAI(
-  context: GoalNavigationContext
+  context: GoalNavigationContext,
+  model: string
 ): Promise<{ message?: string; error?: string }> {
   try {
     const client = getOpenAIClient()
@@ -41,7 +43,7 @@ async function generateGoalNavigationMessageOpenAI(
     }
 
     const completion = await client.chat.completions.create({
-      model: getDefaultModel(),
+      model,
       messages,
       max_completion_tokens: 800,
     })
@@ -65,19 +67,10 @@ async function generateGoalNavigationMessageGemini(
     const stepPrompt = getGoalNavigationStepPrompt(context)
 
     // stepPromptを先頭user、その後にconversationHistoryを追加
-    const allMessages = [
+    const geminiContents = toGeminiContents([
       { role: "user" as const, content: stepPrompt },
       ...context.conversationHistory,
-    ]
-    const geminiContents = allMessages.reduce<Array<{ role: "user" | "model"; parts: Array<{ text: string }> }>>((acc, msg) => {
-      const geminiRole = msg.role === "assistant" ? "model" as const : "user" as const
-      if (acc.length > 0 && acc[acc.length - 1].role === geminiRole) {
-        acc[acc.length - 1].parts.push({ text: msg.content })
-      } else {
-        acc.push({ role: geminiRole, parts: [{ text: msg.content }] })
-      }
-      return acc
-    }, [])
+    ])
 
     const response = await client.models.generateContent({
       model,
@@ -108,11 +101,12 @@ export async function generateGoalThoughts(
   if (provider === "gemini") {
     return generateGoalThoughtsGemini(context, model)
   }
-  return generateGoalThoughtsOpenAI(context)
+  return generateGoalThoughtsOpenAI(context, model)
 }
 
 async function generateGoalThoughtsOpenAI(
-  context: GoalNavigationContext
+  context: GoalNavigationContext,
+  model: string
 ): Promise<{ goalThoughts?: string; error?: string }> {
   try {
     const client = getOpenAIClient()
@@ -129,7 +123,7 @@ async function generateGoalThoughtsOpenAI(
     })
 
     const completion = await client.chat.completions.create({
-      model: getDefaultModel(),
+      model,
       messages,
       max_completion_tokens: 800,
       response_format: { type: "json_object" },
@@ -162,19 +156,10 @@ async function generateGoalThoughtsGemini(
     const stepPrompt = getGoalNavigationStepPrompt({ ...context, currentStep: 3 })
 
     // stepPromptを先頭user、その後にconversationHistory
-    const allMessages = [
+    const geminiContents = toGeminiContents([
       { role: "user" as const, content: stepPrompt },
       ...context.conversationHistory,
-    ]
-    const geminiContents = allMessages.reduce<Array<{ role: "user" | "model"; parts: Array<{ text: string }> }>>((acc, msg) => {
-      const geminiRole = msg.role === "assistant" ? "model" as const : "user" as const
-      if (acc.length > 0 && acc[acc.length - 1].role === geminiRole) {
-        acc[acc.length - 1].parts.push({ text: msg.content })
-      } else {
-        acc.push({ role: geminiRole, parts: [{ text: msg.content }] })
-      }
-      return acc
-    }, [])
+    ])
 
     const response = await client.models.generateContent({
       model,

@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
-import { getOpenAIClient, getDefaultModel } from "./client"
+import { getOpenAIClient } from "./client"
 import { getGeminiClient, getModelForModule } from "../llm/client"
 import { sanitizeForLog } from "../llm/logger"
 import {
@@ -131,7 +131,7 @@ export async function generateEncouragementMessages(
     } else {
       const openai = getOpenAIClient()
       const completion = await openai.chat.completions.create({
-        model: getDefaultModel(),
+        model,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -212,7 +212,7 @@ export async function generateEncouragementSuggestions(input: {
     } else {
       const openai = getOpenAIClient()
       const completion = await openai.chat.completions.create({
-        model: getDefaultModel(),
+        model,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

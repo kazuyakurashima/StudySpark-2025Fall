@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { createClient as createSupabaseClient } from "@supabase/supabase-js"
-import { getOpenAIClient, getDefaultModel } from "@/lib/openai/client"
+import { getOpenAIClient } from "@/lib/openai/client"
 import { getGeminiClient, getModelForModule } from "@/lib/llm/client"
 import { sanitizeForLog } from "@/lib/llm/logger"
 import { formatDateToJST, getJSTDayStartISO, getJSTDayEndISO } from "@/lib/utils/date-jst"
@@ -32,7 +32,7 @@ export async function getWeeklyStudyData(studentId: string, weekStartDate: Date,
     .order("study_date", { ascending: false })
 
   if (logsError) {
-    console.error("Failed to fetch study logs:", logsError)
+    console.error("Failed to fetch study logs:", sanitizeForLog(logsError))
     return { error: "学習ログの取得に失敗しました" }
   }
 
@@ -95,7 +95,7 @@ export async function getWeeklyEncouragementData(
     .order("created_at", { ascending: false })
 
   if (error) {
-    console.error("Failed to fetch encouragement messages:", error)
+    console.error("Failed to fetch encouragement messages:", sanitizeForLog(error))
     return { error: "応援メッセージの取得に失敗しました" }
   }
 
@@ -133,7 +133,7 @@ export async function getWeeklyReflectionData(studentId: string, weekStartDate: 
     .not("completed_at", "is", null)
 
   if (error) {
-    console.error("Failed to fetch reflections:", error)
+    console.error("Failed to fetch reflections:", sanitizeForLog(error))
     return { error: "振り返りデータの取得に失敗しました" }
   }
 
@@ -228,7 +228,7 @@ export async function generateWeeklyAnalysis(studentId: string, weekStartDate: D
       .single()
 
     if (saveError) {
-      console.error("Failed to save analysis:", saveError)
+      console.error("Failed to save analysis:", sanitizeForLog(saveError))
       return { error: "分析結果の保存に失敗しました" }
     }
 
@@ -267,7 +267,7 @@ async function generateAnalysisContent(userPrompt: string): Promise<string> {
 
   const openai = getOpenAIClient()
   const response = await openai.chat.completions.create({
-    model: getDefaultModel(),
+    model,
     messages: [
       { role: "system", content: ANALYSIS_SYSTEM_PROMPT },
       { role: "user", content: userPrompt },
@@ -360,7 +360,7 @@ export async function getStoredWeeklyAnalysis(studentId: string, weekStartDate: 
       // データが存在しない
       return { analysis: null }
     }
-    console.error("Failed to fetch stored analysis:", error)
+    console.error("Failed to fetch stored analysis:", sanitizeForLog(error))
     return { error: "分析データの取得に失敗しました" }
   }
 
@@ -386,7 +386,7 @@ export async function generateWeeklyAnalysisForBatch(studentId: string, weekStar
     .single()
 
   if (studentError || !student) {
-    console.error("Student fetch error:", studentError)
+    console.error("Student fetch error:", sanitizeForLog(studentError))
     return { error: "生徒情報の取得に失敗しました" }
   }
 
@@ -409,7 +409,7 @@ export async function generateWeeklyAnalysisForBatch(studentId: string, weekStar
     .order("study_date", { ascending: false })
 
   if (logsError) {
-    console.error("Failed to fetch study logs:", logsError)
+    console.error("Failed to fetch study logs:", sanitizeForLog(logsError))
     return { error: "学習ログの取得に失敗しました" }
   }
 
@@ -516,7 +516,7 @@ export async function generateWeeklyAnalysisForBatch(studentId: string, weekStar
       .single()
 
     if (saveError) {
-      console.error("Failed to save analysis:", saveError)
+      console.error("Failed to save analysis:", sanitizeForLog(saveError))
       return { error: "分析結果の保存に失敗しました" }
     }
 

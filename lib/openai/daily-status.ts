@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
-import { getOpenAIClient, getDefaultModel } from "./client"
+import { getOpenAIClient } from "./client"
 import { getGeminiClient, getModelForModule } from "../llm/client"
 import { sanitizeForLog } from "../llm/logger"
 import crypto from "crypto"
@@ -256,7 +256,7 @@ export async function generateDailyStatusMessage(
     } else {
       const openai = getOpenAIClient()
       const completion = await openai.chat.completions.create({
-        model: getDefaultModel(),
+        model,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
