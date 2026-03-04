@@ -121,11 +121,12 @@ export async function* generateReflectMessageStream(
   context: ReflectContext,
   signal?: AbortSignal
 ): AsyncGenerator<{ type: 'delta' | 'done' | 'meta' | 'error'; content: string }> {
-  const openai = getOpenAIClient()
-  const model = getDefaultModel()
+  const { provider, model } = getModelForModule("reflect", "realtime")
+  // provider分岐で OpenAI / Gemini ストリーミングを切替
   const systemPrompt = getReflectSystemPrompt()
   const userPrompt = getReflectUserPrompt(context)
 
+  // OpenAI例:
   const stream = await openai.chat.completions.create({
     model,
     messages: [
@@ -509,7 +510,7 @@ export function getStructuredModel(): string {
 | coach-message.ts | 夜間バッチ | **自然文** | `getBatchModel()` → **Pro** |
 | daily-status.ts | 夜間バッチ | **自然文** | `getBatchModel()` → **Pro** |
 | weekly-analysis.ts | バッチ | **自然文** | `getBatchModel()` → **Pro** |
-| coach-feedback.ts | バッチ | **自然文** | `getBatchModel()` → **Pro** |
+| coach-feedback.ts | **リアルタイム** | **自然文** | `getRealtimeModel()` → **Flash**（AbortControllerタイムアウト5-8秒） |
 
 **モデル選定方針（A/Bテスト不要）:**
 
@@ -917,7 +918,7 @@ async function* generateReflectMessageStreamGemini(
 | `app/api/goal/simple-navigation/route.ts` | 修正 | 直接インスタンス化 → `lib/llm/client.ts` 集約 |
 | `app/api/goal/simple-thoughts/route.ts` | 修正 | 同上 |
 | `app/actions/weekly-analysis.ts` | 修正 | Gemini対応 + `getBatchModel()` |
-| `app/actions/coach-feedback.ts` | 修正 | Gemini対応 + `getBatchModel()` |
+| `app/actions/coach-feedback.ts` | 修正 | Gemini対応 + `getModelForModule("coach","realtime")` — AbortController対応 |
 
 #### 移行順序（リスク低→高）
 
