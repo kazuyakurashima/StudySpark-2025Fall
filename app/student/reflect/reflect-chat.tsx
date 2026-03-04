@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import Image from "next/image"
 import { Send, Sparkles, CheckCircle } from "lucide-react"
 import { saveCoachingMessage, completeCoachingSession } from "@/app/actions/reflect"
 import { useRouter } from "next/navigation"
@@ -230,7 +231,7 @@ export function ReflectChat({
       setTurnNumber(nextTurn)
 
       return { content: fullContent, aborted: false, placeholderId }
-    } catch (error) {
+    } catch {
       setIsStreaming(false)
       // Abort判定はcontrollerのローカル参照で確認（finallyでref.currentがnullになる前に）
       const wasAborted = controller.signal.aborted
@@ -452,9 +453,11 @@ export function ReflectChat({
                 className={`flex items-start gap-2 max-w-[80%] ${message.role === "user" ? "flex-row-reverse" : ""}`}
               >
                 {message.role === "assistant" && (
-                  <img
+                  <Image
                     src={AVATAR_AI_COACH}
                     alt="AIコーチ"
+                    width={32}
+                    height={32}
                     className="w-8 h-8 rounded-full flex-shrink-0"
                   />
                 )}
@@ -480,9 +483,11 @@ export function ReflectChat({
           {isLoading && !isStreaming && messages.length === 0 && (
             <div className="flex justify-start">
               <div className="flex items-start gap-2 max-w-[80%]">
-                <img
+                <Image
                   src={AVATAR_AI_COACH}
                   alt="AIコーチ"
+                  width={32}
+                  height={32}
                   className="w-8 h-8 rounded-full flex-shrink-0"
                 />
                 <div className="px-3 py-2 rounded-lg bg-background border border-border">

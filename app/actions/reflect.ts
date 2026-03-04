@@ -243,8 +243,9 @@ export async function saveCoachingMessage(
 ) {
   const supabase = await createClient()
 
-  // 冪等性: UNIQUE(session_id, turn_number, role) + ON CONFLICT DO NOTHING
-  // DB制約により原子的に重複を防止（select→insertの競合状態を回避）
+  // 冪等性: UNIQUE(session_id, turn_number, role) によるDB制約
+  // - assistant: ON CONFLICT DO NOTHING（ストリーミングリトライ時の重複防止）
+  // - user: ON CONFLICT DO UPDATE（再送時に最新入力で上書き、UI/DB整合性を維持）
   const row = {
     session_id: Number(sessionId),
     role: role,
@@ -257,7 +258,7 @@ export async function saveCoachingMessage(
     .from("coaching_messages")
     .upsert(row, {
       onConflict: "session_id,turn_number,role",
-      ignoreDuplicates: true, // ON CONFLICT DO NOTHING
+      ignoreDuplicates: role === "assistant", // assistantのみDO NOTHING、userはDO UPDATE
     })
 
   if (error) {
