@@ -630,17 +630,26 @@ OPENAI_API_KEY=...          # フォールバック用に残す
 ```
 
 ```typescript
-// lib/llm/client.ts
-type Module = "reflect" | "goal" | "coach" | "batch"
+// lib/llm/client.ts（実装版: Phase 1.5a-1 技術監査反映済み）
+import type { LLMProvider, LLMModule } from "./types"
 
-export function getProvider(module?: Module): "gemini" | "openai" {
-  // モジュール単位オーバーライドを優先
+export function getProvider(module?: LLMModule): LLMProvider {
   if (module) {
-    const override = process.env[`AI_PROVIDER_${module.toUpperCase()}`]
-    if (override === "gemini" || override === "openai") return override
+    const envKey = `AI_PROVIDER_${module.toUpperCase()}`
+    const raw = process.env[envKey]
+    if (raw !== undefined) {
+      const trimmed = raw.trim().toLowerCase()
+      if (trimmed === "gemini" || trimmed === "openai") return trimmed
+      throw new Error(`${envKey}="${raw}" is invalid. Expected "gemini" or "openai"`)
+    }
   }
-  // グローバル設定にフォールバック
-  return (process.env.AI_PROVIDER as "gemini" | "openai") || "openai"
+  const raw = process.env.AI_PROVIDER
+  if (raw !== undefined) {
+    const trimmed = raw.trim().toLowerCase()
+    if (trimmed === "gemini" || trimmed === "openai") return trimmed
+    throw new Error(`AI_PROVIDER="${raw}" is invalid. Expected "gemini" or "openai"`)
+  }
+  return "openai"  // 未設定時のみフォールバック
 }
 ```
 
@@ -666,7 +675,7 @@ export function getProvider(module?: Module): "gemini" | "openai" {
 | turnNumber, weekType | ✅ 可 | コンテキスト |
 | studentName, content | ❌ 不可 | **個人情報** |
 | プロンプト全文 | ❌ 不可 | 開発時のみdebugレベル |
-| エラーメッセージ | ✅ 可 | スタックトレースは本番マスク |
+| エラーメッセージ | ⚠️ 条件付き | `sanitizeForLog()` 経由でマスク（プロンプトエコー防止）。`name`, `status`, `code` は保持 |
 
 #### PIIマスキング（コード強制）
 
@@ -713,7 +722,7 @@ export function sanitizeForLog(obj: unknown): unknown {
 - ネストされたオブジェクト・配列を再帰的に走査し、全階層のPIIフィールドをマスク
 - `WeakSet` でサイクル参照を検出し `"[Circular]"` で安全に打ち切り
 - `MAX_DEPTH = 5` で深いネストも制限（通常のコンテキストは3階層以内）
-- 全LLM呼び出しのログ出力箇所で `sanitizeForLog()` を経由
+- 全LLM呼び出しのログ出力箇所で `sanitizeForLog()` を経由（Phase 1.5a-2以降で段階適用。Phase 1.5a-1では関数定義+テストのみ）
 - `console.error` に渡す前にコンテキスト情報をサニタイズ
 - 開発環境（`NODE_ENV=development`）では生データ表示可能にするオプション付き
 - Phase 2のLangfuseトレースにも同じサニタイズを適用
