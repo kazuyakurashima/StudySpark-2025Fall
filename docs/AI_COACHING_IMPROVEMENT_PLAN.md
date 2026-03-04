@@ -630,17 +630,26 @@ OPENAI_API_KEY=...          # フォールバック用に残す
 ```
 
 ```typescript
-// lib/llm/client.ts
-type Module = "reflect" | "goal" | "coach" | "batch"
+// lib/llm/client.ts（実装版: Phase 1.5a-1 技術監査反映済み）
+import type { LLMProvider, LLMModule } from "./types"
 
-export function getProvider(module?: Module): "gemini" | "openai" {
-  // モジュール単位オーバーライドを優先
+export function getProvider(module?: LLMModule): LLMProvider {
   if (module) {
-    const override = process.env[`AI_PROVIDER_${module.toUpperCase()}`]
-    if (override === "gemini" || override === "openai") return override
+    const envKey = `AI_PROVIDER_${module.toUpperCase()}`
+    const raw = process.env[envKey]
+    if (raw !== undefined) {
+      const trimmed = raw.trim().toLowerCase()
+      if (trimmed === "gemini" || trimmed === "openai") return trimmed
+      throw new Error(`${envKey}="${raw}" is invalid. Expected "gemini" or "openai"`)
+    }
   }
-  // グローバル設定にフォールバック
-  return (process.env.AI_PROVIDER as "gemini" | "openai") || "openai"
+  const raw = process.env.AI_PROVIDER
+  if (raw !== undefined) {
+    const trimmed = raw.trim().toLowerCase()
+    if (trimmed === "gemini" || trimmed === "openai") return trimmed
+    throw new Error(`AI_PROVIDER="${raw}" is invalid. Expected "gemini" or "openai"`)
+  }
+  return "openai"  // 未設定時のみフォールバック
 }
 ```
 
@@ -666,7 +675,7 @@ export function getProvider(module?: Module): "gemini" | "openai" {
 | turnNumber, weekType | ✅ 可 | コンテキスト |
 | studentName, content | ❌ 不可 | **個人情報** |
 | プロンプト全文 | ❌ 不可 | 開発時のみdebugレベル |
-| エラーメッセージ | ✅ 可 | スタックトレースは本番マスク |
+| エラーメッセージ | ⚠️ 条件付き | `sanitizeForLog()` 経由でマスク（プロンプトエコー防止）。`name`, `status`, `code` は保持 |
 
 #### PIIマスキング（コード強制）
 
@@ -713,7 +722,7 @@ export function sanitizeForLog(obj: unknown): unknown {
 - ネストされたオブジェクト・配列を再帰的に走査し、全階層のPIIフィールドをマスク
 - `WeakSet` でサイクル参照を検出し `"[Circular]"` で安全に打ち切り
 - `MAX_DEPTH = 5` で深いネストも制限（通常のコンテキストは3階層以内）
-- 全LLM呼び出しのログ出力箇所で `sanitizeForLog()` を経由
+- 全LLM呼び出しのログ出力箇所で `sanitizeForLog()` を経由（Phase 1.5a-2以降で段階適用。Phase 1.5a-1では関数定義+テストのみ）
 - `console.error` に渡す前にコンテキスト情報をサニタイズ
 - 開発環境（`NODE_ENV=development`）では生データ表示可能にするオプション付き
 - Phase 2のLangfuseトレースにも同じサニタイズを適用
@@ -733,14 +742,22 @@ Langfuseトレースに以下を追加:
 
 | ファイル | 操作 | 内容 |
 |---------|------|------|
-| `package.json` | 修正 | `@google/genai` 追加 |
-| `lib/llm/client.ts` | **新規** | Gemini/OpenAI切替クライアント |
-| `lib/llm/types.ts` | **新規** | プロバイダ共通型定義 |
+| `package.json` | 修正 | `@google/genai`, `server-only` 追加 + `engines: >=20` |
+| `lib/llm/types.ts` | **新規** | プロバイダ共通型定義（`LLMMessage`, `LLMGenerateOptions`, `LLMStreamEvent`） |
+| `lib/llm/client.ts` | **新規** | Gemini/OpenAI切替クライアント（`import "server-only"` ガード付き） |
+| `lib/llm/logger.ts` | **新規** | PIIマスキング（`sanitizeForLog`）。呼び出し元はPhase 1.5a-2以降で追加 |
+| `.env.example` | 修正 | Gemini関連環境変数セクション追加 |
+| `.nvmrc` | **新規** | Node 22指定（`@google/genai` が Node>=20 を要求） |
+| `lib/llm/__tests__/` | **新規** | `getProvider`, `getModel`, `sanitizeForLog` ユニットテスト |
 
 #### 設計
 
 ```typescript
 // lib/llm/types.ts
+export type LLMProvider = "gemini" | "openai"
+export type LLMModule = "reflect" | "goal" | "coach" | "batch"
+export type ModelTier = "realtime" | "structured" | "batch"
+
 export interface LLMMessage {
   role: "system" | "user" | "assistant"
   content: string
@@ -754,14 +771,16 @@ export interface LLMGenerateOptions {
   responseFormat?: "text" | "json"
 }
 
+// "meta" はSSEセッション制御用（Phase 1のSESSION_CAN_ENDなど）
 export interface LLMStreamEvent {
-  type: "delta" | "done" | "error"
+  type: "delta" | "done" | "meta" | "error"
   content: string
 }
 ```
 
 ```typescript
 // lib/llm/client.ts
+import "server-only"
 import { GoogleGenAI } from "@google/genai"
 
 let geminiClient: GoogleGenAI | null = null
@@ -775,7 +794,19 @@ export function getGeminiClient(): GoogleGenAI {
   return geminiClient
 }
 
+// getProvider(): 不正値はthrow（サイレントフォールバック防止）
+// getModel(provider, tier): プロバイダ連動でモデルID取得
+// getModelForModule(module, tier): モジュール→プロバイダ→モデルの一括解決
+
 // 既存の getOpenAIClient() も残す（フォールバック用）
+```
+
+```typescript
+// lib/llm/logger.ts — PIIマスキング
+// 再帰スタック方式でサイクル検出（共有参照は正常にコピー）
+// MAX_DEPTH超過時は "[MAX_DEPTH]" に安全打ち切り
+// 呼び出し元: Phase 1.5a-2以降で各モジュールのLLMログ出力箇所に追加
+export function sanitizeForLog(obj: unknown): unknown { /* ... */ }
 ```
 
 **注意:** `lib/openai/` は即座にリネームしない。`lib/llm/` にクライアント層を新設し、各モジュールが段階的に移行する。旧パスは全移行完了後に削除。
