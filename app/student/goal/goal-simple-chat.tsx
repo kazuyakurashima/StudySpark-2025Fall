@@ -62,7 +62,6 @@ export function GoalSimpleChat({
   const [generatedThoughts, setGeneratedThoughts] = useState("")
   const [studentAvatar, setStudentAvatar] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const hasStartedRef = useRef(false)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const typingCancelRef = useRef<(() => void) | null>(null)
@@ -97,15 +96,52 @@ export function GoalSimpleChat({
     scrollToBottom()
   }, [messages])
 
+  // React 18 Strict Mode 対応: useEffect 内で ignore フラグを使い、
+  // 開発時の unmount→remount で stale な結果を無視する
   useEffect(() => {
+    let ignore = false
+
     if (initialThoughts) {
       setGeneratedThoughts(initialThoughts)
     }
-    if (!hasStartedRef.current) {
-      startConversation()
-      loadStudentAvatar()
-    }
+    loadStudentAvatar()
+
+    // 自動開始（startConversation をインラインにして ignore を共有）
+    ;(async () => {
+      setIsLoading(true)
+
+      const message = await fetchStepMessage(1, [], 1)
+      if (ignore) return
+
+      if (message) {
+        setMessages([{ id: 1, role: "assistant", content: message }])
+        setIsLoading(false)
+
+        // 3秒後に自動でStep2へ進む
+        timeoutRef.current = setTimeout(async () => {
+          setIsLoading(true)
+          const msg2 = await fetchStepMessage(2, [], 2)
+          if (ignore) return
+          if (msg2) {
+            setMessages((prev) => {
+              const existing = prev.find((m) => m.id === 2)
+              if (existing) {
+                return prev.map((m) => (m.id === 2 ? { ...m, content: msg2 } : m))
+              }
+              return [...prev, { id: 2, role: "assistant", content: msg2 }]
+            })
+            setCurrentStep(2)
+          }
+          setIsLoading(false)
+        }, 3000)
+      } else {
+        alert("エラーが発生しました")
+        setIsLoading(false)
+      }
+    })()
+
     return () => {
+      ignore = true
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)
       }
@@ -171,39 +207,6 @@ export function GoalSimpleChat({
       } catch {
         return null
       }
-    }
-  }
-
-  const startConversation = async () => {
-    if (hasStartedRef.current) return
-    hasStartedRef.current = true
-    setIsLoading(true)
-
-    const message = await fetchStepMessage(1, [], 1)
-
-    if (message) {
-      setMessages([{ id: 1, role: "assistant", content: message }])
-      setIsLoading(false)
-
-      // 3秒後に自動でStep2へ進む
-      timeoutRef.current = setTimeout(async () => {
-        setIsLoading(true)
-        const msg2 = await fetchStepMessage(2, [], 2)
-        if (msg2) {
-          setMessages((prev) => {
-            const existing = prev.find((m) => m.id === 2)
-            if (existing) {
-              return prev.map((m) => (m.id === 2 ? { ...m, content: msg2 } : m))
-            }
-            return [...prev, { id: 2, role: "assistant", content: msg2 }]
-          })
-          setCurrentStep(2)
-        }
-        setIsLoading(false)
-      }, 3000)
-    } else {
-      alert("エラーが発生しました")
-      setIsLoading(false)
     }
   }
 
