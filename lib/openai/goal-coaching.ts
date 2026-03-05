@@ -1,4 +1,4 @@
-import { getOpenAIClient, getDefaultModel } from "./client"
+import { getOpenAIClient } from "./client"
 import { getGeminiClient, getModelForModule } from "../llm/client"
 import { sanitizeForLog } from "../llm/logger"
 import { toGeminiContents } from "../llm/gemini-utils"
@@ -211,17 +211,17 @@ export async function* generateGoalNavigationMessageStream(
   if (provider === "gemini") {
     yield* streamGoalGemini(systemPrompt, userPrompt, model, signal)
   } else {
-    yield* streamGoalOpenAI(systemPrompt, userPrompt, signal)
+    yield* streamGoalOpenAI(systemPrompt, userPrompt, model, signal)
   }
 }
 
 async function* streamGoalOpenAI(
   systemPrompt: string,
   userPrompt: string,
+  model: string,
   signal?: AbortSignal
 ): AsyncGenerator<LLMStreamEvent> {
   const openai = getOpenAIClient()
-  const model = getDefaultModel()
 
   const stream = await openai.chat.completions.create(
     {

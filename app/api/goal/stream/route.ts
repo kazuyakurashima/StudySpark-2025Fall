@@ -21,12 +21,13 @@ import { SSE_META } from "@/lib/sse/types"
 
 export const runtime = "nodejs"
 
+const VALID_COURSES = ["S", "A", "B", "C"] as const
+
 const requestSchema = z.object({
   flowType: z.enum(["simple", "full"]),
   step: z.number().int().min(1).max(3),
-  testName: z.string().max(100),
-  testDate: z.string().max(20),
-  targetCourse: z.string().max(10),
+  testScheduleId: z.number().int().positive(),
+  targetCourse: z.enum(VALID_COURSES),
   targetClass: z.number().int().min(1).max(20),
   conversationHistory: z
     .array(
@@ -79,21 +80,72 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // DB再構築: studentName はDBから取得（クライアント値は信頼しない）
+  // DB再構築: student + test_schedule をサーバー側で検証
   timer.mark("db_start")
   const supabase = await createClient()
-  const { data: student } = await supabase
-    .from("students")
-    .select("id, full_name, grade, course")
-    .eq("user_id", auth.user.id)
-    .single()
 
-  if (!student) {
+  const [studentResult, scheduleResult] = await Promise.all([
+    supabase
+      .from("students")
+      .select("id, full_name, grade, course")
+      .eq("user_id", auth.user.id)
+      .single(),
+    supabase
+      .from("test_schedules")
+      .select(`
+        id,
+        test_date,
+        goal_setting_start_date,
+        goal_setting_end_date,
+        test_types!inner ( name, grade )
+      `)
+      .eq("id", body.testScheduleId)
+      .single(),
+  ])
+
+  if (!studentResult.data) {
     return new Response(
       JSON.stringify({ error: "生徒情報が見つかりません" }),
       { status: 404, headers: { "Content-Type": "application/json" } }
     )
   }
+  const student = studentResult.data
+
+  if (!scheduleResult.data) {
+    return new Response(
+      JSON.stringify({ error: "指定されたテスト日程が見つかりません" }),
+      { status: 404, headers: { "Content-Type": "application/json" } }
+    )
+  }
+  const schedule = scheduleResult.data
+
+  // 学年整合チェック
+  const testTypes = Array.isArray(schedule.test_types)
+    ? schedule.test_types[0]
+    : schedule.test_types
+  if (testTypes && testTypes.grade !== student.grade) {
+    return new Response(
+      JSON.stringify({ error: "テストの対象学年と生徒の学年が一致しません" }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    )
+  }
+
+  // 目標設定期間チェック（警告ログ、ブロックはしない）
+  const now = new Date().toISOString().slice(0, 10)
+  if (
+    schedule.goal_setting_start_date &&
+    schedule.goal_setting_end_date &&
+    (now < schedule.goal_setting_start_date || now > schedule.goal_setting_end_date)
+  ) {
+    console.warn(
+      `[Goal stream] outside goal-setting period: schedule=${body.testScheduleId} start=${schedule.goal_setting_start_date} end=${schedule.goal_setting_end_date} now=${now}`
+    )
+  }
+
+  // DB再構築済みの値を使用
+  const testName = testTypes?.name ?? "テスト"
+  const testDate = schedule.test_date
+
   timer.mark("db_done")
   timer.measure("db", "db_start")
 
@@ -106,7 +158,8 @@ export async function POST(request: NextRequest) {
       (body.flowType === "full" && body.step === 2))
   ) {
     const fallbackStep = body.step as 2 | 3
-    const content = FALLBACK_TEMPLATES[fallbackStep] || FALLBACK_TEMPLATES[2]
+    const fallbackKey = `${body.flowType}:${fallbackStep}` as keyof typeof FALLBACK_TEMPLATES
+    const content = FALLBACK_TEMPLATES[fallbackKey] || FALLBACK_TEMPLATES["simple:2"]
     const encoder = new TextEncoder()
     const fallbackStream = new ReadableStream({
       start(controller) {
@@ -132,8 +185,8 @@ export async function POST(request: NextRequest) {
   if (body.flowType === "simple") {
     const ctx: SimpleGoalContext = {
       studentName: student.full_name,
-      testName: body.testName,
-      testDate: body.testDate,
+      testName,
+      testDate,
       targetCourse: body.targetCourse,
       targetClass: body.targetClass,
       conversationHistory: body.conversationHistory,
@@ -144,8 +197,8 @@ export async function POST(request: NextRequest) {
   } else {
     const ctx: GoalNavigationContext = {
       studentName: student.full_name,
-      testName: body.testName,
-      testDate: body.testDate,
+      testName,
+      testDate,
       targetCourse: body.targetCourse,
       targetClass: body.targetClass,
       conversationHistory: body.conversationHistory,
@@ -222,7 +275,11 @@ export async function POST(request: NextRequest) {
             // 出力バリデーション（Steps 2-3 のみ）
             if (needsValidation) {
               const validationStep = body.step as 2 | 3
-              const validated = validateGoalStepOutput(fullContent, validationStep)
+              const validated = validateGoalStepOutput(
+                fullContent,
+                body.flowType,
+                validationStep
+              )
               if (!validated.valid) {
                 console.warn(
                   `[Goal stream] output validation failed [requestId=${requestId}]: ${validated.reason}`
@@ -289,6 +346,7 @@ export async function POST(request: NextRequest) {
               metadata: {
                 flowType: body.flowType,
                 step: body.step,
+                testScheduleId: body.testScheduleId,
                 provider,
                 model: llmModel,
                 requestId,
