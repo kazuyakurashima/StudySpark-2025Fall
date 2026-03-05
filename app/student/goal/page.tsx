@@ -33,7 +33,17 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { GoalNavigationChat } from "./goal-navigation-chat";
+import { GoalSimpleChat } from "./goal-simple-chat";
 import { PastExamTab } from "./past-exam-tab";
+import type { InputMode, InputMethod } from "./input-mode";
+import {
+  transitionGoalDecision,
+  transitionInputMethodChoice,
+  transitionAIChatComplete,
+  transitionAIChatCancel,
+  transitionSaveComplete,
+  transitionTestChange,
+} from "./input-mode";
 import {
   getAvailableTests,
   saveTestGoal,
@@ -154,9 +164,7 @@ function GoalPageInner() {
   const [classNumber, setClassNumber] = useState([20]);
   const [currentThoughts, setCurrentThoughts] = useState("");
   const [isGoalSet, setIsGoalSet] = useState(false);
-  const [showAIChat, setShowAIChat] = useState(false);
-  const [showInputChoice, setShowInputChoice] = useState(false);
-  const [showDirectInput, setShowDirectInput] = useState(false);
+  const [inputMode, setInputMode] = useState<InputMode>("none");
   const [showCelebration, setShowCelebration] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [existingGoal, setExistingGoal] = useState<TestGoal | null>(null);
@@ -283,6 +291,13 @@ function GoalPageInner() {
     }
   };
 
+  // テスト切替時のみ入力モードをリセット（testGoals更新では発火しない）
+  useEffect(() => {
+    const reset = transitionTestChange();
+    setInputMode(reset.inputMode);
+    setIsAIGenerated(reset.isAIGenerated);
+  }, [selectedTest]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // テスト選択時に既存の目標をチェック
   useEffect(() => {
     if (selectedTest) {
@@ -341,37 +356,29 @@ function GoalPageInner() {
 
   const handleGoalDecision = () => {
     setIsGoalSet(true);
-    setShowInputChoice(true);
+    setInputMode(transitionGoalDecision());
     setShowCelebration(true);
     setTimeout(() => setShowCelebration(false), 3000);
   };
 
-  const handleInputMethodChoice = (method: "ai" | "direct" | "later") => {
-    setShowInputChoice(false);
+  const handleInputMethodChoice = (method: InputMethod) => {
     setShowCelebration(false); // お祝いアニメーションを停止
-    if (method === "ai") {
-      // AIコーチと作成する - すぐにAI対話を開始
-      setShowAIChat(true);
-    } else if (method === "direct") {
-      setShowDirectInput(true);
-      setIsAIGenerated(false);
-    } else {
-      // あとで入力する - 空の思いで保存可能にする
-      setShowDirectInput(true);
-      setIsAIGenerated(false);
+    const result = transitionInputMethodChoice(method);
+    setInputMode(result.inputMode);
+    if (result.isAIGenerated !== null) {
+      setIsAIGenerated(result.isAIGenerated);
     }
   };
 
   const handleAIChatComplete = (goalThoughts: string) => {
     setCurrentThoughts(goalThoughts);
-    setShowAIChat(false);
-    setShowDirectInput(true);
-    setIsAIGenerated(true);
+    const result = transitionAIChatComplete();
+    setInputMode(result.inputMode);
+    setIsAIGenerated(result.isAIGenerated);
   };
 
   const handleAIChatCancel = () => {
-    setShowAIChat(false);
-    setShowInputChoice(true);
+    setInputMode(transitionAIChatCancel());
   };
 
   const handleSaveGoal = async () => {
@@ -399,9 +406,7 @@ function GoalPageInner() {
         setClassNumber([20]);
         setCurrentThoughts("");
         setIsGoalSet(false);
-        setShowInputChoice(false);
-        setShowDirectInput(false);
-        setShowAIChat(false);
+        setInputMode(transitionSaveComplete());
         // リロード
         loadTestGoals();
         loadAvailableTestsForResult();
@@ -532,7 +537,7 @@ function GoalPageInner() {
 
           {/* 目標入力タブ */}
           <TabsContent value="input" className="space-y-4 sm:space-y-6 mt-6">
-            {!showAIChat && (
+            {inputMode !== "ai-simple" && inputMode !== "ai-full" && (
               <Card className="card-elevated border-0 shadow-lg bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
                 <CardContent className="p-6">
                   <div className="flex items-start gap-4">
@@ -771,7 +776,7 @@ function GoalPageInner() {
               </Card>
             )}
 
-            {showInputChoice && selectedTest && (
+            {inputMode === "choice" && selectedTest && (
               <Card className="card-elevated bg-gradient-to-r from-primary/10 to-accent/10 border-primary/20 shadow-xl">
                 <CardContent className="p-6 space-y-4">
                   <div className="text-center mb-4">
@@ -780,13 +785,13 @@ function GoalPageInner() {
                       「今回の思い」をどう作る？
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                      3つの方法から選んでね
+                      4つの方法から選んでね
                     </p>
                   </div>
 
                   <div className="space-y-3">
                     <Button
-                      onClick={() => handleInputMethodChoice("ai")}
+                      onClick={() => handleInputMethodChoice("ai-simple")}
                       variant="outline"
                       className="w-full h-auto py-4 text-left border-2 hover:bg-primary/5 hover:border-primary/40 transition-all duration-300"
                     >
@@ -800,10 +805,34 @@ function GoalPageInner() {
                         </Avatar>
                         <div className="flex-1">
                           <div className="font-bold text-base mb-1">
-                            AIコーチと作成する
+                            かんたんコース
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            3つの質問に答えて、AIが思いをまとめてくれるよ
+                            2つの質問でサクッとまとめるよ
+                          </div>
+                        </div>
+                      </div>
+                    </Button>
+
+                    <Button
+                      onClick={() => handleInputMethodChoice("ai-full")}
+                      variant="outline"
+                      className="w-full h-auto py-4 text-left border-2 hover:bg-primary/5 hover:border-primary/40 transition-all duration-300"
+                    >
+                      <div className="flex items-start gap-3">
+                        <Avatar className="h-10 w-10 flex-shrink-0 border-2 border-white">
+                          <AvatarImage
+                            src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png"
+                            alt="AIコーチ"
+                          />
+                          <AvatarFallback>AI</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="font-bold text-base mb-1">
+                            じっくりコース
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            3つの質問でしっかり深掘りするよ
                           </div>
                         </div>
                       </div>
@@ -857,32 +886,49 @@ function GoalPageInner() {
               </Card>
             )}
 
-            {showAIChat && selectedTest && !Number.isNaN(Number(selectedTest.id)) && (
-              <GoalNavigationChat
-                testScheduleId={Number(selectedTest.id)}
-                studentName={studentName}
-                studentAvatar={getAvatarSrc(studentAvatar)}
-                testName={selectedTest.test_types.name}
-                testDate={formatDate(selectedTest.test_date)}
-                targetCourse={selectedCourse}
-                targetClass={classNumber[0]}
-                onComplete={handleAIChatComplete}
-                onCancel={handleAIChatCancel}
-              />
-            )}
+            {(inputMode === "ai-simple" || inputMode === "ai-full") &&
+              selectedTest &&
+              !Number.isNaN(Number(selectedTest.id)) &&
+              (inputMode === "ai-simple" ? (
+                <GoalSimpleChat
+                  testScheduleId={Number(selectedTest.id)}
+                  studentName={studentName}
+                  testName={selectedTest.test_types.name}
+                  testDate={formatDate(selectedTest.test_date)}
+                  targetCourse={selectedCourse}
+                  targetClass={classNumber[0]}
+                  initialThoughts={currentThoughts}
+                  onComplete={handleAIChatComplete}
+                  onBack={handleAIChatCancel}
+                />
+              ) : (
+                <GoalNavigationChat
+                  testScheduleId={Number(selectedTest.id)}
+                  studentName={studentName}
+                  studentAvatar={getAvatarSrc(studentAvatar)}
+                  testName={selectedTest.test_types.name}
+                  testDate={formatDate(selectedTest.test_date)}
+                  targetCourse={selectedCourse}
+                  targetClass={classNumber[0]}
+                  onComplete={handleAIChatComplete}
+                  onCancel={handleAIChatCancel}
+                />
+              ))}
 
-            {showAIChat && selectedTest && Number.isNaN(Number(selectedTest.id)) && (
-              <Card className="card-elevated border-red-200 bg-red-50">
-                <CardContent className="p-6 text-center">
-                  <p className="text-red-700 mb-3">テスト情報の読み込みに問題があります。ページを再読み込みしてください。</p>
-                  <Button variant="outline" onClick={() => window.location.reload()}>
-                    再読み込み
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
+            {(inputMode === "ai-simple" || inputMode === "ai-full") &&
+              selectedTest &&
+              Number.isNaN(Number(selectedTest.id)) && (
+                <Card className="card-elevated border-red-200 bg-red-50">
+                  <CardContent className="p-6 text-center">
+                    <p className="text-red-700 mb-3">テスト情報の読み込みに問題があります。ページを再読み込みしてください。</p>
+                    <Button variant="outline" onClick={() => window.location.reload()}>
+                      再読み込み
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
 
-            {showDirectInput && !showAIChat && !showInputChoice && (
+            {inputMode === "direct" && (
               <Card className="card-elevated border-primary/20">
                 <CardHeader className="bg-gradient-to-r from-primary/5 to-accent/5">
                   <CardTitle className="flex items-center gap-2">
@@ -972,7 +1018,7 @@ function GoalPageInner() {
               </Card>
             )}
 
-            {showDirectInput && !showAIChat && !showInputChoice && (
+            {inputMode === "direct" && (
               <Button
                 onClick={handleSaveGoal}
                 disabled={isSaving}
