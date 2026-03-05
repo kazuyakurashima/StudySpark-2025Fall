@@ -15,6 +15,8 @@ import {
   simpleNavigationSchema,
   navigationSchema,
   streamSchema,
+  simpleThoughtsSchema,
+  thoughtsSchema,
 } from "@/lib/api/goal-schemas"
 
 // ─── テストケース ───────────────────────────────────────────
@@ -93,6 +95,77 @@ describe("Goal API 互換性契約テスト", () => {
 
       const result = streamSchema.safeParse(invalidPayload)
       expect(result.success).toBe(false)
+    })
+  })
+
+  describe("simple-thoughts: 旧フォーマット互換（testScheduleId なし）", () => {
+    it("旧クライアントのペイロードがスキーマを通過する", () => {
+      const legacyPayload = {
+        targetCourse: "B" as const,
+        targetClass: 5,
+        conversationHistory: [
+          { role: "assistant" as const, content: "目標を確認したよ！" },
+          { role: "user" as const, content: "がんばる！" },
+        ],
+        studentName: "太郎",
+        testName: "合不合判定テスト 第3回",
+        testDate: "2026-07-12",
+      }
+
+      const result = simpleThoughtsSchema.safeParse(legacyPayload)
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data.testScheduleId).toBeUndefined()
+        expect(result.data.studentName).toBe("太郎")
+        expect(result.data.conversationHistory).toHaveLength(2)
+      }
+    })
+  })
+
+  describe("thoughts: testScheduleId 送信時のDB再構築経路", () => {
+    it("testScheduleId ありのペイロードがスキーマを通過する", () => {
+      const newPayload = {
+        testScheduleId: 42,
+        targetCourse: "S" as const,
+        targetClass: 10,
+        conversationHistory: [
+          { role: "assistant" as const, content: "いい感じだね！" },
+          { role: "user" as const, content: "ありがとう" },
+        ],
+        currentStep: 3 as const,
+      }
+
+      const result = thoughtsSchema.safeParse(newPayload)
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data.testScheduleId).toBe(42)
+        // studentName/testName/testDate は DB 再構築するため不要
+        expect(result.data.studentName).toBeUndefined()
+      }
+    })
+  })
+
+  describe("thoughts系 targetClass 境界値", () => {
+    it("targetClass=40 が thoughts 系スキーマで通過する", () => {
+      const base = {
+        targetCourse: "A" as const,
+        targetClass: 40,
+        conversationHistory: [],
+      }
+
+      expect(simpleThoughtsSchema.safeParse(base).success).toBe(true)
+      expect(thoughtsSchema.safeParse(base).success).toBe(true)
+    })
+
+    it("targetClass=41 が thoughts 系スキーマで拒否される", () => {
+      const base = {
+        targetCourse: "A" as const,
+        targetClass: 41,
+        conversationHistory: [],
+      }
+
+      expect(simpleThoughtsSchema.safeParse(base).success).toBe(false)
+      expect(thoughtsSchema.safeParse(base).success).toBe(false)
     })
   })
 

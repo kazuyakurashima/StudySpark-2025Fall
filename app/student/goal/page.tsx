@@ -857,8 +857,9 @@ function GoalPageInner() {
               </Card>
             )}
 
-            {showAIChat && selectedTest && (
+            {showAIChat && selectedTest && !Number.isNaN(Number(selectedTest.id)) && (
               <GoalNavigationChat
+                testScheduleId={Number(selectedTest.id)}
                 studentName={studentName}
                 studentAvatar={getAvatarSrc(studentAvatar)}
                 testName={selectedTest.test_types.name}

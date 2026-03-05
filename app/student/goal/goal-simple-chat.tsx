@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Bot, Send, Sparkles, User, ArrowLeft } from "lucide-react"
+import { fetchSSE } from "@/lib/sse/client"
+import { simulateTyping } from "@/lib/sse/typing-effect"
 
 interface Message {
   id: number
@@ -13,6 +15,7 @@ interface Message {
 }
 
 interface GoalSimpleChatProps {
+  testScheduleId: number
   studentName: string
   testName: string
   testDate: string
@@ -43,9 +46,9 @@ const getAvatarSrc = (avatarId?: string | null) => {
 }
 
 export function GoalSimpleChat({
+  testScheduleId,
   studentName,
-  testName,
-  testDate,
+  // testName, testDate: API 側は testScheduleId から DB 再構築するため不使用
   targetCourse,
   targetClass,
   initialThoughts,
@@ -61,6 +64,8 @@ export function GoalSimpleChat({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const hasStartedRef = useRef(false)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
+  const typingCancelRef = useRef<(() => void) | null>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -104,72 +109,99 @@ export function GoalSimpleChat({
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)
       }
+      abortRef.current?.abort()
+      typingCancelRef.current?.()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** SSEでストリーミング取得。失敗時は非ストリームフォールバック */
+  const fetchStepMessage = async (
+    step: number,
+    history: { role: string; content: string }[],
+    msgIdBase: number,
+  ): Promise<string | null> => {
+    const controller = new AbortController()
+    abortRef.current = controller
+    const placeholderId = msgIdBase
+
+    try {
+      const result = await fetchSSE(
+        "/api/goal/stream",
+        {
+          flowType: "simple",
+          step,
+          testScheduleId,
+          targetCourse,
+          targetClass,
+          conversationHistory: history,
+        },
+        (accumulated) => {
+          setMessages((prev) => {
+            const existing = prev.find((m) => m.id === placeholderId)
+            if (existing) {
+              return prev.map((m) =>
+                m.id === placeholderId ? { ...m, content: accumulated } : m
+              )
+            }
+            return [...prev, { id: placeholderId, role: "assistant", content: accumulated }]
+          })
+        },
+        controller.signal,
+      )
+      return result.content
+    } catch (e) {
+      if ((e as Error).name === "AbortError") return null
+
+      // 非ストリームフォールバック
+      console.warn("[GoalSimpleChat] SSE failed, falling back to non-stream:", e)
+      try {
+        const res = await fetch("/api/goal/simple-navigation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            testScheduleId,
+            targetCourse,
+            targetClass,
+            step,
+            conversationHistory: history,
+          }),
+        })
+        const data = await res.json()
+        return data.message ?? null
+      } catch {
+        return null
+      }
+    }
+  }
 
   const startConversation = async () => {
     if (hasStartedRef.current) return
     hasStartedRef.current = true
     setIsLoading(true)
 
-    try {
-      const response = await fetch("/api/goal/simple-navigation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          studentName,
-          testName,
-          testDate,
-          targetCourse,
-          targetClass,
-          step: 1,
-        }),
-      })
+    const message = await fetchStepMessage(1, [], 1)
 
-      const data = await response.json()
+    if (message) {
+      setMessages([{ id: 1, role: "assistant", content: message }])
+      setIsLoading(false)
 
-      if (data.message) {
-        setMessages([{ id: 1, role: "assistant", content: data.message }])
-        setIsLoading(false)
-
-        // 3秒後に自動でStep2へ進む
-        timeoutRef.current = setTimeout(async () => {
-          setIsLoading(true)
-          try {
-            const response2 = await fetch("/api/goal/simple-navigation", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                studentName,
-                testName,
-                testDate,
-                targetCourse,
-                targetClass,
-                step: 2,
-              }),
-            })
-
-            const data2 = await response2.json()
-
-            if (data2.message) {
-              setMessages((prev) => [
-                ...prev,
-                { id: prev.length + 1, role: "assistant", content: data2.message },
-              ])
-              setCurrentStep(2)
+      // 3秒後に自動でStep2へ進む
+      timeoutRef.current = setTimeout(async () => {
+        setIsLoading(true)
+        const msg2 = await fetchStepMessage(2, [], 2)
+        if (msg2) {
+          setMessages((prev) => {
+            const existing = prev.find((m) => m.id === 2)
+            if (existing) {
+              return prev.map((m) => (m.id === 2 ? { ...m, content: msg2 } : m))
             }
-          } catch (error) {
-            console.error("Step2遷移エラー:", error)
-          } finally {
-            setIsLoading(false)
-          }
-        }, 3000)
-      } else if (data.error) {
-        alert("エラーが発生しました: " + data.error)
+            return [...prev, { id: 2, role: "assistant", content: msg2 }]
+          })
+          setCurrentStep(2)
+        }
         setIsLoading(false)
-      }
-    } catch (error) {
-      console.error("AI対話開始エラー:", error)
+      }, 3000)
+    } else {
       alert("エラーが発生しました")
       setIsLoading(false)
     }
@@ -190,75 +222,88 @@ export function GoalSimpleChat({
       content: userInput.trim(),
     }
 
+    // ローカル変数でstate競合を回避
     const updatedMessages = [...messages, newUserMessage]
     setMessages(updatedMessages)
     setUserInput("")
     setIsLoading(true)
 
+    const history = updatedMessages.map((m) => ({ role: m.role, content: m.content }))
+
     try {
-      // Step2の回答後 → Step3の質問を取得
+      // Step2の回答後 → Step3の質問をSSEで取得
       if (currentStep === 2) {
-        const response = await fetch("/api/goal/simple-navigation", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            studentName,
-            testName,
-            testDate,
-            targetCourse,
-            targetClass,
-            step: 3,
-            previousAnswer: newUserMessage.content,
-          }),
-        })
+        const msgId = updatedMessages.length + 1
+        const message = await fetchStepMessage(3, history, msgId)
 
-        const data = await response.json()
-
-        if (data.message) {
-          const aiMessage: Message = {
-            id: updatedMessages.length + 1,
-            role: "assistant",
-            content: data.message,
-          }
-          setMessages([...updatedMessages, aiMessage])
+        if (message) {
+          setMessages((prev) => {
+            const existing = prev.find((m) => m.id === msgId)
+            if (existing) {
+              return prev.map((m) => (m.id === msgId ? { ...m, content: message } : m))
+            }
+            return [...prev, { id: msgId, role: "assistant", content: message }]
+          })
           setCurrentStep(3)
-        } else {
+        } else if (!abortRef.current?.signal.aborted) {
           alert("対話に失敗しました")
         }
       }
-      // Step3の回答後 → まとめ生成
+      // Step3の回答後 → まとめ生成 + simulateTyping
       else if (currentStep === 3) {
+        const controller = new AbortController()
+        abortRef.current = controller
+
         const response = await fetch("/api/goal/simple-thoughts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            studentName,
-            testName,
-            testDate,
+            testScheduleId,
             targetCourse,
             targetClass,
-            conversationHistory: updatedMessages,
+            conversationHistory: history,
           }),
+          signal: controller.signal,
         })
 
         const data = await response.json()
 
         if (data.thoughts) {
           setGeneratedThoughts(data.thoughts)
-          const aiMessage: Message = {
-            id: updatedMessages.length + 1,
-            role: "assistant",
-            content: `素敵な思いをありがとう！\n\nあなたの気持ちを「今回の思い」にまとめたよ。\n\n---\n\n${data.thoughts}\n\n---\n\nこの内容でよければ「この内容で保存」を押してね。`,
-          }
-          setMessages([...updatedMessages, aiMessage])
+
+          // simulateTyping で疑似タイピング表示
+          const summaryText = `素敵な思いをありがとう！\n\nあなたの気持ちを「今回の思い」にまとめたよ。\n\n---\n\n${data.thoughts}\n\n---\n\nこの内容でよければ「この内容で保存」を押してね。`
+          const typingMsgId = updatedMessages.length + 1
+
+          setMessages((prev) => [
+            ...prev,
+            { id: typingMsgId, role: "assistant", content: "" },
+          ])
+
+          const { cancel, promise } = simulateTyping(
+            summaryText,
+            (partial) => {
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === typingMsgId ? { ...m, content: partial } : m
+                )
+              )
+            },
+          )
+          typingCancelRef.current = cancel
+          await promise
+          typingCancelRef.current = null
+
           setCurrentStep(4)
         } else {
           alert("まとめ生成に失敗しました")
         }
       }
     } catch (error) {
-      console.error("メッセージ送信エラー:", error)
-      alert("エラーが発生しました")
+      if ((error as Error).name !== "AbortError") {
+        console.error("メッセージ送信エラー:", error)
+        alert("エラーが発生しました")
+      }
     } finally {
       setIsLoading(false)
     }
