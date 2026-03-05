@@ -204,6 +204,21 @@ export interface GoalNavigationContext {
 }
 
 /**
+ * Simple flow 動的ステップ用コンテキスト
+ */
+export interface SimpleGoalContext {
+  studentName: string
+  testName: string
+  testDate: string
+  targetCourse: string
+  targetClass: number
+  conversationHistory: {
+    role: "assistant" | "user"
+    content: string
+  }[]
+}
+
+/**
  * ゴールナビのシステムプロンプト
  */
 export function getGoalNavigationSystemPrompt(): string {
@@ -296,4 +311,165 @@ JSONのみを出力し、他の説明文は含めないでください。`,
   }
 
   return stepPrompts[currentStep]
+}
+
+// ─── 動的ステッププロンプト（SSE用） ──────────────────────────
+
+/** 対話履歴をプロンプト用テキストに整形 */
+function formatHistory(
+  history: { role: "assistant" | "user"; content: string }[]
+): string {
+  if (history.length === 0) return "（まだ対話はありません）"
+  return history
+    .map((m) => `${m.role === "assistant" ? "AIコーチ" : "生徒"}: ${m.content}`)
+    .join("\n")
+}
+
+/** Simple / Full flow 共通のシステムプロンプト */
+const GOAL_COACHING_SYSTEM_PROMPT = `あなたは中学受験を目指す小学生のAIコーチです。
+生徒が次のテストに向けて目標を設定し、自分の思いを表現できるようサポートします。
+
+【対話の原則】
+- セルフコンパッション: 結果より努力・挑戦を大切にする
+- 成長マインドセット: 能力は努力で伸びる
+- 感情に寄り添い、生徒の言葉を尊重する
+- プレッシャーを与えず、安心できる対話
+- 質問は1つずつ、シンプルに
+
+【トーン】
+- 温かく、親しみやすい「友達のような口調」
+- 小学生が理解しやすい言葉遣い
+- 絵文字は控えめに（1〜2個まで）
+- 「〜だね！」「〜してみよう！」など自然な表現
+
+【文字数】各メッセージ50〜150文字程度`
+
+/**
+ * Simple flow の各ステップ用プロンプト（SSEストリーム用）
+ *
+ * Step 1: 目標確認メッセージ（質問なし）
+ * Step 2: 感情探索の質問（生徒の目標に適応）
+ * Step 3: 受容 + 予祝質問（生徒の回答に適応）
+ */
+export function getSimpleGoalStepPrompt(
+  context: SimpleGoalContext,
+  step: 1 | 2 | 3
+): { systemPrompt: string; userPrompt: string } {
+  const { studentName, testName, testDate, targetCourse, targetClass, conversationHistory } =
+    context
+
+  switch (step) {
+    case 1:
+      return {
+        systemPrompt: GOAL_COACHING_SYSTEM_PROMPT,
+        userPrompt: `【指示】生徒の目標を確認し、モチベーションを高める温かいメッセージを生成してください。
+
+生徒: ${studentName}
+目標テスト: ${testName}（${testDate}）
+目標: ${targetCourse}コース${targetClass}組
+
+【出力条件】
+- 2〜3文（50〜100文字）
+- 生徒の名前で呼びかける
+- 目標を確認し、前向きな一言を添える
+- 質問は含めない（次のステップで質問します）`,
+      }
+
+    case 2:
+      return {
+        systemPrompt: GOAL_COACHING_SYSTEM_PROMPT,
+        userPrompt: `【指示】生徒に「目標が達成できたらどんな気持ちになるか」を問いかける質問を1つ生成してください。
+
+生徒: ${studentName}
+目標: ${targetCourse}コース${targetClass}組（${testName}）
+
+これまでの対話:
+${formatHistory(conversationHistory)}
+
+【出力条件】
+- 質問1つのみ（改行なし、1行で出力）
+- 50〜150文字
+- 必ず「？」で終わる
+- 基本テーマ: 目標達成時の気持ちをイメージさせる
+- 直前の対話内容に触れて自然につなげる
+- 「それが達成できたら、どんな気持ちになると思う？」のような質問を、生徒の文脈に合わせて生成する`,
+      }
+
+    case 3:
+      return {
+        systemPrompt: GOAL_COACHING_SYSTEM_PROMPT,
+        userPrompt: `【指示】生徒の回答を受け止めた上で、「目標を達成した未来の自分から今の自分にメッセージを送る」イメージの質問を生成してください。
+
+生徒: ${studentName}
+目標: ${targetCourse}コース${targetClass}組（${testName}）
+
+これまでの対話:
+${formatHistory(conversationHistory)}
+
+【出力条件】
+- 受容の一言 + 質問で構成（改行なし、1行で出力）
+- 50〜150文字
+- 必ず「？」で終わる
+- まず生徒の回答に共感・受容する（生徒の言葉を引用）
+- その上で「未来の自分から今の自分へ一言送るとしたら？」のような質問を、対話の流れに合わせて生成する
+- 基本テーマ: 予祝（未来から今を見る視点）`,
+      }
+  }
+}
+
+/**
+ * Full flow の各ステップ用プロンプト（SSEストリーム用）
+ *
+ * Step 1: 目標確認 + 感情探索質問
+ * Step 2: 受容 + 予祝質問（生徒の回答に適応）
+ */
+export function getFullGoalStepPrompt(
+  context: GoalNavigationContext
+): { systemPrompt: string; userPrompt: string } {
+  const { studentName, targetCourse, targetClass, testName, testDate, conversationHistory, currentStep } =
+    context
+
+  switch (currentStep) {
+    case 1:
+      return {
+        systemPrompt: GOAL_COACHING_SYSTEM_PROMPT,
+        userPrompt: `【指示】生徒の目標を確認し、感情を探索する質問を含むメッセージを生成してください。
+
+生徒: ${studentName}
+目標テスト: ${testName}（${testDate}）
+目標: ${targetCourse}コース${targetClass}組
+
+【出力条件】
+- 目標確認（「〜を目指すんだね！」）+ 前向きな一言 + 感情質問
+- 80〜150文字
+- 必ず「？」で終わる
+- 最後に「それが達成できたら、どんな気持ちになると思う？」のような質問を添える`,
+      }
+
+    case 2:
+      return {
+        systemPrompt: GOAL_COACHING_SYSTEM_PROMPT,
+        userPrompt: `【指示】生徒の回答を受け止めた上で、「目標を達成した未来の自分から今の自分にメッセージを送る」イメージの質問を生成してください。
+
+生徒: ${studentName}
+目標: ${targetCourse}コース${targetClass}組（${testName}）
+
+これまでの対話:
+${formatHistory(conversationHistory)}
+
+【出力条件】
+- 受容の一言 + 質問で構成（改行なし、1行で出力）
+- 50〜150文字
+- 必ず「？」で終わる
+- まず生徒の回答に共感・受容する
+- その上で「その自分から"今の自分"にひとこと送るとしたら？」のような質問を、対話の流れに合わせて生成する`,
+      }
+
+    // Step 3はJSON非ストリーム（既存のgetGoalNavigationStepPrompt使用）
+    default:
+      return {
+        systemPrompt: getGoalNavigationSystemPrompt(),
+        userPrompt: getGoalNavigationStepPrompt(context),
+      }
+  }
 }
