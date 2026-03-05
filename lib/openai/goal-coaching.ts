@@ -1,4 +1,4 @@
-import { getOpenAIClient } from "./client"
+import { getOpenAIClient, getDefaultModel } from "./client"
 import { getGeminiClient, getModelForModule } from "../llm/client"
 import { sanitizeForLog } from "../llm/logger"
 import { toGeminiContents } from "../llm/gemini-utils"
@@ -7,6 +7,7 @@ import {
   getGoalNavigationStepPrompt,
   type GoalNavigationContext,
 } from "./prompts"
+import type { LLMStreamEvent } from "../llm/types"
 
 /**
  * ゴールナビのAI対話を実行
@@ -186,4 +187,99 @@ async function generateGoalThoughtsGemini(
     console.error("Goal thoughts generation error (Gemini):", sanitizeForLog(error))
     return { error: error instanceof Error ? error.message : "目標の思いの生成に失敗しました" }
   }
+}
+
+// ─── SSEストリーミング生成（プロンプトは引数で受ける） ──────────
+
+/**
+ * ゴールナビSSEストリーム生成
+ *
+ * プロンプト構築責務はroute.ts + prompts.tsに委譲。
+ * この関数は受け取ったプロンプトをLLMに渡してストリーミング出力するのみ。
+ *
+ * @param systemPrompt システムプロンプト
+ * @param userPrompt ユーザープロンプト
+ * @param signal AbortSignal（クライアント離脱時のキャンセル用）
+ */
+export async function* generateGoalNavigationMessageStream(
+  systemPrompt: string,
+  userPrompt: string,
+  signal?: AbortSignal
+): AsyncGenerator<LLMStreamEvent> {
+  const { provider, model } = getModelForModule("goal", "realtime")
+
+  if (provider === "gemini") {
+    yield* streamGoalGemini(systemPrompt, userPrompt, model, signal)
+  } else {
+    yield* streamGoalOpenAI(systemPrompt, userPrompt, signal)
+  }
+}
+
+async function* streamGoalOpenAI(
+  systemPrompt: string,
+  userPrompt: string,
+  signal?: AbortSignal
+): AsyncGenerator<LLMStreamEvent> {
+  const openai = getOpenAIClient()
+  const model = getDefaultModel()
+
+  const stream = await openai.chat.completions.create(
+    {
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      max_completion_tokens: 400,
+      stream: true,
+    },
+    { signal }
+  )
+
+  let fullContent = ""
+  for await (const chunk of stream) {
+    if (signal?.aborted) break
+    const delta = chunk.choices[0]?.delta?.content
+    if (delta) {
+      fullContent += delta
+      yield { type: "delta", content: delta }
+    }
+  }
+
+  if (signal?.aborted) return
+
+  yield { type: "done", content: fullContent }
+}
+
+async function* streamGoalGemini(
+  systemPrompt: string,
+  userPrompt: string,
+  model: string,
+  signal?: AbortSignal
+): AsyncGenerator<LLMStreamEvent> {
+  const client = getGeminiClient()
+
+  const response = await client.models.generateContentStream({
+    model,
+    config: {
+      systemInstruction: systemPrompt,
+      maxOutputTokens: 400,
+      abortSignal: signal,
+    },
+    contents: [{ role: "user" as const, parts: [{ text: userPrompt }] }],
+  })
+
+  let fullContent = ""
+  for await (const chunk of response) {
+    if (signal?.aborted) break
+    const delta = chunk.text
+    if (delta) {
+      fullContent += delta
+      yield { type: "delta", content: delta }
+    }
+  }
+
+  if (signal?.aborted) return
+
+  yield { type: "done", content: fullContent }
 }

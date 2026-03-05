@@ -3,6 +3,14 @@ import { getOpenAIClient } from "@/lib/openai/client"
 import { getGeminiClient, getModelForModule } from "@/lib/llm/client"
 import { sanitizeForLog } from "@/lib/llm/logger"
 import { requireAuth } from "@/lib/api/auth"
+import {
+  getSimpleGoalStepPrompt,
+  type SimpleGoalContext,
+} from "@/lib/openai/prompts"
+import {
+  validateGoalStepOutput,
+  FALLBACK_TEMPLATES,
+} from "@/lib/openai/goal-output-validator"
 
 interface RequestBody {
   studentName: string
@@ -12,6 +20,12 @@ interface RequestBody {
   targetClass: number
   step: 1 | 2 | 3
   previousAnswer?: string
+  conversationHistory?: { role: "assistant" | "user"; content: string }[]
+}
+
+/** 動的ステップが有効か */
+function isDynamicStepsEnabled(): boolean {
+  return process.env.GOAL_DYNAMIC_STEPS_ENABLED !== "false"
 }
 
 export async function POST(request: NextRequest) {
@@ -22,47 +36,21 @@ export async function POST(request: NextRequest) {
     const body: RequestBody = await request.json()
     const { studentName, testName, testDate, targetCourse, targetClass, step } = body
 
-    let systemPrompt = ""
-    let userPrompt = ""
-
-    // Step 1: 目標確認
-    if (step === 1) {
-      systemPrompt = `あなたは中学受験を目指す小学生を応援するAIコーチです。
-生徒が設定した目標に対して、温かく前向きな言葉でモチベーションを高めてください。
-
-# 重要な指針
-- 生徒の名前を呼びかけて親しみを持たせる
-- 「〜だね！」「〜しようね！」など、友達のような口調
-- 目標達成への期待感を込める
-- プレッシャーを与えず、ポジティブな気持ちにさせる
-
-# 出力形式
-- 2〜3文で簡潔に
-- 絵文字を1〜2個使用してもOK
-- 生徒の名前を最初に呼びかける`
-
-      userPrompt = `生徒情報:
-- 名前: ${studentName}
-- 目標テスト: ${testName}（${testDate}）
-- 目標コース: ${targetCourse}コース
-- 目標組: ${targetClass}組
-
-上記の目標に対して、生徒を励ますメッセージを生成してください。`
+    // 動的ステップ無効時: Steps 2-3 はフォールバックテンプレートを返す
+    if (!isDynamicStepsEnabled() && (step === 2 || step === 3)) {
+      return NextResponse.json({ message: FALLBACK_TEMPLATES[step] })
     }
-    // Step 2: 感情探索
-    else if (step === 2) {
-      // Step2は固定の質問を返す
-      return NextResponse.json({
-        message: "それが達成できたら、どんな気持ちになると思う？"
-      })
+
+    // プロンプト生成（prompts.ts関数を使用 = プロンプト単一責務）
+    const ctx: SimpleGoalContext = {
+      studentName,
+      testName,
+      testDate,
+      targetCourse,
+      targetClass,
+      conversationHistory: body.conversationHistory ?? [],
     }
-    // Step 3: 未来メッセージ
-    else if (step === 3) {
-      // Step3は固定の質問を返す
-      return NextResponse.json({
-        message: 'その自分から"今の自分"にひとこと送るとしたら？'
-      })
-    }
+    const { systemPrompt, userPrompt } = getSimpleGoalStepPrompt(ctx, step)
 
     // AI呼び出し（プロバイダ分岐）
     const { provider, model } = getModelForModule("goal", "realtime")
@@ -94,6 +82,15 @@ export async function POST(request: NextRequest) {
 
     if (!message) {
       return NextResponse.json({ error: "メッセージ生成に失敗しました" }, { status: 500 })
+    }
+
+    // Steps 2-3: 出力バリデーション
+    if (step === 2 || step === 3) {
+      const validated = validateGoalStepOutput(message, step)
+      if (!validated.valid) {
+        console.warn(`[Goal simple-nav] validation failed step=${step}: ${validated.reason}`)
+        return NextResponse.json({ message: validated.content })
+      }
     }
 
     return NextResponse.json({ message })
