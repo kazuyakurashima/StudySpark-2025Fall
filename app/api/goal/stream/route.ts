@@ -28,7 +28,7 @@ const requestSchema = z.object({
   step: z.number().int().min(1).max(3),
   testScheduleId: z.number().int().positive(),
   targetCourse: z.enum(VALID_COURSES),
-  targetClass: z.number().int().min(1).max(20),
+  targetClass: z.number().int().min(1).max(40),
   conversationHistory: z
     .array(
       z.object({

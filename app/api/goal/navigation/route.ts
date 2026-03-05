@@ -18,9 +18,10 @@ import { toGeminiContents } from "@/lib/llm/gemini-utils"
 const VALID_COURSES = ["S", "A", "B", "C"] as const
 
 const requestSchema = z.object({
-  testScheduleId: z.number().int().positive(),
+  // 新クライアント: testScheduleId でDB再構築
+  testScheduleId: z.number().int().positive().optional(),
   targetCourse: z.enum(VALID_COURSES),
-  targetClass: z.number().int().min(1).max(20),
+  targetClass: z.number().int().min(1).max(40),
   currentStep: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   conversationHistory: z
     .array(
@@ -31,11 +32,16 @@ const requestSchema = z.object({
     )
     .max(20)
     .default([]),
-  // 後方互換: 旧クライアントが送る可能性のあるフィールド（無視する）
-  studentName: z.string().optional(),
-  testName: z.string().optional(),
-  testDate: z.string().optional(),
+  // 後方互換: 旧クライアントが送るフィールド（testScheduleId未送信時に使用）
+  studentName: z.string().max(100).optional(),
+  testName: z.string().max(200).optional(),
+  testDate: z.string().max(20).optional(),
 })
+
+/** 動的ステップが有効か */
+function isDynamicStepsEnabled(): boolean {
+  return process.env.GOAL_DYNAMIC_STEPS_ENABLED !== "false"
+}
 
 export async function POST(request: NextRequest) {
   const auth = await requireAuth(["student"])
@@ -61,56 +67,85 @@ export async function POST(request: NextRequest) {
   const body = parsed.data
 
   try {
-    // DB再構築: studentName + testName/testDate をサーバー側で取得
+    // 動的ステップ無効時: Step 2 はフォールバックテンプレートを返す
+    if (!isDynamicStepsEnabled() && body.currentStep === 2) {
+      const key = "full:2" as keyof typeof FALLBACK_TEMPLATES
+      return NextResponse.json({ message: FALLBACK_TEMPLATES[key] })
+    }
+
+    // --- 互換レイヤー: testScheduleId の有無で経路分岐 ---
+    let studentName: string
+    let testName: string
+    let testDate: string
+
     const supabase = await createClient()
 
-    const [studentResult, scheduleResult] = await Promise.all([
-      supabase
+    if (body.testScheduleId) {
+      // 新クライアント: DB再構築
+      const [studentResult, scheduleResult] = await Promise.all([
+        supabase
+          .from("students")
+          .select("id, full_name, grade")
+          .eq("user_id", auth.user.id)
+          .single(),
+        supabase
+          .from("test_schedules")
+          .select(`
+            id,
+            test_date,
+            test_types!inner ( name, grade )
+          `)
+          .eq("id", body.testScheduleId)
+          .single(),
+      ])
+
+      if (!studentResult.data) {
+        return NextResponse.json({ error: "生徒情報が見つかりません" }, { status: 404 })
+      }
+      const student = studentResult.data
+
+      if (!scheduleResult.data) {
+        return NextResponse.json(
+          { error: "指定されたテスト日程が見つかりません" },
+          { status: 404 }
+        )
+      }
+      const schedule = scheduleResult.data
+
+      // 学年整合チェック
+      const testTypes = Array.isArray(schedule.test_types)
+        ? schedule.test_types[0]
+        : schedule.test_types
+      if (testTypes && testTypes.grade !== student.grade) {
+        return NextResponse.json(
+          { error: "テストの対象学年と生徒の学年が一致しません" },
+          { status: 400 }
+        )
+      }
+
+      studentName = student.full_name
+      testName = testTypes?.name ?? "テスト"
+      testDate = schedule.test_date
+    } else {
+      // 旧クライアント互換: クライアント送信値を使用（フロントエンド移行完了後に削除予定）
+      console.warn(
+        `[Goal nav compat] legacy payload used: userId=${auth.user.id} step=${body.currentStep}`
+      )
+
+      // studentName は DB から取得（セキュリティ上クライアント値を信頼しない）
+      const studentResult = await supabase
         .from("students")
-        .select("id, full_name, grade")
+        .select("full_name")
         .eq("user_id", auth.user.id)
-        .single(),
-      supabase
-        .from("test_schedules")
-        .select(`
-          id,
-          test_date,
-          test_types!inner ( name, grade )
-        `)
-        .eq("id", body.testScheduleId)
-        .single(),
-    ])
-
-    if (!studentResult.data) {
-      return NextResponse.json({ error: "生徒情報が見つかりません" }, { status: 404 })
+        .single()
+      studentName = studentResult.data?.full_name ?? body.studentName ?? "生徒"
+      testName = body.testName ?? "テスト"
+      testDate = body.testDate ?? new Date().toISOString().slice(0, 10)
     }
-    const student = studentResult.data
-
-    if (!scheduleResult.data) {
-      return NextResponse.json(
-        { error: "指定されたテスト日程が見つかりません" },
-        { status: 404 }
-      )
-    }
-    const schedule = scheduleResult.data
-
-    // 学年整合チェック
-    const testTypes = Array.isArray(schedule.test_types)
-      ? schedule.test_types[0]
-      : schedule.test_types
-    if (testTypes && testTypes.grade !== student.grade) {
-      return NextResponse.json(
-        { error: "テストの対象学年と生徒の学年が一致しません" },
-        { status: 400 }
-      )
-    }
-
-    const testName = testTypes?.name ?? "テスト"
-    const testDate = schedule.test_date
 
     // プロンプト生成（prompts.ts関数を使用 = プロンプト単一責務）
     const ctx: GoalNavigationContext = {
-      studentName: student.full_name,
+      studentName,
       testName,
       testDate,
       targetCourse: body.targetCourse,
