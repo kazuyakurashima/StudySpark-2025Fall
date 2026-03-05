@@ -164,6 +164,40 @@ goal-backend PR では API 入力スキーマが変更される（`testName`/`te
 
 既存テスト8件 → 10件に拡張（バリデータ）。stream generator テスト2件新規。合計+4件。
 
+**互換レイヤー管理**:
+
+| 項目 | 内容 |
+|------|------|
+| 対象ルート | `simple-navigation/route.ts`, `navigation/route.ts` |
+| 互換フィールド | `studentName`, `testName`, `testDate`（`.optional()` で受付、`testScheduleId` 優先） |
+| 削除条件 | goal-frontend PR マージ完了 かつ 本番で旧ペイロード利用率 0% を1週間確認 |
+| 削除期限 | goal-frontend PR マージ後 2週間以内。超過時は強制削除してよい |
+| 利用率ログ | 互換経路通過時に `console.warn("[Goal compat] legacy payload used")` を出力。Vercel ログで検索可能にする |
+
+**契約テスト（v5追加分）**:
+
+| ファイル | テスト対象 | ケース数 |
+|---------|-----------|---------|
+| `app/api/goal/__tests__/route-compat.test.ts` | 旧/新ペイロード互換 | 3（simple-nav旧形式, navigation旧形式, stream新形式のみ） |
+
+**マージ条件**:
+
+```
+PR #18（v5計画書）承認済み
+  ↓
+PR #17（goal-backend）修正再開
+  - 互換レイヤー実装
+  - 契約テスト追加
+  - 互換経路の利用率ログ追加
+  - pnpm test / pnpm build 通過
+  ↓
+PR #17 承認 → main マージ
+  ↓
+goal-frontend PR 作成（testScheduleId送信 + 互換レイヤー削除）
+  ↓
+spark-sse PR 作成
+```
+
 ---
 
 ## Phase 1: Reflectストリーミング化 + サーバー側エンリッチメント
