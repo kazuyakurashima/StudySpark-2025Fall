@@ -3,6 +3,7 @@ import { generateGoalThoughts } from "@/lib/openai/goal-coaching"
 import { requireAuth } from "@/lib/api/auth"
 import { thoughtsSchema } from "@/lib/api/goal-schemas"
 import { createClient } from "@/lib/supabase/route"
+import { sanitizeForLog } from "@/lib/llm/logger"
 
 const requestSchema = thoughtsSchema
 
@@ -118,7 +119,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ goalThoughts })
   } catch (error) {
-    console.error("Goal thoughts API error:", error)
+    console.error("Goal thoughts API error:", sanitizeForLog(error))
     return NextResponse.json({ error: "サーバーエラーが発生しました" }, { status: 500 })
   }
 }
