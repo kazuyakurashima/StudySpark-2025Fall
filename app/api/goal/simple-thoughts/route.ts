@@ -3,32 +3,109 @@ import { getOpenAIClient } from "@/lib/openai/client"
 import { getGeminiClient, getModelForModule } from "@/lib/llm/client"
 import { sanitizeForLog } from "@/lib/llm/logger"
 import { requireAuth } from "@/lib/api/auth"
+import { simpleThoughtsSchema } from "@/lib/api/goal-schemas"
+import { createClient } from "@/lib/supabase/route"
 
-interface Message {
-  id: number
-  role: "assistant" | "user"
-  content: string
-}
-
-interface RequestBody {
-  studentName: string
-  testName: string
-  testDate: string
-  targetCourse: string
-  targetClass: number
-  conversationHistory: Message[]
-}
+const requestSchema = simpleThoughtsSchema
 
 export async function POST(request: NextRequest) {
   const auth = await requireAuth(["student"])
   if ("error" in auth) return auth.error
 
+  let rawBody: unknown
   try {
-    const body: RequestBody = await request.json()
-    const { studentName, testName, testDate, targetCourse, targetClass, conversationHistory } = body
+    rawBody = await request.json()
+  } catch {
+    return NextResponse.json(
+      { error: "リクエストの解析に失敗しました" },
+      { status: 400 }
+    )
+  }
+
+  const parsed = requestSchema.safeParse(rawBody)
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "不正なリクエストです", details: parsed.error.flatten() },
+      { status: 400 }
+    )
+  }
+  const body = parsed.data
+
+  try {
+    // --- 互換レイヤー: testScheduleId の有無で経路分岐 ---
+    let studentName: string
+    let testName: string
+    let testDate: string
+
+    const supabase = await createClient()
+
+    if (body.testScheduleId) {
+      // 新クライアント: DB再構築
+      const [studentResult, scheduleResult] = await Promise.all([
+        supabase
+          .from("students")
+          .select("id, full_name, grade")
+          .eq("user_id", auth.user.id)
+          .single(),
+        supabase
+          .from("test_schedules")
+          .select(`
+            id,
+            test_date,
+            test_types!inner ( name, grade )
+          `)
+          .eq("id", body.testScheduleId)
+          .single(),
+      ])
+
+      if (!studentResult.data) {
+        return NextResponse.json({ error: "生徒情報が見つかりません" }, { status: 404 })
+      }
+      const student = studentResult.data
+
+      if (!scheduleResult.data) {
+        return NextResponse.json(
+          { error: "指定されたテスト日程が見つかりません" },
+          { status: 404 }
+        )
+      }
+      const schedule = scheduleResult.data
+
+      // 学年整合チェック
+      const testTypes = Array.isArray(schedule.test_types)
+        ? schedule.test_types[0]
+        : schedule.test_types
+      if (testTypes && testTypes.grade !== student.grade) {
+        return NextResponse.json(
+          { error: "テストの対象学年と生徒の学年が一致しません" },
+          { status: 400 }
+        )
+      }
+
+      studentName = student.full_name
+      testName = testTypes?.name ?? "テスト"
+      testDate = schedule.test_date
+    } else {
+      // 旧クライアント互換（フロントエンド移行完了後に削除予定）
+      console.warn(
+        `[Goal simple-thoughts compat] legacy payload used: userId=${auth.user.id}`
+      )
+
+      const studentResult = await supabase
+        .from("students")
+        .select("full_name")
+        .eq("user_id", auth.user.id)
+        .single()
+      if (!studentResult.data) {
+        return NextResponse.json({ error: "生徒情報が見つかりません" }, { status: 404 })
+      }
+      studentName = studentResult.data.full_name
+      testName = body.testName ?? "テスト"
+      testDate = body.testDate ?? new Date().toISOString().slice(0, 10)
+    }
 
     // 生徒の回答を抽出（ユーザーメッセージのみ）
-    const userAnswers = conversationHistory
+    const userAnswers = body.conversationHistory
       .filter((msg) => msg.role === "user")
       .map((msg) => msg.content)
 
@@ -56,8 +133,8 @@ export async function POST(request: NextRequest) {
     const userPrompt = `生徒情報:
 - 名前: ${studentName}
 - 目標テスト: ${testName}（${testDate}）
-- 目標コース: ${targetCourse}コース
-- 目標組: ${targetClass}組
+- 目標コース: ${body.targetCourse}コース
+- 目標組: ${body.targetClass}組
 
 対話内容:
 質問1: それが達成できたら、どんな気持ちになると思う？

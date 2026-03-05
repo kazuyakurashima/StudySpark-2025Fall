@@ -857,8 +857,9 @@ function GoalPageInner() {
               </Card>
             )}
 
-            {showAIChat && selectedTest && (
+            {showAIChat && selectedTest && !Number.isNaN(Number(selectedTest.id)) && (
               <GoalNavigationChat
+                testScheduleId={Number(selectedTest.id)}
                 studentName={studentName}
                 studentAvatar={getAvatarSrc(studentAvatar)}
                 testName={selectedTest.test_types.name}
@@ -868,6 +869,17 @@ function GoalPageInner() {
                 onComplete={handleAIChatComplete}
                 onCancel={handleAIChatCancel}
               />
+            )}
+
+            {showAIChat && selectedTest && Number.isNaN(Number(selectedTest.id)) && (
+              <Card className="card-elevated border-red-200 bg-red-50">
+                <CardContent className="p-6 text-center">
+                  <p className="text-red-700 mb-3">テスト情報の読み込みに問題があります。ページを再読み込みしてください。</p>
+                  <Button variant="outline" onClick={() => window.location.reload()}>
+                    再読み込み
+                  </Button>
+                </CardContent>
+              </Card>
             )}
 
             {showDirectInput && !showAIChat && !showInputChoice && (
