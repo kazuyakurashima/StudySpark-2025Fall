@@ -173,9 +173,10 @@ goal-backend PR では API 入力スキーマが変更される（`testName`/`te
 |------|------|
 | 対象ルート | `simple-navigation/route.ts`, `navigation/route.ts` |
 | 互換フィールド | `studentName`, `testName`, `testDate`（`.optional()` で受付、`testScheduleId` 優先） |
-| 削除条件 | Simple flow 導線チケット完了 かつ 本番で旧ペイロード利用率 0% を1週間確認 |
+| 削除条件 | Simple flow 導線チケット（#20）完了 かつ 本番で旧ペイロード利用率 **7日連続 0件** を確認 |
 | 削除期限 | Simple flow 導線チケット マージ後 2週間以内。超過時は強制削除してよい |
 | 利用率ログ | 互換経路通過時に `console.warn("[Goal compat] legacy payload used")` を出力。Vercel ログで検索可能にする |
+| 観測方法 | Vercel ログで `"[Goal compat] legacy payload used"` を日次検索。0件が7日連続で削除GO |
 
 **契約テスト（v5追加分）**:
 
