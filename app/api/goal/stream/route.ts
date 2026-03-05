@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server"
-import { z } from "zod"
 import { requireAuth } from "@/lib/api/auth"
+import { streamSchema } from "@/lib/api/goal-schemas"
 import { createClient } from "@/lib/supabase/route"
 import { sanitizeForLog } from "@/lib/llm/logger"
 import { getModelForModule } from "@/lib/llm/client"
@@ -21,25 +21,7 @@ import { SSE_META } from "@/lib/sse/types"
 
 export const runtime = "nodejs"
 
-const VALID_COURSES = ["S", "A", "B", "C"] as const
-
-const requestSchema = z.object({
-  flowType: z.enum(["simple", "full"]),
-  step: z.number().int().min(1).max(3),
-  testScheduleId: z.number().int().positive(),
-  targetCourse: z.enum(VALID_COURSES),
-  targetClass: z.number().int().min(1).max(40),
-  conversationHistory: z
-    .array(
-      z.object({
-        role: z.enum(["assistant", "user"]),
-        content: z.string().max(5000),
-      })
-    )
-    .max(20)
-    .default([]),
-  requestId: z.string().max(64).optional(),
-})
+const requestSchema = streamSchema
 
 /** 動的ステップが有効か（env変数による緊急無効化対応） */
 function isDynamicStepsEnabled(): boolean {

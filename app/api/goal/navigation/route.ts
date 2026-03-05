@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
-import { z } from "zod"
 import { getOpenAIClient } from "@/lib/openai/client"
 import { getGeminiClient, getModelForModule } from "@/lib/llm/client"
 import { sanitizeForLog } from "@/lib/llm/logger"
 import { requireAuth } from "@/lib/api/auth"
+import { navigationSchema } from "@/lib/api/goal-schemas"
 import { createClient } from "@/lib/supabase/route"
 import {
   getFullGoalStepPrompt,
@@ -15,28 +15,7 @@ import {
 } from "@/lib/openai/goal-output-validator"
 import { toGeminiContents } from "@/lib/llm/gemini-utils"
 
-const VALID_COURSES = ["S", "A", "B", "C"] as const
-
-const requestSchema = z.object({
-  // 新クライアント: testScheduleId でDB再構築
-  testScheduleId: z.number().int().positive().optional(),
-  targetCourse: z.enum(VALID_COURSES),
-  targetClass: z.number().int().min(1).max(40),
-  currentStep: z.union([z.literal(1), z.literal(2), z.literal(3)]),
-  conversationHistory: z
-    .array(
-      z.object({
-        role: z.enum(["assistant", "user"]),
-        content: z.string().max(5000),
-      })
-    )
-    .max(20)
-    .default([]),
-  // 後方互換: 旧クライアントが送るフィールド（testScheduleId未送信時に使用）
-  studentName: z.string().max(100).optional(),
-  testName: z.string().max(200).optional(),
-  testDate: z.string().max(20).optional(),
-})
+const requestSchema = navigationSchema
 
 /** 動的ステップが有効か */
 function isDynamicStepsEnabled(): boolean {
@@ -132,13 +111,16 @@ export async function POST(request: NextRequest) {
         `[Goal nav compat] legacy payload used: userId=${auth.user.id} step=${body.currentStep}`
       )
 
-      // studentName は DB から取得（セキュリティ上クライアント値を信頼しない）
+      // studentName は必ず DB から取得（クライアント値は使用しない）
       const studentResult = await supabase
         .from("students")
         .select("full_name")
         .eq("user_id", auth.user.id)
         .single()
-      studentName = studentResult.data?.full_name ?? body.studentName ?? "生徒"
+      if (!studentResult.data) {
+        return NextResponse.json({ error: "生徒情報が見つかりません" }, { status: 404 })
+      }
+      studentName = studentResult.data.full_name
       testName = body.testName ?? "テスト"
       testDate = body.testDate ?? new Date().toISOString().slice(0, 10)
     }

@@ -4,73 +4,18 @@
  * 旧クライアント（testScheduleId なし）と新クライアント（testScheduleId あり）の
  * 両方のペイロードが各ルートの zod スキーマを通過することを検証する。
  *
+ * スキーマは lib/api/goal-schemas.ts から直接 import することで、
+ * ルート側の定義と常に同期し、ドリフトを防ぐ。
+ *
  * ※ルートハンドラ全体のテスト（DB/Auth）は結合テストで行う。
  *   ここではスキーマ互換性のみを保証する。
  */
 import { describe, it, expect } from "vitest"
-import { z } from "zod"
-
-// --- simple-navigation スキーマ（route.ts と同一定義を再現） ---
-const VALID_COURSES = ["S", "A", "B", "C"] as const
-
-const simpleNavigationSchema = z.object({
-  testScheduleId: z.number().int().positive().optional(),
-  targetCourse: z.enum(VALID_COURSES),
-  targetClass: z.number().int().min(1).max(40),
-  step: z.union([z.literal(1), z.literal(2), z.literal(3)]),
-  conversationHistory: z
-    .array(
-      z.object({
-        role: z.enum(["assistant", "user"]),
-        content: z.string().max(5000),
-      })
-    )
-    .max(20)
-    .default([]),
-  studentName: z.string().max(100).optional(),
-  testName: z.string().max(200).optional(),
-  testDate: z.string().max(20).optional(),
-  previousAnswer: z.string().optional(),
-})
-
-// --- navigation スキーマ（route.ts と同一定義を再現） ---
-const navigationSchema = z.object({
-  testScheduleId: z.number().int().positive().optional(),
-  targetCourse: z.enum(VALID_COURSES),
-  targetClass: z.number().int().min(1).max(40),
-  currentStep: z.union([z.literal(1), z.literal(2), z.literal(3)]),
-  conversationHistory: z
-    .array(
-      z.object({
-        role: z.enum(["assistant", "user"]),
-        content: z.string().max(5000),
-      })
-    )
-    .max(20)
-    .default([]),
-  studentName: z.string().max(100).optional(),
-  testName: z.string().max(200).optional(),
-  testDate: z.string().max(20).optional(),
-})
-
-// --- stream スキーマ（route.ts と同一定義を再現） ---
-const streamSchema = z.object({
-  flowType: z.enum(["simple", "full"]),
-  step: z.number().int().min(1).max(3),
-  testScheduleId: z.number().int().positive(),
-  targetCourse: z.enum(VALID_COURSES),
-  targetClass: z.number().int().min(1).max(40),
-  conversationHistory: z
-    .array(
-      z.object({
-        role: z.enum(["assistant", "user"]),
-        content: z.string().max(5000),
-      })
-    )
-    .max(20)
-    .default([]),
-  requestId: z.string().max(64).optional(),
-})
+import {
+  simpleNavigationSchema,
+  navigationSchema,
+  streamSchema,
+} from "@/lib/api/goal-schemas"
 
 // ─── テストケース ───────────────────────────────────────────
 
