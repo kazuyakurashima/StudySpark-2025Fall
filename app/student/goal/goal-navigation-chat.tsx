@@ -47,6 +47,7 @@ export function GoalNavigationChat({
   const [isStarted, setIsStarted] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const typingCancelRef = useRef<(() => void) | null>(null)
+  const msgIdRef = useRef(0)
 
   useEffect(() => {
     return () => {
@@ -63,8 +64,8 @@ export function GoalNavigationChat({
     const controller = new AbortController()
     abortRef.current = controller
 
-    // 仮メッセージIDを先に確保
-    const placeholderId = messages.length + history.length + 1
+    // ref カウンタで一意ID確保（stale closure 回避）
+    const placeholderId = ++msgIdRef.current
 
     try {
       const result = await fetchSSE(
@@ -120,12 +121,13 @@ export function GoalNavigationChat({
   const startConversation = async () => {
     setIsStarted(true)
     setIsLoading(true)
+    msgIdRef.current = 0
 
     const message = await fetchStepMessage(1, [])
 
     if (message) {
       // fetchStepMessage already set messages via onChunk, but ensure final state
-      setMessages([{ id: 1, role: "assistant", content: message }])
+      setMessages([{ id: msgIdRef.current, role: "assistant", content: message }])
       setIsLoading(false)
     } else {
       alert("エラーが発生しました")
@@ -138,7 +140,7 @@ export function GoalNavigationChat({
     if (!userInput.trim() || isLoading) return
 
     const newUserMessage: Message = {
-      id: messages.length + 1,
+      id: ++msgIdRef.current,
       role: "user",
       content: userInput.trim(),
     }
@@ -174,7 +176,7 @@ export function GoalNavigationChat({
 
         if (data.goalThoughts) {
           // simulateTyping でまとめを表示してから完了
-          const typingMsgId = updatedMessages.length + 1
+          const typingMsgId = ++msgIdRef.current
           setMessages((prev) => [
             ...prev,
             { id: typingMsgId, role: "assistant", content: "" },
