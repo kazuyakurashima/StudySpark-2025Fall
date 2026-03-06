@@ -56,6 +56,38 @@ export function GoalNavigationChat({
     }
   }, [])
 
+  /** 非ストリームでステップメッセージを取得し、placeholder を追加 */
+  const fetchStepMessageNonStream = async (
+    step: number,
+    history: { role: string; content: string }[],
+  ): Promise<string | null> => {
+    const placeholderId = ++msgIdRef.current
+    try {
+      const res = await fetch("/api/goal/navigation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          testScheduleId,
+          targetCourse,
+          targetClass,
+          conversationHistory: history,
+          currentStep: step,
+        }),
+      })
+      const data = await res.json()
+      const msg = data.message ?? null
+      if (msg) {
+        setMessages((prev) => [
+          ...prev,
+          { id: placeholderId, role: "assistant" as const, content: msg },
+        ])
+      }
+      return msg
+    } catch {
+      return null
+    }
+  }
+
   /** SSEでストリーミング取得（Steps 1-2）。失敗時は非ストリームフォールバック */
   const fetchStepMessage = async (
     step: number,
@@ -112,7 +144,6 @@ export function GoalNavigationChat({
         })
         const data = await res.json()
         const fallbackMsg = data.message ?? null
-        // SSE の onChunk が呼ばれなかったので placeholder を手動追加
         if (fallbackMsg) {
           setMessages((prev) => {
             const existing = prev.find((m) => m.id === placeholderId)
@@ -214,10 +245,13 @@ export function GoalNavigationChat({
           alert("エラーが発生しました: " + data.error)
         }
       } else {
-        // Step 1-2: SSEストリーミング
+        // Step 1-2: SSEストリーミング、Step 3: 非ストリーム直接呼出
         const nextStep = (currentStep + 1) as 2 | 3
 
-        const message = await fetchStepMessage(nextStep, history)
+        // Full flow の step 3 は SSE ルートが非対応のため直接 navigation を呼ぶ
+        const message = nextStep === 3
+          ? await fetchStepMessageNonStream(nextStep, history)
+          : await fetchStepMessage(nextStep, history)
 
         if (message) {
           // fetchStepMessage が onChunk or フォールバックで placeholder を追加済み
