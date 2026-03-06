@@ -45,8 +45,16 @@ export function GoalNavigationChat({
   const [userInput, setUserInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isStarted, setIsStarted] = useState(false)
+  const [isComplete, setIsComplete] = useState(false)
+  const [finalThoughts, setFinalThoughts] = useState("")
   const abortRef = useRef<AbortController | null>(null)
   const typingCancelRef = useRef<(() => void) | null>(null)
+  const msgIdRef = useRef(0)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages])
 
   useEffect(() => {
     return () => {
@@ -54,6 +62,38 @@ export function GoalNavigationChat({
       typingCancelRef.current?.()
     }
   }, [])
+
+  /** 非ストリームでステップメッセージを取得し、placeholder を追加 */
+  const fetchStepMessageNonStream = async (
+    step: number,
+    history: { role: string; content: string }[],
+  ): Promise<string | null> => {
+    const placeholderId = ++msgIdRef.current
+    try {
+      const res = await fetch("/api/goal/navigation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          testScheduleId,
+          targetCourse,
+          targetClass,
+          conversationHistory: history,
+          currentStep: step,
+        }),
+      })
+      const data = await res.json()
+      const msg = data.message ?? null
+      if (msg) {
+        setMessages((prev) => [
+          ...prev,
+          { id: placeholderId, role: "assistant" as const, content: msg },
+        ])
+      }
+      return msg
+    } catch {
+      return null
+    }
+  }
 
   /** SSEでストリーミング取得（Steps 1-2）。失敗時は非ストリームフォールバック */
   const fetchStepMessage = async (
@@ -63,8 +103,8 @@ export function GoalNavigationChat({
     const controller = new AbortController()
     abortRef.current = controller
 
-    // 仮メッセージIDを先に確保
-    const placeholderId = messages.length + history.length + 1
+    // ref カウンタで一意ID確保（stale closure 回避）
+    const placeholderId = ++msgIdRef.current
 
     try {
       const result = await fetchSSE(
@@ -110,7 +150,19 @@ export function GoalNavigationChat({
           }),
         })
         const data = await res.json()
-        return data.message ?? null
+        const fallbackMsg = data.message ?? null
+        if (fallbackMsg) {
+          setMessages((prev) => {
+            const existing = prev.find((m) => m.id === placeholderId)
+            if (existing) {
+              return prev.map((m) =>
+                m.id === placeholderId ? { ...m, content: fallbackMsg } : m
+              )
+            }
+            return [...prev, { id: placeholderId, role: "assistant" as const, content: fallbackMsg }]
+          })
+        }
+        return fallbackMsg
       } catch {
         return null
       }
@@ -120,12 +172,13 @@ export function GoalNavigationChat({
   const startConversation = async () => {
     setIsStarted(true)
     setIsLoading(true)
+    msgIdRef.current = 0
 
     const message = await fetchStepMessage(1, [])
 
     if (message) {
       // fetchStepMessage already set messages via onChunk, but ensure final state
-      setMessages([{ id: 1, role: "assistant", content: message }])
+      setMessages([{ id: msgIdRef.current, role: "assistant", content: message }])
       setIsLoading(false)
     } else {
       alert("エラーが発生しました")
@@ -138,7 +191,7 @@ export function GoalNavigationChat({
     if (!userInput.trim() || isLoading) return
 
     const newUserMessage: Message = {
-      id: messages.length + 1,
+      id: ++msgIdRef.current,
       role: "user",
       content: userInput.trim(),
     }
@@ -174,7 +227,7 @@ export function GoalNavigationChat({
 
         if (data.goalThoughts) {
           // simulateTyping でまとめを表示してから完了
-          const typingMsgId = updatedMessages.length + 1
+          const typingMsgId = ++msgIdRef.current
           setMessages((prev) => [
             ...prev,
             { id: typingMsgId, role: "assistant", content: "" },
@@ -194,25 +247,33 @@ export function GoalNavigationChat({
           await promise
           typingCancelRef.current = null
 
-          onComplete(data.goalThoughts)
+          setFinalThoughts(data.goalThoughts)
+          setIsComplete(true)
         } else if (data.error) {
-          alert("エラーが発生しました: " + data.error)
+          alert("まとめ生成に失敗しました。もう一度入力して送信してください。")
         }
       } else {
-        // Step 1-2: SSEストリーミング
+        // Step 1-2: SSEストリーミング、Step 3: 非ストリーム直接呼出
         const nextStep = (currentStep + 1) as 2 | 3
 
-        const message = await fetchStepMessage(nextStep, history)
+        // Full flow の step 3 は SSE ルートが非対応のため直接 navigation を呼ぶ
+        const message = nextStep === 3
+          ? await fetchStepMessageNonStream(nextStep, history)
+          : await fetchStepMessage(nextStep, history)
 
         if (message) {
-          // fetchStepMessage already updated messages via onChunk
-          // Ensure final content is correct
+          // fetchStepMessage が onChunk or フォールバックで placeholder を追加済み
+          // msgIdRef.current が placeholder の ID
+          const expectedId = msgIdRef.current
           setMessages((prev) => {
-            const lastAssistant = [...prev].reverse().find((m) => m.role === "assistant")
-            if (lastAssistant && lastAssistant.content !== message) {
+            const placeholder = prev.find((m) => m.id === expectedId)
+            if (placeholder && placeholder.content !== message) {
               return prev.map((m) =>
-                m.id === lastAssistant.id ? { ...m, content: message } : m
+                m.id === expectedId ? { ...m, content: message } : m
               )
+            }
+            if (!placeholder) {
+              return [...prev, { id: expectedId, role: "assistant" as const, content: message }]
             }
             return prev
           })
@@ -282,7 +343,7 @@ export function GoalNavigationChat({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="bg-muted/30 rounded-lg p-4 max-h-96 overflow-y-auto space-y-3">
+        <div className="bg-muted/30 rounded-lg p-4 h-[400px] overflow-y-auto space-y-3">
           {messages.map((message) => (
             <div
               key={message.id}
@@ -331,9 +392,10 @@ export function GoalNavigationChat({
               </div>
             </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
 
-        {currentStep <= 3 && !isLoading && (
+        {currentStep <= 3 && !isLoading && !isComplete && (
           <div className="flex gap-2">
             <Textarea
               value={userInput}
@@ -349,6 +411,18 @@ export function GoalNavigationChat({
               className="h-[60px] w-[60px]"
             >
               <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+
+        {isComplete && (
+          <div className="pt-2">
+            <Button
+              onClick={() => onComplete(finalThoughts)}
+              className="w-full h-12 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white font-bold shadow-lg"
+            >
+              <Sparkles className="h-5 w-5 mr-2" />
+              この内容で目標を確定
             </Button>
           </div>
         )}

@@ -61,13 +61,23 @@ describe("validateGoalStepOutput", () => {
 
   it("禁止語を含むとフォールバック（simple step 3）", () => {
     const result = validateGoalStepOutput(
-      "ダメなところはどこだと思う？もっと頑張れるよね？",
+      "お前はダメな人間だよね？もっともっと頑張れるよね？",
       "simple",
       3
     )
     expect(result.valid).toBe(false)
     expect(result.content).toBe(FALLBACK_TEMPLATES["simple:3"])
     expect(result.reason).toBe("forbidden")
+  })
+
+  it("攻撃的でない文脈の語は通過させる", () => {
+    // 「死なない」「ダメージ」「無理なく」などは攻撃的でないので通過すべき
+    const result = validateGoalStepOutput(
+      "死なないように頑張る気持ち、すてきだね！どんな自分になりたい？",
+      "simple",
+      3
+    )
+    expect(result.valid).toBe(true)
   })
 
   it("前後の空白をトリムする", () => {

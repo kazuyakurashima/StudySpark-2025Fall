@@ -33,9 +33,11 @@ describe("generateGoalNavigationMessageStream", () => {
         yield { choices: [{ delta: { content: "テスト" } }] }
       },
     })
+    // モック部分型: テスト対象が使うプロパティのみ。SDKインターフェース変更時は
+    // テスト実行時に実行時エラーで検出される（型レベルでは部分一致不可のため unknown 経由）
     vi.mocked(getOpenAIClient).mockReturnValue({
       chat: { completions: { create: mockCreate } },
-    } as ReturnType<typeof getOpenAIClient>)
+    } as unknown as ReturnType<typeof getOpenAIClient>)
 
     // ストリーム実行
     const events = []
@@ -75,9 +77,10 @@ describe("generateGoalNavigationMessageStream", () => {
         yield { text: "応答" }
       },
     })
+    // モック部分型: 同上
     vi.mocked(getGeminiClient).mockReturnValue({
       models: { generateContentStream: mockGenerateContentStream },
-    } as ReturnType<typeof getGeminiClient>)
+    } as unknown as ReturnType<typeof getGeminiClient>)
 
     const events = []
     for await (const event of generateGoalNavigationMessageStream(

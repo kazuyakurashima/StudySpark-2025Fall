@@ -99,10 +99,23 @@ export async function generateGoalThoughts(
 ): Promise<{ goalThoughts?: string; error?: string }> {
   const { provider, model } = getModelForModule("goal", "structured")
 
-  if (provider === "gemini") {
-    return generateGoalThoughtsGemini(context, model)
+  const generate = provider === "gemini"
+    ? () => generateGoalThoughtsGemini(context, model)
+    : () => generateGoalThoughtsOpenAI(context, model)
+
+  // 1回リトライ（JSONパース失敗はLLMの応答品質問題で再試行で解決することが多い）
+  const result = await generate()
+  if (result.error && result.error.includes("解析に失敗")) {
+    console.warn("[generateGoalThoughts] JSON parse failed, retrying once...")
+    return generate()
   }
-  return generateGoalThoughtsOpenAI(context, model)
+  return result
+}
+
+/** LLM応答からJSON文字列を抽出する（マークダウンコードブロックで包まれている場合の対応） */
+function extractJson(text: string): string {
+  const match = text.match(/```(?:json)?\s*([\s\S]*?)```/)
+  return match ? match[1].trim() : text
 }
 
 async function generateGoalThoughtsOpenAI(
@@ -134,7 +147,7 @@ async function generateGoalThoughtsOpenAI(
     if (!responseText) return { error: "AI応答の生成に失敗しました" }
 
     try {
-      const parsed = JSON.parse(responseText)
+      const parsed = JSON.parse(extractJson(responseText))
       if (!parsed.goalThoughts) return { error: "生成されたデータが不正です" }
       return { goalThoughts: parsed.goalThoughts }
     } catch (parseError) {
@@ -176,7 +189,7 @@ async function generateGoalThoughtsGemini(
     if (!responseText) return { error: "AI応答の生成に失敗しました" }
 
     try {
-      const parsed = JSON.parse(responseText)
+      const parsed = JSON.parse(extractJson(responseText))
       if (!parsed.goalThoughts) return { error: "生成されたデータが不正です" }
       return { goalThoughts: parsed.goalThoughts }
     } catch (parseError) {
