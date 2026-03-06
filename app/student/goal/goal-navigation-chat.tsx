@@ -111,7 +111,20 @@ export function GoalNavigationChat({
           }),
         })
         const data = await res.json()
-        return data.message ?? null
+        const fallbackMsg = data.message ?? null
+        // SSE の onChunk が呼ばれなかったので placeholder を手動追加
+        if (fallbackMsg) {
+          setMessages((prev) => {
+            const existing = prev.find((m) => m.id === placeholderId)
+            if (existing) {
+              return prev.map((m) =>
+                m.id === placeholderId ? { ...m, content: fallbackMsg } : m
+              )
+            }
+            return [...prev, { id: placeholderId, role: "assistant" as const, content: fallbackMsg }]
+          })
+        }
+        return fallbackMsg
       } catch {
         return null
       }
@@ -207,14 +220,18 @@ export function GoalNavigationChat({
         const message = await fetchStepMessage(nextStep, history)
 
         if (message) {
-          // fetchStepMessage already updated messages via onChunk
-          // Ensure final content is correct
+          // fetchStepMessage が onChunk or フォールバックで placeholder を追加済み
+          // msgIdRef.current が placeholder の ID
+          const expectedId = msgIdRef.current
           setMessages((prev) => {
-            const lastAssistant = [...prev].reverse().find((m) => m.role === "assistant")
-            if (lastAssistant && lastAssistant.content !== message) {
+            const placeholder = prev.find((m) => m.id === expectedId)
+            if (placeholder && placeholder.content !== message) {
               return prev.map((m) =>
-                m.id === lastAssistant.id ? { ...m, content: message } : m
+                m.id === expectedId ? { ...m, content: message } : m
               )
+            }
+            if (!placeholder) {
+              return [...prev, { id: expectedId, role: "assistant" as const, content: message }]
             }
             return prev
           })
