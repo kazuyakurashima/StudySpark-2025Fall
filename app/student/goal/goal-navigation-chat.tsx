@@ -45,9 +45,16 @@ export function GoalNavigationChat({
   const [userInput, setUserInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isStarted, setIsStarted] = useState(false)
+  const [isComplete, setIsComplete] = useState(false)
+  const [finalThoughts, setFinalThoughts] = useState("")
   const abortRef = useRef<AbortController | null>(null)
   const typingCancelRef = useRef<(() => void) | null>(null)
   const msgIdRef = useRef(0)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages])
 
   useEffect(() => {
     return () => {
@@ -240,9 +247,10 @@ export function GoalNavigationChat({
           await promise
           typingCancelRef.current = null
 
-          onComplete(data.goalThoughts)
+          setFinalThoughts(data.goalThoughts)
+          setIsComplete(true)
         } else if (data.error) {
-          alert("エラーが発生しました: " + data.error)
+          alert("まとめ生成に失敗しました。もう一度入力して送信してください。")
         }
       } else {
         // Step 1-2: SSEストリーミング、Step 3: 非ストリーム直接呼出
@@ -335,7 +343,7 @@ export function GoalNavigationChat({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="bg-muted/30 rounded-lg p-4 max-h-96 overflow-y-auto space-y-3">
+        <div className="bg-muted/30 rounded-lg p-4 h-[400px] overflow-y-auto space-y-3">
           {messages.map((message) => (
             <div
               key={message.id}
@@ -384,9 +392,10 @@ export function GoalNavigationChat({
               </div>
             </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
 
-        {currentStep <= 3 && !isLoading && (
+        {currentStep <= 3 && !isLoading && !isComplete && (
           <div className="flex gap-2">
             <Textarea
               value={userInput}
@@ -402,6 +411,18 @@ export function GoalNavigationChat({
               className="h-[60px] w-[60px]"
             >
               <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+
+        {isComplete && (
+          <div className="pt-2">
+            <Button
+              onClick={() => onComplete(finalThoughts)}
+              className="w-full h-12 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white font-bold shadow-lg"
+            >
+              <Sparkles className="h-5 w-5 mr-2" />
+              この内容で目標を確定
             </Button>
           </div>
         )}
