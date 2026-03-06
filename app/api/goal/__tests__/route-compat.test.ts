@@ -1,14 +1,11 @@
 /**
- * ゴールナビ API 互換性契約テスト
+ * ゴールナビ API スキーマ契約テスト
  *
- * 旧クライアント（testScheduleId なし）と新クライアント（testScheduleId あり）の
- * 両方のペイロードが各ルートの zod スキーマを通過することを検証する。
+ * 各ルートの zod スキーマが正しいペイロードを受け付け、
+ * 不正なペイロードを拒否することを検証する。
  *
  * スキーマは lib/api/goal-schemas.ts から直接 import することで、
  * ルート側の定義と常に同期し、ドリフトを防ぐ。
- *
- * ※ルートハンドラ全体のテスト（DB/Auth）は結合テストで行う。
- *   ここではスキーマ互換性のみを保証する。
  */
 import { describe, it, expect } from "vitest"
 import {
@@ -21,35 +18,40 @@ import {
 
 // ─── テストケース ───────────────────────────────────────────
 
-describe("Goal API 互換性契約テスト", () => {
-  describe("simple-navigation: 旧フォーマット（testScheduleId なし）", () => {
-    it("旧クライアントのペイロードがスキーマを通過する", () => {
-      const legacyPayload = {
-        studentName: "太郎",
-        testName: "合不合判定テスト 第3回",
-        testDate: "2026-07-12",
+describe("Goal API スキーマ契約テスト", () => {
+  describe("simple-navigation", () => {
+    it("testScheduleId ありのペイロードがスキーマを通過する", () => {
+      const payload = {
+        testScheduleId: 42,
         targetCourse: "B",
         targetClass: 5,
         step: 1,
       }
 
-      const result = simpleNavigationSchema.safeParse(legacyPayload)
+      const result = simpleNavigationSchema.safeParse(payload)
       expect(result.success).toBe(true)
       if (result.success) {
-        expect(result.data.testScheduleId).toBeUndefined()
-        expect(result.data.studentName).toBe("太郎")
-        expect(result.data.testName).toBe("合不合判定テスト 第3回")
+        expect(result.data.testScheduleId).toBe(42)
         expect(result.data.conversationHistory).toEqual([])
       }
     })
+
+    it("testScheduleId なしでスキーマが拒否する", () => {
+      const payload = {
+        targetCourse: "B",
+        targetClass: 5,
+        step: 1,
+      }
+
+      const result = simpleNavigationSchema.safeParse(payload)
+      expect(result.success).toBe(false)
+    })
   })
 
-  describe("navigation: 旧フォーマット（testScheduleId なし）", () => {
-    it("旧クライアントのペイロードがスキーマを通過する", () => {
-      const legacyPayload = {
-        studentName: "花子",
-        testName: "組分けテスト",
-        testDate: "2026-05-10",
+  describe("navigation", () => {
+    it("testScheduleId ありのペイロードがスキーマを通過する", () => {
+      const payload = {
+        testScheduleId: 10,
         targetCourse: "A",
         targetClass: 3,
         currentStep: 2,
@@ -59,19 +61,29 @@ describe("Goal API 互換性契約テスト", () => {
         ],
       }
 
-      const result = navigationSchema.safeParse(legacyPayload)
+      const result = navigationSchema.safeParse(payload)
       expect(result.success).toBe(true)
       if (result.success) {
-        expect(result.data.testScheduleId).toBeUndefined()
-        expect(result.data.studentName).toBe("花子")
+        expect(result.data.testScheduleId).toBe(10)
         expect(result.data.conversationHistory).toHaveLength(2)
       }
     })
+
+    it("testScheduleId なしでスキーマが拒否する", () => {
+      const payload = {
+        targetCourse: "A",
+        targetClass: 3,
+        currentStep: 2,
+      }
+
+      const result = navigationSchema.safeParse(payload)
+      expect(result.success).toBe(false)
+    })
   })
 
-  describe("stream: 新フォーマットのみ（testScheduleId 必須）", () => {
-    it("新クライアントのペイロードがスキーマを通過する", () => {
-      const newPayload = {
+  describe("stream", () => {
+    it("正常なペイロードがスキーマを通過する", () => {
+      const payload = {
         flowType: "simple",
         step: 1,
         testScheduleId: 42,
@@ -81,50 +93,58 @@ describe("Goal API 互換性契約テスト", () => {
         requestId: "req-abc-123",
       }
 
-      const result = streamSchema.safeParse(newPayload)
+      const result = streamSchema.safeParse(payload)
       expect(result.success).toBe(true)
     })
 
     it("testScheduleId なしでスキーマが拒否する", () => {
-      const invalidPayload = {
+      const payload = {
         flowType: "simple",
         step: 1,
         targetCourse: "B",
         targetClass: 5,
       }
 
-      const result = streamSchema.safeParse(invalidPayload)
+      const result = streamSchema.safeParse(payload)
       expect(result.success).toBe(false)
     })
   })
 
-  describe("simple-thoughts: 旧フォーマット互換（testScheduleId なし）", () => {
-    it("旧クライアントのペイロードがスキーマを通過する", () => {
-      const legacyPayload = {
+  describe("simple-thoughts", () => {
+    it("testScheduleId ありのペイロードがスキーマを通過する", () => {
+      const payload = {
+        testScheduleId: 42,
         targetCourse: "B" as const,
         targetClass: 5,
         conversationHistory: [
           { role: "assistant" as const, content: "目標を確認したよ！" },
           { role: "user" as const, content: "がんばる！" },
         ],
-        studentName: "太郎",
-        testName: "合不合判定テスト 第3回",
-        testDate: "2026-07-12",
       }
 
-      const result = simpleThoughtsSchema.safeParse(legacyPayload)
+      const result = simpleThoughtsSchema.safeParse(payload)
       expect(result.success).toBe(true)
       if (result.success) {
-        expect(result.data.testScheduleId).toBeUndefined()
-        expect(result.data.studentName).toBe("太郎")
+        expect(result.data.testScheduleId).toBe(42)
         expect(result.data.conversationHistory).toHaveLength(2)
       }
     })
+
+    it("testScheduleId なしでスキーマが拒否する", () => {
+      const payload = {
+        targetCourse: "B" as const,
+        targetClass: 5,
+        conversationHistory: [],
+      }
+
+      const result = simpleThoughtsSchema.safeParse(payload)
+      expect(result.success).toBe(false)
+    })
   })
 
-  describe("thoughts: testScheduleId 送信時のDB再構築経路", () => {
+  describe("thoughts", () => {
     it("testScheduleId ありのペイロードがスキーマを通過する", () => {
-      const newPayload = {
+      const payload = {
         testScheduleId: 42,
         targetCourse: "S" as const,
         targetClass: 10,
@@ -135,89 +155,120 @@ describe("Goal API 互換性契約テスト", () => {
         currentStep: 3 as const,
       }
 
-      const result = thoughtsSchema.safeParse(newPayload)
+      const result = thoughtsSchema.safeParse(payload)
       expect(result.success).toBe(true)
       if (result.success) {
         expect(result.data.testScheduleId).toBe(42)
-        // studentName/testName/testDate は DB 再構築するため不要
-        expect(result.data.studentName).toBeUndefined()
       }
     })
-  })
 
-  describe("thoughts系 targetClass 境界値", () => {
-    it("targetClass=40 が thoughts 系スキーマで通過する", () => {
-      const base = {
-        targetCourse: "A" as const,
-        targetClass: 40,
+    it("testScheduleId なしでスキーマが拒否する", () => {
+      const payload = {
+        targetCourse: "S" as const,
+        targetClass: 10,
         conversationHistory: [],
       }
 
-      expect(simpleThoughtsSchema.safeParse(base).success).toBe(true)
-      expect(thoughtsSchema.safeParse(base).success).toBe(true)
-    })
-
-    it("targetClass=41 が thoughts 系スキーマで拒否される", () => {
-      const base = {
-        targetCourse: "A" as const,
-        targetClass: 41,
-        conversationHistory: [],
-      }
-
-      expect(simpleThoughtsSchema.safeParse(base).success).toBe(false)
-      expect(thoughtsSchema.safeParse(base).success).toBe(false)
+      const result = thoughtsSchema.safeParse(payload)
+      expect(result.success).toBe(false)
     })
   })
 
   describe("targetClass 境界値", () => {
     it("targetClass=40 がすべてのスキーマで通過する", () => {
-      const simpleResult = simpleNavigationSchema.safeParse({
-        targetCourse: "A",
-        targetClass: 40,
-        step: 1,
-      })
-      expect(simpleResult.success).toBe(true)
+      expect(
+        simpleNavigationSchema.safeParse({
+          testScheduleId: 1,
+          targetCourse: "A",
+          targetClass: 40,
+          step: 1,
+        }).success
+      ).toBe(true)
 
-      const navResult = navigationSchema.safeParse({
-        targetCourse: "A",
-        targetClass: 40,
-        currentStep: 1,
-      })
-      expect(navResult.success).toBe(true)
+      expect(
+        navigationSchema.safeParse({
+          testScheduleId: 1,
+          targetCourse: "A",
+          targetClass: 40,
+          currentStep: 1,
+        }).success
+      ).toBe(true)
 
-      const streamResult = streamSchema.safeParse({
-        flowType: "simple",
-        step: 1,
-        testScheduleId: 1,
-        targetCourse: "A",
-        targetClass: 40,
-      })
-      expect(streamResult.success).toBe(true)
+      expect(
+        streamSchema.safeParse({
+          flowType: "simple",
+          step: 1,
+          testScheduleId: 1,
+          targetCourse: "A",
+          targetClass: 40,
+        }).success
+      ).toBe(true)
+
+      expect(
+        simpleThoughtsSchema.safeParse({
+          testScheduleId: 1,
+          targetCourse: "A",
+          targetClass: 40,
+          conversationHistory: [],
+        }).success
+      ).toBe(true)
+
+      expect(
+        thoughtsSchema.safeParse({
+          testScheduleId: 1,
+          targetCourse: "A",
+          targetClass: 40,
+          conversationHistory: [],
+        }).success
+      ).toBe(true)
     })
 
     it("targetClass=41 がすべてのスキーマで拒否される", () => {
-      const simpleResult = simpleNavigationSchema.safeParse({
-        targetCourse: "A",
-        targetClass: 41,
-        step: 1,
-      })
-      expect(simpleResult.success).toBe(false)
+      expect(
+        simpleNavigationSchema.safeParse({
+          testScheduleId: 1,
+          targetCourse: "A",
+          targetClass: 41,
+          step: 1,
+        }).success
+      ).toBe(false)
 
-      const navResult = navigationSchema.safeParse({
-        targetCourse: "A",
-        targetClass: 41,
-        currentStep: 1,
-      })
-      expect(navResult.success).toBe(false)
+      expect(
+        navigationSchema.safeParse({
+          testScheduleId: 1,
+          targetCourse: "A",
+          targetClass: 41,
+          currentStep: 1,
+        }).success
+      ).toBe(false)
 
-      const streamResult = streamSchema.safeParse({
-        flowType: "simple",
-        step: 1,
-        testScheduleId: 1,
-        targetCourse: "A",
-        targetClass: 41,
-      })
-      expect(streamResult.success).toBe(false)
+      expect(
+        streamSchema.safeParse({
+          flowType: "simple",
+          step: 1,
+          testScheduleId: 1,
+          targetCourse: "A",
+          targetClass: 41,
+        }).success
+      ).toBe(false)
+
+      expect(
+        simpleThoughtsSchema.safeParse({
+          testScheduleId: 1,
+          targetCourse: "A",
+          targetClass: 41,
+          conversationHistory: [],
+        }).success
+      ).toBe(false)
+
+      expect(
+        thoughtsSchema.safeParse({
+          testScheduleId: 1,
+          targetCourse: "A",
+          targetClass: 41,
+          conversationHistory: [],
+        }).success
+      ).toBe(false)
     })
   })
 })
