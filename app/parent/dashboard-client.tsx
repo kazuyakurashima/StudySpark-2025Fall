@@ -1918,7 +1918,7 @@ function ParentDashboardInner({
 
       for (const child of children) {
         try {
-          const level = await getDailySparkLevel(child.id, profile.id)
+          const level = await getDailySparkLevel(child.id)
           // "parent" または "both" なら応援済み
           statusMap[child.id] = level === "parent" || level === "both"
         } catch (error) {

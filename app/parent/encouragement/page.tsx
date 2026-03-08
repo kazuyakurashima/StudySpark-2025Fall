@@ -73,7 +73,7 @@ export default function ParentEncouragementPage() {
       const statusMap: { [childId: number]: boolean } = {}
 
       for (const child of children) {
-        const level = await getDailySparkLevel(child.id, profile.id)
+        const level = await getDailySparkLevel(child.id)
         statusMap[child.id] = level === "parent" || level === "both"
       }
 

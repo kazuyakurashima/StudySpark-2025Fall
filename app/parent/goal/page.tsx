@@ -162,7 +162,7 @@ export default function ParentGoalNaviPage() {
 
       for (const child of children) {
         try {
-          const level = await getDailySparkLevel(child.id, user.id)
+          const level = await getDailySparkLevel(child.id)
           statusMap[child.id] = level === "parent" || level === "both"
         } catch (error) {
           console.error(`[EncouragementStatus] Error for child ${child.id}:`, error)

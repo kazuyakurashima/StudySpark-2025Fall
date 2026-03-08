@@ -171,7 +171,7 @@ export default function ParentReflectPage() {
 
       for (const child of children) {
         const childIdNumber = child.id
-        const level = await getDailySparkLevel(childIdNumber, profile.id)
+        const level = await getDailySparkLevel(childIdNumber)
         statusMap[childIdNumber] = level === "parent" || level === "both"
       }
 
