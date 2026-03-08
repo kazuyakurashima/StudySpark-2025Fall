@@ -62,12 +62,22 @@ export function GoalSimpleChat({
   const [generatedThoughts, setGeneratedThoughts] = useState("")
   const [studentAvatar, setStudentAvatar] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const typingCancelRef = useRef<(() => void) | null>(null)
 
+  // 条件付き自動スクロール（最下部付近にいるときのみ）
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    const container = messagesContainerRef.current
+    if (!container) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+      return
+    }
+    const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 100
+    if (isNearBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    }
   }
 
   const loadStudentAvatar = async () => {
@@ -350,7 +360,7 @@ export function GoalSimpleChat({
       </CardHeader>
       <CardContent className="p-0">
         {/* メッセージエリア */}
-        <div className="h-[400px] overflow-y-auto p-4 space-y-4 bg-accent/5">
+        <div ref={messagesContainerRef} className="min-h-[60dvh] max-h-[70dvh] overflow-y-auto p-4 space-y-4 bg-accent/5">
           {messages.map((message) => (
             <div
               key={message.id}
@@ -380,10 +390,10 @@ export function GoalSimpleChat({
                 </div>
               )}
               <div
-                className={`flex-1 px-4 py-3 rounded-2xl max-w-[80%] ${
+                className={`flex-1 px-4 py-3 max-w-[85%] ${
                   message.role === "assistant"
-                    ? "bg-white border border-border shadow-sm"
-                    : "bg-primary text-white shadow-md"
+                    ? "bg-white border border-border rounded-2xl rounded-tl-sm shadow-sm"
+                    : "bg-primary text-white rounded-2xl rounded-tr-sm shadow-md"
                 }`}
               >
                 <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
@@ -399,7 +409,7 @@ export function GoalSimpleChat({
                   className="w-10 h-10 rounded-full border-2 border-primary/20"
                 />
               </div>
-              <div className="bg-white border border-border rounded-2xl px-4 py-3 shadow-sm">
+              <div className="bg-white border border-border rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
                 <div className="flex gap-1">
                   <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
                   <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce [animation-delay:-0.15s]"></div>

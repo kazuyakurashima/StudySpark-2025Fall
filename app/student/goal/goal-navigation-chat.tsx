@@ -51,9 +51,16 @@ export function GoalNavigationChat({
   const typingCancelRef = useRef<(() => void) | null>(null)
   const msgIdRef = useRef(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
 
+  // 条件付き自動スクロール（最下部付近にいるときのみ）
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    const container = messagesContainerRef.current
+    if (!container) return
+    const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 100
+    if (isNearBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    }
   }, [messages])
 
   useEffect(() => {
@@ -343,51 +350,49 @@ export function GoalNavigationChat({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="bg-muted/30 rounded-lg p-4 h-[400px] overflow-y-auto space-y-3">
+        <div ref={messagesContainerRef} className="bg-accent/5 rounded-lg p-4 min-h-[60dvh] max-h-[70dvh] overflow-y-auto space-y-4">
           {messages.map((message) => (
             <div
               key={message.id}
-              className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+              className={`flex gap-3 ${message.role === "user" ? "flex-row-reverse" : "flex-row"}`}
             >
+              {message.role === "assistant" ? (
+                <img
+                  src={AVATAR_AI_COACH}
+                  alt="AIコーチ"
+                  className="w-10 h-10 rounded-full flex-shrink-0 border-2 border-primary/20"
+                />
+              ) : (
+                <Avatar className="w-10 h-10 flex-shrink-0 border-2 border-primary/20">
+                  <AvatarImage src={studentAvatar} alt={studentName} />
+                  <AvatarFallback>
+                    <User className="h-5 w-5" />
+                  </AvatarFallback>
+                </Avatar>
+              )}
               <div
-                className={`flex items-start gap-2 max-w-[80%] ${message.role === "user" ? "flex-row-reverse" : ""}`}
+                className={`px-4 py-3 max-w-[85%] ${
+                  message.role === "user"
+                    ? "bg-primary text-white rounded-2xl rounded-tr-sm shadow-md"
+                    : "bg-white border border-border rounded-2xl rounded-tl-sm shadow-sm"
+                }`}
               >
-                {message.role === "assistant" ? (
-                  <img
-                    src={AVATAR_AI_COACH}
-                    alt="AIコーチ"
-                    className="w-8 h-8 rounded-full flex-shrink-0"
-                  />
-                ) : (
-                  <Avatar className="w-8 h-8 flex-shrink-0">
-                    <AvatarImage src={studentAvatar} alt={studentName} />
-                    <AvatarFallback>
-                      <User className="h-4 w-4" />
-                    </AvatarFallback>
-                  </Avatar>
-                )}
-                <div
-                  className={`px-3 py-2 rounded-lg ${
-                    message.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-background border border-border"
-                  }`}
-                >
-                  <p className="text-sm whitespace-pre-line">{message.content}</p>
-                </div>
+                <p className="text-sm whitespace-pre-line leading-relaxed">{message.content}</p>
               </div>
             </div>
           ))}
           {isLoading && (
-            <div className="flex justify-start">
-              <div className="flex items-start gap-2 max-w-[80%]">
-                <img
-                  src={AVATAR_AI_COACH}
-                  alt="AIコーチ"
-                  className="w-8 h-8 rounded-full flex-shrink-0"
-                />
-                <div className="px-3 py-2 rounded-lg bg-background border border-border">
-                  <p className="text-sm text-muted-foreground">考え中...</p>
+            <div className="flex gap-3">
+              <img
+                src={AVATAR_AI_COACH}
+                alt="AIコーチ"
+                className="w-10 h-10 rounded-full flex-shrink-0 border-2 border-primary/20"
+              />
+              <div className="bg-white border border-border rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
+                <div className="flex gap-1">
+                  <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                  <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                  <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce"></div>
                 </div>
               </div>
             </div>
