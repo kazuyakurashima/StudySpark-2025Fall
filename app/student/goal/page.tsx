@@ -41,6 +41,7 @@ import {
   transitionInputMethodChoice,
   transitionAIChatComplete,
   transitionAIChatCancel,
+  transitionFallbackToDirect,
   transitionSaveComplete,
   transitionTestChange,
 } from "./input-mode";
@@ -379,6 +380,12 @@ function GoalPageInner() {
 
   const handleAIChatCancel = () => {
     setInputMode(transitionAIChatCancel());
+  };
+
+  const handleFallbackToDirect = () => {
+    const result = transitionFallbackToDirect();
+    setInputMode(result.inputMode);
+    setIsAIGenerated(result.isAIGenerated);
   };
 
   const handleSaveGoal = async () => {
@@ -912,6 +919,7 @@ function GoalPageInner() {
                   targetClass={classNumber[0]}
                   onComplete={handleAIChatComplete}
                   onCancel={handleAIChatCancel}
+                  onFallbackToDirect={handleFallbackToDirect}
                 />
               ))}
 

@@ -293,6 +293,10 @@ export function getGoalNavigationStepPrompt(
 ※生徒は最大120字で自由記述します。`,
 
     3: `【Step 3: まとめ生成】
+生徒: ${studentName}さん
+目標: ${testName}で${targetCourse}コース${targetClass}組を目指す
+テスト日: ${testDate}
+
 これまでの対話内容を統合して、「今回の思い」を生成してください。
 
 【生成条件】
@@ -301,6 +305,7 @@ export function getGoalNavigationStepPrompt(
 - 目標だけでなく、感情や思いも含める
 - 前向きで、希望に満ちた内容
 - SMART原則（具体的、測定可能、達成可能、関連性、期限付き）を意識
+- テスト日は具体的な日付（${testDate}）を使用すること
 
 **出力形式（JSON）:**
 {

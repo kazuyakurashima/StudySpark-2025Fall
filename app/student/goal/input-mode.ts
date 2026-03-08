@@ -41,6 +41,14 @@ export function transitionAIChatCancel(): InputMode {
   return "choice"
 }
 
+/** AI生成失敗時の手動入力フォールバック → direct（AI未生成） */
+export function transitionFallbackToDirect(): {
+  inputMode: InputMode
+  isAIGenerated: false
+} {
+  return { inputMode: "direct", isAIGenerated: false }
+}
+
 /** 保存完了 → none にリセット */
 export function transitionSaveComplete(): InputMode {
   return "none"
