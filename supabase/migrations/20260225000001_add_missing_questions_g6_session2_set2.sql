@@ -18,7 +18,10 @@ BEGIN
     AND qs.subject_id = (SELECT id FROM public.subjects WHERE name = '算数');
 
   IF v_qs IS NULL THEN
-    RAISE EXCEPTION '小6 第2回② の question_set が見つかりません';
+    -- question_sets は seeds/math_questions_2026.sql で投入されるため、
+    -- db reset 時（seed 未適用段階）では存在しない。スキップして seed 後の再実行に委ねる。
+    RAISE NOTICE '小6 第2回② の question_set が未投入のためスキップ（seeds/math_questions_2026.sql 適用後に再実行してください）';
+    RETURN;
   END IF;
 
   -- 既に追加済みかチェック（冪等性）
