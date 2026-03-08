@@ -153,13 +153,6 @@ export default function ParentGoalNaviPage() {
       const { getDailySparkLevel } = await import("@/app/actions/daily-spark")
       const statusMap: { [childId: number]: boolean } = {}
 
-      // 保護者のuser_idを取得（仮にauth.uidを使用）
-      const { createClient } = await import("@/lib/supabase/client")
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) return
-
       for (const child of children) {
         try {
           const level = await getDailySparkLevel(child.id)
