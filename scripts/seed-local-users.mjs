@@ -1,7 +1,7 @@
 /**
  * ローカル検証用ユーザー作成スクリプト（PIIはGit管理外のJSONに分離）
  *
- * - PIIを含むデータは \`scripts/.seed-data.local.json\`（gitignore）に置く
+ * - PIIを含むデータは `scripts/.seed-data.local.json`（gitignore）に置く
  * - 本番誤実行防止のため、デフォルトではローカルURL以外で動かない
  *
  * 実行例:
@@ -27,7 +27,7 @@ function maskEmail(email) {
   const value = String(email ?? "")
   const [local, domain] = value.split("@")
   if (!local || !domain) return "***"
-  return \`\${local.slice(0, 2)}***@\${domain}\`
+  return `${local.slice(0, 2)}***@${domain}`
 }
 
 function clampNickname(value) {
@@ -44,7 +44,7 @@ async function listAllAuthUsers(supabase) {
   // eslint-disable-next-line no-constant-condition
   while (true) {
     const { data, error } = await supabase.auth.admin.listUsers({ page, perPage })
-    if (error) throw new Error(\`listUsers failed: \${error.message}\`)
+    if (error) throw new Error(`listUsers failed: ${error.message}`)
     if (!data?.users?.length) break
 
     for (const u of data.users) users.push({ id: u.id, email: u.email ?? null })
@@ -63,7 +63,7 @@ async function ensureAuthUser({ supabase, authUsersByEmail, role, email, passwor
       user_metadata: { role, full_name: fullNameForProfile ?? null },
       email_confirm: true,
     })
-    if (updateError) throw new Error(\`updateUserById failed for \${maskEmail(email)}: \${updateError.message}\`)
+    if (updateError) throw new Error(`updateUserById failed for ${maskEmail(email)}: ${updateError.message}`)
     return existingId
   }
 
@@ -77,20 +77,20 @@ async function ensureAuthUser({ supabase, authUsersByEmail, role, email, passwor
   if (error) {
     if (error.message.includes("already been registered")) {
       const userId = authUsersByEmail.get(email)
-      if (!userId) throw new Error(\`user already exists but not found in listUsers cache: \${maskEmail(email)}\`)
+      if (!userId) throw new Error(`user already exists but not found in listUsers cache: ${maskEmail(email)}`)
       const { error: updateError } = await supabase.auth.admin.updateUserById(userId, {
         password,
         user_metadata: { role, full_name: fullNameForProfile ?? null },
         email_confirm: true,
       })
-      if (updateError) throw new Error(\`updateUserById failed for \${maskEmail(email)}: \${updateError.message}\`)
+      if (updateError) throw new Error(`updateUserById failed for ${maskEmail(email)}: ${updateError.message}`)
       return userId
     }
-    throw new Error(\`createUser failed for \${maskEmail(email)}: \${error.message}\`)
+    throw new Error(`createUser failed for ${maskEmail(email)}: ${error.message}`)
   }
 
   const userId = data?.user?.id
-  if (!userId) throw new Error(\`createUser returned no user for \${maskEmail(email)}\`)
+  if (!userId) throw new Error(`createUser returned no user for ${maskEmail(email)}`)
   authUsersByEmail.set(email, userId)
   return userId
 }
@@ -103,7 +103,7 @@ async function updateProfile({ supabase, userId, role, nickname, avatarId, theme
   if (themeColor) updatePayload.theme_color = themeColor
 
   const { error } = await supabase.from("profiles").update(updatePayload).eq("id", userId)
-  if (error) throw new Error(\`profiles.update failed for \${userId}: \${error.message}\`)
+  if (error) throw new Error(`profiles.update failed for ${userId}: ${error.message}`)
 }
 
 async function ensureStudentRow({ supabase, userId, student }) {
@@ -112,7 +112,7 @@ async function ensureStudentRow({ supabase, userId, student }) {
     .select("id,user_id,login_id")
     .eq("login_id", student.loginId)
     .maybeSingle()
-  if (selectError) throw new Error(\`students.select failed for \${student.loginId}: \${selectError.message}\`)
+  if (selectError) throw new Error(`students.select failed for ${student.loginId}: ${selectError.message}`)
 
   const payload = {
     user_id: userId,
@@ -125,37 +125,37 @@ async function ensureStudentRow({ supabase, userId, student }) {
 
   if (existing) {
     if (existing.user_id !== userId) {
-      throw new Error(\`students.login_id collision: \${student.loginId} belongs to a different user_id (\${existing.user_id})\`)
+      throw new Error(`students.login_id collision: ${student.loginId} belongs to a different user_id (${existing.user_id})`)
     }
     const { error: updateError } = await supabase.from("students").update(payload).eq("id", existing.id)
-    if (updateError) throw new Error(\`students.update failed for \${student.loginId}: \${updateError.message}\`)
+    if (updateError) throw new Error(`students.update failed for ${student.loginId}: ${updateError.message}`)
     return existing.id
   }
 
   const { data: inserted, error: insertError } = await supabase.from("students").insert(payload).select("id").single()
-  if (insertError) throw new Error(\`students.insert failed for \${student.loginId}: \${insertError.message}\`)
+  if (insertError) throw new Error(`students.insert failed for ${student.loginId}: ${insertError.message}`)
   return inserted.id
 }
 
 async function ensureParentRow({ supabase, userId, parent }) {
   const { data: existing, error: selectError } = await supabase.from("parents").select("id,user_id").eq("user_id", userId).maybeSingle()
-  if (selectError) throw new Error(\`parents.select failed for \${maskEmail(parent.email)}: \${selectError.message}\`)
+  if (selectError) throw new Error(`parents.select failed for ${maskEmail(parent.email)}: ${selectError.message}`)
 
   const payload = { user_id: userId, full_name: parent.fullName ?? "保護者", furigana: parent.furigana ?? null }
   if (existing) {
     const { error: updateError } = await supabase.from("parents").update(payload).eq("id", existing.id)
-    if (updateError) throw new Error(\`parents.update failed for \${maskEmail(parent.email)}: \${updateError.message}\`)
+    if (updateError) throw new Error(`parents.update failed for ${maskEmail(parent.email)}: ${updateError.message}`)
     return existing.id
   }
 
   const { data: inserted, error: insertError } = await supabase.from("parents").insert(payload).select("id").single()
-  if (insertError) throw new Error(\`parents.insert failed for \${maskEmail(parent.email)}: \${insertError.message}\`)
+  if (insertError) throw new Error(`parents.insert failed for ${maskEmail(parent.email)}: ${insertError.message}`)
   return inserted.id
 }
 
 async function ensureCoachRow({ supabase, userId, coach }) {
   const { data: existing, error: selectError } = await supabase.from("coaches").select("id,user_id").eq("user_id", userId).maybeSingle()
-  if (selectError) throw new Error(\`coaches.select failed for \${maskEmail(coach.email)}: \${selectError.message}\`)
+  if (selectError) throw new Error(`coaches.select failed for ${maskEmail(coach.email)}: ${selectError.message}`)
 
   const payload = {
     user_id: userId,
@@ -165,28 +165,28 @@ async function ensureCoachRow({ supabase, userId, coach }) {
   }
   if (existing) {
     const { error: updateError } = await supabase.from("coaches").update(payload).eq("id", existing.id)
-    if (updateError) throw new Error(\`coaches.update failed for \${maskEmail(coach.email)}: \${updateError.message}\`)
+    if (updateError) throw new Error(`coaches.update failed for ${maskEmail(coach.email)}: ${updateError.message}`)
     return existing.id
   }
 
   const { data: inserted, error: insertError } = await supabase.from("coaches").insert(payload).select("id").single()
-  if (insertError) throw new Error(\`coaches.insert failed for \${maskEmail(coach.email)}: \${insertError.message}\`)
+  if (insertError) throw new Error(`coaches.insert failed for ${maskEmail(coach.email)}: ${insertError.message}`)
   return inserted.id
 }
 
 async function ensureAdminRow({ supabase, userId, admin }) {
   const { data: existing, error: selectError } = await supabase.from("admins").select("id,user_id").eq("user_id", userId).maybeSingle()
-  if (selectError) throw new Error(\`admins.select failed for \${maskEmail(admin.email)}: \${selectError.message}\`)
+  if (selectError) throw new Error(`admins.select failed for ${maskEmail(admin.email)}: ${selectError.message}`)
 
   const payload = { user_id: userId, full_name: admin.fullName ?? "管理者", invitation_code: randomUUID() }
   if (existing) {
     const { error: updateError } = await supabase.from("admins").update(payload).eq("id", existing.id)
-    if (updateError) throw new Error(\`admins.update failed for \${maskEmail(admin.email)}: \${updateError.message}\`)
+    if (updateError) throw new Error(`admins.update failed for ${maskEmail(admin.email)}: ${updateError.message}`)
     return existing.id
   }
 
   const { data: inserted, error: insertError } = await supabase.from("admins").insert(payload).select("id").single()
-  if (insertError) throw new Error(\`admins.insert failed for \${maskEmail(admin.email)}: \${insertError.message}\`)
+  if (insertError) throw new Error(`admins.insert failed for ${maskEmail(admin.email)}: ${insertError.message}`)
   return inserted.id
 }
 
@@ -194,19 +194,19 @@ async function upsertParentChildRelation({ supabase, parentId, studentId, relati
   const { error } = await supabase
     .from("parent_child_relations")
     .upsert({ parent_id: parentId, student_id: studentId, relation_type: relationType }, { onConflict: "parent_id,student_id" })
-  if (error) throw new Error(\`parent_child_relations.upsert failed: \${error.message}\`)
+  if (error) throw new Error(`parent_child_relations.upsert failed: ${error.message}`)
 }
 
 async function upsertCoachStudentRelation({ supabase, coachId, studentId }) {
   const { error } = await supabase
     .from("coach_student_relations")
     .upsert({ coach_id: coachId, student_id: studentId }, { onConflict: "coach_id,student_id" })
-  if (error) throw new Error(\`coach_student_relations.upsert failed: \${error.message}\`)
+  if (error) throw new Error(`coach_student_relations.upsert failed: ${error.message}`)
 }
 
 async function seedSampleLogs({ supabase, studentRows }) {
   const { data: subjects, error: subjectsError } = await supabase.from("subjects").select("id,name").order("display_order")
-  if (subjectsError) throw new Error(\`subjects.select failed: \${subjectsError.message}\`)
+  if (subjectsError) throw new Error(`subjects.select failed: ${subjectsError.message}`)
   if (!subjects?.length) throw new Error("subjects not found (seed.sql may not be applied)")
 
   const math = subjects.find((s) => s.name === "算数") ?? subjects[0]
@@ -218,7 +218,7 @@ async function seedSampleLogs({ supabase, studentRows }) {
       .eq("grade", row.grade)
       .order("session_number", { ascending: false })
       .limit(1)
-    if (sessionsError) throw new Error(\`study_sessions.select failed: \${sessionsError.message}\`)
+    if (sessionsError) throw new Error(`study_sessions.select failed: ${sessionsError.message}`)
     if (!sessions?.[0]) continue
 
     const { data: contentTypes, error: contentTypesError } = await supabase
@@ -227,7 +227,7 @@ async function seedSampleLogs({ supabase, studentRows }) {
       .eq("grade", row.grade)
       .eq("subject_id", math.id)
       .limit(1)
-    if (contentTypesError) throw new Error(\`study_content_types.select failed: \${contentTypesError.message}\`)
+    if (contentTypesError) throw new Error(`study_content_types.select failed: ${contentTypesError.message}`)
     if (!contentTypes?.[0]) continue
 
     const logPayload = {
@@ -243,7 +243,7 @@ async function seedSampleLogs({ supabase, studentRows }) {
     const { error: upsertError } = await supabase
       .from("study_logs")
       .upsert(logPayload, { onConflict: "student_id,session_id,subject_id,study_content_type_id" })
-    if (upsertError) throw new Error(\`study_logs.upsert failed: \${upsertError.message}\`)
+    if (upsertError) throw new Error(`study_logs.upsert failed: ${upsertError.message}`)
   }
 }
 
@@ -252,7 +252,7 @@ function loadSeedData() {
   const seedPath = process.env.SEED_DATA_PATH || join(scriptsDir, ".seed-data.local.json")
   if (!existsSync(seedPath)) {
     throw new Error(
-      \`seed data file not found: \${seedPath}\\nCreate it from scripts/.seed-data.local.example.json (and keep it untracked).\`
+      `seed data file not found: ${seedPath}\\nCreate it from scripts/.seed-data.local.example.json (and keep it untracked).`
     )
   }
   const raw = JSON.parse(readFileSync(seedPath, "utf8"))
@@ -268,8 +268,8 @@ async function main() {
   const allowNonLocal = process.env.ALLOW_NON_LOCAL_SEED === "1"
   if (!isLocalSupabaseUrl(supabaseUrl) && !allowNonLocal) {
     throw new Error(
-      \`Refusing to run: NEXT_PUBLIC_SUPABASE_URL is not local (\${supabaseUrl}).\\n\` +
-        \`If you really intend to run against a non-local project, set ALLOW_NON_LOCAL_SEED=1 (NOT recommended).\`
+      `Refusing to run: NEXT_PUBLIC_SUPABASE_URL is not local (${supabaseUrl}).\\n` +
+        `If you really intend to run against a non-local project, set ALLOW_NON_LOCAL_SEED=1 (NOT recommended).`
     )
   }
 
@@ -277,9 +277,9 @@ async function main() {
   const supabase = createClient(supabaseUrl, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } })
 
   console.log("🚀 Seeding local users...")
-  console.log(\`📍 Supabase URL: \${supabaseUrl}\`)
+  console.log(`📍 Supabase URL: ${supabaseUrl}`)
   console.log(
-    \`🧑‍🎓 students=\${seedData.students?.length ?? 0}, 👪 parents=\${seedData.parents?.length ?? 0}, 🧑‍🏫 coaches=\${seedData.coaches?.length ?? 0}, 🛡️ admins=\${seedData.admins?.length ?? 0}\`
+    `🧑‍🎓 students=${seedData.students?.length ?? 0}, 👪 parents=${seedData.parents?.length ?? 0}, 🧑‍🏫 coaches=${seedData.coaches?.length ?? 0}, 🛡️ admins=${seedData.admins?.length ?? 0}`
   )
 
   const authUsers = await listAllAuthUsers(supabase)
@@ -337,7 +337,7 @@ async function main() {
 
   // 3) Students
   for (const student of seedData.students ?? []) {
-    const email = \`\${student.loginId}@studyspark.local\`
+    const email = `${student.loginId}@studyspark.local`
     const userId = await ensureAuthUser({
       supabase,
       authUsersByEmail,
@@ -383,7 +383,7 @@ async function main() {
     const relationType = parent.relationType ?? "guardian"
     for (const loginId of parent.childLoginIds ?? []) {
       const studentId = studentIdByLoginId.get(loginId)
-      if (!studentId) throw new Error(\`parent \${parent.email} references unknown student loginId: \${loginId}\`)
+      if (!studentId) throw new Error(`parent ${parent.email} references unknown student loginId: ${loginId}`)
       await upsertParentChildRelation({ supabase, parentId, studentId, relationType })
     }
   }

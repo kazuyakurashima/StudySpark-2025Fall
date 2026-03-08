@@ -22,48 +22,36 @@ const conversationHistorySchema = z
 
 /**
  * simple-navigation ルートのリクエストスキーマ
- *
- * testScheduleId は新クライアント用（optional）。
- * 旧クライアントは studentName/testName/testDate を送信する。
  */
 export const simpleNavigationSchema = z.object({
-  testScheduleId: z.number().int().positive().optional(),
+  testScheduleId: z.number().int().positive(),
   targetCourse: z.enum(VALID_COURSES),
   targetClass: z.number().int().min(1).max(40),
   step: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   conversationHistory: conversationHistorySchema,
-  // 後方互換: 旧クライアントが送るフィールド（testScheduleId未送信時に使用）
-  studentName: z.string().max(100).optional(),
-  testName: z.string().max(200).optional(),
-  testDate: z.string().max(20).optional(),
   previousAnswer: z.string().optional(),
 })
 
 /**
  * navigation ルートのリクエストスキーマ
  *
- * Full flow 用。testScheduleId は新クライアント用（optional）。
+ * Full flow 用。
  */
 export const navigationSchema = z.object({
-  testScheduleId: z.number().int().positive().optional(),
+  testScheduleId: z.number().int().positive(),
   targetCourse: z.enum(VALID_COURSES),
   targetClass: z.number().int().min(1).max(40),
   currentStep: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   conversationHistory: conversationHistorySchema,
-  // 後方互換: 旧クライアントが送るフィールド（testScheduleId未送信時に使用）
-  studentName: z.string().max(100).optional(),
-  testName: z.string().max(200).optional(),
-  testDate: z.string().max(20).optional(),
 })
 
 /**
  * simple-thoughts ルートのリクエストスキーマ
  *
  * Simple flow Step 4（「今回の思い」生成）。
- * testScheduleId は新クライアント用（optional）。
  */
 export const simpleThoughtsSchema = z.object({
-  testScheduleId: z.number().int().positive().optional(),
+  testScheduleId: z.number().int().positive(),
   targetCourse: z.enum(VALID_COURSES),
   targetClass: z.number().int().min(1).max(40),
   conversationHistory: z
@@ -74,20 +62,15 @@ export const simpleThoughtsSchema = z.object({
       })
     )
     .max(20),
-  // 後方互換: 旧クライアントが送るフィールド（testScheduleId未送信時に使用）
-  studentName: z.string().max(100).optional(),
-  testName: z.string().max(200).optional(),
-  testDate: z.string().max(20).optional(),
 })
 
 /**
  * thoughts ルートのリクエストスキーマ
  *
  * Full flow Step 3（「今回の思い」生成）。
- * testScheduleId は新クライアント用（optional）。
  */
 export const thoughtsSchema = z.object({
-  testScheduleId: z.number().int().positive().optional(),
+  testScheduleId: z.number().int().positive(),
   targetCourse: z.enum(VALID_COURSES),
   targetClass: z.number().int().min(1).max(40),
   conversationHistory: z
@@ -99,16 +82,10 @@ export const thoughtsSchema = z.object({
     )
     .max(20),
   currentStep: z.literal(3).optional(),
-  // 後方互換: 旧クライアントが送るフィールド（testScheduleId未送信時に使用）
-  studentName: z.string().max(100).optional(),
-  testName: z.string().max(200).optional(),
-  testDate: z.string().max(20).optional(),
 })
 
 /**
  * stream ルートのリクエストスキーマ
- *
- * 新規ルートのため testScheduleId は必須（互換レイヤーなし）。
  */
 export const streamSchema = z.object({
   flowType: z.enum(["simple", "full"]),
