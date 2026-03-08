@@ -82,6 +82,7 @@ export const thoughtsSchema = z.object({
     )
     .max(20),
   currentStep: z.literal(3).optional(),
+  requestId: z.string().max(64).optional(),
 })
 
 /**

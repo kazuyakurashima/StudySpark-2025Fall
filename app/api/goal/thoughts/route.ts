@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     rawBody = await request.json()
   } catch {
     return NextResponse.json(
-      { error: "リクエストの解析に失敗しました" },
+      { error: "リクエストの解析に失敗しました", error_code: "VALIDATION_ERROR" },
       { status: 400 }
     )
   }
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
   const parsed = requestSchema.safeParse(rawBody)
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "不正なリクエストです", details: parsed.error.flatten() },
+      { error: "不正なリクエストです", error_code: "VALIDATION_ERROR", details: parsed.error.flatten() },
       { status: 400 }
     )
   }
@@ -51,13 +51,13 @@ export async function POST(request: NextRequest) {
     ])
 
     if (!studentResult.data) {
-      return NextResponse.json({ error: "生徒情報が見つかりません" }, { status: 404 })
+      return NextResponse.json({ error: "生徒情報が見つかりません", error_code: "VALIDATION_ERROR" }, { status: 404 })
     }
     const student = studentResult.data
 
     if (!scheduleResult.data) {
       return NextResponse.json(
-        { error: "指定されたテスト日程が見つかりません" },
+        { error: "指定されたテスト日程が見つかりません", error_code: "VALIDATION_ERROR" },
         { status: 404 }
       )
     }
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       : schedule.test_types
     if (testTypes && testTypes.grade !== student.grade) {
       return NextResponse.json(
-        { error: "テストの対象学年と生徒の学年が一致しません" },
+        { error: "テストの対象学年と生徒の学年が一致しません", error_code: "VALIDATION_ERROR" },
         { status: 400 }
       )
     }
@@ -78,7 +78,8 @@ export async function POST(request: NextRequest) {
     const testName = testTypes?.name ?? "テスト"
     const testDate = schedule.test_date
 
-    const { goalThoughts, error } = await generateGoalThoughts({
+    const requestId = body.requestId
+    const result = await generateGoalThoughts({
       studentName,
       testName,
       testDate,
@@ -88,13 +89,17 @@ export async function POST(request: NextRequest) {
       currentStep: 3,
     })
 
-    if (error) {
-      return NextResponse.json({ error }, { status: 400 })
+    if (result.error) {
+      const errorCode = result.error_code ?? "MODEL_ERROR"
+      console.error(`[thoughts] error_code=${errorCode} requestId=${requestId ?? "none"}:`, result.error)
+      return NextResponse.json({ error: "まとめの生成に失敗しました", error_code: errorCode }, { status: 400 })
     }
+    const { goalThoughts } = result
 
+    console.info(`[thoughts] success requestId=${requestId ?? "none"}`)
     return NextResponse.json({ goalThoughts })
   } catch (error) {
-    console.error("Goal thoughts API error:", sanitizeForLog(error))
-    return NextResponse.json({ error: "サーバーエラーが発生しました" }, { status: 500 })
+    console.error("[thoughts] SERVER_ERROR:", sanitizeForLog(error))
+    return NextResponse.json({ error: "サーバーエラーが発生しました", error_code: "SERVER_ERROR" }, { status: 500 })
   }
 }

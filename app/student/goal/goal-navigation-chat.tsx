@@ -25,6 +25,7 @@ interface GoalNavigationChatProps {
   targetClass: number
   onComplete: (goalThoughts: string) => void
   onCancel: () => void
+  onFallbackToDirect: () => void
 }
 
 const AVATAR_AI_COACH = "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png"
@@ -39,14 +40,16 @@ export function GoalNavigationChat({
   targetClass,
   onComplete,
   onCancel,
+  onFallbackToDirect,
 }: GoalNavigationChatProps) {
   const [messages, setMessages] = useState<Message[]>([])
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1)
+  const [currentStep, setCurrentStep] = useState<1 | 2>(1)
   const [userInput, setUserInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isStarted, setIsStarted] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
   const [finalThoughts, setFinalThoughts] = useState("")
+  const [thoughtsFailCount, setThoughtsFailCount] = useState(0)
   const abortRef = useRef<AbortController | null>(null)
   const typingCancelRef = useRef<(() => void) | null>(null)
   const msgIdRef = useRef(0)
@@ -70,37 +73,7 @@ export function GoalNavigationChat({
     }
   }, [])
 
-  /** 非ストリームでステップメッセージを取得し、placeholder を追加 */
-  const fetchStepMessageNonStream = async (
-    step: number,
-    history: { role: string; content: string }[],
-  ): Promise<string | null> => {
-    const placeholderId = ++msgIdRef.current
-    try {
-      const res = await fetch("/api/goal/navigation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          testScheduleId,
-          targetCourse,
-          targetClass,
-          conversationHistory: history,
-          currentStep: step,
-        }),
-      })
-      const data = await res.json()
-      const msg = data.message ?? null
-      if (msg) {
-        setMessages((prev) => [
-          ...prev,
-          { id: placeholderId, role: "assistant" as const, content: msg },
-        ])
-      }
-      return msg
-    } catch {
-      return null
-    }
-  }
+
 
   /** SSEでストリーミング取得（Steps 1-2）。失敗時は非ストリームフォールバック */
   const fetchStepMessage = async (
@@ -212,10 +185,12 @@ export function GoalNavigationChat({
     const history = updatedMessages.map((m) => ({ role: m.role, content: m.content }))
 
     try {
-      if (currentStep === 3) {
-        // Step 3: thoughts生成 → simulateTyping → onComplete
+      if (currentStep >= 2) {
+        // Step 2回答後: 直接thoughts生成 → simulateTyping → onComplete
+        // (Step 3 prompt は JSON出力専用のため navigation 経由をスキップ)
         const controller = new AbortController()
         abortRef.current = controller
+        const requestId = crypto.randomUUID()
 
         const response = await fetch("/api/goal/thoughts", {
           method: "POST",
@@ -226,11 +201,25 @@ export function GoalNavigationChat({
             targetClass,
             conversationHistory: history,
             currentStep: 3,
+            requestId,
           }),
           signal: controller.signal,
         })
 
-        const data = await response.json()
+        const data = await response.json().catch(() => ({ error: `HTTP ${response.status}`, error_code: "NETWORK_ERROR" }))
+
+        if (!response.ok || data.error) {
+          console.error(`[GoalNavigationChat] thoughts API failed [${requestId}]:`, {
+            status: response.status,
+            error_code: data.error_code,
+            error: data.error,
+          })
+          setThoughtsFailCount(prev => prev + 1)
+          alert("まとめの生成に失敗しました。もう一度送信するか、下の「自分で入力する」をお試しください。")
+          return
+        }
+
+        setThoughtsFailCount(0)
 
         if (data.goalThoughts) {
           // simulateTyping でまとめを表示してから完了
@@ -260,13 +249,9 @@ export function GoalNavigationChat({
           alert("まとめ生成に失敗しました。もう一度入力して送信してください。")
         }
       } else {
-        // Step 1-2: SSEストリーミング、Step 3: 非ストリーム直接呼出
-        const nextStep = (currentStep + 1) as 2 | 3
-
-        // Full flow の step 3 は SSE ルートが非対応のため直接 navigation を呼ぶ
-        const message = nextStep === 3
-          ? await fetchStepMessageNonStream(nextStep, history)
-          : await fetchStepMessage(nextStep, history)
+        // Step 1 → Step 2: SSEストリーミングで次の質問を取得
+        const nextStep = 2 as const
+        const message = await fetchStepMessage(nextStep, history)
 
         if (message) {
           // fetchStepMessage が onChunk or フォールバックで placeholder を追加済み
@@ -317,7 +302,7 @@ export function GoalNavigationChat({
                 {studentName}さん、{testName}で{targetCourse}コース{targetClass}組を目指すんだね！
               </p>
               <p className="text-white/90 text-sm leading-relaxed mt-2">
-                AIコーチと対話しながら、この目標にかける思いを整理してみよう。3つの質問に答えていくよ！
+                AIコーチと対話しながら、この目標にかける思いを整理してみよう。2つの質問に答えたら、思いをまとめるよ！
               </p>
             </div>
             <Button
@@ -346,7 +331,7 @@ export function GoalNavigationChat({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-primary" />
-          AIコーチと対話中（ステップ {currentStep}/3）
+          AIコーチと対話中（ステップ {currentStep}/2）
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -400,7 +385,7 @@ export function GoalNavigationChat({
           <div ref={messagesEndRef} />
         </div>
 
-        {currentStep <= 3 && !isLoading && !isComplete && (
+        {currentStep <= 2 && !isLoading && !isComplete && (
           <div className="flex gap-2">
             <Textarea
               value={userInput}
@@ -416,6 +401,21 @@ export function GoalNavigationChat({
               className="h-[60px] w-[60px]"
             >
               <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+
+        {thoughtsFailCount >= 2 && !isComplete && !isLoading && (
+          <div className="text-center space-y-2 py-2">
+            <p className="text-sm text-muted-foreground">
+              AI によるまとめ生成がうまくいかないようです。
+            </p>
+            <Button
+              variant="outline"
+              onClick={onFallbackToDirect}
+              className="w-full"
+            >
+              自分で入力する
             </Button>
           </div>
         )}

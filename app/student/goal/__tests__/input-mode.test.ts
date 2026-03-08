@@ -16,6 +16,7 @@ import {
   transitionInputMethodChoice,
   transitionAIChatComplete,
   transitionAIChatCancel,
+  transitionFallbackToDirect,
   transitionSaveComplete,
   transitionTestChange,
   getVisibleComponent,
@@ -72,6 +73,13 @@ describe("ゴールナビ入力モード状態遷移", () => {
     it("ai-full → cancel → choice に復帰", () => {
       const next = transitionAIChatCancel()
       expect(next).toBe("choice")
+    })
+
+    it("ai-full → fallbackToDirect → direct（AI生成フラグ false）", () => {
+      const { inputMode, isAIGenerated } = transitionFallbackToDirect()
+      expect(inputMode).toBe("direct")
+      expect(isAIGenerated).toBe(false)
+      expect(getVisibleComponent(inputMode)).toBe("direct-input")
     })
   })
 

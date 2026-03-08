@@ -1,5 +1,6 @@
 import { getOpenAIClient } from "./client"
 import { getGeminiClient, getModelForModule } from "../llm/client"
+import { Type } from "@google/genai"
 import { sanitizeForLog } from "../llm/logger"
 import { toGeminiContents } from "../llm/gemini-utils"
 import {
@@ -91,12 +92,20 @@ async function generateGoalNavigationMessageGemini(
   }
 }
 
+export type GoalThoughtsErrorCode = "MODEL_ERROR" | "JSON_PARSE_ERROR" | "VALIDATION_ERROR"
+
+export interface GoalThoughtsResult {
+  goalThoughts?: string
+  error?: string
+  error_code?: GoalThoughtsErrorCode
+}
+
 /**
  * 「今回の思い」を生成（Step 3）
  */
 export async function generateGoalThoughts(
   context: GoalNavigationContext
-): Promise<{ goalThoughts?: string; error?: string }> {
+): Promise<GoalThoughtsResult> {
   const { provider, model } = getModelForModule("goal", "structured")
 
   const generate = provider === "gemini"
@@ -105,7 +114,7 @@ export async function generateGoalThoughts(
 
   // 1回リトライ（JSONパース失敗はLLMの応答品質問題で再試行で解決することが多い）
   const result = await generate()
-  if (result.error && result.error.includes("解析に失敗")) {
+  if (result.error_code === "JSON_PARSE_ERROR") {
     console.warn("[generateGoalThoughts] JSON parse failed, retrying once...")
     return generate()
   }
@@ -121,20 +130,20 @@ function extractJson(text: string): string {
 async function generateGoalThoughtsOpenAI(
   context: GoalNavigationContext,
   model: string
-): Promise<{ goalThoughts?: string; error?: string }> {
+): Promise<GoalThoughtsResult> {
   try {
     const client = getOpenAIClient()
     const systemPrompt = getGoalNavigationSystemPrompt()
     const stepPrompt = getGoalNavigationStepPrompt({ ...context, currentStep: 3 })
 
+    // 会話履歴を先に並べ、最後にJSON生成指示を置く
     const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
       { role: "system", content: systemPrompt },
-      { role: "user", content: stepPrompt },
     ]
-
     context.conversationHistory.forEach((msg) => {
       messages.push({ role: msg.role, content: msg.content })
     })
+    messages.push({ role: "user", content: stepPrompt })
 
     const completion = await client.chat.completions.create({
       model,
@@ -144,35 +153,35 @@ async function generateGoalThoughtsOpenAI(
     })
 
     const responseText = completion.choices[0]?.message?.content
-    if (!responseText) return { error: "AI応答の生成に失敗しました" }
+    if (!responseText) return { error: "AI応答の生成に失敗しました", error_code: "MODEL_ERROR" }
 
     try {
       const parsed = JSON.parse(extractJson(responseText))
-      if (!parsed.goalThoughts) return { error: "生成されたデータが不正です" }
+      if (!parsed.goalThoughts) return { error: "生成されたデータが不正です", error_code: "VALIDATION_ERROR" }
       return { goalThoughts: parsed.goalThoughts }
     } catch (parseError) {
-      console.error("JSON parse error (OpenAI):", sanitizeForLog(parseError))
-      return { error: "AI応答の解析に失敗しました" }
+      console.error("JSON parse error (OpenAI). Raw response (truncated):", responseText.slice(0, 200))
+      return { error: "AI応答の解析に失敗しました", error_code: "JSON_PARSE_ERROR" }
     }
   } catch (error) {
     console.error("Goal thoughts generation error (OpenAI):", sanitizeForLog(error))
-    return { error: error instanceof Error ? error.message : "目標の思いの生成に失敗しました" }
+    return { error: error instanceof Error ? error.message : "目標の思いの生成に失敗しました", error_code: "MODEL_ERROR" }
   }
 }
 
 async function generateGoalThoughtsGemini(
   context: GoalNavigationContext,
   model: string
-): Promise<{ goalThoughts?: string; error?: string }> {
+): Promise<GoalThoughtsResult> {
   try {
     const client = getGeminiClient()
     const systemPrompt = getGoalNavigationSystemPrompt()
     const stepPrompt = getGoalNavigationStepPrompt({ ...context, currentStep: 3 })
 
-    // stepPromptを先頭user、その後にconversationHistory
+    // 会話履歴を先に並べ、最後にJSON生成指示を置く（指示が直近にあるほどGeminiが従いやすい）
     const geminiContents = toGeminiContents([
-      { role: "user" as const, content: stepPrompt },
       ...context.conversationHistory,
+      { role: "user" as const, content: stepPrompt },
     ])
 
     const response = await client.models.generateContent({
@@ -181,24 +190,31 @@ async function generateGoalThoughtsGemini(
         systemInstruction: systemPrompt,
         maxOutputTokens: 800,
         responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            goalThoughts: { type: Type.STRING },
+          },
+          required: ["goalThoughts"],
+        },
       },
       contents: geminiContents,
     })
 
     const responseText = response.text
-    if (!responseText) return { error: "AI応答の生成に失敗しました" }
+    if (!responseText) return { error: "AI応答の生成に失敗しました", error_code: "MODEL_ERROR" }
 
     try {
       const parsed = JSON.parse(extractJson(responseText))
-      if (!parsed.goalThoughts) return { error: "生成されたデータが不正です" }
+      if (!parsed.goalThoughts) return { error: "生成されたデータが不正です", error_code: "VALIDATION_ERROR" }
       return { goalThoughts: parsed.goalThoughts }
     } catch (parseError) {
-      console.error("JSON parse error (Gemini):", sanitizeForLog(parseError))
-      return { error: "AI応答の解析に失敗しました" }
+      console.error("JSON parse error (Gemini). Raw response (truncated):", responseText.slice(0, 200))
+      return { error: "AI応答の解析に失敗しました", error_code: "JSON_PARSE_ERROR" }
     }
   } catch (error) {
     console.error("Goal thoughts generation error (Gemini):", sanitizeForLog(error))
-    return { error: error instanceof Error ? error.message : "目標の思いの生成に失敗しました" }
+    return { error: error instanceof Error ? error.message : "目標の思いの生成に失敗しました", error_code: "MODEL_ERROR" }
   }
 }
 

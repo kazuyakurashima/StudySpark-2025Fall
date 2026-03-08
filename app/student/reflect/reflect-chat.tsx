@@ -146,6 +146,8 @@ export function ReflectChat({
   const [streamCanEndSession, setStreamCanEndSession] = useState(false)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const msgIdRef = useRef(0)
+  const [isWaitingForAI, setIsWaitingForAI] = useState(false)
 
   // ページ離脱時にストリームをAbort
   useEffect(() => {
@@ -168,19 +170,34 @@ export function ReflectChat({
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // 条件付き自動スクロール（最下部付近にいるときのみ）
-  const scrollToBottom = useCallback(() => {
+  // ユーザーが意図的に上スクロールしたかを追跡
+  const userScrolledUpRef = useRef(false)
+
+  // スクロールイベントでユーザーの手動スクロールを検知
+  useEffect(() => {
     const container = messagesContainerRef.current
     if (!container) return
-    const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 100
-    if (isNearBottom) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    const handleScroll = () => {
+      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight
+      // 底から 80px 以内なら「上スクロール」フラグを解除
+      userScrolledUpRef.current = distanceFromBottom > 80
     }
+    container.addEventListener("scroll", handleScroll)
+    return () => container.removeEventListener("scroll", handleScroll)
+  }, [])
+
+  // 自動スクロール: ユーザーが上スクロールしていなければ追従
+  // ストリーミング中は instant（smooth だと 50ms バッチに追いつけない）
+  const scrollToBottom = useCallback(() => {
+    if (userScrolledUpRef.current) return
+    const container = messagesContainerRef.current
+    if (!container) return
+    container.scrollTop = container.scrollHeight
   }, [])
 
   useEffect(() => {
     scrollToBottom()
-  }, [messages, scrollToBottom])
+  }, [messages, isStreaming, scrollToBottom])
 
   // ---------- リクエストボディ構築 ----------
 
@@ -204,7 +221,7 @@ export function ReflectChat({
     conversationHistory: { role: string; content: string }[],
     nextTurn: number
   ): Promise<{ content: string | null; aborted: boolean; placeholderId: number }> => {
-    const placeholderId = Date.now()
+    const placeholderId = ++msgIdRef.current
     setMessages(prev => [...prev, { id: placeholderId, role: "assistant", content: "" }])
     setIsStreaming(true)
 
@@ -234,20 +251,19 @@ export function ReflectChat({
       setTurnNumber(nextTurn)
 
       return { content: fullContent, aborted: false, placeholderId }
-    } catch {
+    } catch (e) {
       setIsStreaming(false)
-      // Abort判定はcontrollerのローカル参照で確認（finallyでref.currentがnullになる前に）
       const wasAborted = controller.signal.aborted
-      if (wasAborted) return { content: null, aborted: true, placeholderId }
+      if (wasAborted) {
+        // abort 時: placeholder を除去（StrictMode double-mount 対策）
+        setMessages(prev => prev.filter(m => m.id !== placeholderId))
+        return { content: null, aborted: true, placeholderId }
+      }
 
-      // エラー時: プレースホルダーにエラー表示（フォールバック時は呼び出し元が除去）
-      setMessages(prev => prev.map(m =>
-        m.id === placeholderId && m.content
-          ? { ...m, content: m.content + "\n\n⚠️ エラーが発生しました" }
-          : m.id === placeholderId
-            ? { ...m, content: "⚠️ エラーが発生しました。再試行してください。" }
-            : m
-      ))
+      // SSE 失敗ログ（turn 情報付き）
+      console.warn(`[ReflectChat] SSE failed at turn ${nextTurn}:`, e)
+
+      // エラー時: placeholder は残す（フォールバックで上書きされる）
       return { content: null, aborted: false, placeholderId }
     } finally {
       abortControllerRef.current = null
@@ -258,27 +274,54 @@ export function ReflectChat({
 
   const sendWithFallback = useCallback(async (
     conversationHistory: { role: string; content: string }[],
-    nextTurn: number
+    nextTurn: number,
+    placeholderId?: number
   ): Promise<string | null> => {
     const requestBody = buildRequestBody(conversationHistory, nextTurn)
     const data = await fetchNonStreamingMessage(requestBody)
 
-    if (data.error) {
-      alert("エラーが発生しました: " + data.error)
+    if (data.error || !data.message) {
+      // フォールバックも失敗: placeholder をエラーメッセージに置換（未検出時は append）
+      const errorContent = "⚠️ メッセージの取得に失敗しました。もう一度送信してみてください。"
+      if (placeholderId !== undefined) {
+        setMessages(prev => {
+          const found = prev.some(m => m.id === placeholderId)
+          if (found) {
+            return prev.map(m =>
+              m.id === placeholderId ? { ...m, content: errorContent } : m
+            )
+          }
+          return [...prev, { id: placeholderId, role: "assistant" as const, content: errorContent }]
+        })
+      }
+      if (data.error) {
+        console.warn(`[ReflectChat] Fallback also failed at turn ${nextTurn}:`, data.error)
+      }
       return null
     }
-    if (!data.message) return null
 
     // レガシーMETA検出 + 除去（非ストリームAPIはテキスト内にMETAタグを埋め込む）
     const hasMetaTag = data.message.includes("[META:SESSION_CAN_END]")
     const cleanContent = data.message.replace(/\s*\[META:SESSION_CAN_END\]\s*/g, "").trim()
 
-    const aiMessage: Message = {
-      id: Date.now(),
-      role: "assistant",
-      content: cleanContent,
+    if (placeholderId !== undefined) {
+      // upsert: プレースホルダーがあれば上書き、なければ末尾追加（abort除去後の安全策）
+      setMessages(prev => {
+        const found = prev.some(m => m.id === placeholderId)
+        if (found) {
+          return prev.map(m =>
+            m.id === placeholderId ? { ...m, content: cleanContent } : m
+          )
+        }
+        return [...prev, { id: placeholderId, role: "assistant" as const, content: cleanContent }]
+      })
+    } else {
+      setMessages(prev => [...prev, {
+        id: ++msgIdRef.current,
+        role: "assistant" as const,
+        content: cleanContent,
+      }])
     }
-    setMessages(prev => [...prev, aiMessage])
     await saveCoachingMessage(sessionId, "assistant", cleanContent, nextTurn)
     setTurnNumber(nextTurn)
 
@@ -292,19 +335,21 @@ export function ReflectChat({
   // ---------- 初回メッセージ取得 ----------
 
   useEffect(() => {
+    // StrictMode double-mount 対策: 1回目 cleanup で abort → placeholder 除去で自然にクリーンアップ
     const fetchInitialMessage = async () => {
       setIsLoading(true)
+      setIsWaitingForAI(true)
       try {
         const result = await sendWithStreaming([], 1)
         if (result.content === null && !result.aborted) {
-          // ストリーム失敗時（abort以外）: エラー表示プレースホルダーを除去してフォールバック
-          setMessages(prev => prev.filter(m => m.id !== result.placeholderId))
-          await sendWithFallback([], 1)
+          // ストリーム失敗時: プレースホルダーを維持してフォールバックで上書き
+          await sendWithFallback([], 1, result.placeholderId)
         }
       } catch (error) {
         console.error("初回メッセージ取得エラー:", error)
       } finally {
         setIsLoading(false)
+        setIsWaitingForAI(false)
       }
     }
     fetchInitialMessage()
@@ -343,7 +388,7 @@ export function ReflectChat({
         await completeCoachingSession(sessionId, summary, turnNumber)
 
         setMessages(prev => [...prev, {
-          id: Date.now(),
+          id: ++msgIdRef.current,
           role: "assistant",
           content: "今週の振り返りが完了しました！✨\n\nお疲れ様でした。",
         }])
@@ -368,7 +413,7 @@ export function ReflectChat({
     if (!userInput.trim() || isLoading || isStreaming) return
 
     const newUserMessage: Message = {
-      id: Date.now(),
+      id: ++msgIdRef.current,
       role: "user",
       content: userInput.trim(),
     }
@@ -377,6 +422,8 @@ export function ReflectChat({
     setMessages(updatedMessages)
     setUserInput("")
     setIsLoading(true)
+    setIsWaitingForAI(true)
+    userScrolledUpRef.current = false // ユーザー送信時は自動スクロール再開
     setStreamCanEndSession(false) // 新メッセージ送信時にリセット
 
     try {
@@ -391,7 +438,7 @@ export function ReflectChat({
 
         if (summary) {
           const finalMessage: Message = {
-            id: Date.now() + 1,
+            id: ++msgIdRef.current,
             role: "assistant",
             content: `${studentName}さん、今週の振り返りお疲れさま！✨\n\n今週の振り返りをまとめたよ：\n\n「${summary}」\n\nまた来週も一緒に頑張ろうね！`,
           }
@@ -410,9 +457,8 @@ export function ReflectChat({
 
         // ストリーム失敗時はフォールバック（abort時はスキップ）
         if (streamResult.content === null && !streamResult.aborted) {
-          // エラー表示プレースホルダーを除去してからフォールバック（2連続表示を防止）
-          setMessages(prev => prev.filter(m => m.id !== streamResult.placeholderId))
-          const fallbackContent = await sendWithFallback(conversationHistory, nextTurn)
+          // プレースホルダーを維持してフォールバックで上書き（二重表示防止）
+          const fallbackContent = await sendWithFallback(conversationHistory, nextTurn, streamResult.placeholderId)
 
           // フォールバック時のクロージング検出
           if (fallbackContent && isClosingMessage(fallbackContent)) {
@@ -432,6 +478,7 @@ export function ReflectChat({
       alert("エラーが発生しました")
     } finally {
       setIsLoading(false)
+      setIsWaitingForAI(false)
     }
   }
 
@@ -478,8 +525,8 @@ export function ReflectChat({
               </div>
             </div>
           ))}
-          {/* 初回ロード時のドットアニメーション */}
-          {isLoading && !isStreaming && messages.length === 0 && (
+          {/* コーチ応答待ちのドットアニメーション（初回・ターン2+共通、終了処理中は非表示） */}
+          {isWaitingForAI && !isStreaming && (
             <div className="flex gap-3">
               <Image
                 src={AVATAR_AI_COACH}
