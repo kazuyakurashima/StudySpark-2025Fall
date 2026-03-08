@@ -13,9 +13,9 @@
 --
 -- 影響範囲:
 -- - テーブル: study_sessions のみ
--- - 既存データへの影響: start_date/end_date の更新（行の追加・削除なし、既存19+15回分）
--- - 新規データ: 5年第20回、6年第16〜18回を追加
+-- - 既存データへの影響: start_date/end_date の UPSERT（INSERT or UPDATE）
 -- - study_logs 等への影響: なし（study_sessions の日付変更のみ、FK制約に影響しない）
+-- - db reset 時: seed.sql より先に実行されても自己充足（INSERT ... ON CONFLICT DO UPDATE）
 --
 -- ロールバック:
 -- - 20251217000001_fix_grade6_study_sessions_periods.sql の値に戻す（6年）
@@ -26,65 +26,58 @@ BEGIN;
 
 -- ==========================================================================
 -- 1. 小学5年生: 20回（2026-02-09 〜 2026-07-19）
---    既存の第1〜19回を更新 + 第20回を新規追加
+--    INSERT ... ON CONFLICT DO UPDATE で seed 非依存（新規DB / 既存DB 両対応）
 -- ==========================================================================
 
--- 既存回の日付更新
-UPDATE public.study_sessions SET start_date = '2026-02-09', end_date = '2026-02-15' WHERE grade = 5 AND session_number = 1;
-UPDATE public.study_sessions SET start_date = '2026-02-16', end_date = '2026-02-22' WHERE grade = 5 AND session_number = 2;
-UPDATE public.study_sessions SET start_date = '2026-02-23', end_date = '2026-03-01' WHERE grade = 5 AND session_number = 3;
-UPDATE public.study_sessions SET start_date = '2026-03-02', end_date = '2026-03-08' WHERE grade = 5 AND session_number = 4;
-UPDATE public.study_sessions SET start_date = '2026-03-09', end_date = '2026-03-15' WHERE grade = 5 AND session_number = 5;
-UPDATE public.study_sessions SET start_date = '2026-03-16', end_date = '2026-03-22' WHERE grade = 5 AND session_number = 6;
-UPDATE public.study_sessions SET start_date = '2026-04-06', end_date = '2026-04-12' WHERE grade = 5 AND session_number = 7;
-UPDATE public.study_sessions SET start_date = '2026-04-13', end_date = '2026-04-19' WHERE grade = 5 AND session_number = 8;
-UPDATE public.study_sessions SET start_date = '2026-04-20', end_date = '2026-04-26' WHERE grade = 5 AND session_number = 9;
-UPDATE public.study_sessions SET start_date = '2026-05-04', end_date = '2026-05-10' WHERE grade = 5 AND session_number = 10;
-UPDATE public.study_sessions SET start_date = '2026-05-11', end_date = '2026-05-17' WHERE grade = 5 AND session_number = 11;
-UPDATE public.study_sessions SET start_date = '2026-05-18', end_date = '2026-05-24' WHERE grade = 5 AND session_number = 12;
-UPDATE public.study_sessions SET start_date = '2026-05-25', end_date = '2026-05-31' WHERE grade = 5 AND session_number = 13;
-UPDATE public.study_sessions SET start_date = '2026-06-01', end_date = '2026-06-07' WHERE grade = 5 AND session_number = 14;
-UPDATE public.study_sessions SET start_date = '2026-06-08', end_date = '2026-06-14' WHERE grade = 5 AND session_number = 15;
-UPDATE public.study_sessions SET start_date = '2026-06-15', end_date = '2026-06-21' WHERE grade = 5 AND session_number = 16;
-UPDATE public.study_sessions SET start_date = '2026-06-22', end_date = '2026-06-28' WHERE grade = 5 AND session_number = 17;
-UPDATE public.study_sessions SET start_date = '2026-06-29', end_date = '2026-07-05' WHERE grade = 5 AND session_number = 18;
-UPDATE public.study_sessions SET start_date = '2026-07-06', end_date = '2026-07-12' WHERE grade = 5 AND session_number = 19;
-
--- 新規: 第20回
-INSERT INTO public.study_sessions (grade, session_number, start_date, end_date)
-VALUES (5, 20, '2026-07-13', '2026-07-19')
+INSERT INTO public.study_sessions (grade, session_number, start_date, end_date) VALUES
+(5, 1, '2026-02-09', '2026-02-15'),
+(5, 2, '2026-02-16', '2026-02-22'),
+(5, 3, '2026-02-23', '2026-03-01'),
+(5, 4, '2026-03-02', '2026-03-08'),
+(5, 5, '2026-03-09', '2026-03-15'),
+(5, 6, '2026-03-16', '2026-03-22'),
+(5, 7, '2026-04-06', '2026-04-12'),
+(5, 8, '2026-04-13', '2026-04-19'),
+(5, 9, '2026-04-20', '2026-04-26'),
+(5, 10, '2026-05-04', '2026-05-10'),
+(5, 11, '2026-05-11', '2026-05-17'),
+(5, 12, '2026-05-18', '2026-05-24'),
+(5, 13, '2026-05-25', '2026-05-31'),
+(5, 14, '2026-06-01', '2026-06-07'),
+(5, 15, '2026-06-08', '2026-06-14'),
+(5, 16, '2026-06-15', '2026-06-21'),
+(5, 17, '2026-06-22', '2026-06-28'),
+(5, 18, '2026-06-29', '2026-07-05'),
+(5, 19, '2026-07-06', '2026-07-12'),
+(5, 20, '2026-07-13', '2026-07-19')
 ON CONFLICT (grade, session_number) DO UPDATE SET
   start_date = EXCLUDED.start_date,
   end_date = EXCLUDED.end_date;
 
 -- ==========================================================================
 -- 2. 小学6年生: 18回（2026-02-09 〜 2026-07-19）
---    既存の第1〜15回を更新 + 第16〜18回を新規追加
+--    INSERT ... ON CONFLICT DO UPDATE で seed 非依存
 -- ==========================================================================
 
--- 既存回の日付更新
-UPDATE public.study_sessions SET start_date = '2026-02-09', end_date = '2026-02-15' WHERE grade = 6 AND session_number = 1;
-UPDATE public.study_sessions SET start_date = '2026-02-16', end_date = '2026-02-22' WHERE grade = 6 AND session_number = 2;
-UPDATE public.study_sessions SET start_date = '2026-02-23', end_date = '2026-03-01' WHERE grade = 6 AND session_number = 3;
-UPDATE public.study_sessions SET start_date = '2026-03-02', end_date = '2026-03-08' WHERE grade = 6 AND session_number = 4;
-UPDATE public.study_sessions SET start_date = '2026-03-09', end_date = '2026-03-15' WHERE grade = 6 AND session_number = 5;
-UPDATE public.study_sessions SET start_date = '2026-03-16', end_date = '2026-03-22' WHERE grade = 6 AND session_number = 6;
-UPDATE public.study_sessions SET start_date = '2026-04-13', end_date = '2026-04-19' WHERE grade = 6 AND session_number = 7;
-UPDATE public.study_sessions SET start_date = '2026-04-20', end_date = '2026-04-26' WHERE grade = 6 AND session_number = 8;
-UPDATE public.study_sessions SET start_date = '2026-05-04', end_date = '2026-05-10' WHERE grade = 6 AND session_number = 9;
-UPDATE public.study_sessions SET start_date = '2026-05-11', end_date = '2026-05-17' WHERE grade = 6 AND session_number = 10;
-UPDATE public.study_sessions SET start_date = '2026-05-18', end_date = '2026-05-24' WHERE grade = 6 AND session_number = 11;
-UPDATE public.study_sessions SET start_date = '2026-05-25', end_date = '2026-05-31' WHERE grade = 6 AND session_number = 12;
-UPDATE public.study_sessions SET start_date = '2026-06-01', end_date = '2026-06-07' WHERE grade = 6 AND session_number = 13;
-UPDATE public.study_sessions SET start_date = '2026-06-08', end_date = '2026-06-14' WHERE grade = 6 AND session_number = 14;
-UPDATE public.study_sessions SET start_date = '2026-06-15', end_date = '2026-06-21' WHERE grade = 6 AND session_number = 15;
-
--- 新規: 第16〜18回
-INSERT INTO public.study_sessions (grade, session_number, start_date, end_date)
-VALUES
-  (6, 16, '2026-06-22', '2026-06-28'),
-  (6, 17, '2026-07-06', '2026-07-12'),
-  (6, 18, '2026-07-13', '2026-07-19')
+INSERT INTO public.study_sessions (grade, session_number, start_date, end_date) VALUES
+(6, 1, '2026-02-09', '2026-02-15'),
+(6, 2, '2026-02-16', '2026-02-22'),
+(6, 3, '2026-02-23', '2026-03-01'),
+(6, 4, '2026-03-02', '2026-03-08'),
+(6, 5, '2026-03-09', '2026-03-15'),
+(6, 6, '2026-03-16', '2026-03-22'),
+(6, 7, '2026-04-13', '2026-04-19'),
+(6, 8, '2026-04-20', '2026-04-26'),
+(6, 9, '2026-05-04', '2026-05-10'),
+(6, 10, '2026-05-11', '2026-05-17'),
+(6, 11, '2026-05-18', '2026-05-24'),
+(6, 12, '2026-05-25', '2026-05-31'),
+(6, 13, '2026-06-01', '2026-06-07'),
+(6, 14, '2026-06-08', '2026-06-14'),
+(6, 15, '2026-06-15', '2026-06-21'),
+(6, 16, '2026-06-22', '2026-06-28'),
+(6, 17, '2026-07-06', '2026-07-12'),
+(6, 18, '2026-07-13', '2026-07-19')
 ON CONFLICT (grade, session_number) DO UPDATE SET
   start_date = EXCLUDED.start_date,
   end_date = EXCLUDED.end_date;
@@ -114,5 +107,7 @@ END $$;
 
 -- テーブルコメント更新
 COMMENT ON TABLE public.study_sessions IS '学習回マスタ (小5: 20回, 小6: 18回) - 2026年度';
+
+-- 検証後のseed.sql重複投入に備え、既にデータが正確なのでON CONFLICT DO NOTHINGで吸収される
 
 COMMIT;

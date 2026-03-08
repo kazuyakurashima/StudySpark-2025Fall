@@ -15,6 +15,7 @@
 -- - ⚠️ study_logs が存在する場合も CASCADE で削除されるため、事前チェックで中断する
 -- - problem_counts は別ファイルで投入: supabase/seeds/problem_counts_2026.sql
 -- - ※ seed.sql にも同一データあり。変更時は両方を更新すること
+-- - subjects 4科目は本マイグレーション内で自己充足（db reset 時の実行順序に依存しない）
 -- =============================================================================
 
 DO $$
@@ -25,15 +26,23 @@ DECLARE
   v_social_id BIGINT;
   v_log_count BIGINT;
 BEGIN
+  -- 必須科目を自己充足（seed.sql より先に実行されても動作する）
+  INSERT INTO public.subjects (name, display_order, color_code) VALUES
+  ('算数', 1, '#3B82F6'),
+  ('国語', 2, '#EF4444'),
+  ('理科', 3, '#F97316'),
+  ('社会', 4, '#10B981')
+  ON CONFLICT (name) DO NOTHING;
+
   -- 科目ID取得
   SELECT id INTO v_math_id FROM public.subjects WHERE name = '算数';
   SELECT id INTO v_japanese_id FROM public.subjects WHERE name = '国語';
   SELECT id INTO v_science_id FROM public.subjects WHERE name = '理科';
   SELECT id INTO v_social_id FROM public.subjects WHERE name = '社会';
 
-  -- 前提チェック: subjects が存在しない場合は中断
+  -- 安全チェック: INSERT 後も取得できない異常時のみ中断
   IF v_math_id IS NULL OR v_japanese_id IS NULL OR v_science_id IS NULL OR v_social_id IS NULL THEN
-    RAISE EXCEPTION 'subjects テーブルに必要な科目が不足しています (算数=%, 国語=%, 理科=%, 社会=%)。seed.sql を先に実行してください。',
+    RAISE EXCEPTION 'subjects テーブルへの科目投入に失敗しました (算数=%, 国語=%, 理科=%, 社会=%)。テーブル制約を確認してください。',
       v_math_id, v_japanese_id, v_science_id, v_social_id;
   END IF;
 
