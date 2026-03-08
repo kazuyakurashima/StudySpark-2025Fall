@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
-import { getDailySparkLevel, type SparkLevel } from "@/lib/utils/daily-spark"
+import { getDailySparkLevel, type SparkLevel } from "@/app/actions/daily-spark"
 
 interface DailySparkLogoProps {
   studentId?: number
@@ -36,7 +36,7 @@ export function DailySparkLogo({ studentId, parentUserId }: DailySparkLogoProps)
 
     const checkLevel = async () => {
       try {
-        const newLevel = await getDailySparkLevel(studentId, parentUserId)
+        const newLevel = await getDailySparkLevel(studentId)
         setLevel(newLevel)
       } catch (error) {
         console.error("[DailySparkLogo] Error checking spark level:", error)
