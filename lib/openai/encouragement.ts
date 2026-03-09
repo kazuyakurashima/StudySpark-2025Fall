@@ -123,7 +123,7 @@ export async function generateEncouragementMessages(
         model,
         config: {
           systemInstruction: systemPrompt,
-          maxOutputTokens: 800,
+          maxOutputTokens: 1500,
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -147,7 +147,7 @@ export async function generateEncouragementMessages(
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        max_completion_tokens: 800,
+        max_completion_tokens: 1500,
         response_format: { type: "json_object" },
       })
       responseText = completion.choices[0]?.message?.content || ""
@@ -157,10 +157,19 @@ export async function generateEncouragementMessages(
       throw new Error("AI応答の生成に失敗しました")
     }
 
-    const response = JSON.parse(responseText)
+    console.log("[Encouragement] raw response:", responseText.slice(0, 300))
+
+    let response: Record<string, unknown>
+    try {
+      response = JSON.parse(responseText)
+    } catch (parseError) {
+      console.error("[Encouragement] JSON parse failed. Raw:", responseText.slice(0, 500))
+      throw new Error(`JSON解析エラー: ${parseError instanceof Error ? parseError.message : String(parseError)}`)
+    }
     const messages = response.messages as string[]
 
     if (!Array.isArray(messages) || messages.length !== 3) {
+      console.error("[Encouragement] Invalid format:", JSON.stringify(response).slice(0, 300))
       throw new Error("AI応答のフォーマットが不正です")
     }
 
@@ -248,7 +257,15 @@ export async function generateEncouragementSuggestions(input: {
       throw new Error("AI応答の生成に失敗しました")
     }
 
-    const response = JSON.parse(responseText)
+    console.log("[EncouragementSuggestions] raw response:", responseText.slice(0, 300))
+
+    let response: Record<string, unknown>
+    try {
+      response = JSON.parse(responseText)
+    } catch (parseError) {
+      console.error("[EncouragementSuggestions] JSON parse failed. Raw:", responseText.slice(0, 500))
+      throw new Error(`JSON解析エラー: ${parseError instanceof Error ? parseError.message : String(parseError)}`)
+    }
     return { suggestions: response.suggestions as string[] }
   } catch (error) {
     console.error("Encouragement suggestions error:", sanitizeForLog(error))
