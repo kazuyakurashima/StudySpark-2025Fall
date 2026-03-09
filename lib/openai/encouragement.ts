@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { getOpenAIClient } from "./client"
 import { getGeminiClient, getModelForModule } from "../llm/client"
+import { Type } from "@google/genai"
 import { sanitizeForLog } from "../llm/logger"
 import {
   getEncouragementSystemPrompt,
@@ -124,6 +125,16 @@ export async function generateEncouragementMessages(
           systemInstruction: systemPrompt,
           maxOutputTokens: 800,
           responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              messages: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING },
+              },
+            },
+            required: ["messages"],
+          },
         },
         contents: [{ role: "user" as const, parts: [{ text: userPrompt }] }],
       })
@@ -205,6 +216,16 @@ export async function generateEncouragementSuggestions(input: {
           systemInstruction: systemPrompt,
           maxOutputTokens: 600,
           responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              suggestions: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING },
+              },
+            },
+            required: ["suggestions"],
+          },
         },
         contents: [{ role: "user" as const, parts: [{ text: userPrompt }] }],
       })
