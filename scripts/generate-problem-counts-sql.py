@@ -9,6 +9,12 @@ Usage:
 
 Output:
   supabase/migrations/20260206000002_update_content_types_and_problem_counts.sql
+
+NOTE: 国語・漢字の総合回（組分けテスト週）は80問に手動修正が必要。
+  - 小5: session 5, 9, 14, 18
+  - 小6: session 5, 9, 14, 18
+  Excelデータは全回40問だが、総合回は実際には80問。
+  再生成後は problem_counts_2026.sql の該当行を 40→80 に修正すること。
 """
 
 import openpyxl

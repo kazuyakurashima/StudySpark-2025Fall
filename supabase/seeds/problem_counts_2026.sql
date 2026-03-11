@@ -483,10 +483,10 @@ BEGIN
     (pg_temp.ct_id(5, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(5, 4), 40),
     (pg_temp.ct_id(5, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(5, 4), 40),
     (pg_temp.ct_id(5, v_japanese_id, 'S', '漢字'), pg_temp.ss_id(5, 4), 40),
-    (pg_temp.ct_id(5, v_japanese_id, 'A', '漢字'), pg_temp.ss_id(5, 5), 40),
-    (pg_temp.ct_id(5, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(5, 5), 40),
-    (pg_temp.ct_id(5, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(5, 5), 40),
-    (pg_temp.ct_id(5, v_japanese_id, 'S', '漢字'), pg_temp.ss_id(5, 5), 40),
+    (pg_temp.ct_id(5, v_japanese_id, 'A', '漢字'), pg_temp.ss_id(5, 5), 80),  -- 総合回
+    (pg_temp.ct_id(5, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(5, 5), 80),  -- 総合回
+    (pg_temp.ct_id(5, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(5, 5), 80),  -- 総合回
+    (pg_temp.ct_id(5, v_japanese_id, 'S', '漢字'), pg_temp.ss_id(5, 5), 80),  -- 総合回
     (pg_temp.ct_id(5, v_japanese_id, 'A', '漢字'), pg_temp.ss_id(5, 6), 40),
     (pg_temp.ct_id(5, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(5, 6), 40),
     (pg_temp.ct_id(5, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(5, 6), 40),
@@ -499,10 +499,10 @@ BEGIN
     (pg_temp.ct_id(5, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(5, 8), 40),
     (pg_temp.ct_id(5, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(5, 8), 40),
     (pg_temp.ct_id(5, v_japanese_id, 'S', '漢字'), pg_temp.ss_id(5, 8), 40),
-    (pg_temp.ct_id(5, v_japanese_id, 'A', '漢字'), pg_temp.ss_id(5, 9), 40),
-    (pg_temp.ct_id(5, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(5, 9), 40),
-    (pg_temp.ct_id(5, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(5, 9), 40),
-    (pg_temp.ct_id(5, v_japanese_id, 'S', '漢字'), pg_temp.ss_id(5, 9), 40),
+    (pg_temp.ct_id(5, v_japanese_id, 'A', '漢字'), pg_temp.ss_id(5, 9), 80),  -- 総合回
+    (pg_temp.ct_id(5, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(5, 9), 80),  -- 総合回
+    (pg_temp.ct_id(5, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(5, 9), 80),  -- 総合回
+    (pg_temp.ct_id(5, v_japanese_id, 'S', '漢字'), pg_temp.ss_id(5, 9), 80),  -- 総合回
     (pg_temp.ct_id(5, v_japanese_id, 'A', '漢字'), pg_temp.ss_id(5, 10), 40),
     (pg_temp.ct_id(5, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(5, 10), 40),
     (pg_temp.ct_id(5, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(5, 10), 40),
@@ -519,10 +519,10 @@ BEGIN
     (pg_temp.ct_id(5, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(5, 13), 40),
     (pg_temp.ct_id(5, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(5, 13), 40),
     (pg_temp.ct_id(5, v_japanese_id, 'S', '漢字'), pg_temp.ss_id(5, 13), 40),
-    (pg_temp.ct_id(5, v_japanese_id, 'A', '漢字'), pg_temp.ss_id(5, 14), 40),
-    (pg_temp.ct_id(5, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(5, 14), 40),
-    (pg_temp.ct_id(5, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(5, 14), 40),
-    (pg_temp.ct_id(5, v_japanese_id, 'S', '漢字'), pg_temp.ss_id(5, 14), 40),
+    (pg_temp.ct_id(5, v_japanese_id, 'A', '漢字'), pg_temp.ss_id(5, 14), 80),  -- 総合回
+    (pg_temp.ct_id(5, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(5, 14), 80),  -- 総合回
+    (pg_temp.ct_id(5, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(5, 14), 80),  -- 総合回
+    (pg_temp.ct_id(5, v_japanese_id, 'S', '漢字'), pg_temp.ss_id(5, 14), 80),  -- 総合回
     (pg_temp.ct_id(5, v_japanese_id, 'A', '漢字'), pg_temp.ss_id(5, 15), 40),
     (pg_temp.ct_id(5, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(5, 15), 40),
     (pg_temp.ct_id(5, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(5, 15), 40),
@@ -535,10 +535,10 @@ BEGIN
     (pg_temp.ct_id(5, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(5, 17), 40),
     (pg_temp.ct_id(5, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(5, 17), 40),
     (pg_temp.ct_id(5, v_japanese_id, 'S', '漢字'), pg_temp.ss_id(5, 17), 40),
-    (pg_temp.ct_id(5, v_japanese_id, 'A', '漢字'), pg_temp.ss_id(5, 18), 40),
-    (pg_temp.ct_id(5, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(5, 18), 40),
-    (pg_temp.ct_id(5, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(5, 18), 40),
-    (pg_temp.ct_id(5, v_japanese_id, 'S', '漢字'), pg_temp.ss_id(5, 18), 40),
+    (pg_temp.ct_id(5, v_japanese_id, 'A', '漢字'), pg_temp.ss_id(5, 18), 80),  -- 総合回
+    (pg_temp.ct_id(5, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(5, 18), 80),  -- 総合回
+    (pg_temp.ct_id(5, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(5, 18), 80),  -- 総合回
+    (pg_temp.ct_id(5, v_japanese_id, 'S', '漢字'), pg_temp.ss_id(5, 18), 80),  -- 総合回
     (pg_temp.ct_id(5, v_japanese_id, 'A', '漢字'), pg_temp.ss_id(5, 19), 40),
     (pg_temp.ct_id(5, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(5, 19), 40),
     (pg_temp.ct_id(5, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(5, 19), 40),
@@ -563,10 +563,10 @@ BEGIN
     (pg_temp.ct_id(6, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(6, 4), 40),
     (pg_temp.ct_id(6, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(6, 4), 40),
     (pg_temp.ct_id(6, v_japanese_id, 'S', '漢字'), pg_temp.ss_id(6, 4), 40),
-    (pg_temp.ct_id(6, v_japanese_id, 'A', '漢字'), pg_temp.ss_id(6, 5), 40),
-    (pg_temp.ct_id(6, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(6, 5), 40),
-    (pg_temp.ct_id(6, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(6, 5), 40),
-    (pg_temp.ct_id(6, v_japanese_id, 'S', '漢字'), pg_temp.ss_id(6, 5), 40),
+    (pg_temp.ct_id(6, v_japanese_id, 'A', '漢字'), pg_temp.ss_id(6, 5), 80),  -- 総合回
+    (pg_temp.ct_id(6, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(6, 5), 80),  -- 総合回
+    (pg_temp.ct_id(6, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(6, 5), 80),  -- 総合回
+    (pg_temp.ct_id(6, v_japanese_id, 'S', '漢字'), pg_temp.ss_id(6, 5), 80),  -- 総合回
     (pg_temp.ct_id(6, v_japanese_id, 'A', '漢字'), pg_temp.ss_id(6, 6), 40),
     (pg_temp.ct_id(6, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(6, 6), 40),
     (pg_temp.ct_id(6, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(6, 6), 40),
@@ -579,10 +579,10 @@ BEGIN
     (pg_temp.ct_id(6, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(6, 8), 40),
     (pg_temp.ct_id(6, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(6, 8), 40),
     (pg_temp.ct_id(6, v_japanese_id, 'S', '漢字'), pg_temp.ss_id(6, 8), 40),
-    (pg_temp.ct_id(6, v_japanese_id, 'A', '漢字'), pg_temp.ss_id(6, 9), 40),
-    (pg_temp.ct_id(6, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(6, 9), 40),
-    (pg_temp.ct_id(6, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(6, 9), 40),
-    (pg_temp.ct_id(6, v_japanese_id, 'S', '漢字'), pg_temp.ss_id(6, 9), 40),
+    (pg_temp.ct_id(6, v_japanese_id, 'A', '漢字'), pg_temp.ss_id(6, 9), 80),  -- 総合回
+    (pg_temp.ct_id(6, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(6, 9), 80),  -- 総合回
+    (pg_temp.ct_id(6, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(6, 9), 80),  -- 総合回
+    (pg_temp.ct_id(6, v_japanese_id, 'S', '漢字'), pg_temp.ss_id(6, 9), 80),  -- 総合回
     (pg_temp.ct_id(6, v_japanese_id, 'A', '漢字'), pg_temp.ss_id(6, 10), 40),
     (pg_temp.ct_id(6, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(6, 10), 40),
     (pg_temp.ct_id(6, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(6, 10), 40),
@@ -599,10 +599,10 @@ BEGIN
     (pg_temp.ct_id(6, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(6, 13), 40),
     (pg_temp.ct_id(6, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(6, 13), 40),
     (pg_temp.ct_id(6, v_japanese_id, 'S', '漢字'), pg_temp.ss_id(6, 13), 40),
-    (pg_temp.ct_id(6, v_japanese_id, 'A', '漢字'), pg_temp.ss_id(6, 14), 40),
-    (pg_temp.ct_id(6, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(6, 14), 40),
-    (pg_temp.ct_id(6, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(6, 14), 40),
-    (pg_temp.ct_id(6, v_japanese_id, 'S', '漢字'), pg_temp.ss_id(6, 14), 40),
+    (pg_temp.ct_id(6, v_japanese_id, 'A', '漢字'), pg_temp.ss_id(6, 14), 80),  -- 総合回
+    (pg_temp.ct_id(6, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(6, 14), 80),  -- 総合回
+    (pg_temp.ct_id(6, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(6, 14), 80),  -- 総合回
+    (pg_temp.ct_id(6, v_japanese_id, 'S', '漢字'), pg_temp.ss_id(6, 14), 80),  -- 総合回
     (pg_temp.ct_id(6, v_japanese_id, 'A', '漢字'), pg_temp.ss_id(6, 15), 40),
     (pg_temp.ct_id(6, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(6, 15), 40),
     (pg_temp.ct_id(6, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(6, 15), 40),
@@ -615,10 +615,10 @@ BEGIN
     (pg_temp.ct_id(6, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(6, 17), 40),
     (pg_temp.ct_id(6, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(6, 17), 40),
     (pg_temp.ct_id(6, v_japanese_id, 'S', '漢字'), pg_temp.ss_id(6, 17), 40),
-    (pg_temp.ct_id(6, v_japanese_id, 'A', '漢字'), pg_temp.ss_id(6, 18), 40),
-    (pg_temp.ct_id(6, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(6, 18), 40),
-    (pg_temp.ct_id(6, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(6, 18), 40),
-    (pg_temp.ct_id(6, v_japanese_id, 'S', '漢字'), pg_temp.ss_id(6, 18), 40),
+    (pg_temp.ct_id(6, v_japanese_id, 'A', '漢字'), pg_temp.ss_id(6, 18), 80),  -- 総合回
+    (pg_temp.ct_id(6, v_japanese_id, 'B', '漢字'), pg_temp.ss_id(6, 18), 80),  -- 総合回
+    (pg_temp.ct_id(6, v_japanese_id, 'C', '漢字'), pg_temp.ss_id(6, 18), 80),  -- 総合回
+    (pg_temp.ct_id(6, v_japanese_id, 'S', '漢字'), pg_temp.ss_id(6, 18), 80),  -- 総合回
     (pg_temp.ct_id(5, v_science_id, 'A', '予習：要点チェック'), pg_temp.ss_id(5, 1), 10),
     (pg_temp.ct_id(5, v_science_id, 'B', '予習：要点チェック'), pg_temp.ss_id(5, 1), 10),
     (pg_temp.ct_id(5, v_science_id, 'C', '予習：要点チェック'), pg_temp.ss_id(5, 1), 10),
