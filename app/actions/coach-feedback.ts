@@ -87,8 +87,9 @@ async function callLLM(
 /**
  * コーチフィードバック生成（Server Action）
  *
- * SSE化後もレガシーフォールバックとして残す。
- * メインパスはサービス層の関数を使う薄いラッパー。
+ * SSE化後もレガシーフォールバック / batch_idなしパスとして残す。
+ * バッチ検証・キャッシュ確認・DB保存はサービス層を利用するが、
+ * callLLM()（非ストリーミング）とLangfuse trace/generation記録は本ファイルに保持。
  */
 export async function generateCoachFeedback(
   clientStudentId: number,
