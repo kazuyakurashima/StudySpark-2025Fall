@@ -5,157 +5,39 @@ import { getOpenAIClient } from "@/lib/openai/client"
 import { getGeminiClient, getModelForModule } from "@/lib/llm/client"
 import { sanitizeForLog } from "@/lib/llm/logger"
 import { createClient, createAdminClient } from "@/lib/supabase/server"
-import crypto from "crypto"
+import {
+  PROMPT_VERSION,
+  getSystemPrompt,
+  getUserPrompt,
+  getPromptHash,
+  getTimeoutMs,
+  getFallbackFeedback,
+  verifyBatchOwnership,
+  checkExistingFeedback,
+  saveFeedbackToDb,
+  saveFallbackToDb,
+} from "@/lib/services/coach-feedback"
+
+// 型の re-export（既存importの互換維持）
+export type {
+  StudyDataForFeedback,
+  GenerateFeedbackResult,
+  GenerateFeedbackSuccess,
+  GenerateFeedbackError,
+} from "@/lib/types/coach-feedback"
+
+import type {
+  StudyDataForFeedback,
+  GenerateFeedbackResult,
+} from "@/lib/types/coach-feedback"
 
 // ============================================================================
-// 定数
+// LLM呼び出し（Server Action / レガシー専用 — 非ストリーミング）
 // ============================================================================
-const PROMPT_VERSION = "v1.0"
-const BASE_TIMEOUT_MS = 5000 // 基本タイムアウト
-const TIMEOUT_PER_SUBJECT_MS = 500 // 科目あたりの追加時間
-
-/**
- * 科目数に応じた動的タイムアウト計算
- * 基本5秒 + 科目数×0.5秒（最大8秒）
- */
-function getTimeoutMs(subjectCount: number): number {
-  const dynamicTimeout = BASE_TIMEOUT_MS + (subjectCount * TIMEOUT_PER_SUBJECT_MS)
-  return Math.min(dynamicTimeout, 8000) // 最大8秒
-}
-
-// ============================================================================
-// 型定義
-// ============================================================================
-export type StudyDataForFeedback = {
-  subjects: {
-    name: string
-    correct: number
-    total: number
-    accuracy: number
-  }[]
-  studentName?: string
-  streak?: number
-  previousAccuracy?: number
-  reflectionText?: string
-}
-
-type GenerateFeedbackSuccess = {
-  success: true
-  feedback: string
-  fromCache?: boolean
-  savedToDb: boolean
-}
-
-type GenerateFeedbackError = {
-  success: false
-  error: string
-  fallbackFeedback: string
-  canRetry: boolean
-}
-
-export type GenerateFeedbackResult = GenerateFeedbackSuccess | GenerateFeedbackError
-
-// ============================================================================
-// ユーティリティ関数
-// ============================================================================
-
-/**
- * プロンプトハッシュ生成（監査用）
- */
-function getPromptHash(systemPrompt: string, userPrompt: string): string {
-  return crypto
-    .createHash("sha256")
-    .update(systemPrompt + userPrompt)
-    .digest("hex")
-    .substring(0, 16)
-}
-
-/**
- * システムプロンプト
- */
-function getSystemPrompt(): string {
-  return `あなたは中学受験を目指す小学生を応援するAIコーチです。
-
-【役割】
-学習記録を見て、頑張りを認め、励ます短いメッセージを生成します。
-
-【セルフコンパッション原則】
-- 結果ではなく、取り組んだ過程・努力を認める
-- 完璧を求めず、挑戦したこと自体を称える
-- 失敗を責めず、学びの機会として捉える
-
-【コンテキスト活用】
-- 連続学習日数があれば継続を称える
-- 前回より正答率が上がっていれば成長を強調
-- 複数科目に取り組んだ場合はその努力を認める
-- 生徒の振り返りコメントがあれば、その気持ちに共感し言及する
-
-【正答率別トーン】
-- 80%以上: 達成を称える
-- 50-79%: 挑戦を認める + 「次は〇〇してみよう」の一言
-- 50%未満: 取り組みを肯定 + 「間違いは成長のチャンス」+ 具体的な次の一歩
-
-【出力】
-- 40〜100文字
-- 具体的な数字に言及
-- 温かく親しみやすい言葉
-- 振り返りがある場合は、その内容に触れる`
-}
-
-/**
- * ユーザープロンプト
- */
-function getUserPrompt(data: StudyDataForFeedback): string {
-  const details = data.subjects
-    .map((s) => `${s.name}: ${s.correct}/${s.total}問正解（${s.accuracy}%）`)
-    .join("\n")
-
-  let context = ""
-  if (data.streak && data.streak >= 3) {
-    context += `\n連続学習日数: ${data.streak}日`
-  }
-  if (data.previousAccuracy !== undefined && data.subjects.length > 0) {
-    const currentAvg =
-      data.subjects.reduce((sum, s) => sum + s.accuracy, 0) / data.subjects.length
-    const diff = Math.round(currentAvg - data.previousAccuracy)
-    if (diff > 0) {
-      context += `\n前回比: +${diff}%アップ`
-    }
-  }
-
-  let reflection = ""
-  if (data.reflectionText && data.reflectionText.trim()) {
-    reflection = `\n\n生徒の振り返りコメント:\n「${data.reflectionText.trim()}」`
-  }
-
-  return `今日の学習記録:
-${details}${context}${reflection}
-
-この記録に対して、生徒を励ます短いメッセージを生成してください。`
-}
-
-/**
- * フォールバックメッセージ（AI生成失敗時）
- * 内部専用 - Server Action内でのみ使用
- */
-function getFallbackFeedback(data: StudyDataForFeedback): string {
-  const totalSubjects = data.subjects.length
-  const avgAccuracy =
-    data.subjects.reduce((sum, s) => sum + s.accuracy, 0) / (totalSubjects || 1)
-
-  if (totalSubjects >= 3) {
-    return `${totalSubjects}科目も頑張ったね！ナイスチャレンジ！`
-  } else if (avgAccuracy >= 80) {
-    return `よく頑張ったね！素晴らしい集中力だ！`
-  } else if (avgAccuracy >= 50) {
-    return `しっかり取り組めたね！その調子！`
-  } else {
-    return `今日も学習に挑戦したね！その努力が大事だよ！`
-  }
-}
 
 /**
  * LLM呼び出し（プロバイダ分岐 + AbortSignal対応）
+ * ストリーミング版は lib/services/coach-feedback-stream.ts を使用。
  */
 async function callLLM(
   systemPrompt: string,
@@ -203,20 +85,10 @@ async function callLLM(
 // ============================================================================
 
 /**
- * コーチフィードバック生成
+ * コーチフィードバック生成（Server Action）
  *
- * セキュリティ:
- * 1. ログインユーザーを認証
- * 2. そのユーザーが所有するstudent_idを取得
- * 3. クライアントが渡したIDと照合
- * 4. batch内の全study_logsの所有権・整合性を検証
- * 5. 検証後、サービスロールでINSERT
- *
- * @param clientStudentId - 生徒ID
- * @param clientSessionId - セッションID
- * @param clientBatchId - バッチID
- * @param clientStudyLogIds - 検証用のstudy_log_id配列
- * @param data - フィードバック生成用データ
+ * SSE化後もレガシーフォールバックとして残す。
+ * メインパスはサービス層の関数を使う薄いラッパー。
  */
 export async function generateCoachFeedback(
   clientStudentId: number,
@@ -226,11 +98,10 @@ export async function generateCoachFeedback(
   data: StudyDataForFeedback
 ): Promise<GenerateFeedbackResult> {
   // ========================================
-  // 1. 認証・権限検証（最重要）
+  // 1. 認証・権限検証
   // ========================================
   const supabase = await createClient()
 
-  // ログインユーザー取得
   const {
     data: { user },
     error: authError,
@@ -246,7 +117,6 @@ export async function generateCoachFeedback(
     }
   }
 
-  // ログインユーザーのstudent_idを取得
   const { data: studentRecord, error: studentError } = await supabase
     .from("students")
     .select("id")
@@ -263,7 +133,6 @@ export async function generateCoachFeedback(
     }
   }
 
-  // クライアントが渡したstudentIdと照合
   if (studentRecord.id !== clientStudentId) {
     console.error("Student ID mismatch:", sanitizeForLog({
       expected: studentRecord.id,
@@ -280,87 +149,36 @@ export async function generateCoachFeedback(
   const verifiedStudentId = studentRecord.id
 
   // ========================================
-  // 2. batch内の全study_logsの所有権・整合性を検証
+  // 2. バッチ所有権検証（サービス層に委譲）
   // ========================================
+  const batchResult = await verifyBatchOwnership(
+    supabase,
+    verifiedStudentId,
+    clientBatchId,
+    clientStudyLogIds,
+    clientSessionId
+  )
 
-  // まずbatch_idでログを取得
-  const { data: batchLogs, error: batchError } = await supabase
-    .from("study_logs")
-    .select("id, student_id, session_id, batch_id")
-    .eq("batch_id", clientBatchId)
-
-  if (batchError) {
-    console.error("Batch logs lookup failed:", sanitizeForLog(batchError))
+  if (!batchResult.ok) {
+    // batch_not_found → レガシーフォールバック
+    if (batchResult.error === "batch_not_found") {
+      return await generateLegacyFeedback(
+        supabase,
+        verifiedStudentId,
+        clientSessionId,
+        clientStudyLogIds,
+        data
+      )
+    }
     return {
       success: false,
-      error: "学習記録の取得に失敗しました",
+      error: batchResult.error,
       fallbackFeedback: getFallbackFeedback(data),
       canRetry: false,
     }
   }
 
-  // batch_idで取得できなかった場合、studyLogIdsでフォールバック検証（レガシー対応）
-  if (!batchLogs || batchLogs.length === 0) {
-    return await generateLegacyFeedback(
-      supabase,
-      verifiedStudentId,
-      clientSessionId,
-      clientStudyLogIds,
-      data
-    )
-  }
-
-  // クライアントから渡されたstudyLogIdsとbatch内のIDが一致するか検証
-  const batchLogIds = new Set(batchLogs.map(log => log.id))
-  const allClientIdsInBatch = clientStudyLogIds.every(id => batchLogIds.has(id))
-
-  if (!allClientIdsInBatch) {
-    console.error("[Coach Feedback] Validation failed - studyLogIds mismatch:", sanitizeForLog({
-      clientIds: clientStudyLogIds,
-      batchIds: Array.from(batchLogIds),
-      batchId: clientBatchId,
-    }))
-    return {
-      success: false,
-      error: "学習記録の整合性エラー",
-      fallbackFeedback: getFallbackFeedback(data),
-      canRetry: false,
-    }
-  }
-
-  // 全ログが同一student_id か検証
-  if (!batchLogs.every(log => log.student_id === verifiedStudentId)) {
-    console.error("[Coach Feedback] Validation failed - student ownership mismatch:", sanitizeForLog({
-      verifiedStudentId,
-      batchStudentIds: batchLogs.map(log => log.student_id),
-      batchId: clientBatchId,
-    }))
-    return {
-      success: false,
-      error: "権限エラー: この学習記録へのアクセス権がありません",
-      fallbackFeedback: getFallbackFeedback(data),
-      canRetry: false,
-    }
-  }
-
-  // 全ログが同一session_id か検証（エラーにする）
-  if (!batchLogs.every(log => log.session_id === clientSessionId)) {
-    console.error("[Coach Feedback] Validation failed - session inconsistency:", sanitizeForLog({
-      clientSessionId,
-      batchId: clientBatchId,
-      batchSessionIds: batchLogs.map(log => log.session_id),
-    }))
-    return {
-      success: false,
-      error: "セッション情報の整合性エラー",
-      fallbackFeedback: getFallbackFeedback(data),
-      canRetry: false,
-    }
-  }
-
-  const verifiedSessionId = clientSessionId
-  const verifiedBatchId = clientBatchId
-  const representativeStudyLogId = clientStudyLogIds[0] // 代表として先頭を使用
+  const { verifiedSessionId, representativeStudyLogId } = batchResult
 
   // ========================================
   // 3. 入力データ検証
@@ -375,28 +193,16 @@ export async function generateCoachFeedback(
   }
 
   // ========================================
-  // 4. 既存フィードバック確認（サービスロール）- batch_id で検索
+  // 4. 既存フィードバック確認（サービス層に委譲）
   // ========================================
   const adminClient = createAdminClient()
+  const hasReflection = !!(data.reflectionText && data.reflectionText.trim())
+  const cacheResult = await checkExistingFeedback(adminClient, clientBatchId, hasReflection)
 
-  const { data: existing } = await adminClient
-    .from("coach_feedbacks")
-    .select("id, feedback_text")
-    .eq("batch_id", verifiedBatchId)
-    .single()
-
-  // 振り返りテキストがある場合、既存フィードバックを削除して再生成
-  // （ユーザーが後から振り返りを追加した場合に対応）
-  if (existing && data.reflectionText && data.reflectionText.trim()) {
-    // 既存フィードバックを削除
-    await adminClient
-      .from("coach_feedbacks")
-      .delete()
-      .eq("id", existing.id)
-  } else if (existing) {
+  if (cacheResult.hit) {
     return {
       success: true,
-      feedback: existing.feedback_text,
+      feedback: cacheResult.feedbackText,
       fromCache: true,
       savedToDb: true,
     }
@@ -445,62 +251,32 @@ export async function generateCoachFeedback(
     })
 
     // ========================================
-    // 6. DB保存（サービスロール）- batch_id ベース
+    // 6. DB保存（サービス層に委譲）
     // ========================================
-    const { error: insertError } = await adminClient.from("coach_feedbacks").insert({
-      batch_id: verifiedBatchId,
-      study_log_id: representativeStudyLogId, // 代表の1件を設定（NOT NULL維持）
-      student_id: verifiedStudentId,
-      session_id: verifiedSessionId,
-      feedback_text: generatedFeedback,
-      prompt_version: PROMPT_VERSION,
-      prompt_hash: promptHash,
-      langfuse_trace_id: trace?.id || null,
+    const saveResult = await saveFeedbackToDb(adminClient, {
+      batchId: clientBatchId,
+      studyLogId: representativeStudyLogId,
+      studentId: verifiedStudentId,
+      sessionId: verifiedSessionId,
+      feedbackText: generatedFeedback,
+      promptVersion: PROMPT_VERSION,
+      promptHash,
+      langfuseTraceId: trace?.id || null,
     })
 
-    if (insertError) {
-      if (insertError.code === "23505") {
-        // UNIQUE違反 - 既存を返す（batch_idで検索）
-        const { data: existingAfterConflict } = await adminClient
-          .from("coach_feedbacks")
-          .select("feedback_text")
-          .eq("batch_id", verifiedBatchId)
-          .single()
-
-        if (existingAfterConflict) {
-          return {
-            success: true,
-            feedback: existingAfterConflict.feedback_text,
-            fromCache: true,
-            savedToDb: true,
-          }
-        }
-      }
-
-      // DB保存失敗 - 生成済みフィードバックは返すが、保存失敗を明示
-      console.error("Failed to save feedback to DB:", sanitizeForLog({
-        code: insertError.code,
-        message: insertError.message,
-        details: insertError.details,
-        hint: insertError.hint,
-        insertData: {
-          batch_id: verifiedBatchId,
-          study_log_id: representativeStudyLogId,
-          student_id: verifiedStudentId,
-          session_id: verifiedSessionId,
-        },
-      }))
+    if (!saveResult.saved && saveResult.existingText) {
       return {
         success: true,
-        feedback: generatedFeedback,
-        savedToDb: false,
+        feedback: saveResult.existingText,
+        fromCache: true,
+        savedToDb: true,
       }
     }
 
     return {
       success: true,
       feedback: generatedFeedback,
-      savedToDb: true,
+      savedToDb: saveResult.saved,
     }
   } catch (error) {
     clearTimeout(timeoutId)
@@ -508,11 +284,10 @@ export async function generateCoachFeedback(
     const isAborted = error instanceof Error && error.name === "AbortError"
     const errorMessage = error instanceof Error ? error.message : "Unknown error"
 
-    // 詳細なエラーログ
     console.error("[Coach Feedback] Generation failed:", sanitizeForLog({
       isTimeout: isAborted,
       error: errorMessage,
-      batchId: verifiedBatchId,
+      batchId: clientBatchId,
       studentId: verifiedStudentId,
       subjectCount: data.subjects.length,
     }))
@@ -521,40 +296,17 @@ export async function generateCoachFeedback(
       metadata: { error: errorMessage, isTimeout: isAborted },
     })
 
-    // フォールバックメッセージをDBに保存を試みる
+    // フォールバックメッセージをDB保存（サービス層に委譲）
     const fallbackMessage = getFallbackFeedback(data)
-    let savedFallbackToDb = false
-
-    try {
-      const { error: fallbackInsertError } = await adminClient.from("coach_feedbacks").insert({
-        batch_id: verifiedBatchId,
-        study_log_id: representativeStudyLogId,
-        student_id: verifiedStudentId,
-        session_id: verifiedSessionId,
-        feedback_text: fallbackMessage,
-        prompt_version: `${PROMPT_VERSION}-fallback`,
-        prompt_hash: null,
-        langfuse_trace_id: trace?.id || null,
-      })
-
-      if (!fallbackInsertError) {
-        savedFallbackToDb = true
-      } else if (fallbackInsertError.code === "23505") {
-        // UNIQUE違反 - 既存フィードバックがある（並行リクエストなど）
-        // 既存を返すため savedToDb = true とみなす
-        savedFallbackToDb = true
-      } else {
-        // その他のエラーをログ
-        console.error("[Coach Feedback] Failed to save fallback:", sanitizeForLog({
-          code: fallbackInsertError.code,
-          message: fallbackInsertError.message,
-          details: fallbackInsertError.details,
-          hint: fallbackInsertError.hint,
-        }))
-      }
-    } catch (saveError) {
-      console.error("[Coach Feedback] Exception saving fallback:", sanitizeForLog(saveError))
-    }
+    const savedFallbackToDb = await saveFallbackToDb(adminClient, {
+      batchId: clientBatchId,
+      studyLogId: representativeStudyLogId,
+      studentId: verifiedStudentId,
+      sessionId: verifiedSessionId,
+      feedbackText: fallbackMessage,
+      promptVersion: PROMPT_VERSION,
+      langfuseTraceId: trace?.id || null,
+    })
 
     return {
       success: false,
@@ -562,7 +314,7 @@ export async function generateCoachFeedback(
         ? "コーチメッセージの生成がタイムアウトしました"
         : "コーチメッセージの生成に失敗しました",
       fallbackFeedback: fallbackMessage,
-      canRetry: !savedFallbackToDb, // DB保存成功ならリトライ不要
+      canRetry: !savedFallbackToDb,
     }
   } finally {
     await flushLangfuse()
@@ -571,19 +323,13 @@ export async function generateCoachFeedback(
 
 /**
  * フィードバック再保存（生成済みだがDB未保存の場合）
- *
- * @param clientBatchId - バッチID
- * @param clientStudyLogId - 代表のstudy_log_id
- * @param feedbackText - 保存するフィードバックテキスト
+ * SSE化後もこのServer Actionは維持（リトライボタンから使用）。
  */
 export async function retryCoachFeedbackSave(
   clientBatchId: string,
   clientStudyLogId: number,
   feedbackText: string
 ): Promise<{ success: boolean; error?: string }> {
-  // ========================================
-  // 認証・検証
-  // ========================================
   const supabase = await createClient()
 
   const {
@@ -595,7 +341,6 @@ export async function retryCoachFeedbackSave(
     return { success: false, error: "認証エラー" }
   }
 
-  // ログインユーザーのstudent_idを取得
   const { data: studentRecord, error: studentError } = await supabase
     .from("students")
     .select("id")
@@ -606,7 +351,6 @@ export async function retryCoachFeedbackSave(
     return { success: false, error: "生徒情報の取得に失敗しました" }
   }
 
-  // batch_id で study_logs を取得して所有権検証
   const { data: batchLogs, error: logError } = await supabase
     .from("study_logs")
     .select("id, student_id, session_id, batch_id")
@@ -616,21 +360,17 @@ export async function retryCoachFeedbackSave(
     return { success: false, error: "学習記録の検証に失敗しました" }
   }
 
-  // 全ログが同一student_id か検証
   if (!batchLogs.every(log => log.student_id === studentRecord.id)) {
     return { success: false, error: "学習記録の検証に失敗しました" }
   }
 
   const sessionId = batchLogs[0]?.session_id
 
-  // ========================================
-  // 保存
-  // ========================================
   const adminClient = createAdminClient()
 
   const { error: insertError } = await adminClient.from("coach_feedbacks").insert({
     batch_id: clientBatchId,
-    study_log_id: clientStudyLogId, // 代表の1件
+    study_log_id: clientStudyLogId,
     student_id: studentRecord.id,
     session_id: sessionId,
     feedback_text: feedbackText,
@@ -641,7 +381,6 @@ export async function retryCoachFeedbackSave(
 
   if (insertError) {
     if (insertError.code === "23505") {
-      // 既に保存済み
       return { success: true }
     }
     console.error("Retry save failed:", sanitizeForLog(insertError))
@@ -660,13 +399,12 @@ export async function retryCoachFeedbackSave(
  * 既存のstudy_log_idベースの処理を行う
  */
 async function generateLegacyFeedback(
-  supabase: any,
+  supabase: ReturnType<typeof createClient> extends Promise<infer T> ? T : never,
   verifiedStudentId: number,
   clientSessionId: number,
   clientStudyLogIds: number[],
   data: StudyDataForFeedback
 ): Promise<GenerateFeedbackResult> {
-  // studyLogIdsで検証
   const { data: fallbackLogs, error: fallbackError } = await supabase
     .from("study_logs")
     .select("id, student_id, session_id")
@@ -681,8 +419,7 @@ async function generateLegacyFeedback(
     }
   }
 
-  // 所有権検証
-  if (!fallbackLogs.every((log: any) => log.student_id === verifiedStudentId)) {
+  if (!fallbackLogs.every((log: { student_id: number }) => log.student_id === verifiedStudentId)) {
     return {
       success: false,
       error: "権限エラー: この学習記録へのアクセス権がありません",
@@ -691,8 +428,7 @@ async function generateLegacyFeedback(
     }
   }
 
-  // セッション整合性検証
-  if (!fallbackLogs.every((log: any) => log.session_id === clientSessionId)) {
+  if (!fallbackLogs.every((log: { session_id: number }) => log.session_id === clientSessionId)) {
     return {
       success: false,
       error: "セッション情報の整合性エラー",
@@ -703,7 +439,6 @@ async function generateLegacyFeedback(
 
   const representativeStudyLogId = clientStudyLogIds[0]
 
-  // 入力データ検証
   if (!data.subjects || data.subjects.length === 0) {
     return {
       success: false,
@@ -713,7 +448,6 @@ async function generateLegacyFeedback(
     }
   }
 
-  // 既存フィードバック確認（study_log_id で検索）
   const adminClient = createAdminClient()
   const { data: existing } = await adminClient
     .from("coach_feedbacks")
@@ -730,7 +464,6 @@ async function generateLegacyFeedback(
     }
   }
 
-  // AI生成
   const langfuse = getLangfuseClient()
   const trace = langfuse?.trace({
     name: "coach-spark-feedback-legacy",
@@ -770,7 +503,6 @@ async function generateLegacyFeedback(
       metadata: { provider: llmResult.provider },
     })
 
-    // DB保存（レガシーモード: batch_id なし）
     const { error: insertError } = await adminClient.from("coach_feedbacks").insert({
       study_log_id: representativeStudyLogId,
       student_id: verifiedStudentId,
@@ -779,7 +511,6 @@ async function generateLegacyFeedback(
       prompt_version: PROMPT_VERSION,
       prompt_hash: promptHash,
       langfuse_trace_id: trace?.id || null,
-      // batch_id は設定しない（レガシー）
     })
 
     if (insertError) {
@@ -819,7 +550,6 @@ async function generateLegacyFeedback(
     const isAborted = error instanceof Error && error.name === "AbortError"
     const errorMessage = error instanceof Error ? error.message : "Unknown error"
 
-    // 詳細なエラーログ
     console.error("[Coach Feedback Legacy] Generation failed:", sanitizeForLog({
       isTimeout: isAborted,
       error: errorMessage,
@@ -828,7 +558,6 @@ async function generateLegacyFeedback(
       subjectCount: data.subjects.length,
     }))
 
-    // フォールバックメッセージをDBに保存を試みる
     const fallbackMessage = getFallbackFeedback(data)
     let savedFallbackToDb = false
 
@@ -846,7 +575,6 @@ async function generateLegacyFeedback(
       if (!fallbackInsertError) {
         savedFallbackToDb = true
       } else if (fallbackInsertError.code === "23505") {
-        // UNIQUE違反 - 既存フィードバックがある
         savedFallbackToDb = true
       } else {
         console.error("[Coach Feedback Legacy] Failed to save fallback:", sanitizeForLog({
