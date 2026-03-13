@@ -1,6 +1,7 @@
 import { getOpenAIClient } from "./client"
 import { getGeminiClient, getModelForModule } from "../llm/client"
 import { sanitizeForLog } from "../llm/logger"
+import { trimByCodePoints } from "../utils/text"
 
 export interface CoachMessageContext {
   studentId: number
@@ -47,6 +48,7 @@ export interface CoachMessageContext {
     date: string
     daysUntil: number
   }
+  compactMemory?: string
   studyStreak: number
   todayMission?: {
     subjects: string[]           // 今日のミッション対象科目（例: ["算数", "国語", "社会"]）
@@ -74,9 +76,12 @@ function getSystemPrompt(): string {
 1. **直近のログ（今日/昨日/一昨日）**: 最近の取り組みを具体的に承認するために使用
 2. **週次累積進捗**: 1週間（学習回）全体での達成状況と目標までの距離を示すために使用
 
+3. **長期メモリ（提供された場合）**: 8週間の学習傾向・成功体験・つまずきパターンの要約。生徒のことを覚えている声かけに使用
+
 **使用ルール:**
 - 「昨日は〜」「今日は〜」と言う時: 直近のログの数字を使用
 - 「今週の〜」「あと〇問で目標達成」と言う時: 週次累積進捗の数字を使用
+- 長期メモリがある場合: 生徒の傾向を踏まえた声かけや、過去の成功体験への言及を自然に織り交ぜる
 - 両者を明確に区別し、混同しないこと
 
 **良い例:**
@@ -208,6 +213,17 @@ function getUserPrompt(context: CoachMessageContext): string {
 **メッセージ例:**
   - ✓ 「昨日は社会20題正解したね。今週の社会は正答率50%で、目標まであと18問正解を増やそう！」
   - ✗ 「社会が47%で〜」（どのデータか不明確なのでNG）
+
+`
+  }
+
+  // 長期メモリ（生徒の傾向要約）
+  if (context.compactMemory) {
+    const trimmed = trimByCodePoints(context.compactMemory, 750)
+    prompt += `【長期メモリ（生徒の傾向）】
+${trimmed}
+
+→ 上記の傾向を踏まえ、生徒のことを覚えている声かけを自然に織り交ぜてください。
 
 `
   }
