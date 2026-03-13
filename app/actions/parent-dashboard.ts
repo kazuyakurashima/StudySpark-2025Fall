@@ -593,11 +593,12 @@ async function generateTodayStatusMessage(
       }
     }
 
-    // Get recent reflection
+    // Get recent reflection (coaching_sessions.summary_text)
     const { data: recentReflection } = await supabase
-      .from("reflect_sessions")
-      .select("summary")
+      .from("coaching_sessions")
+      .select("summary_text")
       .eq("student_id", studentId)
+      .not("completed_at", "is", null)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -641,7 +642,7 @@ async function generateTodayStatusMessage(
         }) || [],
       studyStreak: streak || 0,
       weeklyTrend,
-      recentReflection: recentReflection?.summary,
+      recentReflection: recentReflection?.summary_text || undefined,
       upcomingTest: upcomingTest
         ? {
             name: (Array.isArray(upcomingTest.test_types)
