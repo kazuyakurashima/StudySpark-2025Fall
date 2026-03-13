@@ -1400,6 +1400,77 @@ export type Database = {
           },
         ]
       }
+      student_memory_summaries: {
+        Row: {
+          id: number
+          student_id: number
+          compact_summary: string
+          detailed_summary: string
+          subject_trends: Json | null
+          stumbling_patterns: Json | null
+          effective_encouragements: Json | null
+          recent_successes: Json | null
+          emotional_tendencies: Json | null
+          last_study_log_id: number | null
+          last_delta_at: string | null
+          data_window_start: string | null
+          data_window_end: string | null
+          weeks_covered: number | null
+          last_generated_at: string | null
+          generation_version: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          student_id: number
+          compact_summary?: string
+          detailed_summary?: string
+          subject_trends?: Json | null
+          stumbling_patterns?: Json | null
+          effective_encouragements?: Json | null
+          recent_successes?: Json | null
+          emotional_tendencies?: Json | null
+          last_study_log_id?: number | null
+          last_delta_at?: string | null
+          data_window_start?: string | null
+          data_window_end?: string | null
+          weeks_covered?: number | null
+          last_generated_at?: string | null
+          generation_version?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          student_id?: number
+          compact_summary?: string
+          detailed_summary?: string
+          subject_trends?: Json | null
+          stumbling_patterns?: Json | null
+          effective_encouragements?: Json | null
+          recent_successes?: Json | null
+          emotional_tendencies?: Json | null
+          last_study_log_id?: number | null
+          last_delta_at?: string | null
+          data_window_start?: string | null
+          data_window_end?: string | null
+          weeks_covered?: number | null
+          last_generated_at?: string | null
+          generation_version?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_memory_summaries_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: true
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       study_content_types: {
         Row: {
           content_name: string
@@ -2103,6 +2174,23 @@ export type Database = {
       is_encouragement_sender_for_current_user: {
         Args: { profile_id: string }
         Returns: boolean
+      }
+      upsert_student_memory: {
+        Args: {
+          p_student_id: number
+          p_compact_summary: string
+          p_detailed_summary: string
+          p_subject_trends: Json
+          p_stumbling_patterns: Json
+          p_effective_encouragements: Json
+          p_recent_successes: Json
+          p_emotional_tendencies: Json
+          p_last_study_log_id: number
+          p_data_window_start: string
+          p_data_window_end: string
+          p_weeks_covered: number
+        }
+        Returns: undefined
       }
       lock_answer_session: {
         Args: {

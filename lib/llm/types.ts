@@ -9,7 +9,7 @@
 export type LLMProvider = "gemini" | "openai"
 
 /** プロバイダ切替対象のモジュール */
-export type LLMModule = "reflect" | "goal" | "coach" | "batch"
+export type LLMModule = "reflect" | "goal" | "coach" | "batch" | "memory"
 
 /** モデル用途カテゴリ */
 export type ModelTier = "realtime" | "structured" | "batch"
