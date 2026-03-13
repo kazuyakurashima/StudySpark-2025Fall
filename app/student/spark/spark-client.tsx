@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -21,10 +21,11 @@ import {
   getCurrentSession,
 } from "@/app/actions/study-log"
 import {
-  generateCoachFeedback,
   retryCoachFeedbackSave,
-  type StudyDataForFeedback,
 } from "@/app/actions/coach-feedback"
+import type { StudyDataForFeedback } from "@/lib/types/coach-feedback"
+import { fetchSSE } from "@/lib/sse/client"
+import { SSE_META } from "@/lib/sse/types"
 import { UserProfileProvider, useUserProfile } from "@/lib/hooks/use-user-profile"
 
 const subjects = [
@@ -150,6 +151,14 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
   const [isRetryingSave, setIsRetryingSave] = useState(false)
   const [lastStudyLogId, setLastStudyLogId] = useState<number | null>(null)
   const [lastBatchId, setLastBatchId] = useState<string | null>(null)
+
+  // SSEストリーム中断用 — アンマウント時に abort() を保証
+  const feedbackAbortRef = useRef<AbortController | null>(null)
+  useEffect(() => {
+    return () => {
+      feedbackAbortRef.current?.abort()
+    }
+  }, [])
 
   // 初回マウント時にセッション一覧と現在のセッションをサーバーから取得
   useEffect(() => {
@@ -376,34 +385,56 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
         reflectionText: reflection || undefined,
       }
 
-      // コーチフィードバック生成（batchIdベース）
+      // コーチフィードバック生成（SSEストリーミング）
       if (result.studyLogIds.length > 0) {
         setLastStudyLogId(result.studyLogIds[0])
         setLastBatchId(result.batchId)
 
-        const feedbackResult = await generateCoachFeedback(
-          result.studentId,
-          result.sessionId,
-          result.batchId,
-          result.studyLogIds,
-          feedbackData
-        )
+        // 前回のストリームがあれば中断
+        feedbackAbortRef.current?.abort()
+        const abortController = new AbortController()
+        feedbackAbortRef.current = abortController
 
-        if (feedbackResult.success) {
-          setCoachFeedback(feedbackResult.feedback)
-          setFeedbackSavedToDb(feedbackResult.savedToDb)
-          setFeedbackCanRetry(!feedbackResult.savedToDb) // DB未保存時はリトライ可能
-        } else {
-          // エラー時はフォールバックを表示
-          setCoachFeedback(feedbackResult.fallbackFeedback)
-          // canRetry=false はフォールバックがDB保存済みを意味する
-          setFeedbackSavedToDb(!feedbackResult.canRetry)
-          setFeedbackCanRetry(feedbackResult.canRetry)
+        try {
+          const sseResult = await fetchSSE(
+            "/api/spark/feedback-stream",
+            {
+              studentId: result.studentId,
+              sessionId: result.sessionId,
+              batchId: result.batchId,
+              studyLogIds: result.studyLogIds,
+              data: feedbackData,
+            },
+            (accumulated) => {
+              // ストリーミング中にテキストを逐次更新
+              setCoachFeedback(accumulated)
+            },
+            abortController.signal
+          )
+
+          // SSE完了後のmeta判定
+          if (sseResult.meta === SSE_META.SAVE_OK) {
+            setFeedbackSavedToDb(true)
+            setFeedbackCanRetry(false)
+          } else if (sseResult.meta === SSE_META.SAVE_FAILED) {
+            setFeedbackSavedToDb(false)
+            setFeedbackCanRetry(true)
+          } else {
+            // metaなし（予期しない状態）→ 保存未確認として扱う
+            setFeedbackSavedToDb(false)
+            setFeedbackCanRetry(true)
+          }
+        } catch (error) {
+          // SSEエラー時はフォールバックメッセージを表示
+          console.error("[Spark] SSE feedback error:", error)
+          setCoachFeedback("今日も学習お疲れさま！頑張ったね！")
+          setFeedbackSavedToDb(false)
+          setFeedbackCanRetry(false)
         }
       } else {
         // studyLogIdがない場合はフォールバック（静的メッセージ）
         setCoachFeedback("今日も学習お疲れさま！頑張ったね！")
-        setFeedbackSavedToDb(true) // 保存対象がないので警告不要
+        setFeedbackSavedToDb(true)
         setFeedbackCanRetry(false)
       }
 
@@ -862,16 +893,19 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
               </div>
             </div>
 
-            {isGeneratingFeedback ? (
+            {isGeneratingFeedback && !coachFeedback ? (
               <div className="flex items-center justify-center py-8 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl">
                 <div className="animate-spin rounded-full h-10 w-10 border-b-4 border-blue-600"></div>
                 <span className="ml-4 text-lg text-slate-700 font-medium">メッセージ生成中...</span>
               </div>
-            ) : (
+            ) : coachFeedback ? (
               <>
                 <div className="p-5 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl border border-blue-200">
                   <p className="text-lg text-slate-700 leading-relaxed">
                     {coachFeedback}
+                    {isGeneratingFeedback && (
+                      <span className="inline-block w-0.5 h-5 bg-blue-500 ml-0.5 animate-pulse align-text-bottom" />
+                    )}
                   </p>
                 </div>
 
@@ -895,7 +929,7 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
                   </div>
                 )}
               </>
-            )}
+            ) : null}
 
             <Button
               onClick={() => {
