@@ -5,6 +5,7 @@ import { getModelForModule } from "@/lib/llm/client"
 import { sanitizeForLog } from "@/lib/llm/logger"
 import { requireAuth } from "@/lib/api/auth"
 import { createClient } from "@/lib/supabase/route"
+import { getDetailedMemory } from "@/lib/memory/student-memory"
 
 // 入力バリデーションスキーマ（message-stream/route.ts と同一基準）
 const requestSchema = z.object({
@@ -62,6 +63,14 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // 長期メモリ取得（失敗時は null で継続）
+  let detailedMemory: string | null = null
+  try {
+    detailedMemory = await getDetailedMemory(supabase, student.id)
+  } catch (err) {
+    console.warn(`[Reflect message] Memory fetch failed for student ${student.id}:`, err)
+  }
+
   try {
     const { provider, model: llmModel } = getModelForModule("reflect", "realtime")
     console.log(`[Reflect message] provider=${provider} model=${llmModel}`)
@@ -74,6 +83,7 @@ export async function POST(request: NextRequest) {
       upcomingTest: body.upcomingTest ?? null,
       conversationHistory: body.conversationHistory,
       turnNumber: body.turnNumber,
+      detailedMemory: detailedMemory || undefined,
     })
 
     if (error) {

@@ -1,12 +1,14 @@
-import { createClient } from "@/lib/supabase/server"
+import { createServiceClient } from "@/lib/supabase/service-client"
 import { generateCoachMessage } from "@/lib/openai/coach-message"
 import type { CoachMessageContext } from "@/lib/openai/coach-message"
+import { getCompactMemory } from "@/lib/memory/student-memory"
 import {
   getTodayJST,
   getDateJST,
   getDaysAgoJST,
   getNowJSTISO,
 } from "@/lib/utils/date-jst"
+import type { SupabaseClient } from "@supabase/supabase-js"
 
 export const dynamic = 'force-dynamic'
 
@@ -15,6 +17,10 @@ export const dynamic = 'force-dynamic'
  *
  * Vercel Cronで毎日午前3時（JST）に実行
  * 全アクティブ生徒の翌日分メッセージを事前生成してキャッシュに保存
+ *
+ * ## クライアント方針
+ * createServiceClient() に統一。Cron は CRON_SECRET 認証であり
+ * ユーザーセッションが存在しないため、RLSバイパスが必要。
  */
 export async function GET(request: Request) {
   // CRON_SECRET認証
@@ -27,7 +33,7 @@ export async function GET(request: Request) {
   console.log("[Coach Message Cron] Starting background generation...")
 
   try {
-    const supabase = await createClient()
+    const supabase = createServiceClient()
 
     // アクティブ生徒取得（7日以内にログインした生徒）
     const cutoffDateStr = getDaysAgoJST(7)
@@ -89,15 +95,19 @@ export async function GET(request: Request) {
           continue
         }
 
-        // データ収集
-        const [willData, logsData, testData] = await Promise.all([
-          getLatestWillAndGoal(studentId),
-          getRecentStudyLogs(studentId, 3),
-          getUpcomingTest(studentId),
+        // データ収集（長期メモリ含む）
+        const [willData, logsData, testData, memoryData] = await Promise.all([
+          getLatestWillAndGoal(supabase, studentId),
+          getRecentStudyLogs(supabase, studentId, 3),
+          getUpcomingTest(supabase, studentId),
+          getCompactMemory(supabase, studentId).catch((err) => {
+            console.warn(`[Coach Message Cron] Memory fetch failed for student ${studentId}:`, err)
+            return null
+          }),
         ])
 
         // 連続学習日数取得
-        const streakData = await getStudyStreakForStudent(studentId)
+        const streakData = await getStudyStreakForStudent(supabase, studentId)
 
         // コンテキスト構築
         const profile = (student as Record<string, unknown>).profiles as { display_name: string | null } | null
@@ -111,6 +121,7 @@ export async function GET(request: Request) {
           recentLogs: logsData,
           upcomingTest: testData || undefined,
           studyStreak: typeof streakData === "number" ? streakData : 0,
+          compactMemory: memoryData || undefined,
         }
 
         // AI生成
@@ -188,9 +199,10 @@ export async function GET(request: Request) {
 /**
  * 最新のWillとGoalを取得
  */
-async function getLatestWillAndGoal(studentId: number): Promise<{ will?: string; goal?: string } | null> {
-  const supabase = await createClient()
-
+async function getLatestWillAndGoal(
+  supabase: SupabaseClient,
+  studentId: number,
+): Promise<{ will?: string; goal?: string } | null> {
   const { data } = await supabase
     .from("weekly_analysis")
     .select("strengths, challenges")
@@ -210,9 +222,11 @@ async function getLatestWillAndGoal(studentId: number): Promise<{ will?: string;
 /**
  * 直近N日の学習ログ取得
  */
-async function getRecentStudyLogs(studentId: number, days: number = 3): Promise<CoachMessageContext["recentLogs"]> {
-  const supabase = await createClient()
-
+async function getRecentStudyLogs(
+  supabase: SupabaseClient,
+  studentId: number,
+  days: number = 3,
+): Promise<CoachMessageContext["recentLogs"]> {
   const cutoffDateStr = getDaysAgoJST(days)
 
   const { data: logs } = await supabase
@@ -282,9 +296,10 @@ async function getRecentStudyLogs(studentId: number, days: number = 3): Promise<
 /**
  * 近日のテスト情報取得
  */
-async function getUpcomingTest(studentId: number) {
-  const supabase = await createClient()
-
+async function getUpcomingTest(
+  supabase: SupabaseClient,
+  studentId: number,
+) {
   const tomorrowStr = getDateJST(1)
 
   const { data: tests } = await supabase
@@ -322,9 +337,10 @@ async function getUpcomingTest(studentId: number) {
 /**
  * 連続学習日数を計算（特定の生徒）
  */
-async function getStudyStreakForStudent(studentId: number): Promise<number> {
-  const supabase = await createClient()
-
+async function getStudyStreakForStudent(
+  supabase: SupabaseClient,
+  studentId: number,
+): Promise<number> {
   const { data: logs } = await supabase
     .from("study_logs")
     .select("study_date")

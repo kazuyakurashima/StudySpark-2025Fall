@@ -2,6 +2,7 @@ import { getOpenAIClient, getDefaultModel } from "./client"
 import { getGeminiClient, getModelForModule } from "../llm/client"
 import { sanitizeForLog } from "../llm/logger"
 import { buildGeminiContents } from "../llm/gemini-utils"
+import { trimByCodePoints } from "../utils/text"
 
 export interface ReflectContext {
   studentName: string
@@ -12,6 +13,7 @@ export interface ReflectContext {
   upcomingTest?: { test_types: { name: string }, test_date: string } | null
   conversationHistory: { role: "assistant" | "user"; content: string }[]
   turnNumber: number
+  detailedMemory?: string
 }
 
 /** SSEイベント型 */
@@ -405,7 +407,8 @@ function getReflectSystemPrompt(): string {
 - 1質問につき1〜2文、絵文字は適度に（✨📚💪🎯など）
 - 生徒の回答を要約・称賛してから次の質問へ進む
 - 週タイプに合わせて語調と励まし方を調整する
-- 「〜できなかった」は「〜に挑戦した」と言い換える`
+- 「〜できなかった」は「〜に挑戦した」と言い換える
+- 長期メモリが提供された場合、過去の成功体験やつまずきパターンを踏まえて対話する。「前にもこういうことがあったね」のような継続的文脈を自然に織り交ぜる`
 }
 
 /**
@@ -413,40 +416,55 @@ function getReflectSystemPrompt(): string {
  * フロー制御ロジック
  */
 function getReflectUserPrompt(context: ReflectContext): string {
-  const { turnNumber, conversationHistory } = context
+  const { turnNumber, conversationHistory, detailedMemory } = context
+
+  // 長期メモリ注入（全ターン共通）
+  // Turn 1: 詳細版（1500文字）、Turn 2+: 短縮版（600文字）
+  let memoryPrefix = ""
+  if (detailedMemory) {
+    const maxChars = turnNumber === 1 ? 1500 : 600
+    const trimmed = trimByCodePoints(detailedMemory, maxChars)
+    memoryPrefix = `【長期メモリ（生徒の傾向）】
+${trimmed}
+
+→ 上記の傾向を踏まえ、過去の成功体験やつまずきパターンを自然に織り交ぜてください。
+
+---
+`
+  }
 
   // ターン1: 質問1（Reality）
   if (turnNumber === 1) {
-    return getTurn1Prompt(context)
+    return memoryPrefix + getTurn1Prompt(context)
   }
 
   // ターン2: 質問2（Goal）
   if (turnNumber === 2) {
-    return getTurn2Prompt(context)
+    return memoryPrefix + getTurn2Prompt(context)
   }
 
   // ターン2.5: 質問2の深掘り（必要時）
   if (turnNumber === 3 && conversationHistory.length >= 2 && needsFollowUp(conversationHistory[conversationHistory.length - 1])) {
-    return getFollowUpPrompt(context, 2)
+    return memoryPrefix + getFollowUpPrompt(context, 2)
   }
 
   // ターン3: 質問3（Options/Will）
   if (turnNumber === 3 || (turnNumber === 4 && conversationHistory.length >= 4)) {
-    return getTurn3Prompt(context)
+    return memoryPrefix + getTurn3Prompt(context)
   }
 
   // ターン3.5: 質問3の深掘り（必要時）
   if (turnNumber === 4 && conversationHistory.length >= 4 && needsFollowUp(conversationHistory[conversationHistory.length - 1])) {
-    return getFollowUpPrompt(context, 3)
+    return memoryPrefix + getFollowUpPrompt(context, 3)
   }
 
   // ターン4〜6: クロージング
   if (turnNumber >= 4 && hasCompletedGROW(conversationHistory)) {
-    return getClosingPrompt(context)
+    return memoryPrefix + getClosingPrompt(context)
   }
 
   // フォールバック（ターン6以降）
-  return `今日の振り返りはこれで完了だよ。決めた行動を忘れずに、来週も一歩ずつ進もうね！✨`
+  return memoryPrefix + `今日の振り返りはこれで完了だよ。決めた行動を忘れずに、来週も一歩ずつ進もうね！✨`
 }
 
 /**

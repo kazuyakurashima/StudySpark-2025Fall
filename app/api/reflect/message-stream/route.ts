@@ -8,6 +8,7 @@ import { getModelForModule } from "@/lib/llm/client"
 import { sanitizeForLog } from "@/lib/llm/logger"
 import { requireAuth } from "@/lib/api/auth"
 import { createClient } from "@/lib/supabase/route"
+import { getDetailedMemory } from "@/lib/memory/student-memory"
 import { PerfTimer } from "@/lib/utils/perf-timer"
 import { getLangfuseClient } from "@/lib/langfuse/client"
 
@@ -75,6 +76,14 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // 長期メモリ取得（失敗時は null で継続）
+  let detailedMemory: string | null = null
+  try {
+    detailedMemory = await getDetailedMemory(supabase, student.id)
+  } catch (err) {
+    console.warn(`[Reflect stream] Memory fetch failed for student ${student.id}:`, err)
+  }
+
   timer.mark("db_done")
   timer.measure("db", "db_start")
 
@@ -106,6 +115,7 @@ export async function POST(request: NextRequest) {
     upcomingTest: body.upcomingTest ?? null,
     conversationHistory: body.conversationHistory,
     turnNumber: body.turnNumber,
+    detailedMemory: detailedMemory || undefined,
   }
 
   const encoder = new TextEncoder()
