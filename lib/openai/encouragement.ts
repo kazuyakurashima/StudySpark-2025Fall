@@ -6,6 +6,8 @@ import { sanitizeForLog } from "../llm/logger"
 import {
   getEncouragementSystemPrompt,
   getEncouragementUserPrompt,
+  getPersonalizedEncouragementSystemPrompt,
+  getPersonalizedEncouragementUserPrompt,
   type EncouragementContext,
 } from "./prompts"
 import crypto from "crypto"
@@ -179,6 +181,211 @@ export async function generateEncouragementMessages(
     return { success: true, messages }
   } catch (error) {
     console.error("Encouragement generation error:", sanitizeForLog(error))
+    const errorMessage = error instanceof Error ? error.message : "応援メッセージの生成に失敗しました"
+    return { success: false, error: errorMessage }
+  }
+}
+
+/**
+ * パーソナライズキャッシュキーを生成
+ * styleSnapshotHash で送信者の文体更新を反映
+ */
+function generatePersonalizedCacheKey(
+  context: EncouragementContext,
+  senderId: string,
+  senderMessageIds: { id: number; sent_at: string }[],
+  promptVersion: string = "v2.0"
+): string {
+  // 直近メッセージの id/sent_at からスナップショットハッシュを算出
+  const styleSnapshotHash = crypto
+    .createHash("sha256")
+    .update(senderMessageIds.map((m) => `${m.id}:${m.sent_at}`).join(","))
+    .digest("hex")
+    .slice(0, 16) // 短縮（キー全体をハッシュするので衝突リスクは低い）
+
+  const keyData = {
+    senderId,
+    styleSnapshotHash,
+    userContext: context.userContext || null,
+    batchPerformance: context.batchPerformance
+      ? {
+          subjectCount: context.batchPerformance.subjectCount,
+          accuracyRange: Math.floor(context.batchPerformance.averageAccuracy / 10) * 10,
+          problemCountRange: Math.floor(context.batchPerformance.totalProblems / 10) * 10,
+        }
+      : null,
+    recentPerformance:
+      context.recentPerformance && !context.batchPerformance
+        ? {
+            subject: context.recentPerformance.subject,
+            accuracyRange: Math.floor(context.recentPerformance.accuracy / 10) * 10,
+            problemCountRange: Math.floor(context.recentPerformance.problemCount / 10) * 10,
+          }
+        : null,
+    promptVersion,
+  }
+
+  return crypto.createHash("sha256").update(JSON.stringify(keyData)).digest("hex")
+}
+
+/**
+ * キャッシュから単一メッセージを取得
+ */
+async function getCachedMessage(cacheKey: string): Promise<string | null> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from("ai_cache")
+    .select("cached_content, hit_count")
+    .eq("cache_key", cacheKey)
+    .eq("cache_type", "encouragement_v2")
+    .single()
+
+  if (error || !data) {
+    return null
+  }
+
+  // 使用回数を更新（失敗してもサイレント）
+  try {
+    await supabase
+      .from("ai_cache")
+      .update({
+        hit_count: data.hit_count + 1,
+        last_accessed_at: new Date().toISOString(),
+      })
+      .eq("cache_key", cacheKey)
+  } catch {
+    // RLSエラー時もサイレント
+  }
+
+  try {
+    return JSON.parse(data.cached_content) as string
+  } catch {
+    return null
+  }
+}
+
+/**
+ * キャッシュに単一メッセージを保存（失敗してもサイレント）
+ */
+async function cacheMessage(cacheKey: string, message: string): Promise<void> {
+  try {
+    const supabase = await createClient()
+    await supabase.from("ai_cache").insert({
+      cache_key: cacheKey,
+      cache_type: "encouragement_v2",
+      cached_content: JSON.stringify(message),
+    })
+  } catch (error) {
+    // Phase 1: キャッシュ失敗はサイレント（RLSポリシー未整備の可能性）
+    console.warn("[Encouragement v2] Cache save failed (non-critical):", error)
+  }
+}
+
+/**
+ * パーソナライズAI応援メッセージを1つ生成
+ *
+ * 送信者の過去メッセージからスタイルを学習し、
+ * オプションのコンテキスト入力を反映したメッセージを生成する。
+ */
+export async function generatePersonalizedEncouragementMessage(
+  context: EncouragementContext,
+  senderId: string,
+  senderMessageData: { id: number; sent_at: string; message: string }[]
+): Promise<{ success: true; message: string } | { success: false; error: string }> {
+  try {
+    const promptVersion = "v2.0"
+    const cacheKey = generatePersonalizedCacheKey(
+      context,
+      senderId,
+      senderMessageData.map((m) => ({ id: m.id, sent_at: m.sent_at })),
+      promptVersion
+    )
+
+    // キャッシュチェック（失敗時はフォールバックでLLM生成）
+    try {
+      const cached = await getCachedMessage(cacheKey)
+      if (cached) {
+        return { success: true, message: cached }
+      }
+    } catch {
+      // キャッシュ取得失敗はサイレント → LLM生成にフォールバック
+    }
+
+    // コンテキストにスタイル情報を注入
+    const contextWithStyle: EncouragementContext = {
+      ...context,
+      senderMessages: senderMessageData.map((m) => m.message),
+    }
+
+    // LLM呼び出し（プロバイダ分岐）
+    const { provider, model } = getModelForModule("batch", "structured")
+    const systemPrompt = getPersonalizedEncouragementSystemPrompt(context.senderRole)
+    const userPrompt = getPersonalizedEncouragementUserPrompt(contextWithStyle)
+
+    let responseText: string
+    if (provider === "gemini") {
+      const client = getGeminiClient()
+      const response = await client.models.generateContent({
+        model,
+        config: {
+          systemInstruction: systemPrompt,
+          maxOutputTokens: 1000,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              message: { type: Type.STRING },
+            },
+            required: ["message"],
+          },
+        },
+        contents: [{ role: "user" as const, parts: [{ text: userPrompt }] }],
+      })
+      responseText = response.text?.trim() || ""
+    } else {
+      const openai = getOpenAIClient()
+      const completion = await openai.chat.completions.create({
+        model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        max_completion_tokens: 1000,
+        response_format: { type: "json_object" },
+      })
+      responseText = completion.choices[0]?.message?.content || ""
+    }
+
+    if (!responseText || responseText.length < 5) {
+      console.error("[Encouragement v2] Empty or too short response:", responseText)
+      throw new Error("AI応答の生成に失敗しました（応答が空です）")
+    }
+
+    console.log("[Encouragement v2] raw response:", responseText.slice(0, 300))
+
+    let parsed: Record<string, unknown>
+    try {
+      parsed = JSON.parse(responseText)
+    } catch (parseError) {
+      console.error("[Encouragement v2] JSON parse failed. Raw:", responseText.slice(0, 500))
+      throw new Error(
+        `JSON解析エラー: ${parseError instanceof Error ? parseError.message : String(parseError)}`
+      )
+    }
+
+    const message = parsed.message as string
+    if (typeof message !== "string" || !message.trim()) {
+      console.error("[Encouragement v2] Invalid format:", JSON.stringify(parsed).slice(0, 300))
+      throw new Error("AI応答のフォーマットが不正です")
+    }
+
+    // キャッシュに保存（失敗してもサイレント）
+    await cacheMessage(cacheKey, message)
+
+    return { success: true, message }
+  } catch (error) {
+    console.error("Personalized encouragement generation error:", sanitizeForLog(error))
     const errorMessage = error instanceof Error ? error.message : "応援メッセージの生成に失敗しました"
     return { success: false, error: errorMessage }
   }

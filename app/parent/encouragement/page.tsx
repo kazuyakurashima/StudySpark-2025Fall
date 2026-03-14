@@ -58,10 +58,11 @@ export default function ParentEncouragementPage() {
 
   // AI応援ダイアログ状態
   const [aiDialogOpen, setAiDialogOpen] = useState<string | null>(null)
-  const [aiMessages, setAiMessages] = useState<string[]>([])
+  const [aiMessage, setAiMessage] = useState<string | null>(null)
+  const [aiDraftMessage, setAiDraftMessage] = useState<string | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
-  const [selectedAiMessage, setSelectedAiMessage] = useState<string | null>(null)
   const [editingMessage, setEditingMessage] = useState("")
+  const [aiContext, setAiContext] = useState("")
 
   // Daily Spark の応援状態をチェック
   // ページ表示時にも再取得（他ページで応援送信後の反映のため）
@@ -217,36 +218,45 @@ export default function ParentEncouragementPage() {
     }
   }
 
-  const handleOpenAIDialog = async (studyLogId: string) => {
+  const handleGenerateAI = async (studyLogId: string, context?: string) => {
     if (!selectedChild) return
     setAiDialogOpen(studyLogId)
     setAiLoading(true)
-    setAiMessages([])
-    setSelectedAiMessage(null)
+    setAiMessage(null)
+    setAiDraftMessage(null)
     setEditingMessage("")
 
-    const result = await generateAIEncouragement(selectedChild, studyLogId)
+    const result = await generateAIEncouragement(selectedChild, studyLogId, context || undefined)
     setAiLoading(false)
 
     if (result.success) {
-      setAiMessages(result.messages)
+      setAiMessage(result.message)
+      setAiDraftMessage(result.message)
+      setEditingMessage(result.message)
     } else {
       alert(result.error)
       setAiDialogOpen(null)
     }
   }
 
-  const handleSelectAIMessage = (message: string) => {
-    setSelectedAiMessage(message)
-    setEditingMessage(message)
+  const handleOpenAIDialog = (studyLogId: string) => {
+    if (!selectedChild) return
+    setAiDialogOpen(studyLogId)
+    setAiMessage(null)
+    setAiDraftMessage(null)
+    setEditingMessage("")
+    setAiContext("")
+    setAiLoading(false)
   }
 
   const handleSendAIMessage = async () => {
     if (!aiDialogOpen || !editingMessage || !selectedChild) return
 
-    const result = await sendCustomEncouragement(selectedChild, aiDialogOpen, editingMessage, "ai")
+    const result = await sendCustomEncouragement(selectedChild, aiDialogOpen, editingMessage, "ai", {
+      aiDraftMessage: aiDraftMessage || undefined,
+      userContext: aiContext || undefined,
+    })
     if (result.success) {
-      // 即座にハートバッジを更新
       setEncouragementStatus(prev => ({ ...prev, [Number(selectedChild)]: true }))
       setAiDialogOpen(null)
       await loadStudyLogs(true)
@@ -577,7 +587,7 @@ export default function ParentEncouragementPage() {
         )}
         </div>
 
-        {/* AI応援ダイアログ - プレミアムデザイン */}
+        {/* AI応援ダイアログ - パーソナライズ対応 */}
       {aiDialogOpen && (
         <div className="fixed inset-0 bg-gradient-to-br from-black/60 via-purple-900/30 to-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50 animate-in fade-in duration-200" onClick={() => !aiLoading && setAiDialogOpen(null)}>
           <div className="bg-gradient-to-br from-white via-purple-50/30 to-white rounded-3xl p-6 sm:p-8 max-w-2xl w-full max-h-[90vh] sm:max-h-[80vh] overflow-y-auto shadow-2xl border-2 border-purple-100/50 animate-in slide-in-from-bottom-4 duration-300" onClick={(e) => e.stopPropagation()}>
@@ -602,7 +612,40 @@ export default function ParentEncouragementPage() {
               </button>
             </div>
 
-            {aiLoading ? (
+            {/* コンテキスト入力（生成前） */}
+            {!aiMessage && !aiLoading && (
+              <div className="space-y-4">
+                <div className="bg-gradient-to-r from-purple-50 via-violet-50 to-purple-50 rounded-2xl p-4 border border-purple-100">
+                  <p className="text-sm text-slate-700 leading-relaxed">
+                    <span className="font-semibold text-purple-700">一言コンテキスト</span>を入力すると、それを踏まえたメッセージを生成します。<br />
+                    <span className="text-xs text-slate-600">空欄でも学習データから自動生成します。</span>
+                  </p>
+                </div>
+                <input
+                  type="text"
+                  value={aiContext}
+                  onChange={(e) => setAiContext(e.target.value)}
+                  placeholder="例：苦手だった年齢算が解けた"
+                  className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all duration-200"
+                  maxLength={100}
+                />
+                <Button
+                  onClick={() => handleGenerateAI(aiDialogOpen, aiContext)}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-600 hover:from-violet-600 hover:via-purple-600 hover:to-fuchsia-700 text-white font-bold shadow-lg"
+                >
+                  <Sparkles className="h-4 w-4 mr-2" />生成する
+                </Button>
+                <Button
+                  onClick={() => setAiDialogOpen(null)}
+                  variant="ghost"
+                  className="w-full text-slate-500"
+                >
+                  キャンセル
+                </Button>
+              </div>
+            )}
+
+            {aiLoading && (
               <div className="py-16 text-center">
                 <div className="relative inline-block mb-6">
                   <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-fuchsia-600 rounded-full blur-xl opacity-30 animate-pulse"></div>
@@ -611,90 +654,45 @@ export default function ParentEncouragementPage() {
                 <p className="text-lg font-semibold bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
                   AI応援メッセージを生成中...
                 </p>
-                <p className="text-sm text-slate-500 mt-2">心を込めて考えています</p>
+                <p className="text-sm text-slate-500 mt-2">あなたのスタイルを踏まえて考えています</p>
               </div>
-            ) : (
+            )}
+
+            {aiMessage && !aiLoading && (
               <div className="space-y-4 sm:space-y-5">
-                <div className="bg-gradient-to-r from-purple-50 via-violet-50 to-purple-50 rounded-2xl p-4 border border-purple-100">
-                  <p className="text-sm text-slate-700 leading-relaxed">
-                    <span className="font-semibold text-purple-700">✨ 3つの応援メッセージ</span>から選んでください。<br />
-                    <span className="text-xs text-slate-600">メッセージは自由に編集できます。</span>
-                  </p>
-                </div>
-
-                {/* 3つのメッセージ選択肢 - プレミアムデザイン */}
-                <div className="space-y-3 sm:space-y-4">
-                  {aiMessages.map((message, index) => (
-                    <div key={index} className="relative group">
-                      <input
-                        type="radio"
-                        id={`message-${index}`}
-                        name="ai-message"
-                        checked={selectedAiMessage === message}
-                        onChange={() => handleSelectAIMessage(message)}
-                        className="sr-only"
-                      />
-                      <label
-                        htmlFor={`message-${index}`}
-                        className={`block p-4 sm:p-5 rounded-2xl border-2 cursor-pointer transition-all duration-300 ${
-                          selectedAiMessage === message
-                            ? "border-purple-400 bg-gradient-to-br from-purple-50 via-violet-50 to-fuchsia-50 shadow-lg scale-[1.02]"
-                            : "border-slate-200 bg-white hover:border-purple-200 hover:shadow-md"
-                        }`}
-                      >
-                        <div className="flex items-start gap-3 sm:gap-4">
-                          <div className={`flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
-                            selectedAiMessage === message
-                              ? "border-purple-500 bg-gradient-to-br from-violet-500 to-fuchsia-600 shadow-lg scale-110"
-                              : "border-slate-300 group-hover:border-purple-300"
-                          }`}>
-                            {selectedAiMessage === message && (
-                              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                              </svg>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className={`text-xs font-bold px-2.5 py-1 rounded-full transition-all duration-300 ${
-                                selectedAiMessage === message
-                                  ? "bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white shadow-md"
-                                  : "bg-purple-100 text-purple-700"
-                              }`}>
-                                {index === 0 ? "💪 励まし型" : index === 1 ? "🤝 共感型" : "🌟 次への期待型"}
-                              </span>
-                            </div>
-                            <p className="text-sm sm:text-base text-slate-700 leading-relaxed break-words">{message}</p>
-                          </div>
-                        </div>
-                      </label>
-                    </div>
-                  ))}
-                </div>
-
-                {/* メッセージ編集エリア - エレガントデザイン */}
-                {selectedAiMessage && (
-                  <div className="mt-6 sm:mt-8 bg-gradient-to-br from-slate-50 to-purple-50/30 rounded-2xl p-4 sm:p-5 border border-purple-100/50">
-                    <label className="block text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-                      <MessageSquare className="h-4 w-4 text-purple-600" />
-                      メッセージを編集（任意）
-                    </label>
-                    <textarea
-                      value={editingMessage}
-                      onChange={(e) => setEditingMessage(e.target.value)}
-                      placeholder="選択したメッセージを編集できます..."
-                      className="w-full p-4 rounded-xl border-2 border-slate-200 focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all duration-200 text-sm sm:text-base resize-none"
-                      rows={4}
-                      maxLength={200}
-                    />
-                    <div className="flex justify-between items-center mt-3">
-                      <span className="text-xs text-slate-500">{editingMessage.length}/200文字</span>
-                    </div>
+                {/* 生成されたメッセージ編集 */}
+                <div className="bg-gradient-to-br from-slate-50 to-purple-50/30 rounded-2xl p-4 sm:p-5 border border-purple-100/50">
+                  <label className="block text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4 text-purple-600" />
+                    生成されたメッセージ（編集できます）
+                  </label>
+                  <textarea
+                    value={editingMessage}
+                    onChange={(e) => setEditingMessage(e.target.value)}
+                    className="w-full p-4 rounded-xl border-2 border-slate-200 focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all duration-200 text-sm sm:text-base resize-none"
+                    rows={4}
+                    maxLength={200}
+                  />
+                  <div className="flex justify-between items-center mt-3">
+                    <span className="text-xs text-slate-500">{editingMessage.length}/200文字</span>
                   </div>
-                )}
+                </div>
 
-                {/* 送信ボタン - プレミアムデザイン */}
-                <div className="flex gap-3 mt-6 sm:mt-8">
+                {/* 再生成ボタン */}
+                <button
+                  onClick={() => {
+                    setAiMessage(null)
+                    setAiDraftMessage(null)
+                    setEditingMessage("")
+                  }}
+                  className="w-full text-sm text-slate-500 hover:text-purple-600 transition-colors py-2 flex items-center justify-center gap-1"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                  コンテキストを変えて再生成
+                </button>
+
+                {/* 送信ボタン */}
+                <div className="flex gap-3 mt-4">
                   <Button
                     onClick={() => setAiDialogOpen(null)}
                     className="flex-1 py-3 px-6 rounded-xl border-2 border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-semibold transition-all duration-200"
@@ -703,7 +701,7 @@ export default function ParentEncouragementPage() {
                   </Button>
                   <Button
                     onClick={handleSendAIMessage}
-                    disabled={!editingMessage}
+                    disabled={!editingMessage.trim()}
                     className="flex-1 py-3 px-6 rounded-xl bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-600 hover:from-violet-600 hover:via-purple-600 hover:to-fuchsia-700 text-white font-bold shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
                   >
                     <Sparkles className="h-4 w-4" />

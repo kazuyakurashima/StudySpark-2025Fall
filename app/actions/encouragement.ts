@@ -1,10 +1,59 @@
 "use server"
 
 import { createClient, createAdminClient } from "@/lib/supabase/server"
-import { generateEncouragementMessages } from "@/lib/openai/encouragement"
+import { generatePersonalizedEncouragementMessage } from "@/lib/openai/encouragement"
 import { QUICK_ENCOURAGEMENT_TEMPLATES, type QuickEncouragementType, type EncouragementContext } from "@/lib/openai/prompts"
 import { getBatchContext } from "@/lib/utils/batch-context"
-import { recordEncouragementSent } from "@/lib/utils/event-tracking"
+import { recordEncouragementSent, calculateEditDistance } from "@/lib/utils/event-tracking"
+
+/**
+ * 送信者の直近メッセージを取得（スタイル学習用）
+ *
+ * 学習対象:
+ * - support_type = 'custom'（人間が書いたメッセージ）
+ * - support_type = 'ai' かつ ai_draft_message != message（人間が編集したAIメッセージ）
+ * 除外:
+ * - quick（スタンプ）
+ * - 未編集AIメッセージ（AI文体の自己増幅防止）
+ */
+async function getSenderRecentMessages(
+  senderId: string,
+  limit: number = 10
+): Promise<{ id: number; sent_at: string; message: string }[]> {
+  const supabase = await createClient()
+
+  // custom メッセージを取得
+  const { data: customMsgs } = await supabase
+    .from("encouragement_messages")
+    .select("id, sent_at, message")
+    .eq("sender_id", senderId)
+    .eq("support_type", "custom")
+    .order("sent_at", { ascending: false })
+    .limit(limit)
+
+  // AI編集済みメッセージを取得（ai_draft_message が存在し、message と異なるもの）
+  // limit の3倍を取得してからフィルタ（未編集AIで埋まるケース対策）
+  const { data: editedAiMsgs } = await supabase
+    .from("encouragement_messages")
+    .select("id, sent_at, message, ai_draft_message")
+    .eq("sender_id", senderId)
+    .eq("support_type", "ai")
+    .not("ai_draft_message", "is", null)
+    .order("sent_at", { ascending: false })
+    .limit(limit * 3)
+
+  // AI編集済みを message != ai_draft_message でフィルタ
+  const filteredAiMsgs = (editedAiMsgs || [])
+    .filter((m) => m.message !== m.ai_draft_message)
+    .map(({ id, sent_at, message }) => ({ id, sent_at, message }))
+
+  // マージしてsent_at降順ソート、limit件に絞る
+  const merged = [...(customMsgs || []), ...filteredAiMsgs]
+    .sort((a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime())
+    .slice(0, limit)
+
+  return merged
+}
 
 /**
  * 学習記録一覧を取得（応援機能用）- RPC版
@@ -191,10 +240,14 @@ export async function sendQuickEncouragement(
 }
 
 /**
- * AI応援メッセージを生成
- * バッチ応援対応: 複数科目まとめ記録の場合、全科目の情報を使用
+ * AI応援メッセージを生成（パーソナライズ対応）
+ * 送信者の過去メッセージを注入し、スタイルを反映した1メッセージを生成
  */
-export async function generateAIEncouragement(studentId: string, studyLogId: string) {
+export async function generateAIEncouragement(
+  studentId: string,
+  studyLogId: string,
+  userContext?: string
+) {
   const supabase = await createClient()
 
   // 現在のユーザー（保護者）を取得
@@ -244,11 +297,15 @@ export async function generateAIEncouragement(studentId: string, studyLogId: str
     return { success: false as const, error: "学習記録の取得に失敗しました" }
   }
 
+  // 送信者の直近メッセージを取得（スタイル学習用）
+  const senderMessages = await getSenderRecentMessages(user.id)
+
   // コンテキストを構築
   const context: EncouragementContext = {
     studentName: studentData.full_name || "お子さん",
     senderRole: "parent",
     senderName: parentProfile?.display_name || "保護者",
+    userContext: userContext?.trim() || undefined,
   }
 
   // バッチの場合はbatchPerformanceを使用、単一の場合はrecentPerformanceを使用
@@ -275,7 +332,8 @@ export async function generateAIEncouragement(studentId: string, studyLogId: str
     }
   }
 
-  const result = await generateEncouragementMessages(context)
+  // パーソナライズ生成（1メッセージ）
+  const result = await generatePersonalizedEncouragementMessage(context, user.id, senderMessages)
 
   if (!result.success) {
     return { success: false as const, error: result.error }
@@ -283,7 +341,7 @@ export async function generateAIEncouragement(studentId: string, studyLogId: str
 
   return {
     success: true as const,
-    messages: result.messages,
+    message: result.message,
     // イベント計測用のメタデータ
     meta: {
       isBatch: batchContext.isBatch,
@@ -295,7 +353,7 @@ export async function generateAIEncouragement(studentId: string, studyLogId: str
 
 /**
  * AI/カスタム応援メッセージを送信
- * イベント計測対応: バッチ情報を含めて記録
+ * メタデータ（AI下書き・コンテキスト）保存対応
  */
 export async function sendCustomEncouragement(
   studentId: string,
@@ -303,9 +361,11 @@ export async function sendCustomEncouragement(
   message: string,
   supportType: "ai" | "custom",
   meta?: {
-    isBatch: boolean
-    subjects: string[]
-    subjectCount: number
+    isBatch?: boolean
+    subjects?: string[]
+    subjectCount?: number
+    aiDraftMessage?: string
+    userContext?: string
   }
 ) {
   const supabase = await createClient()
@@ -335,6 +395,8 @@ export async function sendCustomEncouragement(
     support_type: supportType,
     message: message.trim(),
     related_study_log_id: studyLogId ? Number(studyLogId) : null,
+    ai_draft_message: meta?.aiDraftMessage || null,
+    user_context: meta?.userContext || null,
   })
 
   if (error) {
@@ -343,8 +405,8 @@ export async function sendCustomEncouragement(
   }
 
   // イベント計測（バッチ情報を含む）
-  // metaがない場合でもstudyLogIdがあればバッチ情報を取得
-  let batchInfo = meta
+  let batchInfo: { isBatch?: boolean; subjects?: string[]; subjectCount?: number } | undefined =
+    meta?.isBatch !== undefined ? meta : undefined
   if (!batchInfo && studyLogId) {
     const batchContext = await getBatchContext(studyLogId)
     if (batchContext) {
@@ -356,6 +418,14 @@ export async function sendCustomEncouragement(
     }
   }
 
+  const isAiEdited = !!(meta?.aiDraftMessage && message.trim() !== meta.aiDraftMessage)
+  const editDistance = meta?.aiDraftMessage
+    ? calculateEditDistance(meta.aiDraftMessage, message.trim())
+    : undefined
+
+  // スタイル学習元メッセージ数を取得
+  const senderMessages = await getSenderRecentMessages(user.id)
+
   await recordEncouragementSent(
     user.id,
     "parent",
@@ -366,6 +436,13 @@ export async function sendCustomEncouragement(
       subjects: batchInfo?.subjects ?? [],
       subjectCount: batchInfo?.subjectCount ?? 1,
       supportType,
+      hasUserContext: !!meta?.userContext,
+      isAiEdited,
+      generationMode: supportType === "ai"
+        ? (meta?.aiDraftMessage ? "ai_personalized" : "ai_standard")
+        : "custom",
+      editDistance,
+      senderMessageCount: senderMessages.length,
     }
   )
 
@@ -647,10 +724,13 @@ export async function sendCoachQuickEncouragement(studentId: string, studyLogId:
 }
 
 /**
- * 指導者向けAI応援メッセージを生成
- * バッチ応援対応: 複数科目まとめ記録の場合、全科目の情報を使用
+ * 指導者向けAI応援メッセージを生成（パーソナライズ対応）
  */
-export async function generateCoachAIEncouragement(studentId: string, studyLogId: string) {
+export async function generateCoachAIEncouragement(
+  studentId: string,
+  studyLogId: string,
+  userContext?: string
+) {
   const supabase = await createClient()
 
   const {
@@ -678,11 +758,15 @@ export async function generateCoachAIEncouragement(studentId: string, studyLogId
     return { success: false as const, error: "学習記録の取得に失敗しました" }
   }
 
+  // 送信者の直近メッセージを取得（スタイル学習用）
+  const senderMessages = await getSenderRecentMessages(user.id)
+
   // コンテキストを構築
   const context: EncouragementContext = {
     studentName: studentData.full_name || "生徒",
     senderRole: "coach",
     senderName: (coachData?.profiles as any)?.display_name || "指導者",
+    userContext: userContext?.trim() || undefined,
   }
 
   // バッチの場合はbatchPerformanceを使用、単一の場合はrecentPerformanceを使用
@@ -709,7 +793,8 @@ export async function generateCoachAIEncouragement(studentId: string, studyLogId
     }
   }
 
-  const result = await generateEncouragementMessages(context)
+  // パーソナライズ生成（1メッセージ）
+  const result = await generatePersonalizedEncouragementMessage(context, user.id, senderMessages)
 
   if (!result.success) {
     return { success: false as const, error: result.error }
@@ -717,7 +802,7 @@ export async function generateCoachAIEncouragement(studentId: string, studyLogId
 
   return {
     success: true as const,
-    messages: result.messages,
+    message: result.message,
     // イベント計測用のメタデータ
     meta: {
       isBatch: batchContext.isBatch,
@@ -737,9 +822,11 @@ export async function sendCoachCustomEncouragement(
   message: string,
   supportType: "ai" | "custom",
   meta?: {
-    isBatch: boolean
-    subjects: string[]
-    subjectCount: number
+    isBatch?: boolean
+    subjects?: string[]
+    subjectCount?: number
+    aiDraftMessage?: string
+    userContext?: string
   }
 ) {
   const supabase = await createClient()
@@ -768,6 +855,8 @@ export async function sendCoachCustomEncouragement(
     support_type: supportType,
     message: message.trim(),
     related_study_log_id: studyLogId ? Number(studyLogId) : null,
+    ai_draft_message: meta?.aiDraftMessage || null,
+    user_context: meta?.userContext || null,
   })
 
   if (error) {
@@ -775,9 +864,9 @@ export async function sendCoachCustomEncouragement(
     return { success: false as const, error: "応援メッセージの送信に失敗しました" }
   }
 
-  // イベント計測（バッチ情報を含む）
-  // metaがない場合でもstudyLogIdがあればバッチ情報を取得
-  let batchInfo = meta
+  // イベント計測
+  let batchInfo: { isBatch?: boolean; subjects?: string[]; subjectCount?: number } | undefined =
+    meta?.isBatch !== undefined ? meta : undefined
   if (!batchInfo && studyLogId) {
     const batchContext = await getBatchContext(studyLogId)
     if (batchContext) {
@@ -789,6 +878,13 @@ export async function sendCoachCustomEncouragement(
     }
   }
 
+  const isAiEdited = !!(meta?.aiDraftMessage && message.trim() !== meta.aiDraftMessage)
+  const editDistance = meta?.aiDraftMessage
+    ? calculateEditDistance(meta.aiDraftMessage, message.trim())
+    : undefined
+
+  const senderMessages = await getSenderRecentMessages(user.id)
+
   await recordEncouragementSent(
     user.id,
     "coach",
@@ -799,6 +895,13 @@ export async function sendCoachCustomEncouragement(
       subjects: batchInfo?.subjects ?? [],
       subjectCount: batchInfo?.subjectCount ?? 1,
       supportType,
+      hasUserContext: !!meta?.userContext,
+      isAiEdited,
+      generationMode: supportType === "ai"
+        ? (meta?.aiDraftMessage ? "ai_personalized" : "ai_standard")
+        : "custom",
+      editDistance,
+      senderMessageCount: senderMessages.length,
     }
   )
 

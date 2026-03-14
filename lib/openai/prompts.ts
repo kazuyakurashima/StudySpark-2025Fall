@@ -49,6 +49,10 @@ export interface EncouragementContext {
   }
   weeklyTrend?: "improving" | "stable" | "challenging"
   studyStreak?: number
+  /** 送信者の過去メッセージ（スタイル学習用、最大10件） */
+  senderMessages?: string[]
+  /** ユーザーが入力した一言コンテキスト */
+  userContext?: string
 }
 
 /**
@@ -93,6 +97,42 @@ export function getEncouragementSystemPrompt(role: "parent" | "coach"): string {
 - 科目を並べすぎず、1〜2科目に絞って具体的に言及
 
 **重要**: 応援メッセージは3案を生成してください。それぞれ異なる視点（努力・成長・挑戦）で作成してください。`
+}
+
+/**
+ * パーソナライズ応援メッセージ生成のシステムプロンプト（1案生成）
+ *
+ * 送信者の過去メッセージからスタイルを学習し、その人らしいメッセージを1つ生成する。
+ */
+export function getPersonalizedEncouragementSystemPrompt(role: "parent" | "coach"): string {
+  const roleContext = role === "parent"
+    ? "あなたは中学受験を目指す小学生の保護者として応援メッセージを書くアシスタントです。"
+    : "あなたは中学受験を目指す小学生の指導者として応援メッセージを書くアシスタントです。"
+
+  return `${roleContext}
+
+【あなたの役割】
+送信者の「過去の応援メッセージ」が提供される場合、その人の文体・トーン・特徴を踏襲して、同じ人が書いたような自然なメッセージを1つ生成してください。
+過去メッセージがない場合は、温かく具体的な応援メッセージを生成してください。
+
+【スタイル踏襲のポイント】
+- 語尾のパターン（ね、よ、！等）
+- 褒め方の特徴（具体的/抽象的、結果重視/プロセス重視）
+- 絵文字・記号の使用傾向（使う人は使う、使わない人は使わない）
+- メッセージの長さ傾向
+- よく使う表現・フレーズ
+
+【応援メッセージの原則】
+1. セルフコンパッション: 結果ではなく努力・挑戦を称賛、プレッシャーを避ける
+2. 成長マインドセット: 能力は努力で伸びることを伝える、小さな進歩を価値づける
+3. 具体的で温かい言葉: 抽象的な励ましより具体的な行動・数値に触れる
+4. 次の行動への提案: 命令形は避け、提案・質問形式で
+
+【複数科目まとめ記録の場合】
+- 科目数に言及し、特に頑張った/挑戦した科目を1〜2科目に絞って具体的に言及
+
+【文字数】50〜150文字程度
+【出力】メッセージを1つだけ生成してください。`
 }
 
 /**
@@ -169,6 +209,102 @@ ${senderName}
     "メッセージ案2（成長に焦点）",
     "メッセージ案3（挑戦に焦点）"
   ]
+}
+
+JSONのみを出力し、他の説明文は含めないでください。`
+
+  return prompt
+}
+
+/**
+ * パーソナライズ応援メッセージ生成のユーザープロンプト（1案生成）
+ */
+export function getPersonalizedEncouragementUserPrompt(context: EncouragementContext): string {
+  const { studentName, senderName, recentPerformance, batchPerformance, weeklyTrend, studyStreak, senderMessages, userContext } = context
+
+  let prompt = ""
+
+  // 送信者の過去メッセージ（スタイル参考）
+  if (senderMessages && senderMessages.length > 0) {
+    prompt += `【送信者の過去メッセージ（スタイル参考）】\n`
+    senderMessages.forEach((msg, i) => {
+      prompt += `${i + 1}. "${msg}"\n`
+    })
+    prompt += "\n"
+  }
+
+  prompt += `【生徒情報】
+名前: ${studentName}さん
+
+【送信者】
+${senderName}
+
+【学習状況】
+`
+
+  // バッチ応援の場合（優先）
+  if (batchPerformance && batchPerformance.isBatch) {
+    prompt += `今回の記録（複数科目まとめ記録）:
+- 科目: ${batchPerformance.subjects.join("・")}（${batchPerformance.subjectCount}科目）
+- 第${batchPerformance.sessionNumber}回
+- 合計問題数: ${batchPerformance.totalProblems}問
+- 平均正答率: ${batchPerformance.averageAccuracy}%
+- 記録日: ${batchPerformance.studyDate}
+`
+
+    if (batchPerformance.bestSubject) {
+      prompt += `
+特に頑張った科目: ${batchPerformance.bestSubject.name}（正答率${batchPerformance.bestSubject.accuracy}%）`
+    }
+
+    if (batchPerformance.challengeSubject) {
+      prompt += `
+挑戦した科目: ${batchPerformance.challengeSubject.name}（正答率${batchPerformance.challengeSubject.accuracy}%）`
+    }
+    prompt += "\n"
+  }
+  // 単一科目の場合
+  else if (recentPerformance) {
+    prompt += `最新の記録:
+- 科目: ${recentPerformance.subject}
+- 第${recentPerformance.sessionNumber}回
+- 正答率: ${recentPerformance.accuracy}%
+- 取り組んだ問題数: ${recentPerformance.problemCount}問
+- 記録日: ${recentPerformance.date}
+`
+  }
+
+  if (weeklyTrend) {
+    const trendText = {
+      improving: "今週は先週より正答率が向上しています（成長週）",
+      stable: "今週は先週と同じくらいの正答率を保っています（安定週）",
+      challenging: "今週は先週より正答率が下がっています（挑戦週）"
+    }
+    prompt += `
+週次傾向: ${trendText[weeklyTrend]}
+`
+  }
+
+  if (studyStreak !== undefined) {
+    prompt += `
+連続学習日数: ${studyStreak}日
+`
+  }
+
+  // ユーザーコンテキスト（任意）
+  if (userContext && userContext.trim()) {
+    prompt += `
+【送信者からの一言】
+"${userContext.trim()}"
+`
+  }
+
+  prompt += `
+上記を踏まえて、${studentName}さんへの応援メッセージを1つ作成してください。
+
+**出力形式（JSON）:**
+{
+  "message": "応援メッセージ"
 }
 
 JSONのみを出力し、他の説明文は含めないでください。`
