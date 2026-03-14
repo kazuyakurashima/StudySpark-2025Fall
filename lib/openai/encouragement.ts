@@ -330,7 +330,7 @@ export async function generatePersonalizedEncouragementMessage(
         model,
         config: {
           systemInstruction: systemPrompt,
-          maxOutputTokens: 1000,
+          maxOutputTokens: 1500,
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -351,10 +351,17 @@ export async function generatePersonalizedEncouragementMessage(
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        max_completion_tokens: 1000,
+        max_completion_tokens: 1500,
         response_format: { type: "json_object" },
       })
-      responseText = completion.choices[0]?.message?.content || ""
+
+      const choice = completion.choices[0]
+      responseText = choice?.message?.content || ""
+
+      // トークン上限で切れた場合のログ
+      if (choice?.finish_reason === "length") {
+        console.warn("[Encouragement v2] Response truncated (finish_reason=length). Raw:", responseText.slice(0, 200))
+      }
     }
 
     if (!responseText || responseText.length < 5) {
@@ -363,6 +370,15 @@ export async function generatePersonalizedEncouragementMessage(
     }
 
     console.log("[Encouragement v2] raw response:", responseText.slice(0, 300))
+
+    // JSONが途中で切れている場合の修復を試みる
+    if (!responseText.endsWith("}")) {
+      console.warn("[Encouragement v2] Response may be truncated, attempting repair:", responseText.slice(-30))
+      // {"message":"..."} パターンで閉じていない場合、末尾を補完
+      if (responseText.includes('"message"')) {
+        responseText = responseText.replace(/[^"]*$/, '"}')
+      }
+    }
 
     let parsed: Record<string, unknown>
     try {
