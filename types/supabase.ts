@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.1"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -39,54 +34,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      _backup_graduated_csr: {
-        Row: {
-          assigned_at: string | null
-          assigned_by: string | null
-          coach_id: number | null
-          id: number | null
-          student_id: number | null
-        }
-        Insert: {
-          assigned_at?: string | null
-          assigned_by?: string | null
-          coach_id?: number | null
-          id?: number | null
-          student_id?: number | null
-        }
-        Update: {
-          assigned_at?: string | null
-          assigned_by?: string | null
-          coach_id?: number | null
-          id?: number | null
-          student_id?: number | null
-        }
-        Relationships: []
-      }
-      _backup_graduated_pcr: {
-        Row: {
-          created_at: string | null
-          id: number | null
-          parent_id: number | null
-          relation_type: string | null
-          student_id: number | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: number | null
-          parent_id?: number | null
-          relation_type?: string | null
-          student_id?: number | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: number | null
-          parent_id?: number | null
-          relation_type?: string | null
-          student_id?: number | null
-        }
-        Relationships: []
-      }
       admins: {
         Row: {
           created_at: string
@@ -636,6 +583,7 @@ export type Database = {
       encouragement_messages: {
         Row: {
           ai_cache_key: string | null
+          ai_draft_message: string | null
           created_at: string
           id: number
           is_ai_generated: boolean
@@ -648,9 +596,11 @@ export type Database = {
           sent_at: string
           student_id: number
           support_type: string
+          user_context: string | null
         }
         Insert: {
           ai_cache_key?: string | null
+          ai_draft_message?: string | null
           created_at?: string
           id?: number
           is_ai_generated?: boolean
@@ -663,9 +613,11 @@ export type Database = {
           sent_at?: string
           student_id: number
           support_type: string
+          user_context?: string | null
         }
         Update: {
           ai_cache_key?: string | null
+          ai_draft_message?: string | null
           created_at?: string
           id?: number
           is_ai_generated?: boolean
@@ -678,6 +630,7 @@ export type Database = {
           sent_at?: string
           student_id?: number
           support_type?: string
+          user_context?: string | null
         }
         Relationships: [
           {
@@ -1334,6 +1287,77 @@ export type Database = {
           },
         ]
       }
+      student_memory_summaries: {
+        Row: {
+          compact_summary: string
+          created_at: string
+          data_window_end: string | null
+          data_window_start: string | null
+          detailed_summary: string
+          effective_encouragements: Json | null
+          emotional_tendencies: Json | null
+          generation_version: number
+          id: number
+          last_delta_at: string | null
+          last_generated_at: string | null
+          last_study_log_id: number | null
+          recent_successes: Json | null
+          student_id: number
+          stumbling_patterns: Json | null
+          subject_trends: Json | null
+          updated_at: string
+          weeks_covered: number | null
+        }
+        Insert: {
+          compact_summary?: string
+          created_at?: string
+          data_window_end?: string | null
+          data_window_start?: string | null
+          detailed_summary?: string
+          effective_encouragements?: Json | null
+          emotional_tendencies?: Json | null
+          generation_version?: number
+          id?: number
+          last_delta_at?: string | null
+          last_generated_at?: string | null
+          last_study_log_id?: number | null
+          recent_successes?: Json | null
+          student_id: number
+          stumbling_patterns?: Json | null
+          subject_trends?: Json | null
+          updated_at?: string
+          weeks_covered?: number | null
+        }
+        Update: {
+          compact_summary?: string
+          created_at?: string
+          data_window_end?: string | null
+          data_window_start?: string | null
+          detailed_summary?: string
+          effective_encouragements?: Json | null
+          emotional_tendencies?: Json | null
+          generation_version?: number
+          id?: number
+          last_delta_at?: string | null
+          last_generated_at?: string | null
+          last_study_log_id?: number | null
+          recent_successes?: Json | null
+          student_id?: number
+          stumbling_patterns?: Json | null
+          subject_trends?: Json | null
+          updated_at?: string
+          weeks_covered?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_memory_summaries_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: true
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       students: {
         Row: {
           course: Database["public"]["Enums"]["course_level"] | null
@@ -1396,77 +1420,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: true
             referencedRelation: "public_sender_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      student_memory_summaries: {
-        Row: {
-          id: number
-          student_id: number
-          compact_summary: string
-          detailed_summary: string
-          subject_trends: Json | null
-          stumbling_patterns: Json | null
-          effective_encouragements: Json | null
-          recent_successes: Json | null
-          emotional_tendencies: Json | null
-          last_study_log_id: number | null
-          last_delta_at: string | null
-          data_window_start: string | null
-          data_window_end: string | null
-          weeks_covered: number | null
-          last_generated_at: string | null
-          generation_version: number
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: number
-          student_id: number
-          compact_summary?: string
-          detailed_summary?: string
-          subject_trends?: Json | null
-          stumbling_patterns?: Json | null
-          effective_encouragements?: Json | null
-          recent_successes?: Json | null
-          emotional_tendencies?: Json | null
-          last_study_log_id?: number | null
-          last_delta_at?: string | null
-          data_window_start?: string | null
-          data_window_end?: string | null
-          weeks_covered?: number | null
-          last_generated_at?: string | null
-          generation_version?: number
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: number
-          student_id?: number
-          compact_summary?: string
-          detailed_summary?: string
-          subject_trends?: Json | null
-          stumbling_patterns?: Json | null
-          effective_encouragements?: Json | null
-          recent_successes?: Json | null
-          emotional_tendencies?: Json | null
-          last_study_log_id?: number | null
-          last_delta_at?: string | null
-          data_window_start?: string | null
-          data_window_end?: string | null
-          weeks_covered?: number | null
-          last_generated_at?: string | null
-          generation_version?: number
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "student_memory_summaries_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: true
-            referencedRelation: "students"
             referencedColumns: ["id"]
           },
         ]
@@ -2175,23 +2128,6 @@ export type Database = {
         Args: { profile_id: string }
         Returns: boolean
       }
-      upsert_student_memory: {
-        Args: {
-          p_student_id: number
-          p_compact_summary: string
-          p_detailed_summary: string
-          p_subject_trends: Json
-          p_stumbling_patterns: Json
-          p_effective_encouragements: Json
-          p_recent_successes: Json
-          p_emotional_tendencies: Json
-          p_last_study_log_id: number
-          p_data_window_start: string
-          p_data_window_end: string
-          p_weeks_covered: number
-        }
-        Returns: undefined
-      }
       lock_answer_session: {
         Args: {
           p_expected_status?: string
@@ -2263,6 +2199,23 @@ export type Database = {
           cleanup_type: string
           deleted_count: number
         }[]
+      }
+      upsert_student_memory: {
+        Args: {
+          p_compact_summary: string
+          p_data_window_end: string
+          p_data_window_start: string
+          p_detailed_summary: string
+          p_effective_encouragements: Json
+          p_emotional_tendencies: Json
+          p_last_study_log_id: number
+          p_recent_successes: Json
+          p_student_id: number
+          p_stumbling_patterns: Json
+          p_subject_trends: Json
+          p_weeks_covered: number
+        }
+        Returns: undefined
       }
     }
     Enums: {
@@ -2408,3 +2361,4 @@ export const Constants = {
     },
   },
 } as const
+

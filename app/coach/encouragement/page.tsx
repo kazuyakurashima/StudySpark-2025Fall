@@ -24,7 +24,7 @@ import {
   type StudyLogsFilters,
 } from "@/lib/hooks/use-coach-encouragement"
 import { groupLogsByBatch, calculateSummary, calculateAccuracy, getRepresentativeLog } from "@/lib/utils/batch-grouping"
-import type { GroupedLogEntry, StudyLogWithBatch } from "@/lib/types/batch-grouping"
+import type { StudyLogWithBatch } from "@/lib/types/batch-grouping"
 import { useMemo } from "react"
 
 // 指導者応援用学習ログ型
@@ -93,10 +93,11 @@ export default function CoachEncouragementPage() {
 
   // AI応援ダイアログ状態
   const [aiDialogOpen, setAiDialogOpen] = useState<{ studentId: string; logId: string } | null>(null)
-  const [aiMessages, setAiMessages] = useState<string[]>([])
+  const [aiMessage, setAiMessage] = useState<string | null>(null)
+  const [aiDraftMessage, setAiDraftMessage] = useState<string | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
-  const [selectedAiMessage, setSelectedAiMessage] = useState<string | null>(null)
   const [editingMessage, setEditingMessage] = useState("")
+  const [aiContext, setAiContext] = useState("")
 
   // カスタム応援ダイアログ状態
   const [customDialogOpen, setCustomDialogOpen] = useState<{ studentId: string; logId: string | null } | null>(null)
@@ -121,33 +122,48 @@ export default function CoachEncouragementPage() {
     }
   }
 
-  const handleOpenAIDialog = async (studentId: string, studyLogId: string) => {
+  const handleGenerateAI = async (studentId: string, studyLogId: string, context?: string) => {
     setAiDialogOpen({ studentId, logId: studyLogId })
     setAiLoading(true)
-    setAiMessages([])
-    setSelectedAiMessage(null)
+    setAiMessage(null)
+    setAiDraftMessage(null)
     setEditingMessage("")
 
-    const result = await generateCoachAIEncouragement(studentId, studyLogId)
+    const result = await generateCoachAIEncouragement(studentId, studyLogId, context || undefined)
     setAiLoading(false)
 
     if (result.success) {
-      setAiMessages(result.messages)
+      setAiMessage(result.message)
+      setAiDraftMessage(result.message)
+      setEditingMessage(result.message)
     } else {
       alert(result.error)
       setAiDialogOpen(null)
     }
   }
 
-  const handleSelectAIMessage = (message: string) => {
-    setSelectedAiMessage(message)
-    setEditingMessage(message)
+  const handleOpenAIDialog = (studentId: string, studyLogId: string) => {
+    setAiDialogOpen({ studentId, logId: studyLogId })
+    setAiMessage(null)
+    setAiDraftMessage(null)
+    setEditingMessage("")
+    setAiContext("")
+    setAiLoading(false)
   }
 
   const handleSendAIMessage = async () => {
     if (!aiDialogOpen || !editingMessage) return
 
-    const result = await sendCoachCustomEncouragement(aiDialogOpen.studentId, aiDialogOpen.logId, editingMessage, "ai")
+    const result = await sendCoachCustomEncouragement(
+      aiDialogOpen.studentId,
+      aiDialogOpen.logId,
+      editingMessage,
+      "ai",
+      {
+        aiDraftMessage: aiDraftMessage || undefined,
+        userContext: aiContext || undefined,
+      }
+    )
     if (result.success) {
       setAiDialogOpen(null)
       mutateLogs()
@@ -517,39 +533,115 @@ export default function CoachEncouragementPage() {
       </Tabs>
 
       {aiDialogOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-lg max-h-[80vh] overflow-y-auto">
-            <CardHeader><CardTitle>AI応援メッセージ</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              {aiLoading ? (
-                <div className="flex justify-center items-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <p className="ml-2 text-slate-600">応援メッセージを生成中...</p>
-                </div>
-              ) : (
-                <>
-                  {aiMessages.map((message, index) => (
-                    <Button key={index} variant={selectedAiMessage === message ? "default" : "outline"} onClick={() => handleSelectAIMessage(message)} className="w-full text-left h-auto p-4 whitespace-normal">
-                      {message}
-                    </Button>
-                  ))}
-
-                  {selectedAiMessage && (
-                    <div className="space-y-2">
-                      <label className="text-sm text-slate-600">メッセージを編集できます:</label>
-                      <Textarea value={editingMessage} onChange={(e) => setEditingMessage(e.target.value)} rows={4} maxLength={200} className="resize-none" />
-                      <p className="text-xs text-slate-500 text-right">{editingMessage.length} / 200文字</p>
-                    </div>
-                  )}
-
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setAiDialogOpen(null)} className="flex-1">キャンセル</Button>
-                    <Button onClick={handleSendAIMessage} disabled={!editingMessage} className="flex-1">送信</Button>
+        <div className="fixed inset-0 bg-gradient-to-br from-black/60 via-purple-900/30 to-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50 animate-in fade-in duration-200" onClick={() => !aiLoading && setAiDialogOpen(null)}>
+          <div className="bg-gradient-to-br from-white via-purple-50/30 to-white rounded-3xl p-6 sm:p-8 max-w-lg w-full max-h-[90vh] sm:max-h-[80vh] overflow-y-auto shadow-2xl border-2 border-purple-100/50 animate-in slide-in-from-bottom-4 duration-300" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-fuchsia-600 rounded-xl blur-md opacity-50 animate-pulse"></div>
+                  <div className="relative bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-600 p-2.5 rounded-xl shadow-lg">
+                    <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                   </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 bg-clip-text text-transparent">
+                  AI応援メッセージ
+                </h3>
+              </div>
+              <button
+                onClick={() => setAiDialogOpen(null)}
+                disabled={aiLoading}
+                className="group relative w-10 h-10 rounded-full hover:bg-slate-100 transition-all duration-200 disabled:opacity-50 flex items-center justify-center"
+              >
+                <span className="text-slate-400 group-hover:text-slate-600 text-2xl font-light transition-colors">✕</span>
+              </button>
+            </div>
+
+            {/* コンテキスト入力（生成前） */}
+            {!aiMessage && !aiLoading && (
+              <div className="space-y-4">
+                <div className="bg-gradient-to-r from-purple-50 via-violet-50 to-purple-50 rounded-2xl p-4 border border-purple-100">
+                  <p className="text-sm text-slate-700 leading-relaxed">
+                    <span className="font-semibold text-purple-700">一言コンテキスト</span>を入力すると、それを踏まえたメッセージを生成します。<br />
+                    <span className="text-xs text-slate-600">空欄でも学習データから自動生成します。</span>
+                  </p>
+                </div>
+                <input
+                  type="text"
+                  value={aiContext}
+                  onChange={(e) => setAiContext(e.target.value)}
+                  placeholder="例：苦手だった年齢算が解けた"
+                  className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all duration-200"
+                  maxLength={100}
+                />
+                <Button
+                  onClick={() => handleGenerateAI(aiDialogOpen.studentId, aiDialogOpen.logId, aiContext)}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-600 hover:from-violet-600 hover:via-purple-600 hover:to-fuchsia-700 text-white font-bold shadow-lg"
+                >
+                  <Sparkles className="h-4 w-4 mr-2" />生成する
+                </Button>
+                <Button onClick={() => setAiDialogOpen(null)} variant="ghost" className="w-full text-slate-500">
+                  キャンセル
+                </Button>
+              </div>
+            )}
+
+            {aiLoading && (
+              <div className="py-16 text-center">
+                <div className="relative inline-block mb-6">
+                  <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-fuchsia-600 rounded-full blur-xl opacity-30 animate-pulse"></div>
+                  <div className="relative animate-spin inline-block w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full"></div>
+                </div>
+                <p className="text-lg font-semibold bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
+                  AI応援メッセージを生成中...
+                </p>
+                <p className="text-sm text-slate-500 mt-2">あなたのスタイルを踏まえて考えています</p>
+              </div>
+            )}
+
+            {aiMessage && !aiLoading && (
+              <div className="space-y-4 sm:space-y-5">
+                <div className="bg-gradient-to-br from-slate-50 to-purple-50/30 rounded-2xl p-4 sm:p-5 border border-purple-100/50">
+                  <label className="block text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4 text-purple-600" />
+                    生成されたメッセージ（編集できます）
+                  </label>
+                  <Textarea value={editingMessage} onChange={(e) => setEditingMessage(e.target.value)} rows={4} maxLength={200} className="resize-none w-full p-4 rounded-xl border-2 border-slate-200 focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all duration-200" />
+                  <div className="flex justify-between items-center mt-3">
+                    <span className="text-xs text-slate-500">{editingMessage.length}/200文字</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setAiMessage(null)
+                    setAiDraftMessage(null)
+                    setEditingMessage("")
+                  }}
+                  className="w-full text-sm text-slate-500 hover:text-purple-600 transition-colors py-2 flex items-center justify-center gap-1"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  コンテキストを変えて再生成
+                </button>
+
+                <div className="flex gap-3 mt-4">
+                  <Button
+                    onClick={() => setAiDialogOpen(null)}
+                    className="flex-1 py-3 px-6 rounded-xl border-2 border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-semibold transition-all duration-200"
+                  >
+                    キャンセル
+                  </Button>
+                  <Button
+                    onClick={handleSendAIMessage}
+                    disabled={!editingMessage.trim()}
+                    className="flex-1 py-3 px-6 rounded-xl bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-600 hover:from-violet-600 hover:via-purple-600 hover:to-fuchsia-700 text-white font-bold shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    送信する
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

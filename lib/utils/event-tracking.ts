@@ -230,6 +230,12 @@ export async function recordEncouragementSent(
     subjects: string[]
     subjectCount: number
     supportType: "quick" | "ai" | "custom"
+    // パーソナライズ計測用（Phase 1追加）
+    hasUserContext?: boolean
+    isAiEdited?: boolean
+    generationMode?: "ai_personalized" | "ai_standard" | "custom" | "quick"
+    editDistance?: number
+    senderMessageCount?: number
   }
 ) {
   return recordEvent(userId, userRole, "encouragement_sent", {
@@ -240,7 +246,36 @@ export async function recordEncouragementSent(
     subjects: batchInfo?.subjects ?? [],
     subject_count: batchInfo?.subjectCount ?? 1,
     support_type: batchInfo?.supportType ?? "custom",
+    // パーソナライズ計測情報
+    has_user_context: batchInfo?.hasUserContext ?? false,
+    is_ai_edited: batchInfo?.isAiEdited ?? false,
+    generation_mode: batchInfo?.generationMode ?? null,
+    edit_distance: batchInfo?.editDistance ?? null,
+    sender_message_count: batchInfo?.senderMessageCount ?? null,
   })
+}
+
+/**
+ * 簡易レーベンシュタイン距離（編集距離）
+ * AI下書きと送信メッセージの差分量を計測する
+ */
+export function calculateEditDistance(a: string, b: string): number {
+  if (a === b) return 0
+  if (a.length === 0) return b.length
+  if (b.length === 0) return a.length
+
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i)
+  let curr = new Array<number>(b.length + 1)
+
+  for (let i = 1; i <= a.length; i++) {
+    curr[0] = i
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost)
+    }
+    ;[prev, curr] = [curr, prev]
+  }
+  return prev[b.length]
 }
 
 /**

@@ -148,12 +148,14 @@ const ParentTodayMissionCard = ({
   const [expandedLogs, setExpandedLogs] = useState<Set<number>>(new Set())
   const [encouragementSent, setEncouragementSent] = useState<{ [key: string]: boolean }>({})
   const [showAIDialog, setShowAIDialog] = useState(false)
-  const [aiMessages, setAiMessages] = useState<string[]>([])
+  const [aiMessage, setAiMessage] = useState<string | null>(null)
+  const [aiDraftMessage, setAiDraftMessage] = useState<string | null>(null)
   const [selectedMessage, setSelectedMessage] = useState<string>("")
   const [currentLogId, setCurrentLogId] = useState<string | null>(null)
   const [currentSubject, setCurrentSubject] = useState<string>("")
   const [isGeneratingAI, setIsGeneratingAI] = useState(false)
   const [isSendingMessage, setIsSendingMessage] = useState(false)
+  const [aiContext, setAiContext] = useState("")
 
   const toggleExpandLog = (index: number) => {
     setExpandedLogs(prev => {
@@ -427,7 +429,7 @@ const ParentTodayMissionCard = ({
     }
   }
 
-  const handleOpenAIDialog = async (subject: string, studyLogId?: string) => {
+  const handleOpenAIDialog = (subject: string, studyLogId?: string) => {
     if (!selectedChildId || !studyLogId) {
       alert("学習記録が見つかりません")
       return
@@ -436,54 +438,63 @@ const ParentTodayMissionCard = ({
     setCurrentLogId(studyLogId)
     setCurrentSubject(subject)
     setShowAIDialog(true)
+    setIsGeneratingAI(false)
+    setAiMessage(null)
+    setAiDraftMessage(null)
+    setSelectedMessage("")
+    setAiContext("")
+  }
+
+  const handleGenerateAI = async (context?: string) => {
+    if (!selectedChildId || !currentLogId) return
+
     setIsGeneratingAI(true)
-    setAiMessages([])
+    setAiMessage(null)
+    setAiDraftMessage(null)
     setSelectedMessage("")
 
     try {
       const { generateAIEncouragement } = await import("@/app/actions/encouragement")
-      const result = await generateAIEncouragement(selectedChildId.toString(), studyLogId)
+      const result = await generateAIEncouragement(selectedChildId.toString(), currentLogId, context || undefined)
 
-      if (result.success && result.messages && result.messages.length > 0) {
-        setAiMessages(result.messages)
-        setSelectedMessage(result.messages[0])
+      if (result.success && result.message) {
+        setAiMessage(result.message)
+        setAiDraftMessage(result.message)
+        setSelectedMessage(result.message)
         setIsGeneratingAI(false)
       } else {
         alert(`エラー: ${result.error || "AI応援メッセージ生成に失敗しました"}`)
-        setShowAIDialog(false)
         setIsGeneratingAI(false)
       }
     } catch (error) {
       console.error("AI応援エラー:", error)
       alert("AI応援機能でエラーが発生しました")
-      setShowAIDialog(false)
       setIsGeneratingAI(false)
     }
   }
 
   const handleSendAIMessage = async () => {
     if (!selectedChildId || !currentLogId || !selectedMessage.trim()) {
-      alert("メッセージを選択または入力してください")
+      alert("メッセージを入力してください")
       return
     }
 
     setIsSendingMessage(true)
     try {
       const { sendCustomEncouragement } = await import("@/app/actions/encouragement")
-      const result = await sendCustomEncouragement(selectedChildId.toString(), currentLogId, selectedMessage, "ai")
+      const result = await sendCustomEncouragement(selectedChildId.toString(), currentLogId, selectedMessage, "ai", {
+        aiDraftMessage: aiDraftMessage || undefined,
+        userContext: aiContext || undefined,
+      })
 
       if (result.success) {
         alert("AI応援メッセージを送信しました！")
         setShowAIDialog(false)
 
-        // Mark as sent in UI (use same key format as quick encouragement)
         const key = `${currentSubject}-0`
         setEncouragementSent({ ...encouragementSent, [key]: true })
-
-        // 応援ステータスを更新（ハートバッジを表示）
         setEncouragementStatus({ ...encouragementStatus, [selectedChildId]: true })
 
-        // 直近の応援履歴を再取得
         const { getStudentRecentMessages } = await import("@/app/actions/parent-dashboard")
         const messagesResult = await getStudentRecentMessages(selectedChildId, 3)
         if (!isError(messagesResult)) {
@@ -891,7 +902,36 @@ const ParentTodayMissionCard = ({
               </button>
             </div>
 
-            {isGeneratingAI ? (
+            {/* コンテキスト入力（生成前） */}
+            {!aiMessage && !isGeneratingAI && (
+              <div className="space-y-4">
+                <div className="bg-gradient-to-r from-purple-50 via-violet-50 to-purple-50 rounded-2xl p-4 border border-purple-100">
+                  <p className="text-sm text-slate-700 leading-relaxed">
+                    <span className="font-semibold text-purple-700">一言コンテキスト</span>を入力すると、それを踏まえたメッセージを生成します。<br />
+                    <span className="text-xs text-slate-600">空欄でも学習データから自動生成します。</span>
+                  </p>
+                </div>
+                <input
+                  type="text"
+                  value={aiContext}
+                  onChange={(e) => setAiContext(e.target.value)}
+                  placeholder="例：苦手だった年齢算が解けた"
+                  className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all duration-200"
+                  maxLength={100}
+                />
+                <Button
+                  onClick={() => handleGenerateAI(aiContext)}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-600 hover:from-violet-600 hover:via-purple-600 hover:to-fuchsia-700 text-white font-bold shadow-lg"
+                >
+                  <Sparkles className="h-4 w-4 mr-2" />生成する
+                </Button>
+                <Button onClick={() => setShowAIDialog(false)} variant="ghost" className="w-full text-slate-500">
+                  キャンセル
+                </Button>
+              </div>
+            )}
+
+            {isGeneratingAI && (
               <div className="py-16 text-center">
                 <div className="relative inline-block mb-6">
                   <div className="absolute inset-0 bg-gradient-to-br from-violet-500 to-fuchsia-600 rounded-full blur-xl opacity-30 animate-pulse"></div>
@@ -900,104 +940,46 @@ const ParentTodayMissionCard = ({
                 <p className="text-lg font-semibold bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
                   AI応援メッセージを生成中...
                 </p>
-                <p className="text-sm text-slate-500 mt-2">心を込めて考えています</p>
+                <p className="text-sm text-slate-500 mt-2">あなたのスタイルを踏まえて考えています</p>
               </div>
-            ) : (
+            )}
+
+            {aiMessage && !isGeneratingAI && (
               <div className="space-y-4 sm:space-y-5">
-                <div className="bg-gradient-to-r from-purple-50 via-violet-50 to-purple-50 rounded-2xl p-4 border border-purple-100">
-                  <p className="text-sm text-slate-700 leading-relaxed">
-                    <span className="font-semibold text-purple-700">✨ 3つの応援メッセージ</span>から選んでください。<br />
-                    <span className="text-xs text-slate-600">メッセージは自由に編集できます。</span>
-                  </p>
-                </div>
-
-                {/* 3つのメッセージ選択肢 - プレミアムデザイン */}
-                <div className="space-y-3 sm:space-y-4">
-                  {aiMessages.map((message, index) => (
-                    <div key={index} className="relative group">
-                      <input
-                        type="radio"
-                        id={`message-${index}`}
-                        name="ai-message"
-                        checked={selectedMessage === message}
-                        onChange={() => setSelectedMessage(message)}
-                        className="sr-only"
-                      />
-                      <label
-                        htmlFor={`message-${index}`}
-                        className={`block p-4 sm:p-5 rounded-2xl border-2 cursor-pointer transition-all duration-300 ${
-                          selectedMessage === message
-                            ? "border-purple-400 bg-gradient-to-br from-purple-50 via-violet-50 to-fuchsia-50 shadow-lg scale-[1.02]"
-                            : "border-slate-200 bg-white hover:border-purple-200 hover:shadow-md"
-                        }`}
-                      >
-                        <div className="flex items-start gap-3 sm:gap-4">
-                          <div className={`flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
-                            selectedMessage === message
-                              ? "border-purple-500 bg-gradient-to-br from-violet-500 to-fuchsia-600 shadow-lg scale-110"
-                              : "border-slate-300 group-hover:border-purple-300"
-                          }`}>
-                            {selectedMessage === message && (
-                              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                              </svg>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className={`text-xs font-bold px-2.5 py-1 rounded-full transition-all duration-300 ${
-                                selectedMessage === message
-                                  ? "bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white shadow-md"
-                                  : "bg-purple-100 text-purple-700"
-                              }`}>
-                                {index === 0 ? "💪 励まし型" : index === 1 ? "🤝 共感型" : "🌟 次への期待型"}
-                              </span>
-                            </div>
-                            <p className="text-sm sm:text-base text-slate-700 leading-relaxed break-words">{message}</p>
-                          </div>
-                        </div>
-                      </label>
-                    </div>
-                  ))}
-                </div>
-
-                {/* メッセージ編集エリア - エレガントデザイン */}
-                <div className="mt-6 sm:mt-8 bg-gradient-to-br from-slate-50 to-purple-50/30 rounded-2xl p-4 sm:p-5 border border-purple-100/50">
+                <div className="bg-gradient-to-br from-slate-50 to-purple-50/30 rounded-2xl p-4 sm:p-5 border border-purple-100/50">
                   <label className="block text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
                     <span className="text-purple-600">✏️</span>
-                    メッセージを編集（200文字まで）
+                    生成されたメッセージ（編集できます）
                   </label>
                   <textarea
                     value={selectedMessage}
                     onChange={(e) => setSelectedMessage(e.target.value.slice(0, 200))}
                     className="w-full p-4 text-sm bg-white border-2 border-purple-200/50 rounded-xl
                       focus:border-purple-400 focus:ring-4 focus:ring-purple-100
-                      transition-all duration-200 resize-none shadow-inner
-                      placeholder:text-slate-400"
+                      transition-all duration-200 resize-none shadow-inner"
                     rows={5}
-                    placeholder="選択したメッセージを自由に編集できます..."
                   />
                   <div className="flex justify-between items-center mt-2">
-                    <p className="text-xs text-slate-500 flex items-center gap-1">
-                      <span className={selectedMessage.length >= 180 ? "text-amber-600 font-semibold" : ""}>
-                        {selectedMessage.length}
-                      </span>
-                      <span>/200文字</span>
-                    </p>
+                    <p className="text-xs text-slate-500">{selectedMessage.length}/200文字</p>
                     {selectedMessage.length >= 180 && (
                       <p className="text-xs text-amber-600 font-medium">あと{200 - selectedMessage.length}文字</p>
                     )}
                   </div>
                 </div>
 
-                {/* 送信ボタン - プレミアムデザイン */}
-                <div className="flex gap-3 sm:gap-4 mt-6 sm:mt-8">
+                <button
+                  onClick={() => { setAiMessage(null); setAiDraftMessage(null); setSelectedMessage("") }}
+                  className="w-full text-sm text-slate-500 hover:text-purple-600 transition-colors py-2 flex items-center justify-center gap-1"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                  コンテキストを変えて再生成
+                </button>
+
+                <div className="flex gap-3 sm:gap-4 mt-4">
                   <Button
                     onClick={() => setShowAIDialog(false)}
                     variant="outline"
-                    className="flex-1 py-3.5 text-sm rounded-xl
-                      border-2 border-slate-300 hover:border-slate-400 hover:bg-slate-50
-                      transition-all duration-200 shadow-sm hover:shadow-md"
+                    className="flex-1 py-3.5 text-sm rounded-xl border-2 border-slate-300"
                     disabled={isSendingMessage}
                   >
                     キャンセル
@@ -1008,15 +990,8 @@ const ParentTodayMissionCard = ({
                     className="group relative flex-1 py-3.5 text-sm rounded-xl overflow-hidden
                       bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-600
                       hover:from-violet-600 hover:via-purple-600 hover:to-fuchsia-700
-                      text-white shadow-xl hover:shadow-2xl
-                      transform hover:scale-[1.02] active:scale-[0.98]
-                      transition-all duration-300 ease-out
-                      disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
-                      border-2 border-white/20"
+                      text-white shadow-xl disabled:opacity-50 disabled:cursor-not-allowed border-2 border-white/20"
                   >
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent
-                      translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000 ease-in-out" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     <span className="relative z-10 flex items-center justify-center gap-2">
                       {isSendingMessage ? (
                         <>
