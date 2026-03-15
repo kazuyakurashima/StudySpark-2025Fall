@@ -386,6 +386,7 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
             ? Math.round((log.correct_count / log.total_problems) * 100)
             : 0,
         })),
+        studentName: profile?.nickname || undefined,
         reflectionText: reflection || undefined,
       }
 

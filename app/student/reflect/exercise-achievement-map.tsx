@@ -18,9 +18,8 @@ import {
 interface Props {
   studentGrade: number
   studentCourse?: string
-  // viewerRole / studentId は 1A-6/7 で認可付きで追加予定
   viewerRole?: 'student' | 'parent' | 'coach'
-  studentId?: number
+  studentId?: number  // 指導者・保護者用（checkStudentAccessで認可済み）
 }
 
 // セクション列の定義
@@ -61,24 +60,34 @@ function getAccuracyTextColor(accuracy: number): string {
 export function ExerciseAchievementMap({
   studentGrade,
   studentCourse = 'B',
+  studentId,
 }: Props) {
   const [isLoading, setIsLoading] = useState(true)
   const [data, setData] = useState<ExerciseAchievementData[]>([])
   const [summary, setSummary] = useState<ExerciseAchievementSummary | null>(null)
   const [totalSessions, setTotalSessions] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [previewCourse, setPreviewCourse] = useState<string | null>(null) // null = 実コース
+
+  const effectiveCourse = previewCourse || studentCourse
+  const isPreview = previewCourse !== null && previewCourse !== studentCourse
 
   useEffect(() => {
     const load = async () => {
       setIsLoading(true)
       setError(null)
       try {
-        // 学習回数をDBから取得（学年依存）
-        const sessionsResult = await getStudySessions(studentGrade)
+        // 学習回数と到達度データを並列取得
+        const [sessionsResult, result] = await Promise.all([
+          getStudySessions(studentGrade),
+          getExerciseAchievementMapData({
+            targetStudentId: studentId ?? undefined,
+            previewCourse: previewCourse ?? undefined,
+          }),
+        ])
         if (!sessionsResult.error && sessionsResult.sessions) {
           setTotalSessions(sessionsResult.sessions.length)
         }
-        const result = await getExerciseAchievementMapData()
         if (result.error) { setError(result.error) }
         else { setData(result.data); setSummary(result.summary) }
       } catch (e) {
@@ -87,7 +96,7 @@ export function ExerciseAchievementMap({
       } finally { setIsLoading(false) }
     }
     load()
-  }, [studentGrade, studentCourse])
+  }, [studentGrade, studentCourse, studentId, previewCourse])
 
   // セッションごとにセクション別スコアを集計
   const gridData = useMemo(() => {
@@ -164,6 +173,28 @@ export function ExerciseAchievementMap({
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
+          {/* コース別プレビュー */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-muted-foreground font-semibold">表示コース:</span>
+            {['A', 'B', 'C', 'S'].map(course => (
+              <button
+                key={course}
+                onClick={() => setPreviewCourse(course === studentCourse ? null : course)}
+                className={cn(
+                  "px-3 py-1 text-xs font-bold rounded-full border-2 transition-all",
+                  effectiveCourse === course
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white text-gray-600 border-gray-300 hover:border-gray-400"
+                )}
+              >
+                {course}
+              </button>
+            ))}
+            {isPreview && (
+              <span className="text-xs text-orange-600 font-medium ml-1">プレビュー表示中</span>
+            )}
+          </div>
+
           {/* 凡例 */}
           <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm">
             <span className="text-muted-foreground font-semibold">正答率:</span>

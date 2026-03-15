@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { checkStudentAccess } from '@/app/actions/common/check-student-access'
 
 // ================================================================
 // 型定義
@@ -39,12 +40,16 @@ export interface ExerciseAchievementSummary {
 const COURSE_RANK: Record<string, number> = { A: 1, B: 2, C: 3, S: 4 }
 
 // ================================================================
-// 演習問題集の到達度データ取得（自分のみ — 1A-6/7で他生徒対応を追加）
+// 演習問題集の到達度データ取得
 // 仕様: latestセッションが graded のみ表示。in_progress は到達度マップに含めない
 //       （セクション単位で段階的に採点するため、部分データの表示を避ける）
+// 認可: targetStudentId 指定時は checkStudentAccess() で担当関係/親子関係を検証
 // ================================================================
 
-export async function getExerciseAchievementMapData(): Promise<{
+export async function getExerciseAchievementMapData(options?: {
+  targetStudentId?: number  // 指導者・保護者用（省略時は自分）
+  previewCourse?: string    // コース別プレビュー（実コースを変更せず表示のみ切替）
+}): Promise<{
   data: ExerciseAchievementData[]
   summary: ExerciseAchievementSummary
   error?: string
@@ -59,18 +64,45 @@ export async function getExerciseAchievementMapData(): Promise<{
 
     const admin = createAdminClient()
 
-    // 自分の生徒情報のみ取得（認可: 自分のuser_idに紐づく生徒のみ）
-    const { data: student } = await admin
-      .from('students')
-      .select('id, grade, course')
-      .eq('user_id', user.id)
-      .single()
-    if (!student) return { data: [], summary: emptySummary, error: '生徒情報が見つかりません' }
+    let studentId: number
+    let studentGrade: number
+    let studentCourse: string
 
-    const studentId = student.id
-    const studentGrade = student.grade
-    const studentCourse = student.course || 'A'
-    const studentRank = COURSE_RANK[studentCourse] ?? 1
+    if (options?.targetStudentId) {
+      // 他生徒アクセス: 認可チェック（担当関係/親子関係を検証）
+      const hasAccess = await checkStudentAccess(user.id, String(options.targetStudentId))
+      if (!hasAccess) return { data: [], summary: emptySummary, error: 'アクセス権限がありません' }
+
+      const { data: student } = await admin
+        .from('students')
+        .select('id, grade, course')
+        .eq('id', options.targetStudentId)
+        .single()
+      if (!student) return { data: [], summary: emptySummary, error: '生徒情報が見つかりません' }
+
+      studentId = student.id
+      studentGrade = student.grade
+      studentCourse = student.course || 'A'
+    } else {
+      // 自分のデータ
+      const { data: student } = await admin
+        .from('students')
+        .select('id, grade, course')
+        .eq('user_id', user.id)
+        .single()
+      if (!student) return { data: [], summary: emptySummary, error: '生徒情報が見つかりません' }
+
+      studentId = student.id
+      studentGrade = student.grade
+      studentCourse = student.course || 'A'
+    }
+    // コース別プレビュー: previewCourse 指定時は表示コースを上書き（実コースは変更しない）
+    const validCourses = new Set(['A', 'B', 'C', 'S'])
+    const previewCourse = options?.previewCourse && validCourses.has(options.previewCourse)
+      ? options.previewCourse
+      : null
+    const effectiveCourse = previewCourse || studentCourse
+    const studentRank = COURSE_RANK[effectiveCourse] ?? 1
 
     // 演習問題集の question_sets を取得
     const { data: questionSets } = await admin

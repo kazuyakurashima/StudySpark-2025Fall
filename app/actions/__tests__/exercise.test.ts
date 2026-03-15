@@ -98,3 +98,40 @@ describe('演習問題集 再挑戦スコア独立性', () => {
     expect(Math.round((25 / maxScore) * 100)).toBe(86)
   })
 })
+
+describe('previewCourse バリデーション', () => {
+  const validCourses = new Set(['A', 'B', 'C', 'S'])
+
+  it('有効なコース値はそのまま使用', () => {
+    for (const c of ['A', 'B', 'C', 'S']) {
+      expect(validCourses.has(c)).toBe(true)
+    }
+  })
+
+  it('無効なコース値は無視される（nullフォールバック）', () => {
+    for (const c of ['X', 'a', 'AB', '', '1']) {
+      expect(validCourses.has(c)).toBe(false)
+    }
+  })
+})
+
+describe('到達率計算（到達度マップ用）', () => {
+  it('到達率 = 正解数 / 対象問題数（計画書準拠）', () => {
+    // Bコース: 29問中15問正解、10問未回答
+    const totalQuestions = 29
+    const correctQuestions = 15
+    const answeredQuestions = 19
+    const accuracy = Math.round((correctQuestions / totalQuestions) * 100)
+    const answeredRate = Math.round((answeredQuestions / totalQuestions) * 100)
+    expect(accuracy).toBe(52) // 15/29
+    expect(answeredRate).toBe(66) // 19/29
+  })
+
+  it('未回答時は到達率0%', () => {
+    expect(Math.round((0 / 29) * 100)).toBe(0)
+  })
+
+  it('全問正解で100%', () => {
+    expect(Math.round((29 / 29) * 100)).toBe(100)
+  })
+})

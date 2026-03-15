@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import ParentBottomNavigation from "@/components/parent-bottom-navigation"
-import { AchievementMap } from "@/app/student/reflect/achievement-map"
+import { AchievementTabContent } from "@/app/student/reflect/achievement-tab-content"
 import { StudyHistory } from "@/app/student/reflect/study-history"
 import { EncouragementHistory } from "@/app/student/reflect/encouragement-history"
 import { AssessmentHistory } from "@/app/student/reflect/assessment-history"
@@ -42,6 +42,7 @@ interface Child {
   display_name: string
   avatar_id: string | null
   grade: number
+  course: string
   user_id: string
 }
 
@@ -310,11 +311,11 @@ export default function ParentReflectPage() {
           {/* 達成マップタブ */}
           <TabsContent value="achievement" className="space-y-4">
             {selectedChild && (
-              <AchievementMap
+              <AchievementTabContent
                 studentGrade={selectedChild.grade}
-                studentCourse="B"
+                studentCourse={selectedChild.course}
                 viewerRole="parent"
-                studentId={selectedChildId !== null ? String(selectedChildId) : undefined}
+                studentId={selectedChildId !== null ? selectedChildId : undefined}
               />
             )}
           </TabsContent>
