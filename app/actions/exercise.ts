@@ -654,6 +654,7 @@ export async function gradeExerciseSection(input: {
 export async function getExerciseAnswerHistory(
   questionSetId: number
 ): Promise<{
+  answerSessionId: number
   answers: ExerciseAnswerHistory[]
   attemptNumber: number
   totalScore: number | null
@@ -686,6 +687,7 @@ export async function getExerciseAnswerHistory(
       .eq('answer_session_id', session.id)
 
     return {
+      answerSessionId: session.id,
       answers: (answers || []).map(a => ({
         questionId: a.question_id,
         rawInput: a.raw_input || '',
