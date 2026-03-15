@@ -10,7 +10,7 @@ import { BottomNavigation } from "@/components/bottom-navigation"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { PageHeader } from "@/components/common/page-header"
 import { ReflectChat } from "./reflect-chat"
-import { AchievementMap } from "./achievement-map"
+import { AchievementTabContent } from "./achievement-tab-content"
 import { StudyHistory } from "./study-history"
 import { EncouragementHistory } from "./encouragement-history"
 import { CoachingHistory } from "./coaching-history"
@@ -308,7 +308,7 @@ function ReflectPageInner() {
 
           {/* タブコンテンツ（新しい順序: 達成/テスト/学習/応援/ふりかえり） */}
           <TabsContent value="achievement" className="mt-6">
-            <AchievementMap studentGrade={studentGrade} studentCourse={studentCourse} />
+            <AchievementTabContent studentGrade={studentGrade} studentCourse={studentCourse} />
           </TabsContent>
 
           <TabsContent value="assessment" className="mt-6">
