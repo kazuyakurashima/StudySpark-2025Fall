@@ -50,9 +50,9 @@ export function MultiPartInput({
                 onChange={(e) => onChange(part.label, sanitizeNumericInput(e.target.value))}
                 disabled={disabled}
                 className={cn(
-                  'border-input flex h-10 w-20 rounded-md border bg-transparent px-2 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none',
-                  'focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]',
-                  'disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
+                  'flex h-10 w-20 rounded-lg border-2 border-gray-300 bg-white px-2 py-1 text-base shadow-sm transition-all outline-none',
+                  'focus-visible:border-blue-500 focus-visible:ring-blue-500/20 focus-visible:ring-[3px]',
+                  'disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-50',
                   'text-center'
                 )}
                 placeholder={part.label}

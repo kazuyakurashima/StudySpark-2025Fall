@@ -39,13 +39,13 @@ export function SelectionInput({
                 disabled={disabled}
                 className={cn(
                   'relative inline-flex items-center justify-center min-w-[48px] min-h-[48px] px-3 py-2 rounded-xl text-sm font-medium transition-all',
-                  'border shadow-xs outline-none',
-                  'focus-visible:ring-ring/50 focus-visible:ring-[3px]',
+                  'border-2 shadow-sm outline-none',
+                  'focus-visible:ring-blue-500/20 focus-visible:ring-[3px]',
                   'disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
                   'active:scale-95',
                   isSelected
                     ? 'bg-blue-500 text-white border-blue-500 hover:bg-blue-600'
-                    : 'bg-transparent border-input text-foreground hover:bg-accent'
+                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
                 )}
               >
                 {option}
