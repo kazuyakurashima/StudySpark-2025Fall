@@ -7,7 +7,8 @@ import { MultiPartInput } from '@/components/math/multi-part-input'
 import { SelectionInput } from '@/components/math/selection-input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { BookOpen, Check, X, Loader2, RotateCcw, RefreshCw, Trophy, Target, ChevronDown, ChevronRight } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
+import { BookOpen, Check, X, Loader2, RotateCcw, RefreshCw, Trophy, ChevronDown, ChevronRight, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { MultiPartConfig, SelectionConfig } from '@/lib/math-answer-utils'
 import {
@@ -18,6 +19,7 @@ import {
   type ExerciseQuestionSet,
   type ExerciseGradeResult,
 } from '@/app/actions/exercise'
+import { saveExerciseReflection, getExerciseReflections } from '@/app/actions/exercise-reflection'
 
 // ================================================================
 // 型定義
@@ -39,17 +41,25 @@ interface SectionState {
   maxScore: number
   results: Map<number, ExerciseGradeResult>
   lockedQuestionIds: Set<number>
+  reflectionText: string
+  reflectionSaved: boolean
+  answerSessionId: number | null
 }
 
-const SECTION_THEMES: Record<string, { bg: string; border: string; text: string; badgeText: string; bar: string }> = {
-  '反復問題（基本）': { bg: 'bg-blue-50', border: 'border-blue-300', text: 'text-blue-800', badgeText: 'Aコース〜', bar: 'bg-blue-400' },
-  '反復問題（練習）': { bg: 'bg-purple-50', border: 'border-purple-300', text: 'text-purple-800', badgeText: 'Bコース〜', bar: 'bg-purple-400' },
-  '実戦演習':         { bg: 'bg-orange-50', border: 'border-orange-300', text: 'text-orange-800', badgeText: 'C/Sコース〜', bar: 'bg-orange-400' },
-  'ステップ①':       { bg: 'bg-blue-50', border: 'border-blue-300', text: 'text-blue-800', badgeText: 'Aコース〜', bar: 'bg-blue-400' },
-  'ステップ②':       { bg: 'bg-purple-50', border: 'border-purple-300', text: 'text-purple-800', badgeText: 'Bコース〜', bar: 'bg-purple-400' },
-  'ステップ③':       { bg: 'bg-orange-50', border: 'border-orange-300', text: 'text-orange-800', badgeText: 'C/Sコース〜', bar: 'bg-orange-400' },
+// カラー体系:
+//   ブランド色 = 青（ヘッダー・ボタン・カード・振り返り）
+//   意味色 = 緑（正解）/ 赤（不正解）のみ
+//   セクション区別 = ラベルテキスト + 罫線太さで表現（色ではなく）
+
+// セクションヘッダーのラベル（全て青系統、ラベルで区別）
+const SECTION_LABELS: Record<string, string> = {
+  '反復問題（基本）': 'Aコース〜',
+  '反復問題（練習）': 'Bコース〜',
+  '実戦演習': 'C/Sコース〜',
+  'ステップ①': 'Aコース〜',
+  'ステップ②': 'Bコース〜',
+  'ステップ③': 'C/Sコース〜',
 }
-const DEFAULT_THEME = { bg: 'bg-gray-50', border: 'border-gray-300', text: 'text-gray-800', badgeText: '', bar: 'bg-gray-400' }
 
 // ================================================================
 // メインコンポーネント
@@ -75,10 +85,10 @@ export function ExerciseInput({ sessionId }: Props) {
     const secs: SectionState[] = []
     let cur = ''
     for (const q of qs) {
-      if (q.sectionName !== cur) { cur = q.sectionName; secs.push({ name: cur, questions: [], isGraded: false, isExpanded: false, score: 0, maxScore: 0, results: new Map(), lockedQuestionIds: new Set() }) }
+      if (q.sectionName !== cur) { cur = q.sectionName; secs.push({ name: cur, questions: [], isGraded: false, isExpanded: false, score: 0, maxScore: 0, results: new Map(), lockedQuestionIds: new Set(), reflectionText: '', reflectionSaved: false, answerSessionId: null }) }
       secs[secs.length - 1].questions.push(q)
     }
-    if (secs.length > 0) secs[0].isExpanded = true
+    if (secs.length === 1) secs[0].isExpanded = true
     return secs
   }, [])
 
@@ -102,9 +112,14 @@ export function ExerciseInput({ sessionId }: Props) {
             for (const a of history.answers) { const q = result.questions.find(q => q.id === a.questionId); if (q && a.rawInput) prefillAnswer(q, a.rawInput) }
             if (history.totalScore !== null && history.maxScore !== null) {
               setAttemptNumber(history.attemptNumber)
+              const reflections = await getExerciseReflections(history.answerSessionId)
+              const reflectionMap = new Map(reflections.map(r => [r.sectionName, r]))
               for (const sec of newSecs) {
                 if (sec.questions.every(q => ids.has(q.id))) {
                   sec.isGraded = true; sec.isExpanded = false; let sc = 0; sec.maxScore = sec.questions.reduce((s, q) => s + q.points, 0)
+                  sec.answerSessionId = history.answerSessionId
+                  const ref = reflectionMap.get(sec.name)
+                  if (ref) { sec.reflectionText = ref.reflectionText; sec.reflectionSaved = true }
                   for (const q of sec.questions) { const a = history.answers.find(a => a.questionId === q.id); if (a) { sec.results.set(q.id, { questionId: q.id, isCorrect: a.isCorrect ?? false, answerValue: a.rawInput, correctAnswer: '' }); if (a.isCorrect) sc += q.points } }
                   sec.score = sc
                 }
@@ -117,7 +132,8 @@ export function ExerciseInput({ sessionId }: Props) {
                   sec.score = sc
                 }
               }
-              const first = newSecs.findIndex(s => !s.isGraded); if (first !== -1) newSecs.forEach((s, i) => { s.isExpanded = i === first })
+              const ungradedCount = newSecs.filter(s => !s.isGraded).length
+              if (ungradedCount === 1) { const first = newSecs.findIndex(s => !s.isGraded); if (first !== -1) newSecs[first].isExpanded = true }
             }
           }
         }
@@ -151,73 +167,60 @@ export function ExerciseInput({ sessionId }: Props) {
     setSections(prev => prev.map((s, j) => ({ ...s, isExpanded: j === i ? !s.isExpanded : s.isExpanded })))
   }, [])
 
-  // セクション採点
   const handleGradeSection = useCallback((idx: number) => {
     if (!questionSet) return
     const section = sections[idx]
-    const answers = section.questions
-      .filter(q => !section.lockedQuestionIds.has(q.id))
-      .map(q => ({ questionId: q.id, rawInput: buildRawInput(q) }))
-      .filter((a): a is { questionId: number; rawInput: string } => a.rawInput !== null)
+    const answers = section.questions.filter(q => !section.lockedQuestionIds.has(q.id)).map(q => ({ questionId: q.id, rawInput: buildRawInput(q) })).filter((a): a is { questionId: number; rawInput: string } => a.rawInput !== null)
     const sectionQuestionIds = section.questions.filter(q => !section.lockedQuestionIds.has(q.id)).map(q => q.id)
-    const ungradedRemaining = sections.filter((s, i) => i !== idx && !s.isGraded).length
-    const isFinal = ungradedRemaining === 0
+    const isFinal = sections.filter((s, i) => i !== idx && !s.isGraded).length === 0
 
     startTransition(async () => {
       setError(null)
       const result = await gradeExerciseSection({ questionSetId: questionSet.id, sectionQuestionIds, answers, isFinal })
       if (result.error) { setError(result.error); return }
-
       const resultMap = new Map<number, ExerciseGradeResult>()
       for (const qId of section.lockedQuestionIds) resultMap.set(qId, { questionId: qId, isCorrect: true, answerValue: '', correctAnswer: '' })
       for (const r of result.results) resultMap.set(r.questionId, r)
-
       const lockedPoints = Array.from(section.lockedQuestionIds).reduce((s, qId) => s + (section.questions.find(q => q.id === qId)?.points ?? 0), 0)
 
       setSections(prev => {
         const updated = [...prev]
-        updated[idx] = { ...updated[idx], isGraded: true, isExpanded: true, score: result.sectionScore + lockedPoints, maxScore: result.sectionMaxScore + lockedPoints, results: resultMap, lockedQuestionIds: new Set() }
-        // 次の未採点セクションを自動展開
-        if (!isFinal) {
-          const next = updated.findIndex((s, i) => i > idx && !s.isGraded)
-          if (next !== -1) updated[next] = { ...updated[next], isExpanded: true }
-        }
+        updated[idx] = { ...updated[idx], isGraded: true, isExpanded: true, score: result.sectionScore + lockedPoints, maxScore: result.sectionMaxScore + lockedPoints, results: resultMap, lockedQuestionIds: new Set(), answerSessionId: result.answerSessionId, reflectionText: '', reflectionSaved: false }
+        if (!isFinal) { const next = updated.findIndex((s, i) => i > idx && !s.isGraded); if (next !== -1) updated[next] = { ...updated[next], isExpanded: true } }
         return updated
       })
-
-      if (isFinal) {
-        // attempt_number はサーバーから取得（正確なDB値）
-        setAttemptNumber(result.attemptNumber ?? (attemptNumber ?? 0) + 1)
-      }
+      if (isFinal) setAttemptNumber(result.attemptNumber ?? (attemptNumber ?? 0) + 1)
     })
   }, [questionSet, sections, buildRawInput, attemptNumber])
 
-  // セクション単位: 不正解だけやり直す
   const handleSectionRetryIncorrect = useCallback((idx: number) => {
     setSections(prev => {
-      const updated = [...prev]
-      const sec = updated[idx]
-      const locked = new Set<number>()
-      for (const q of sec.questions) {
-        const r = sec.results.get(q.id)
-        if (r?.isCorrect) { locked.add(q.id) } else { clearAnswer(q.id, q.answerType) }
-      }
-      updated[idx] = { ...sec, isGraded: false, isExpanded: true, score: 0, maxScore: 0, results: new Map(), lockedQuestionIds: locked }
+      const updated = [...prev]; const sec = updated[idx]; const locked = new Set<number>()
+      for (const q of sec.questions) { const r = sec.results.get(q.id); if (r?.isCorrect) { locked.add(q.id) } else { clearAnswer(q.id, q.answerType) } }
+      updated[idx] = { ...sec, isGraded: false, isExpanded: true, score: 0, maxScore: 0, results: new Map(), lockedQuestionIds: locked, reflectionText: '', reflectionSaved: false }
       return updated
-    })
-    setError(null)
+    }); setError(null)
   }, [])
 
-  // セクション単位: 全部やり直す
   const handleSectionRetryAll = useCallback((idx: number) => {
     setSections(prev => {
-      const updated = [...prev]
-      const sec = updated[idx]
+      const updated = [...prev]; const sec = updated[idx]
       for (const q of sec.questions) clearAnswer(q.id, q.answerType)
-      updated[idx] = { ...sec, isGraded: false, isExpanded: true, score: 0, maxScore: 0, results: new Map(), lockedQuestionIds: new Set() }
+      updated[idx] = { ...sec, isGraded: false, isExpanded: true, score: 0, maxScore: 0, results: new Map(), lockedQuestionIds: new Set(), reflectionText: '', reflectionSaved: false }
       return updated
-    })
-    setError(null)
+    }); setError(null)
+  }, [])
+
+  const handleSaveReflection = useCallback(async (idx: number) => {
+    const sec = sections[idx]
+    if (!sec.answerSessionId || !sec.reflectionText.trim()) return
+    const result = await saveExerciseReflection({ answerSessionId: sec.answerSessionId, sectionName: sec.name, reflectionText: sec.reflectionText })
+    if (result.success) { setSections(prev => { const u = [...prev]; u[idx] = { ...u[idx], reflectionSaved: true }; return u }) }
+    else { setError(result.error || '振り返りの保存に失敗しました') }
+  }, [sections])
+
+  const handleReflectionChange = useCallback((idx: number, text: string) => {
+    setSections(prev => { const u = [...prev]; u[idx] = { ...u[idx], reflectionText: text, reflectionSaved: false }; return u })
   }, [])
 
   function clearAnswer(qId: number, t: string) {
@@ -233,7 +236,6 @@ export function ExerciseInput({ sessionId }: Props) {
   // レンダリング
   // ================================================================
 
-  // 総合スコア: score は採点済みセクションの合算、max は常に全問題のpoints合計
   const computedTotal = useMemo(() => {
     const score = sections.reduce((s, sec) => s + sec.score, 0)
     const max = sections.reduce((s, sec) => s + sec.questions.reduce((sum, q) => sum + q.points, 0), 0)
@@ -245,81 +247,71 @@ export function ExerciseInput({ sessionId }: Props) {
   if (!questionSet || questions.length === 0) return <div className="text-center py-12"><BookOpen className="h-12 w-12 text-gray-200 mx-auto mb-4" /><p className="text-gray-400 text-sm">この回の演習問題集データはまだ準備されていません</p></div>
 
   const isPerfect = allGraded && computedTotal.score === computedTotal.max
+  const totalPct = computedTotal.max > 0 ? Math.round((computedTotal.score / computedTotal.max) * 100) : 0
 
   return (
     <div className="space-y-4">
       <h3 className="font-bold text-base text-gray-900">{questionSet.title}</h3>
 
-      {/* 総合スコア（全セクション完了後 — セクションscoreの合算） */}
+      {/* 総合スコア（全セクション完了後） */}
       {allGraded && (
-        <div className={cn("rounded-2xl p-5 text-center", isPerfect ? "bg-gradient-to-br from-yellow-50 via-amber-50 to-yellow-100 border-2 border-yellow-300 shadow-md" : "bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-100 border-2 border-blue-300 shadow-md")}>
+        <div className={cn("rounded-2xl p-5 text-center border-2 shadow-sm", isPerfect ? "bg-gradient-to-br from-yellow-50 via-amber-50 to-yellow-100 border-yellow-300" : "bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-100 border-blue-200")}>
           {isPerfect && <Trophy className="h-10 w-10 text-yellow-500 mx-auto mb-2" />}
           <div className="text-4xl font-extrabold text-gray-900">{computedTotal.score}<span className="text-xl text-gray-400 font-normal">/{computedTotal.max}</span></div>
           <div className="text-sm text-gray-600 mt-1 font-medium">
-            正答率 {computedTotal.max > 0 ? Math.round((computedTotal.score / computedTotal.max) * 100) : 0}%
-            {attemptNumber && <span>（{attemptNumber}回目）</span>}
+            正答率 {totalPct}%{attemptNumber && <span>（{attemptNumber}回目）</span>}
           </div>
           {isPerfect && <p className="text-sm text-yellow-700 mt-2 font-bold">全問正解！すばらしい！</p>}
         </div>
       )}
 
-      {/* 進行中のスコア（一部セクション採点済みだが全セクション未完了） */}
-      {!allGraded && sections.some(s => s.isGraded) && (() => {
-        const gradedSections = sections.filter(s => s.isGraded)
-        const pct = computedTotal.max > 0 ? Math.round((computedTotal.score / computedTotal.max) * 100) : 0
-        return (
-          <div className="rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-4 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-blue-600 uppercase tracking-wide">採点済み {gradedSections.length}/{sections.length} セクション</span>
-              <span className="text-xs text-gray-500">{pct}%</span>
-            </div>
-            <div className="flex items-end gap-2">
-              <span className="text-3xl font-extrabold text-gray-900">{computedTotal.score}</span>
-              <span className="text-lg text-gray-400 font-normal mb-0.5">/ {computedTotal.max}点</span>
-            </div>
-            <div className="mt-2 h-2 bg-blue-100 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all" style={{ width: `${pct}%` }} />
-            </div>
+      {/* 進行中スコア（一部採点済み） */}
+      {!allGraded && sections.some(s => s.isGraded) && (
+        <div className="rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-blue-600 uppercase tracking-wide">採点済み {sections.filter(s => s.isGraded).length}/{sections.length} セクション</span>
+            <span className="text-xs text-gray-500">{totalPct}%</span>
           </div>
-        )
-      })()}
+          <div className="text-4xl font-extrabold text-gray-900">{computedTotal.score}<span className="text-xl text-gray-400 font-normal">/{computedTotal.max}</span></div>
+          <div className="mt-3 h-2 bg-blue-100 rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all" style={{ width: `${totalPct}%` }} />
+          </div>
+        </div>
+      )}
 
       {error && <div className="bg-red-50 border-2 border-red-200 rounded-xl p-3 text-sm text-red-700 font-medium">{error}</div>}
 
       {/* ===== セクション一覧 ===== */}
       {sections.map((section, idx) => {
-        const theme = SECTION_THEMES[section.name] || DEFAULT_THEME
+        const badgeText = SECTION_LABELS[section.name] || ''
         const editableQs = section.questions.filter(q => !section.lockedQuestionIds.has(q.id))
         const sectionAnswered = editableQs.filter(q => buildRawInput(q) !== null).length
         const sectionIncorrect = Array.from(section.results.values()).filter(r => !r.isCorrect).length
+        const sectionPct = section.maxScore > 0 ? Math.round((section.score / section.maxScore) * 100) : 0
 
         return (
           <div key={section.name} className="space-y-2">
-            {/* セクションヘッダー */}
-            <button onClick={() => toggleSection(idx)} className={cn("w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 transition-all text-left", theme.bg, theme.border, section.isExpanded && "shadow-sm")}>
-              <div className={cn("w-1.5 h-8 rounded-full flex-shrink-0", theme.bar)} />
+            {/* セクションヘッダー（青系統統一） */}
+            <button onClick={() => toggleSection(idx)} className={cn("w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 transition-all text-left", "bg-blue-50 border-blue-200", section.isExpanded && "shadow-sm border-blue-300")}>
+              <div className="w-1.5 h-8 rounded-full flex-shrink-0 bg-blue-400" />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <h4 className={cn("font-bold text-sm", theme.text)}>{section.name}</h4>
-                  {theme.badgeText && <Badge variant="outline" className="text-[10px] font-bold border-current px-1.5 py-0.5">{theme.badgeText}</Badge>}
+                  <h4 className="font-bold text-sm text-blue-800">{section.name}</h4>
+                  {badgeText && <Badge variant="outline" className="text-[10px] font-bold text-blue-600 border-blue-300 px-1.5 py-0.5">{badgeText}</Badge>}
                 </div>
                 {section.isGraded ? (
                   <div className="flex items-center gap-2 mt-1">
-                    <span className={cn("text-sm font-extrabold", section.score === section.maxScore ? "text-green-600" : theme.text)}>
+                    <span className={cn("text-sm font-extrabold", section.score === section.maxScore ? "text-green-600" : "text-blue-700")}>
                       {section.score}/{section.maxScore}点
                     </span>
-                    <span className="text-xs text-gray-500">
-                      （正答率 {section.maxScore > 0 ? Math.round((section.score / section.maxScore) * 100) : 0}%）
-                    </span>
+                    <span className="text-xs text-gray-500">（{sectionPct}%）</span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 mt-1.5">
-                    <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden max-w-[120px]">
-                      <div className={cn("h-full rounded-full transition-all", theme.bar)} style={{ width: `${editableQs.length > 0 ? (sectionAnswered / editableQs.length) * 100 : 0}%` }} />
+                    <div className="flex-1 h-1.5 bg-blue-100 rounded-full overflow-hidden max-w-[120px]">
+                      <div className="h-full rounded-full transition-all bg-blue-400" style={{ width: `${editableQs.length > 0 ? (sectionAnswered / editableQs.length) * 100 : 0}%` }} />
                     </div>
-                    <span className="text-xs text-gray-500 font-medium">
-                      {sectionAnswered}/{editableQs.length}問回答
-                    </span>
+                    <span className="text-xs text-gray-500 font-medium">{sectionAnswered}/{editableQs.length}問回答</span>
                   </div>
                 )}
               </div>
@@ -330,17 +322,64 @@ export function ExerciseInput({ sessionId }: Props) {
             {/* セクション内容 */}
             {section.isExpanded && (
               <div className="space-y-2 pl-2">
-                {/* 採点済み: セクション単位リトライボタン */}
+                {/* 採点済み: スコア → 振り返り */}
                 {section.isGraded && (
-                  <div className="flex gap-2">
-                    {sectionIncorrect > 0 && (
-                      <Button onClick={() => handleSectionRetryIncorrect(idx)} variant="outline" className="flex-1 h-10 text-xs font-bold border-2 border-orange-300 text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-xl">
-                        <RotateCcw className="h-3.5 w-3.5 mr-1.5" />不正解だけやり直す（{sectionIncorrect}問）
-                      </Button>
+                  <div className="space-y-3">
+                    {/* スコアカード（青系統） */}
+                    <div className={cn("rounded-2xl p-5 text-center border-2 shadow-sm", section.score === section.maxScore ? "bg-gradient-to-br from-green-50 to-emerald-50 border-green-200" : "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200")}>
+                      <div className="text-3xl font-extrabold text-gray-900">
+                        {section.score}<span className="text-lg text-gray-400 font-normal">/{section.maxScore}点</span>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        正答率 {sectionPct}%
+                        {sectionIncorrect > 0 && <span className="text-red-500 ml-1 font-bold">{sectionIncorrect}問不正解</span>}
+                      </div>
+                      {section.score === section.maxScore && <p className="text-xs text-green-600 font-bold mt-1">全問正解！</p>}
+                    </div>
+
+                    {/* 振り返り（青系統に統一） */}
+                    {section.reflectionSaved ? (
+                      <div className="rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 p-4">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <MessageSquare className="h-3.5 w-3.5 text-blue-500" />
+                          <span className="text-xs font-bold text-blue-700">ふりかえり</span>
+                        </div>
+                        <p className="text-sm text-gray-800 leading-relaxed">「{section.reflectionText}」</p>
+                        <div className="flex items-center gap-1.5 mt-2">
+                          <Check className="h-3.5 w-3.5 text-green-500" />
+                          <span className="text-xs text-green-600 font-medium">保存しました</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border-2 border-blue-300 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-500">
+                        <div className="bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-2.5">
+                          <div className="flex items-center gap-2">
+                            <MessageSquare className="h-4 w-4 text-white" />
+                            <span className="text-sm font-bold text-white">{section.name}をふりかえろう</span>
+                          </div>
+                        </div>
+                        <div className="bg-gradient-to-br from-blue-50/80 to-white p-4 space-y-3">
+                          <Textarea
+                            value={section.reflectionText}
+                            onChange={(e) => handleReflectionChange(idx, e.target.value)}
+                            placeholder="例：倍数の問題は解けたけど、公約数の応用がまだ不安..."
+                            className="min-h-[80px] text-sm border-2 border-blue-200 bg-white focus:border-blue-400 focus:ring-blue-400/20 focus:ring-[3px] resize-none rounded-xl placeholder:text-gray-400"
+                            maxLength={200}
+                            autoFocus
+                          />
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-gray-400">{section.reflectionText.length}/200文字</span>
+                            {section.reflectionText.trim() ? (
+                              <Button onClick={() => handleSaveReflection(idx)} className="h-9 px-5 text-sm font-bold bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-xl shadow-md">
+                                <Check className="h-4 w-4 mr-1.5" />保存する
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-gray-400">書かなくてもOK</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     )}
-                    <Button onClick={() => handleSectionRetryAll(idx)} variant="outline" className={cn("h-10 text-xs font-semibold border-2 border-gray-300 text-gray-600 hover:bg-gray-50 rounded-xl", sectionIncorrect > 0 ? "px-3" : "flex-1")}>
-                      <RefreshCw className="h-3.5 w-3.5 mr-1.5" />全部やり直す
-                    </Button>
                   </div>
                 )}
 
@@ -387,11 +426,25 @@ export function ExerciseInput({ sessionId }: Props) {
                   )
                 })}
 
-                {/* セクション採点ボタン */}
+                {/* 採点ボタン（未採点時） */}
                 {!section.isGraded && (
                   <Button onClick={() => handleGradeSection(idx)} disabled={isPending} className="w-full h-12 text-base font-bold bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg rounded-xl mt-1" size="lg">
                     {isPending ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" />採点中...</> : <><Check className="h-5 w-5 mr-2" />{section.name}を採点する（{sectionAnswered}/{editableQs.length}問回答済み）</>}
                   </Button>
+                )}
+
+                {/* リトライボタン（採点済み、問題詳細の後 — 中立アウトライン） */}
+                {section.isGraded && (
+                  <div className="flex gap-2 mt-1">
+                    {sectionIncorrect > 0 && (
+                      <Button onClick={() => handleSectionRetryIncorrect(idx)} variant="outline" className="flex-1 h-10 text-xs font-bold border-2 border-gray-300 text-gray-700 hover:bg-gray-50 rounded-xl">
+                        <RotateCcw className="h-3.5 w-3.5 mr-1.5" />不正解だけやり直す（{sectionIncorrect}問）
+                      </Button>
+                    )}
+                    <Button onClick={() => handleSectionRetryAll(idx)} variant="outline" className={cn("h-10 text-xs font-semibold border-2 border-gray-300 text-gray-600 hover:bg-gray-50 rounded-xl", sectionIncorrect > 0 ? "px-3" : "flex-1")}>
+                      <RefreshCw className="h-3.5 w-3.5 mr-1.5" />全部やり直す
+                    </Button>
+                  </div>
                 )}
               </div>
             )}

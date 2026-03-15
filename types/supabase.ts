@@ -656,6 +656,41 @@ export type Database = {
           },
         ]
       }
+      exercise_reflections: {
+        Row: {
+          answer_session_id: number
+          attempt_number: number
+          created_at: string
+          id: number
+          reflection_text: string
+          section_name: string
+        }
+        Insert: {
+          answer_session_id: number
+          attempt_number?: number
+          created_at?: string
+          id?: number
+          reflection_text: string
+          section_name: string
+        }
+        Update: {
+          answer_session_id?: number
+          attempt_number?: number
+          created_at?: string
+          id?: number
+          reflection_text?: string
+          section_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exercise_reflections_answer_session_id_fkey"
+            columns: ["answer_session_id"]
+            isOneToOne: false
+            referencedRelation: "answer_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invitation_codes: {
         Row: {
           code: string

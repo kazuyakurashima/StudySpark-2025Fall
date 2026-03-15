@@ -193,19 +193,19 @@ BEGIN
   -- 5(2) 50分8秒後、83枚 → multi_part 3欄
   INSERT INTO questions (question_set_id, question_number, section_name, answer_type, correct_answer, answer_config, min_course, display_order)
   VALUES (v_qs_id, '5(2)', '反復問題（練習）', 'multi_part', NULL,
-    '{"slots": [{"label": "分", "unit": "分"}, {"label": "秒", "unit": "秒後"}, {"label": "枚数", "unit": "枚"}], "correct_values": {"分": "50", "秒": "8", "枚数": "83"}, "template": "{分}分{秒}秒後, {枚数}枚"}',
+    '{"slots": [{"label": "分"}, {"label": "秒"}, {"label": "枚数"}], "correct_values": {"分": "50", "秒": "8", "枚数": "83"}, "template": "{分}分{秒}秒後, {枚数}枚"}',
     'B', 110);
 
   -- 6(1) 午後4時30分 → multi_part 2欄（午後は問題文に含まれる）
   INSERT INTO questions (question_set_id, question_number, section_name, answer_type, correct_answer, answer_config, min_course, display_order)
   VALUES (v_qs_id, '6(1)', '反復問題（練習）', 'multi_part', NULL,
-    '{"slots": [{"label": "時", "unit": "時"}, {"label": "分", "unit": "分"}], "correct_values": {"時": "4", "分": "30"}, "template": "午後{時}時{分}分"}',
+    '{"slots": [{"label": "時"}, {"label": "分"}], "correct_values": {"時": "4", "分": "30"}, "template": "午後{時}時{分}分"}',
     'B', 111);
 
   -- 6(2) 午後7時6分 → multi_part 2欄
   INSERT INTO questions (question_set_id, question_number, section_name, answer_type, correct_answer, answer_config, min_course, display_order)
   VALUES (v_qs_id, '6(2)', '反復問題（練習）', 'multi_part', NULL,
-    '{"slots": [{"label": "時", "unit": "時"}, {"label": "分", "unit": "分"}], "correct_values": {"時": "7", "分": "6"}, "template": "午後{時}時{分}分"}',
+    '{"slots": [{"label": "時"}, {"label": "分"}], "correct_values": {"時": "7", "分": "6"}, "template": "午後{時}時{分}分"}',
     'B', 112);
 
   -- ============================================================
@@ -219,13 +219,13 @@ BEGIN
   -- 1(2) 24人、48人 ※すべて答えなさい → multi_part 昇順2欄
   INSERT INTO questions (question_set_id, question_number, section_name, answer_type, correct_answer, answer_config, unit_label, min_course, display_order)
   VALUES (v_qs_id, '1(2)', '実戦演習', 'multi_part', NULL,
-    '{"slots": [{"label": "①", "unit": "人"}, {"label": "②", "unit": "人"}], "correct_values": {"①": "24", "②": "48"}, "template": "{①}人, {②}人"}',
+    '{"slots": [{"label": "①"}, {"label": "②"}], "correct_values": {"①": "24", "②": "48"}, "template": "{①}人, {②}人"}',
     NULL, 'C', 202);
 
   -- 1(3) 4人、20人 ※すべて答えなさい → multi_part 昇順2欄
   INSERT INTO questions (question_set_id, question_number, section_name, answer_type, correct_answer, answer_config, unit_label, min_course, display_order)
   VALUES (v_qs_id, '1(3)', '実戦演習', 'multi_part', NULL,
-    '{"slots": [{"label": "①", "unit": "人"}, {"label": "②", "unit": "人"}], "correct_values": {"①": "4", "②": "20"}, "template": "{①}人, {②}人"}',
+    '{"slots": [{"label": "①"}, {"label": "②"}], "correct_values": {"①": "4", "②": "20"}, "template": "{①}人, {②}人"}',
     NULL, 'C', 203);
 
   -- 2(1) 159
@@ -243,7 +243,7 @@ BEGIN
   -- 3(2) 18分40秒後 → multi_part 2欄
   INSERT INTO questions (question_set_id, question_number, section_name, answer_type, correct_answer, answer_config, min_course, display_order)
   VALUES (v_qs_id, '3(2)', '実戦演習', 'multi_part', NULL,
-    '{"slots": [{"label": "分", "unit": "分"}, {"label": "秒", "unit": "秒後"}], "correct_values": {"分": "18", "秒": "40"}, "template": "{分}分{秒}秒後"}',
+    '{"slots": [{"label": "分"}, {"label": "秒"}], "correct_values": {"分": "18", "秒": "40"}, "template": "{分}分{秒}秒後"}',
     'C', 207);
 
   -- 3(3) 12枚
