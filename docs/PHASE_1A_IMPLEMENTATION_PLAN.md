@@ -808,13 +808,229 @@ CREATE UNIQUE INDEX idx_exercise_reflections_unique
 
 ### 実装タスク
 
-| タスク | 工数 | 依存 |
-|--------|------|------|
-| DB: `exercise_reflections` テーブル作成 + RLS | 0.5日 | なし |
-| Server Action: `saveExerciseReflection` + `getExerciseReflections` 追加 | 0.5日 | DB |
-| UI: セクション採点結果下に振り返り入力欄追加（任意入力） | 1日 | Server Action |
-| AIコーチ連携: 振り返りテキストをフィードバックプロンプトに注入 | 0.5日 | UI |
-| **合計** | **約2.5日** | |
+| タスク | 工数 | ステータス |
+|--------|------|----------|
+| DB: `exercise_reflections` テーブル作成 + RLS | 0.5日 | **完了** |
+| Server Action: `saveExerciseReflection` + `getExerciseReflections` | 0.5日 | **完了** |
+| UI: セクション採点結果下に振り返り入力欄 | 1日 | **完了** |
+| AIコーチ連携: 振り返り保存時にフィードバック生成 | 1〜2日 | **計画済み** |
+
+---
+
+## 演習問題集のAIコーチフィードバック
+
+### 背景
+
+予習シリーズでは学習記録保存時にAIコーチが自動的にフィードバックを返す仕組みがある（SSEストリーミング）。
+演習問題集でも振り返りを書いた生徒にAIフィードバックを提供し、振り返りのモチベーションを高める。
+
+### 既存フローの知見（予習シリーズ）
+
+```
+予習シリーズ:
+  saveStudyLog() → POST /api/spark/feedback-stream
+    → requireAuth(student) + batch所有権検証
+    → キャッシュチェック（既存フィードバックあり + 振り返り変更なし → キャッシュ返却）
+    → getSystemPrompt() + getUserPrompt(data) でプロンプト生成
+    → generateCoachFeedbackStream() でLLMストリーミング（OpenAI/Gemini分岐）
+    → saveFeedbackToDb() で coach_feedbacks テーブルに保存
+    → SSEイベント（delta → done → meta）をクライアントに送信
+    → クライアント: モーダルで逐次表示
+```
+
+**活用する知見**:
+- プロンプト構造: セルフコンパッション原則 + 正答率別トーン + 振り返りへの共感
+- ストリーミング: `fetchSSE()` ユーティリティ + `generateCoachFeedbackStream()` の再利用
+- キャッシュ戦略: 同一採点結果 + 同一振り返り → LLMスキップ
+- フォールバック: LLM失敗時のヒューリスティックメッセージ
+- 観測性: Langfuseトレース + promptVersion/promptHash
+
+### 設計方針
+
+**タイミング: B案（振り返り保存時のみ生成）**
+
+```
+演習問題集:
+  セクション採点 → 振り返り入力 → 「保存する」クリック
+    → saveExerciseReflection() で振り返り保存
+    → POST /api/exercise/feedback-stream（新設）
+    → AIコーチフィードバック生成（ストリーミング）
+    → 振り返り入力欄の下にフィードバック表示
+```
+
+振り返りを書かない生徒にはフィードバック生成しない（コスト最小化）。
+
+### エンドポイント設計
+
+**新設**: `POST /api/exercise/feedback-stream`
+
+既存の `/api/spark/feedback-stream` は `studyLogIds` / `batchId` 前提のため直接流用不可。
+ただし以下は共通ロジックとして再利用:
+- `generateCoachFeedbackStream()` — LLMストリーミング（provider分岐済み）
+- `fetchSSE()` — クライアント側SSE消費
+- `getModelForModule('coach', 'realtime')` — モデル選択
+- `SSE_META`（`save_ok` / `save_failed`）— 既存のメタ契約を維持
+
+```typescript
+// リクエストスキーマ（改ざん対策: IDのみ受け取り、本文・採点情報はサーバー側でDB再取得）
+{
+  exerciseReflectionId: number,  // これだけで十分（サーバーが振り返り本文 + 採点結果を再取得）
+}
+```
+
+### サーバー側処理フロー
+
+```
+POST /api/exercise/feedback-stream { exerciseReflectionId }
+  1. requireAuth(student) — 認証
+  2. exercise_reflections から振り返り本文を取得（exerciseReflectionId → answer_session_id → student_id で所有確認）
+  3. answer_sessions + questions から採点結果を再取得（sectionName でフィルタ → score/maxScore/incorrectCount を算出）
+  4. 冪等チェック: exercise_feedbacks に既存レコードがあれば → キャッシュ返却（LLMスキップ）
+  5. LLMストリーミング生成（generateCoachFeedbackStream）
+  6. exercise_feedbacks に INSERT（UNIQUE衝突時は既存返却 — 二重クリック対策）
+  7. SSEイベント送信: delta → done → meta(save_ok | save_failed)
+```
+
+**改ざん対策**: クライアントから `reflectionText` や `gradeData` を受け取らない。`exerciseReflectionId` のみ受け取り、サーバー側でDB再取得。
+
+**冪等・競合制御**:
+- Step 4: INSERT前に `exercise_feedbacks` を `exercise_reflection_id` で検索 → 存在すれば `sseEvent("done", existing.feedback_text)` + `sseEvent("meta", "save_ok")` を返却
+- Step 6: UNIQUE衝突（23505）時は既存レコードの `feedback_text` を返却（二重クリック/再送でLLMが二重実行されない）
+
+### プロンプト設計
+
+**システムプロンプト**: 既存の `getSystemPrompt()` をベースに、演習問題集向けに調整。
+
+```
+あなたは中学受験を目指す小学生を応援するAIコーチです。
+
+【役割】
+演習問題集の採点結果と生徒の振り返りを見て、励ましとアドバイスを返します。
+
+【セルフコンパッション原則】
+- 結果ではなく、取り組んだ過程・努力を認める
+- 振り返りを書いたこと自体を称える
+- 不正解を責めず、学びの機会として捉える
+
+【振り返りへの共感】
+- 生徒が書いた振り返りの内容に必ず触れる
+- 気づきや反省点があればそれを認める
+- 次の学習への具体的なヒントを1つ添える
+
+【正答率別トーン】
+- 80%以上: 達成を称え、振り返りの深さにも言及
+- 50-79%: 挑戦を認め、振り返りから次の一歩を提案
+- 50%未満: 取り組みを肯定、振り返りの姿勢を称賛
+
+【出力】
+- 60〜150文字
+- 振り返りの内容に必ず言及
+- 温かく親しみやすい言葉
+```
+
+**ユーザープロンプト**:
+```
+{studentName}さんの演習問題集の結果:
+セクション: {sectionName}
+正答率: {accuracy}% ({sectionScore}/{sectionMaxScore}問正解)
+{incorrectCount > 0 ? `不正解: ${incorrectCount}問` : '全問正解！'}
+
+生徒の振り返り:
+「{reflectionText}」
+
+この結果と振り返りに対して、励ましとアドバイスを返してください。
+```
+
+### DB保存
+
+**テーブル**: `exercise_feedbacks`（新設）
+
+```sql
+CREATE TABLE exercise_feedbacks (
+  id BIGSERIAL PRIMARY KEY,
+  exercise_reflection_id BIGINT NOT NULL REFERENCES exercise_reflections(id),
+  student_id BIGINT NOT NULL REFERENCES students(id),
+  feedback_text TEXT NOT NULL,
+  prompt_version TEXT NOT NULL DEFAULT 'v1.0',
+  prompt_hash TEXT,
+  langfuse_trace_id TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 1振り返り = 1フィードバック
+CREATE UNIQUE INDEX idx_exercise_feedbacks_reflection
+  ON exercise_feedbacks (exercise_reflection_id);
+```
+
+RLS: 生徒=自分(SELECT)、指導者=担当生徒(SELECT)、保護者=子ども(SELECT)
+
+### UI表示
+
+振り返り保存後、同じカード内にAIフィードバックをストリーミング表示:
+
+```
+┌──────────────────────────────┐
+│ 🔵 反復問題（基本）をふりかえろう │ ← ヘッダーバー
+├──────────────────────────────┤
+│ 「倍数の応用が分からなかった」  │ ← 保存済み振り返り
+│ ✅ 保存しました                │
+├──────────────────────────────┤
+│ 🤖 AIコーチ                   │
+│ 倍数の応用に気づけたのは       │ ← ストリーミング表示
+│ すごいことだよ！次は...        │ （文字が逐次表示される）
+└──────────────────────────────┘
+```
+
+### キャッシュ戦略
+
+- キャッシュキー: `exercise_reflection_id`（1振り返り = 1フィードバック）
+- 同じ振り返りに対して再生成しない（ユニーク制約で保証）
+- 振り返りを再入力（`attempt_number` インクリメント）した場合は新しい `reflection_id` なので新規生成
+
+### 再訪時表示
+
+振り返り復元と同様に、ページ再訪時にフィードバックも復元する。
+
+**API**: `getExerciseFeedbacks(answerSessionId)` — Server Action（新設）
+
+```typescript
+// exercise_reflections JOIN exercise_feedbacks で、各セクションの最新フィードバックを取得
+// 返却: { sectionName, feedbackText, createdAt }[]
+```
+
+**UIフロー**:
+```
+ページロード → getExerciseAnswerHistory() + getExerciseReflections() + getExerciseFeedbacks()
+  → 採点済みセクション: 振り返り + フィードバック両方をプリフィル表示
+  → フィードバック未生成の振り返り: 入力欄のみ表示（「保存する」ボタン）
+```
+
+### SSEメタ契約
+
+既存の `SSE_META` 型と互換を維持:
+- `save_ok` — フィードバックがDBに保存成功
+- `save_failed` — DB保存失敗（フィードバックテキストは表示済み）
+- エラー時: `sseEvent("error", message)` でクライアント側 `fetchSSE` が throw
+
+`lib/sse/types.ts` の `SSE_META` をそのまま使用し、新しい値は追加しない。
+
+### フォールバック
+
+LLM失敗時のヒューリスティック:
+- 全問正解: 「全問正解、すごい！振り返りもしっかり書けていて素晴らしいね」
+- 80%以上: 「よく頑張ったね！振り返りで気づいたことを次に活かそう」
+- 50%以上: 「しっかり取り組めたね！振り返りの姿勢が大事だよ」
+- 50%未満: 「挑戦したことが大切だよ！振り返りで次の一歩を考えられたね」
+
+### 実装タスク
+
+| タスク | 工数 |
+|--------|------|
+| DB: `exercise_feedbacks` テーブル + RLS | 0.5日 |
+| SSEエンドポイント: `/api/exercise/feedback-stream` | 0.5日 |
+| プロンプト: `lib/services/exercise-feedback.ts` | 0.5日 |
+| UI: 振り返り保存後にフィードバック表示 | 0.5日 |
+| **合計** | **約2日** |
 
 ### 予習シリーズとの関係
 
@@ -831,8 +1047,8 @@ CREATE UNIQUE INDEX idx_exercise_reflections_unique
 
 **Phase 1A は全タスク完了・本番デプロイ済み。** 以下は後続作業:
 
-### 優先: 振り返り機能
-1. **開発者**: 演習問題集の振り返り機能実装（上記計画に基づく）
+### 優先: AIコーチフィードバック
+1. **開発者**: 演習問題集の振り返り保存時AIフィードバック実装（上記計画に基づく、約2日）
 
 ### データ整備（D-2〜D-4）
 2. **ユーザー**: 算数 小5 第5回（総合回）の問題データ提供 → 到達度マップの通常回/総合回2パターン検証
