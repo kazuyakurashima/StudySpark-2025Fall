@@ -40,7 +40,7 @@ import { CoachBottomNavigation } from "@/components/coach-bottom-navigation"
 import { LearningTab } from "./tabs/learning-tab"
 import { EncouragementTab } from "./tabs/encouragement-tab"
 import { AssessmentHistory } from "@/app/student/reflect/assessment-history"
-import { AchievementMap } from "@/app/student/reflect/achievement-map"
+import { AchievementTabContent } from "@/app/student/reflect/achievement-tab-content"
 import { EncouragementHistory } from "@/app/student/reflect/encouragement-history"
 
 // 相対時間を計算するヘルパー
@@ -477,9 +477,9 @@ export function StudentDetailClient({ studentId, initialData }: StudentDetailCli
 
           {/* 達成マップタブ */}
           <TabsContent value="achievement" className="mt-4">
-            <AchievementMap
+            <AchievementTabContent
               viewerRole="coach"
-              studentId={studentId}
+              studentId={isNaN(Number(studentId)) ? undefined : Number(studentId)}
               studentGrade={student.grade}
               studentCourse={student.course || undefined}
             />

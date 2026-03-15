@@ -915,7 +915,7 @@ const ParentTodayMissionCard = ({
                   type="text"
                   value={aiContext}
                   onChange={(e) => setAiContext(e.target.value)}
-                  placeholder="例：苦手だった年齢算が解けた"
+                  placeholder="例：最近よく頑張っているね"
                   className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all duration-200"
                   maxLength={100}
                 />

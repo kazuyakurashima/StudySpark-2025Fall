@@ -106,10 +106,12 @@ export function getUserPrompt(data: StudyDataForFeedback): string {
     reflection = `\n\n生徒の振り返りコメント:\n「${data.reflectionText.trim()}」`
   }
 
-  return `今日の学習記録:
+  const nameLabel = data.studentName ? `${data.studentName}さんの` : ""
+
+  return `${nameLabel}今日の学習記録:
 ${details}${context}${reflection}
 
-この記録に対して、生徒を励ます短いメッセージを生成してください。`
+この記録に対して、${data.studentName ? `${data.studentName}さん` : "生徒"}を励ます短いメッセージを生成してください。${data.studentName ? `メッセージ内では「${data.studentName}」という名前を使ってください。「〇〇」のようなプレースホルダは使わないでください。` : ""}`
 }
 
 /** フォールバックメッセージ（AI生成失敗時） */

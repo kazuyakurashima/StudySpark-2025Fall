@@ -299,8 +299,16 @@ ${senderName}
 `
   }
 
-  prompt += `
+  if (userContext && userContext.trim()) {
+    prompt += `
 上記を踏まえて、${studentName}さんへの応援メッセージを1つ作成してください。
+**重要**: 送信者からの一言「${userContext.trim()}」を必ずメッセージの中心テーマとして反映してください。`
+  } else {
+    prompt += `
+上記を踏まえて、${studentName}さんへの応援メッセージを1つ作成してください。`
+  }
+
+  prompt += `
 
 **出力形式（JSON）:**
 {

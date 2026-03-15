@@ -1094,9 +1094,11 @@ export type Database = {
           created_at: string
           created_by: string | null
           display_order: number
+          edition: string | null
           grade: number
           id: number
           session_id: number
+          set_type: string
           status: string
           study_content_type_id: number | null
           subject_id: number
@@ -1108,9 +1110,11 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           display_order?: number
+          edition?: string | null
           grade: number
           id?: number
           session_id: number
+          set_type?: string
           status?: string
           study_content_type_id?: number | null
           subject_id: number
@@ -1122,9 +1126,11 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           display_order?: number
+          edition?: string | null
           grade?: number
           id?: number
           session_id?: number
+          set_type?: string
           status?: string
           study_content_type_id?: number | null
           subject_id?: number
@@ -1170,6 +1176,7 @@ export type Database = {
           created_at: string
           display_order: number
           id: number
+          min_course: Database["public"]["Enums"]["course_level"] | null
           points: number
           question_number: string
           question_set_id: number
@@ -1183,6 +1190,7 @@ export type Database = {
           created_at?: string
           display_order: number
           id?: number
+          min_course?: Database["public"]["Enums"]["course_level"] | null
           points?: number
           question_number: string
           question_set_id: number
@@ -1196,6 +1204,7 @@ export type Database = {
           created_at?: string
           display_order?: number
           id?: number
+          min_course?: Database["public"]["Enums"]["course_level"] | null
           points?: number
           question_number?: string
           question_set_id?: number
@@ -2028,6 +2037,17 @@ export type Database = {
       cleanup_old_audit_logs: { Args: never; Returns: number }
       cleanup_old_notifications: { Args: never; Returns: number }
       cleanup_old_weekly_analysis: { Args: never; Returns: number }
+      course_rank: {
+        Args: { c: Database["public"]["Enums"]["course_level"] }
+        Returns: number
+      }
+      create_exercise_session: {
+        Args: { p_question_set_id: number; p_student_id: number }
+        Returns: {
+          attempt_number: number
+          id: number
+        }[]
+      }
       create_notification: {
         Args: {
           p_body?: string

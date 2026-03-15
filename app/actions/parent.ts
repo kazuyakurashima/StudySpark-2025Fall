@@ -124,7 +124,7 @@ export async function getParentChildren() {
 
   const { data: students, error: studentsError } = await adminClient
     .from("students")
-    .select("id, full_name, grade, user_id")
+    .select("id, full_name, grade, course, user_id")
     .in("id", studentIds)
 
   if (studentsError || !students) {
@@ -147,6 +147,7 @@ export async function getParentChildren() {
       full_name: student.full_name,
       display_name: profile?.display_name || student.full_name,
       grade: student.grade,
+      course: student.course || 'A',
       user_id: student.user_id,
       avatar_id: profile?.avatar_id || null
     }

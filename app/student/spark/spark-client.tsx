@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { BottomNavigation } from "@/components/bottom-navigation"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { PageHeader } from "@/components/common/page-header"
-import { Calendar, BookOpen, MessageSquare, Save, Sparkles, Bot } from "lucide-react"
+import { Calendar, BookOpen, MessageSquare, Save, Sparkles, Bot, ClipboardList } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -27,6 +27,7 @@ import type { StudyDataForFeedback } from "@/lib/types/coach-feedback"
 import { fetchSSE } from "@/lib/sse/client"
 import { SSE_META } from "@/lib/sse/types"
 import { UserProfileProvider, useUserProfile } from "@/lib/hooks/use-user-profile"
+import { ExerciseInput } from "./exercise-input"
 
 const subjects = [
   {
@@ -124,6 +125,9 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
   const student = profile?.student || initialData.student
   const studentGrade = student.grade.toString()
   const currentCourse = student.course
+
+  // タブ切替: 予習シリーズ / 演習問題集
+  const [sparkTab, setSparkTab] = useState<'textbook' | 'exercise'>('exercise')
 
   // セッション・コンテンツデータ（DBから取得）
   const [dbSessions, setDbSessions] = useState<DBSession[]>([])
@@ -382,6 +386,7 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
             ? Math.round((log.correct_count / log.total_problems) * 100)
             : 0,
         })),
+        studentName: profile?.nickname || undefined,
         reflectionText: reflection || undefined,
       }
 
@@ -604,7 +609,48 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
           </CardContent>
         </Card>
 
+        {/* 入力モードタブ */}
         {selectedSessionId && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSparkTab('exercise')}
+              className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm transition-all ${
+                sparkTab === 'exercise'
+                  ? 'bg-blue-600 text-white shadow-lg'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              <ClipboardList className="h-4 w-4" />
+              演習問題集
+            </button>
+            <button
+              onClick={() => setSparkTab('textbook')}
+              className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm transition-all ${
+                sparkTab === 'textbook'
+                  ? 'bg-blue-600 text-white shadow-lg'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              <BookOpen className="h-4 w-4" />
+              予習シリーズ
+            </button>
+          </div>
+        )}
+
+        {/* 演習問題集タブ */}
+        {selectedSessionId && sparkTab === 'exercise' && (
+          <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm ring-1 ring-slate-200/50">
+            <CardContent className="pt-6">
+              <ExerciseInput
+                sessionId={selectedSessionId}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 予習シリーズタブ */}
+        {selectedSessionId && sparkTab === 'textbook' && (
+          <>
           <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm ring-1 ring-slate-200/50">
             <CardHeader className="pb-4 bg-gradient-to-r from-green-50/50 to-emerald-50/50 rounded-t-lg">
               <CardTitle className="flex items-center gap-3 text-lg font-semibold text-slate-800">
@@ -632,7 +678,6 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
               </div>
             </CardContent>
           </Card>
-        )}
 
         {selectedSubjects.length > 0 && selectedSessionId && isLoadingContent && (
           <div className="flex items-center justify-center py-12">
@@ -873,6 +918,8 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
               {!selectedSessionId ? "学習回を選択してください" : "選択した科目の正答数を入力してください"}
             </p>
           </div>
+        )}
+        </>
         )}
       </div>
 
