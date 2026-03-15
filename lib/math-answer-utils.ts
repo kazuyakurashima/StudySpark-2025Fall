@@ -8,7 +8,7 @@ import { shuffleWithSeed } from '@/lib/math-grading'
 
 export interface MultiPartConfig {
   template: string
-  slots: { label: string; unit: string }[]
+  slots: { label: string; unit?: string }[]
 }
 
 export interface SelectionConfig {

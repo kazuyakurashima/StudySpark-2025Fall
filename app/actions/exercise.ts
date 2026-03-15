@@ -513,11 +513,13 @@ export async function gradeExerciseSection(input: {
       answered_at: string
     }[] = []
 
-    // 回答済みの問題IDセット
-    const answeredIds = new Set(input.answers.map(a => a.questionId))
+    // 回答済みの問題IDセット（セクション外の回答を拒否）
+    const sectionQIdSet = new Set(input.sectionQuestionIds)
+    const validAnswers = input.answers.filter(a => sectionQIdSet.has(a.questionId))
+    const answeredIds = new Set(validAnswers.map(a => a.questionId))
 
     // 回答済み問題を採点
-    for (const answer of input.answers) {
+    for (const answer of validAnswers) {
       const question = questionMap.get(answer.questionId)
       if (!question) continue
 

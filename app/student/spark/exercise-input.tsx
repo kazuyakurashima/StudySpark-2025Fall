@@ -125,9 +125,15 @@ export function ExerciseInput({ sessionId }: Props) {
                 }
               }
             } else {
+              // in_progress セッション — 振り返りも復元
+              const reflections = await getExerciseReflections(history.answerSessionId)
+              const reflectionMap = new Map(reflections.map(r => [r.sectionName, r]))
               for (const sec of newSecs) {
                 if (sec.questions.every(q => ids.has(q.id))) {
                   sec.isGraded = true; sec.isExpanded = false; let sc = 0; sec.maxScore = sec.questions.reduce((s, q) => s + q.points, 0)
+                  sec.answerSessionId = history.answerSessionId
+                  const ref = reflectionMap.get(sec.name)
+                  if (ref) { sec.reflectionText = ref.reflectionText; sec.reflectionSaved = true }
                   for (const q of sec.questions) { const a = history.answers.find(a => a.questionId === q.id); if (a) { sec.results.set(q.id, { questionId: q.id, isCorrect: a.isCorrect ?? false, answerValue: a.rawInput, correctAnswer: '' }); if (a.isCorrect) sc += q.points } }
                   sec.score = sc
                 }

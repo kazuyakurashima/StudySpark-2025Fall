@@ -6,7 +6,7 @@ import { sanitizeNumericInput } from '@/lib/math-grading'
 interface MultiPartInputProps {
   questionNumber: string
   template: string
-  slots: { label: string; unit: string }[]
+  slots: { label: string; unit?: string }[]
   values: Record<string, string>
   onChange: (label: string, value: string) => void
   disabled?: boolean

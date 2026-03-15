@@ -101,11 +101,11 @@ export function ExerciseAchievementMap({
   // セッションごとにセクション別スコアを集計
   const gridData = useMemo(() => {
     return data.map(session => {
-      const sections: Record<string, { correct: number; total: number; excluded: boolean }> = {}
+      const sections: Record<string, { correct: number; total: number; answered: number; excluded: boolean }> = {}
 
       for (const q of session.questions) {
         if (!sections[q.sectionName]) {
-          sections[q.sectionName] = { correct: 0, total: 0, excluded: false }
+          sections[q.sectionName] = { correct: 0, total: 0, answered: 0, excluded: false }
         }
         const sec = sections[q.sectionName]
 
@@ -114,6 +114,7 @@ export function ExerciseAchievementMap({
         } else {
           sec.total++
           if (q.status === true) sec.correct++
+          if (q.status !== null) sec.answered++ // true or false = 回答済み
         }
       }
 
@@ -278,19 +279,8 @@ export function ExerciseAchievementMap({
                           )
                         }
 
-                        // 未回答（データはあるが回答なし）
-                        if (sec.total > 0 && sec.correct === 0 && !sessionData) {
-                          // This case shouldn't happen since sec exists means sessionData exists
-                        }
-
-                        const accuracy = sec.total > 0 ? Math.round((sec.correct / sec.total) * 100) : 0
-                        const hasAnswers = sessionData && Object.values(sessionData).some(s =>
-                          !s.excluded && s.total > 0
-                        )
-                        // 回答済みかどうかを判定（graded セッションがある = 回答済み）
-                        const isAnswered = hasAnswers
-
-                        if (!isAnswered) {
+                        // 未回答判定: このセクションに1問も回答がない場合
+                        if (sec.answered === 0) {
                           return (
                             <td key={col.key} className="p-1 sm:p-2 border-b">
                               <div className="flex justify-center">
@@ -301,6 +291,8 @@ export function ExerciseAchievementMap({
                             </td>
                           )
                         }
+
+                        const accuracy = sec.total > 0 ? Math.round((sec.correct / sec.total) * 100) : 0
 
                         return (
                           <td key={col.key} className="p-1 sm:p-2 border-b">
