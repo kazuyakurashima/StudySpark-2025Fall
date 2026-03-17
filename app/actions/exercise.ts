@@ -794,8 +794,19 @@ export async function loadExerciseBundle(
         .eq('student_id', student.id)
         .eq('question_set_id', questionSetId)
         .eq('is_latest', true)
-        .single(),
+        .maybeSingle(),
     ])
+
+    // questions は致命的 — 問題データなしでは画面が成立しない
+    if (questionsResult.error) {
+      console.error('[loadExerciseBundle] questions fetch failed:', questionsResult.error)
+      return { ...empty, error: '問題データの取得に失敗しました' }
+    }
+    // session は「行なし」が正常（未着手ユーザー）。DB障害のみエラー扱い
+    if (sessionResult.error) {
+      console.error('[loadExerciseBundle] session fetch failed:', sessionResult.error)
+      return { ...empty, error: '回答セッションの取得に失敗しました' }
+    }
 
     const questions = filterByCourse(questionsResult.data || [], student.course)
     const sanitizedQuestions: ExerciseQuestion[] = questions.map(q => ({
@@ -842,6 +853,19 @@ export async function loadExerciseBundle(
       allSessions,
     ])
 
+    // answers は致命的 — 回答データなしでは採点結果を復元できない
+    if (answersResult.error) {
+      console.error('[loadExerciseBundle] answers fetch failed:', answersResult.error)
+      return { ...empty, questionSet, questions: sanitizedQuestions, error: '回答データの取得に失敗しました' }
+    }
+    // reflections/allSessions は非致命的 — 振り返りが出ないだけで続行可
+    if (reflectionsResult.error) {
+      console.error('[loadExerciseBundle] reflections fetch failed:', reflectionsResult.error)
+    }
+    if (allSessionsResult.error) {
+      console.error('[loadExerciseBundle] allSessions fetch failed:', allSessionsResult.error)
+    }
+
     const answers: ExerciseAnswerHistory[] = (answersResult.data || []).map(a => ({
       questionId: a.question_id,
       rawInput: a.raw_input || '',
@@ -875,6 +899,8 @@ export async function loadExerciseBundle(
             .select('exercise_reflection_id, feedback_text')
             .in('exercise_reflection_id', latestReflectionIds)
         : Promise.resolve({ data: [] as { exercise_reflection_id: number; feedback_text: string }[] }),
+      // セッション1件 = 初回 or リトライなし → 過去セッションの振り返りは存在しない
+      // 現セッションの振り返りは Phase 3 の reflectionsResult で取得済み
       allSessionIds.length > 1
         ? admin.from('exercise_reflections')
             .select('id, answer_session_id, section_name, reflection_text, created_at')
@@ -882,6 +908,14 @@ export async function loadExerciseBundle(
             .order('created_at')
         : Promise.resolve({ data: [] as { id: number; answer_session_id: number; section_name: string; reflection_text: string; created_at: string }[] }),
     ])
+
+    // Phase 4 は非致命的 — フィードバック/履歴が出ないだけで続行可
+    if ('error' in feedbacksResult && feedbacksResult.error) {
+      console.error('[loadExerciseBundle] feedbacks fetch failed:', feedbacksResult.error)
+    }
+    if ('error' in allReflectionsResult && allReflectionsResult.error) {
+      console.error('[loadExerciseBundle] allReflections fetch failed:', allReflectionsResult.error)
+    }
 
     // feedbacks → sectionName マッピング
     const idToSection = new Map(reflections.map(r => [r.id, r.sectionName]))
@@ -895,11 +929,14 @@ export async function loadExerciseBundle(
     const pastReflections = allReflectionsResult.data || []
     if (pastReflections.length > 0) {
       const pastReflectionIds = pastReflections.map(r => r.id)
-      const { data: pastFeedbacks } = await admin
+      const { data: pastFeedbacks, error: pastFbError } = await admin
         .from('exercise_feedbacks')
         .select('exercise_reflection_id, feedback_text')
         .in('exercise_reflection_id', pastReflectionIds)
 
+      if (pastFbError) {
+        console.error('[loadExerciseBundle] pastFeedbacks fetch failed:', pastFbError)
+      }
       const pastFbMap = new Map((pastFeedbacks || []).map(f => [f.exercise_reflection_id, f.feedback_text]))
       reflectionHistory = pastReflections.map(r => ({
         sectionName: r.section_name,
