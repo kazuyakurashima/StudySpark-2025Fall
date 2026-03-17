@@ -13,14 +13,13 @@ import { BookOpen, Check, X, Loader2, RotateCcw, RefreshCw, Trophy, ChevronDown,
 import { cn } from '@/lib/utils'
 import type { MultiPartConfig, SelectionConfig } from '@/lib/math-answer-utils'
 import {
-  getExerciseQuestionSet,
+  loadExerciseBundle,
   gradeExerciseSection,
-  getExerciseAnswerHistory,
   type ExerciseQuestion,
   type ExerciseQuestionSet,
   type ExerciseGradeResult,
 } from '@/app/actions/exercise'
-import { saveExerciseReflection, getExerciseReflections, getExerciseFeedbacks, getExerciseReflectionHistory } from '@/app/actions/exercise-reflection'
+import { saveExerciseReflection } from '@/app/actions/exercise-reflection'
 import { MAX_REFLECTIONS } from '@/lib/constants/exercise'
 import { fetchSSE } from '@/lib/sse/client'
 import { useUserProfile } from '@/lib/hooks/use-user-profile'
@@ -119,75 +118,54 @@ export function ExerciseInput({ sessionId }: Props) {
       setIsLoading(true); setError(null); setAttemptNumber(null)
       setNumericAnswers({}); setFractionAnswers({}); setMultiPartAnswers({}); setSelectionAnswers({})
       try {
-        const result = await getExerciseQuestionSet(sessionId, 1)
-        if (result.error) { setError(result.error); return }
-        setQuestionSet(result.questionSet); setQuestions(result.questions)
-        const newSecs = buildSections(result.questions)
-        if (result.questionSet) {
-          const history = await getExerciseAnswerHistory(result.questionSet.id)
-          if (history && history.answers.length > 0) {
-            const ids = new Set(history.answers.map(a => a.questionId))
-            for (const a of history.answers) { const q = result.questions.find(q => q.id === a.questionId); if (q && a.rawInput) prefillAnswer(q, a.rawInput) }
+        // 統合Server Action: 1回の呼び出しで全データ取得
+        const bundle = await loadExerciseBundle(sessionId, 1)
+        if (bundle.error) { setError(bundle.error); return }
+        setQuestionSet(bundle.questionSet); setQuestions(bundle.questions)
+        const newSecs = buildSections(bundle.questions)
 
-            // 過去の振り返り履歴をロード（全セッション横断）
-            const reflectionHistory = await getExerciseReflectionHistory(result.questionSet.id)
-            // 現在セッション以外の振り返りを previousReflections に分配
-            const prevBySection = new Map<string, PreviousReflection[]>()
-            for (const item of reflectionHistory) {
-              // 現在のセッション（最新）の振り返りは除外 — 後で reflectionText に入る
-              if (item.sessionAttemptNumber === history.attemptNumber) continue
-              const arr = prevBySection.get(item.sectionName) || []
-              arr.push({ reflectionText: item.reflectionText, feedbackText: item.feedbackText || '', attemptNumber: item.sessionAttemptNumber })
-              prevBySection.set(item.sectionName, arr)
-            }
+        if (bundle.history && bundle.history.answers.length > 0) {
+          const { history, reflections, feedbacks, reflectionHistory } = bundle
+          const ids = new Set(history.answers.map(a => a.questionId))
+          for (const a of history.answers) { const q = bundle.questions.find(q => q.id === a.questionId); if (q && a.rawInput) prefillAnswer(q, a.rawInput) }
 
-            if (history.totalScore !== null && history.maxScore !== null) {
-              setAttemptNumber(history.attemptNumber)
-              const [reflections, feedbacks] = await Promise.all([
-                getExerciseReflections(history.answerSessionId),
-                getExerciseFeedbacks(history.answerSessionId),
-              ])
-              const reflectionMap = new Map(reflections.map(r => [r.sectionName, r]))
-              const feedbackMap = new Map(feedbacks.map(f => [f.sectionName, f.feedbackText]))
-              for (const sec of newSecs) {
-                if (sec.questions.every(q => ids.has(q.id))) {
-                  sec.isGraded = true; sec.isExpanded = false; let sc = 0; sec.maxScore = sec.questions.reduce((s, q) => s + q.points, 0)
-                  sec.answerSessionId = history.answerSessionId
-                  sec.previousReflections = prevBySection.get(sec.name) || []
-                  const ref = reflectionMap.get(sec.name)
-                  if (ref) { sec.reflectionText = ref.reflectionText; sec.reflectionSaved = true; sec.reflectionId = ref.id }
-                  const fb = feedbackMap.get(sec.name)
-                  if (fb) { sec.feedbackText = fb }
-                  for (const q of sec.questions) { const a = history.answers.find(a => a.questionId === q.id); if (a) { sec.results.set(q.id, { questionId: q.id, isCorrect: a.isCorrect ?? false, answerValue: a.rawInput, correctAnswer: '' }); if (a.isCorrect) sc += q.points } }
-                  sec.score = sc
-                }
-              }
-            } else {
-              // in_progress セッション — 振り返り + フィードバックも復元
-              const [reflections, feedbacks] = await Promise.all([
-                getExerciseReflections(history.answerSessionId),
-                getExerciseFeedbacks(history.answerSessionId),
-              ])
-              const reflectionMap = new Map(reflections.map(r => [r.sectionName, r]))
-              const feedbackMap = new Map(feedbacks.map(f => [f.sectionName, f.feedbackText]))
-              for (const sec of newSecs) {
-                if (sec.questions.every(q => ids.has(q.id))) {
-                  sec.isGraded = true; sec.isExpanded = false; let sc = 0; sec.maxScore = sec.questions.reduce((s, q) => s + q.points, 0)
-                  sec.answerSessionId = history.answerSessionId
-                  sec.previousReflections = prevBySection.get(sec.name) || []
-                  const ref = reflectionMap.get(sec.name)
-                  if (ref) { sec.reflectionText = ref.reflectionText; sec.reflectionSaved = true; sec.reflectionId = ref.id }
-                  const fb = feedbackMap.get(sec.name)
-                  if (fb) { sec.feedbackText = fb }
-                  for (const q of sec.questions) { const a = history.answers.find(a => a.questionId === q.id); if (a) { sec.results.set(q.id, { questionId: q.id, isCorrect: a.isCorrect ?? false, answerValue: a.rawInput, correctAnswer: '' }); if (a.isCorrect) sc += q.points } }
-                  sec.score = sc
-                }
-              }
-              const ungradedCount = newSecs.filter(s => !s.isGraded).length
-              if (ungradedCount === 1) { const first = newSecs.findIndex(s => !s.isGraded); if (first !== -1) newSecs[first].isExpanded = true }
+          // 過去セッション振り返りを previousReflections に分配
+          const prevBySection = new Map<string, PreviousReflection[]>()
+          for (const item of reflectionHistory) {
+            if (item.sessionAttemptNumber === history.attemptNumber) continue
+            const arr = prevBySection.get(item.sectionName) || []
+            arr.push({ reflectionText: item.reflectionText, feedbackText: item.feedbackText || '', attemptNumber: item.sessionAttemptNumber })
+            prevBySection.set(item.sectionName, arr)
+          }
+
+          const reflectionMap = new Map(reflections.map(r => [r.sectionName, r]))
+          const feedbackMap = new Map(feedbacks.map(f => [f.sectionName, f.feedbackText]))
+
+          if (history.totalScore !== null && history.maxScore !== null) {
+            setAttemptNumber(history.attemptNumber)
+          }
+
+          for (const sec of newSecs) {
+            if (sec.questions.every(q => ids.has(q.id))) {
+              sec.isGraded = true; sec.isExpanded = false; let sc = 0; sec.maxScore = sec.questions.reduce((s, q) => s + q.points, 0)
+              sec.answerSessionId = history.answerSessionId
+              sec.previousReflections = prevBySection.get(sec.name) || []
+              const ref = reflectionMap.get(sec.name)
+              if (ref) { sec.reflectionText = ref.reflectionText; sec.reflectionSaved = true; sec.reflectionId = ref.id }
+              const fb = feedbackMap.get(sec.name)
+              if (fb) { sec.feedbackText = fb }
+              for (const q of sec.questions) { const a = history.answers.find(a => a.questionId === q.id); if (a) { sec.results.set(q.id, { questionId: q.id, isCorrect: a.isCorrect ?? false, answerValue: a.rawInput, correctAnswer: '' }); if (a.isCorrect) sc += q.points } }
+              sec.score = sc
             }
           }
+
+          // in_progress: 未採点セクションが1つだけなら展開
+          if (history.totalScore === null || history.maxScore === null) {
+            const ungradedCount = newSecs.filter(s => !s.isGraded).length
+            if (ungradedCount === 1) { const first = newSecs.findIndex(s => !s.isGraded); if (first !== -1) newSecs[first].isExpanded = true }
+          }
         }
+
         setSections(newSecs)
       } catch (e) { console.error(e); setError('データの読み込みに失敗しました') } finally { setIsLoading(false) }
     }

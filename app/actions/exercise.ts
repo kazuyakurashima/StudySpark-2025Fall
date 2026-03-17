@@ -704,3 +704,227 @@ export async function getExerciseAnswerHistory(
     return null
   }
 }
+
+// ================================================================
+// 統合ロード: 1回のServer Action呼び出しで全データを返す
+// auth + student解決を1回だけ行い、DB往復を並列化
+// ================================================================
+
+export interface ExerciseBundleReflection {
+  id: number
+  sectionName: string
+  reflectionText: string
+  attemptNumber: number
+}
+
+export interface ExerciseBundleFeedback {
+  sectionName: string
+  feedbackText: string
+}
+
+export interface ExerciseReflectionHistoryItem {
+  sectionName: string
+  reflectionText: string
+  feedbackText: string | null
+  sessionAttemptNumber: number
+}
+
+export interface ExerciseBundle {
+  questionSet: ExerciseQuestionSet | null
+  questions: ExerciseQuestion[]
+  history: {
+    answerSessionId: number
+    answers: ExerciseAnswerHistory[]
+    attemptNumber: number
+    totalScore: number | null
+    maxScore: number | null
+  } | null
+  reflections: ExerciseBundleReflection[]
+  feedbacks: ExerciseBundleFeedback[]
+  reflectionHistory: ExerciseReflectionHistoryItem[]
+  error?: string
+}
+
+export async function loadExerciseBundle(
+  sessionId: number,
+  subjectId: number
+): Promise<ExerciseBundle> {
+  const empty: ExerciseBundle = {
+    questionSet: null, questions: [], history: null,
+    reflections: [], feedbacks: [], reflectionHistory: [],
+  }
+
+  try {
+    // 認証 + student解決（1回だけ）
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { ...empty, error: '認証されていません' }
+
+    const admin = createAdminClient()
+    const student = await resolveStudentWithCourse(admin, user.id)
+    if (!student) return { ...empty, error: '生徒情報が見つかりません' }
+
+    // --- Phase 1: question_set 取得 ---
+    const { data: qs } = await admin
+      .from('question_sets')
+      .select('id, title, study_sessions!inner(session_number)')
+      .eq('session_id', sessionId)
+      .eq('subject_id', subjectId)
+      .eq('grade', student.grade)
+      .eq('set_type', 'exercise_workbook')
+      .eq('status', 'approved')
+      .is('edition', null)
+      .single()
+
+    if (!qs) return empty
+
+    const sessionInfo = qs.study_sessions as unknown as { session_number: number }
+    const questionSetId = qs.id
+
+    // --- Phase 2: questions + answer_session を並列取得 ---
+    const [questionsResult, sessionResult] = await Promise.all([
+      admin
+        .from('questions')
+        .select('id, question_number, section_name, answer_type, unit_label, answer_config, points, display_order, min_course')
+        .eq('question_set_id', questionSetId)
+        .order('display_order'),
+      admin
+        .from('answer_sessions')
+        .select('id, attempt_number, total_score, max_score')
+        .eq('student_id', student.id)
+        .eq('question_set_id', questionSetId)
+        .eq('is_latest', true)
+        .single(),
+    ])
+
+    const questions = filterByCourse(questionsResult.data || [], student.course)
+    const sanitizedQuestions: ExerciseQuestion[] = questions.map(q => ({
+      id: q.id,
+      questionNumber: q.question_number,
+      sectionName: q.section_name,
+      answerType: q.answer_type as ExerciseQuestion['answerType'],
+      unitLabel: q.unit_label,
+      answerConfig: sanitizeAnswerConfig(q.answer_type, q.answer_config as Record<string, unknown> | null, q.id),
+      points: q.points,
+      minCourse: q.min_course,
+    }))
+
+    const questionSet: ExerciseQuestionSet = {
+      id: questionSetId,
+      title: qs.title || `第${sessionInfo.session_number}回 演習問題集`,
+      sessionNumber: sessionInfo.session_number,
+    }
+
+    const session = sessionResult.data
+    if (!session) {
+      return { ...empty, questionSet, questions: sanitizedQuestions }
+    }
+
+    // --- Phase 3: answers + reflections + feedbacks + history を並列取得 ---
+    const allSessions = admin
+      .from('answer_sessions')
+      .select('id, attempt_number')
+      .eq('student_id', student.id)
+      .eq('question_set_id', questionSetId)
+      .order('attempt_number')
+
+    const [answersResult, reflectionsResult, allSessionsResult] = await Promise.all([
+      admin
+        .from('student_answers')
+        .select('question_id, raw_input, is_correct')
+        .eq('answer_session_id', session.id),
+      admin
+        .from('exercise_reflections')
+        .select('id, section_name, reflection_text, attempt_number, answer_session_id')
+        .eq('answer_session_id', session.id)
+        .order('section_name')
+        .order('attempt_number', { ascending: false }),
+      allSessions,
+    ])
+
+    const answers: ExerciseAnswerHistory[] = (answersResult.data || []).map(a => ({
+      questionId: a.question_id,
+      rawInput: a.raw_input || '',
+      isCorrect: a.is_correct,
+    }))
+
+    // 現セッションの振り返り（セクション最新のみ）
+    type ReflectionRow = { id: number; section_name: string; reflection_text: string; attempt_number: number; answer_session_id: number }
+    const reflectionRows = (reflectionsResult.data || []) as ReflectionRow[]
+    const latestBySection = new Map<string, ReflectionRow>()
+    for (const r of reflectionRows) {
+      if (!latestBySection.has(r.section_name)) {
+        latestBySection.set(r.section_name, r)
+      }
+    }
+    const reflections: ExerciseBundleReflection[] = Array.from(latestBySection.values()).map(r => ({
+      id: r.id,
+      sectionName: r.section_name,
+      reflectionText: r.reflection_text,
+      attemptNumber: r.attempt_number,
+    }))
+
+    // --- Phase 4: feedbacks + 過去セッション振り返り を並列取得 ---
+    const latestReflectionIds = reflections.map(r => r.id)
+    const allSessionIds = (allSessionsResult.data || []).map(s => s.id)
+    const sessionAttemptMap = new Map((allSessionsResult.data || []).map(s => [s.id, s.attempt_number]))
+
+    const [feedbacksResult, allReflectionsResult] = await Promise.all([
+      latestReflectionIds.length > 0
+        ? admin.from('exercise_feedbacks')
+            .select('exercise_reflection_id, feedback_text')
+            .in('exercise_reflection_id', latestReflectionIds)
+        : Promise.resolve({ data: [] as { exercise_reflection_id: number; feedback_text: string }[] }),
+      allSessionIds.length > 1
+        ? admin.from('exercise_reflections')
+            .select('id, answer_session_id, section_name, reflection_text, created_at')
+            .in('answer_session_id', allSessionIds)
+            .order('created_at')
+        : Promise.resolve({ data: [] as { id: number; answer_session_id: number; section_name: string; reflection_text: string; created_at: string }[] }),
+    ])
+
+    // feedbacks → sectionName マッピング
+    const idToSection = new Map(reflections.map(r => [r.id, r.sectionName]))
+    const feedbacks: ExerciseBundleFeedback[] = (feedbacksResult.data || []).map(f => ({
+      sectionName: idToSection.get(f.exercise_reflection_id) || '',
+      feedbackText: f.feedback_text,
+    }))
+
+    // 過去セッションの振り返り履歴
+    let reflectionHistory: ExerciseReflectionHistoryItem[] = []
+    const pastReflections = allReflectionsResult.data || []
+    if (pastReflections.length > 0) {
+      const pastReflectionIds = pastReflections.map(r => r.id)
+      const { data: pastFeedbacks } = await admin
+        .from('exercise_feedbacks')
+        .select('exercise_reflection_id, feedback_text')
+        .in('exercise_reflection_id', pastReflectionIds)
+
+      const pastFbMap = new Map((pastFeedbacks || []).map(f => [f.exercise_reflection_id, f.feedback_text]))
+      reflectionHistory = pastReflections.map(r => ({
+        sectionName: r.section_name,
+        reflectionText: r.reflection_text,
+        feedbackText: pastFbMap.get(r.id) || null,
+        sessionAttemptNumber: sessionAttemptMap.get(r.answer_session_id) || 1,
+      }))
+    }
+
+    return {
+      questionSet,
+      questions: sanitizedQuestions,
+      history: {
+        answerSessionId: session.id,
+        answers,
+        attemptNumber: session.attempt_number,
+        totalScore: session.total_score,
+        maxScore: session.max_score,
+      },
+      reflections,
+      feedbacks,
+      reflectionHistory,
+    }
+  } catch (error) {
+    console.error('Error in loadExerciseBundle:', error)
+    return { ...empty, error: '予期しないエラーが発生しました' }
+  }
+}
