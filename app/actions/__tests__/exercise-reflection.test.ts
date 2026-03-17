@@ -65,7 +65,10 @@ describe('saveExerciseReflection', () => {
       if (table === 'exercise_reflections') {
         callCount++
         if (callCount === 1) return makeChain(null) // attempt_number 検索 → なし
-        return { ...makeChain(null), insert: vi.fn(() => Promise.resolve({ error: null })) }
+        // insert → select('id') → single() チェーン
+        const insertChain = makeChain({ id: 42 })
+        insertChain.insert = vi.fn(() => insertChain)
+        return insertChain
       }
       return makeChain(null)
     })
@@ -107,11 +110,16 @@ describe('saveExerciseReflection', () => {
         if (reflectionCallCount % 2 === 1) return makeChain({ attempt_number: 1 })
         // INSERT（偶数回）
         if (reflectionCallCount === 2) {
-          // 1回目: ユニーク衝突
-          return { ...makeChain(null), insert: vi.fn(() => Promise.resolve({ error: { code: '23505', message: 'unique violation' } })) }
+          // 1回目: ユニーク衝突（insert → select → single チェーンでエラー）
+          const failChain = makeChain(null)
+          failChain.insert = vi.fn(() => failChain)
+          failChain.single = vi.fn(() => Promise.resolve({ data: null, error: { code: '23505', message: 'unique violation' } }))
+          return failChain
         }
         // 2回目: 成功
-        return { ...makeChain(null), insert: vi.fn(() => Promise.resolve({ error: null })) }
+        const successChain = makeChain({ id: 42 })
+        successChain.insert = vi.fn(() => successChain)
+        return successChain
       }
       return makeChain(null)
     })

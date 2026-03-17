@@ -8,7 +8,8 @@ import { SelectionInput } from '@/components/math/selection-input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
-import { BookOpen, Check, X, Loader2, RotateCcw, RefreshCw, Trophy, ChevronDown, ChevronRight, MessageSquare } from 'lucide-react'
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
+import { BookOpen, Check, X, Loader2, RotateCcw, RefreshCw, Trophy, ChevronDown, ChevronRight, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { MultiPartConfig, SelectionConfig } from '@/lib/math-answer-utils'
 import {
@@ -19,7 +20,11 @@ import {
   type ExerciseQuestionSet,
   type ExerciseGradeResult,
 } from '@/app/actions/exercise'
-import { saveExerciseReflection, getExerciseReflections } from '@/app/actions/exercise-reflection'
+import { saveExerciseReflection, getExerciseReflections, getExerciseFeedbacks, getExerciseReflectionHistory } from '@/app/actions/exercise-reflection'
+import { MAX_REFLECTIONS } from '@/lib/constants/exercise'
+import { fetchSSE } from '@/lib/sse/client'
+import { useUserProfile } from '@/lib/hooks/use-user-profile'
+import { getAvatarUrl } from '@/lib/utils/avatar'
 
 // ================================================================
 // 型定義
@@ -32,6 +37,12 @@ type SelectionState = Record<number, string[]>
 
 interface Props { sessionId: number | null }
 
+interface PreviousReflection {
+  reflectionText: string
+  feedbackText: string
+  attemptNumber: number
+}
+
 interface SectionState {
   name: string
   questions: ExerciseQuestion[]
@@ -43,7 +54,11 @@ interface SectionState {
   lockedQuestionIds: Set<number>
   reflectionText: string
   reflectionSaved: boolean
+  reflectionId: number | null      // 保存後のDB ID（フィードバック生成に使用）
   answerSessionId: number | null
+  feedbackText: string             // AIコーチフィードバック
+  feedbackLoading: boolean         // フィードバック生成中
+  previousReflections: PreviousReflection[]  // 過去のリトライ分
 }
 
 // カラー体系:
@@ -66,6 +81,9 @@ const SECTION_LABELS: Record<string, string> = {
 // ================================================================
 
 export function ExerciseInput({ sessionId }: Props) {
+  const { profile } = useUserProfile()
+  const studentAvatarUrl = getAvatarUrl(profile?.avatar_id, 'student')
+
   const [isPending, startTransition] = useTransition()
   const [isLoading, setIsLoading] = useState(false)
 
@@ -85,7 +103,7 @@ export function ExerciseInput({ sessionId }: Props) {
     const secs: SectionState[] = []
     let cur = ''
     for (const q of qs) {
-      if (q.sectionName !== cur) { cur = q.sectionName; secs.push({ name: cur, questions: [], isGraded: false, isExpanded: false, score: 0, maxScore: 0, results: new Map(), lockedQuestionIds: new Set(), reflectionText: '', reflectionSaved: false, answerSessionId: null }) }
+      if (q.sectionName !== cur) { cur = q.sectionName; secs.push({ name: cur, questions: [], isGraded: false, isExpanded: false, score: 0, maxScore: 0, results: new Map(), lockedQuestionIds: new Set(), reflectionText: '', reflectionSaved: false, reflectionId: null, answerSessionId: null, feedbackText: '', feedbackLoading: false, previousReflections: [] }) }
       secs[secs.length - 1].questions.push(q)
     }
     if (secs.length === 1) secs[0].isExpanded = true
@@ -110,30 +128,57 @@ export function ExerciseInput({ sessionId }: Props) {
           if (history && history.answers.length > 0) {
             const ids = new Set(history.answers.map(a => a.questionId))
             for (const a of history.answers) { const q = result.questions.find(q => q.id === a.questionId); if (q && a.rawInput) prefillAnswer(q, a.rawInput) }
+
+            // 過去の振り返り履歴をロード（全セッション横断）
+            const reflectionHistory = await getExerciseReflectionHistory(result.questionSet.id)
+            // 現在セッション以外の振り返りを previousReflections に分配
+            const prevBySection = new Map<string, PreviousReflection[]>()
+            for (const item of reflectionHistory) {
+              // 現在のセッション（最新）の振り返りは除外 — 後で reflectionText に入る
+              if (item.sessionAttemptNumber === history.attemptNumber) continue
+              const arr = prevBySection.get(item.sectionName) || []
+              arr.push({ reflectionText: item.reflectionText, feedbackText: item.feedbackText || '', attemptNumber: item.sessionAttemptNumber })
+              prevBySection.set(item.sectionName, arr)
+            }
+
             if (history.totalScore !== null && history.maxScore !== null) {
               setAttemptNumber(history.attemptNumber)
-              const reflections = await getExerciseReflections(history.answerSessionId)
+              const [reflections, feedbacks] = await Promise.all([
+                getExerciseReflections(history.answerSessionId),
+                getExerciseFeedbacks(history.answerSessionId),
+              ])
               const reflectionMap = new Map(reflections.map(r => [r.sectionName, r]))
+              const feedbackMap = new Map(feedbacks.map(f => [f.sectionName, f.feedbackText]))
               for (const sec of newSecs) {
                 if (sec.questions.every(q => ids.has(q.id))) {
                   sec.isGraded = true; sec.isExpanded = false; let sc = 0; sec.maxScore = sec.questions.reduce((s, q) => s + q.points, 0)
                   sec.answerSessionId = history.answerSessionId
+                  sec.previousReflections = prevBySection.get(sec.name) || []
                   const ref = reflectionMap.get(sec.name)
-                  if (ref) { sec.reflectionText = ref.reflectionText; sec.reflectionSaved = true }
+                  if (ref) { sec.reflectionText = ref.reflectionText; sec.reflectionSaved = true; sec.reflectionId = ref.id }
+                  const fb = feedbackMap.get(sec.name)
+                  if (fb) { sec.feedbackText = fb }
                   for (const q of sec.questions) { const a = history.answers.find(a => a.questionId === q.id); if (a) { sec.results.set(q.id, { questionId: q.id, isCorrect: a.isCorrect ?? false, answerValue: a.rawInput, correctAnswer: '' }); if (a.isCorrect) sc += q.points } }
                   sec.score = sc
                 }
               }
             } else {
-              // in_progress セッション — 振り返りも復元
-              const reflections = await getExerciseReflections(history.answerSessionId)
+              // in_progress セッション — 振り返り + フィードバックも復元
+              const [reflections, feedbacks] = await Promise.all([
+                getExerciseReflections(history.answerSessionId),
+                getExerciseFeedbacks(history.answerSessionId),
+              ])
               const reflectionMap = new Map(reflections.map(r => [r.sectionName, r]))
+              const feedbackMap = new Map(feedbacks.map(f => [f.sectionName, f.feedbackText]))
               for (const sec of newSecs) {
                 if (sec.questions.every(q => ids.has(q.id))) {
                   sec.isGraded = true; sec.isExpanded = false; let sc = 0; sec.maxScore = sec.questions.reduce((s, q) => s + q.points, 0)
                   sec.answerSessionId = history.answerSessionId
+                  sec.previousReflections = prevBySection.get(sec.name) || []
                   const ref = reflectionMap.get(sec.name)
-                  if (ref) { sec.reflectionText = ref.reflectionText; sec.reflectionSaved = true }
+                  if (ref) { sec.reflectionText = ref.reflectionText; sec.reflectionSaved = true; sec.reflectionId = ref.id }
+                  const fb = feedbackMap.get(sec.name)
+                  if (fb) { sec.feedbackText = fb }
                   for (const q of sec.questions) { const a = history.answers.find(a => a.questionId === q.id); if (a) { sec.results.set(q.id, { questionId: q.id, isCorrect: a.isCorrect ?? false, answerValue: a.rawInput, correctAnswer: '' }); if (a.isCorrect) sc += q.points } }
                   sec.score = sc
                 }
@@ -203,7 +248,12 @@ export function ExerciseInput({ sessionId }: Props) {
     setSections(prev => {
       const updated = [...prev]; const sec = updated[idx]; const locked = new Set<number>()
       for (const q of sec.questions) { const r = sec.results.get(q.id); if (r?.isCorrect) { locked.add(q.id) } else { clearAnswer(q.id, q.answerType) } }
-      updated[idx] = { ...sec, isGraded: false, isExpanded: true, score: 0, maxScore: 0, results: new Map(), lockedQuestionIds: locked, reflectionText: '', reflectionSaved: false }
+      // 保存済み振り返りを履歴に退避
+      const prevReflections = [...sec.previousReflections]
+      if (sec.reflectionSaved && sec.reflectionText) {
+        prevReflections.push({ reflectionText: sec.reflectionText, feedbackText: sec.feedbackText, attemptNumber: prevReflections.length + 1 })
+      }
+      updated[idx] = { ...sec, isGraded: false, isExpanded: true, score: 0, maxScore: 0, results: new Map(), lockedQuestionIds: locked, reflectionText: '', reflectionSaved: false, reflectionId: null, feedbackText: '', feedbackLoading: false, previousReflections: prevReflections }
       return updated
     }); setError(null)
   }, [])
@@ -212,7 +262,12 @@ export function ExerciseInput({ sessionId }: Props) {
     setSections(prev => {
       const updated = [...prev]; const sec = updated[idx]
       for (const q of sec.questions) clearAnswer(q.id, q.answerType)
-      updated[idx] = { ...sec, isGraded: false, isExpanded: true, score: 0, maxScore: 0, results: new Map(), lockedQuestionIds: new Set(), reflectionText: '', reflectionSaved: false }
+      // 保存済み振り返りを履歴に退避
+      const prevReflections = [...sec.previousReflections]
+      if (sec.reflectionSaved && sec.reflectionText) {
+        prevReflections.push({ reflectionText: sec.reflectionText, feedbackText: sec.feedbackText, attemptNumber: prevReflections.length + 1 })
+      }
+      updated[idx] = { ...sec, isGraded: false, isExpanded: true, score: 0, maxScore: 0, results: new Map(), lockedQuestionIds: new Set(), reflectionText: '', reflectionSaved: false, reflectionId: null, feedbackText: '', feedbackLoading: false, previousReflections: prevReflections }
       return updated
     }); setError(null)
   }, [])
@@ -221,8 +276,28 @@ export function ExerciseInput({ sessionId }: Props) {
     const sec = sections[idx]
     if (!sec.answerSessionId || !sec.reflectionText.trim()) return
     const result = await saveExerciseReflection({ answerSessionId: sec.answerSessionId, sectionName: sec.name, reflectionText: sec.reflectionText })
-    if (result.success) { setSections(prev => { const u = [...prev]; u[idx] = { ...u[idx], reflectionSaved: true }; return u }) }
-    else { setError(result.error || '振り返りの保存に失敗しました') }
+    if (result.success && result.reflectionId) {
+      setSections(prev => { const u = [...prev]; u[idx] = { ...u[idx], reflectionSaved: true, reflectionId: result.reflectionId!, feedbackLoading: true }; return u })
+
+      // AIフィードバック生成（SSEストリーミング）
+      const feedbackAbort = new AbortController()
+      try {
+        await fetchSSE(
+          '/api/exercise/feedback-stream',
+          { exerciseReflectionId: result.reflectionId },
+          (accumulated) => {
+            setSections(prev => { const u = [...prev]; u[idx] = { ...u[idx], feedbackText: accumulated }; return u })
+          },
+          feedbackAbort.signal
+        )
+      } catch (e) {
+        console.error('Exercise feedback stream error:', e)
+      } finally {
+        setSections(prev => { const u = [...prev]; u[idx] = { ...u[idx], feedbackLoading: false }; return u })
+      }
+    } else if (!result.success) {
+      setError(result.error || '振り返りの保存に失敗しました')
+    }
   }, [sections])
 
   const handleReflectionChange = useCallback((idx: number, text: string) => {
@@ -343,49 +418,105 @@ export function ExerciseInput({ sessionId }: Props) {
                       {section.score === section.maxScore && <p className="text-xs text-green-600 font-bold mt-1">全問正解！</p>}
                     </div>
 
-                    {/* 振り返り（青系統に統一） */}
-                    {section.reflectionSaved ? (
-                      <div className="rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 p-4">
-                        <div className="flex items-center gap-1.5 mb-2">
-                          <MessageSquare className="h-3.5 w-3.5 text-blue-500" />
-                          <span className="text-xs font-bold text-blue-700">ふりかえり</span>
-                        </div>
-                        <p className="text-sm text-gray-800 leading-relaxed">「{section.reflectionText}」</p>
-                        <div className="flex items-center gap-1.5 mt-2">
-                          <Check className="h-3.5 w-3.5 text-green-500" />
-                          <span className="text-xs text-green-600 font-medium">保存しました</span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="rounded-2xl border-2 border-blue-300 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-500">
-                        <div className="bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-2.5">
-                          <div className="flex items-center gap-2">
-                            <MessageSquare className="h-4 w-4 text-white" />
-                            <span className="text-sm font-bold text-white">{section.name}をふりかえろう</span>
-                          </div>
-                        </div>
-                        <div className="bg-gradient-to-br from-blue-50/80 to-white p-4 space-y-3">
-                          <Textarea
-                            value={section.reflectionText}
-                            onChange={(e) => handleReflectionChange(idx, e.target.value)}
-                            placeholder="例：倍数の問題は解けたけど、公約数の応用がまだ不安..."
-                            className="min-h-[80px] text-sm border-2 border-blue-200 bg-white focus:border-blue-400 focus:ring-blue-400/20 focus:ring-[3px] resize-none rounded-xl placeholder:text-gray-400"
-                            maxLength={200}
-                            autoFocus
-                          />
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] text-gray-400">{section.reflectionText.length}/200文字</span>
-                            {section.reflectionText.trim() ? (
-                              <Button onClick={() => handleSaveReflection(idx)} className="h-9 px-5 text-sm font-bold bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-xl shadow-md">
-                                <Check className="h-4 w-4 mr-1.5" />保存する
-                              </Button>
-                            ) : (
-                              <span className="text-xs text-gray-400">書かなくてもOK</span>
+                    {/* 過去の振り返り履歴（リトライ前の記録） */}
+                    {section.previousReflections.length > 0 && (
+                      <div className="space-y-2">
+                        {section.previousReflections.map((prev, i) => (
+                          <div key={i} className="rounded-2xl bg-gray-50 border border-gray-200 p-3.5">
+                            <div className="flex items-center gap-1.5 mb-1.5">
+                              <Avatar className="w-4 h-4"><AvatarImage src={studentAvatarUrl} alt="生徒アバター" /><AvatarFallback className="bg-gray-200 text-gray-500"><User className="h-2.5 w-2.5" /></AvatarFallback></Avatar>
+                              <span className="text-[10px] font-bold text-gray-500">{prev.attemptNumber}回目のふりかえり</span>
+                            </div>
+                            <p className="text-xs text-gray-600 leading-relaxed">「{prev.reflectionText}」</p>
+                            {prev.feedbackText && (
+                              <div className="mt-2 pl-3 border-l-2 border-indigo-200">
+                                <div className="flex items-center gap-1 mb-1">
+                                  <Avatar className="w-4 h-4"><AvatarImage src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png" alt="AIコーチ" /><AvatarFallback className="bg-indigo-100 text-indigo-500">AI</AvatarFallback></Avatar>
+                                  <span className="text-[10px] font-bold text-indigo-500">AIコーチ</span>
+                                </div>
+                                <p className="text-xs text-gray-600 leading-relaxed">{prev.feedbackText}</p>
+                              </div>
                             )}
                           </div>
-                        </div>
+                        ))}
                       </div>
                     )}
+
+                    {/* 振り返り — reflection_count < MAX_REFLECTIONS なら入力可、それ以外は記録閲覧のみ */}
+                    {(() => {
+                      const reflectionCount = section.previousReflections.length + (section.reflectionSaved ? 1 : 0)
+                      const canReflect = reflectionCount < MAX_REFLECTIONS
+
+                      if (section.reflectionSaved) {
+                        // 今回の振り返り保存済み → 表示
+                        return (
+                          <div className="space-y-3">
+                            <div className="rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 p-4">
+                              <div className="flex items-center gap-1.5 mb-2">
+                                <Avatar className="w-5 h-5"><AvatarImage src={studentAvatarUrl} alt="生徒アバター" /><AvatarFallback className="bg-blue-100 text-blue-600"><User className="h-3 w-3" /></AvatarFallback></Avatar>
+                                <span className="text-xs font-bold text-blue-700">ふりかえり</span>
+                              </div>
+                              <p className="text-sm text-gray-800 leading-relaxed">「{section.reflectionText}」</p>
+                              <div className="flex items-center gap-1.5 mt-2">
+                                <Check className="h-3.5 w-3.5 text-green-500" />
+                                <span className="text-xs text-green-600 font-medium">保存しました</span>
+                              </div>
+                            </div>
+                            {(section.feedbackText || section.feedbackLoading) && (
+                              <div className="rounded-2xl bg-gradient-to-br from-indigo-50 to-blue-50 border-2 border-indigo-200 p-4 animate-in fade-in duration-300">
+                                <div className="flex items-center gap-1.5 mb-2">
+                                  <Avatar className="w-5 h-5"><AvatarImage src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ai_coach-oDEKn6ZVqTbEdoExg9hsYQC4PTNbkt.png" alt="AIコーチ" /><AvatarFallback className="bg-indigo-100 text-indigo-600">AI</AvatarFallback></Avatar>
+                                  <span className="text-xs font-bold text-indigo-700">AIコーチ</span>
+                                  {section.feedbackLoading && <Loader2 className="h-3 w-3 animate-spin text-indigo-400 ml-auto" />}
+                                </div>
+                                <p className="text-sm text-gray-800 leading-relaxed">
+                                  {section.feedbackText}
+                                  {section.feedbackLoading && <span className="inline-block w-1 h-4 bg-indigo-400 animate-pulse ml-0.5 align-text-bottom" />}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      }
+
+                      if (canReflect) {
+                        // 振り返り枠あり → 入力フォーム表示
+                        return (
+                          <div className="rounded-2xl border-2 border-blue-300 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-500">
+                            <div className="bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-2.5">
+                              <div className="flex items-center gap-2">
+                                <Avatar className="w-5 h-5 border border-white/50"><AvatarImage src={studentAvatarUrl} alt="生徒アバター" /><AvatarFallback className="bg-white/30 text-white"><User className="h-3 w-3" /></AvatarFallback></Avatar>
+                                <span className="text-sm font-bold text-white">{section.name}をふりかえろう</span>
+                                {reflectionCount > 0 && <span className="text-[10px] text-white/70 ml-auto">あと{MAX_REFLECTIONS - reflectionCount}回</span>}
+                              </div>
+                            </div>
+                            <div className="bg-gradient-to-br from-blue-50/80 to-white p-4 space-y-3">
+                              <Textarea
+                                value={section.reflectionText}
+                                onChange={(e) => handleReflectionChange(idx, e.target.value)}
+                                placeholder="例：倍数の問題は解けたけど、公約数の応用がまだ不安..."
+                                className="min-h-[80px] text-sm border-2 border-blue-200 bg-white focus:border-blue-400 focus:ring-blue-400/20 focus:ring-[3px] resize-none rounded-xl placeholder:text-gray-400"
+                                maxLength={200}
+                                autoFocus
+                              />
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] text-gray-400">{section.reflectionText.length}/200文字</span>
+                                {section.reflectionText.trim() ? (
+                                  <Button onClick={() => handleSaveReflection(idx)} className="h-9 px-5 text-sm font-bold bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-xl shadow-md">
+                                    <Check className="h-4 w-4 mr-1.5" />保存する
+                                  </Button>
+                                ) : (
+                                  <span className="text-xs text-gray-400">書かなくてもOK</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      }
+
+                      // 上限到達 → 記録閲覧のみ
+                      return null
+                    })()}
                   </div>
                 )}
 

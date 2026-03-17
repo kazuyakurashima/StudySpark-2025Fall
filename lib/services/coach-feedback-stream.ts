@@ -25,12 +25,13 @@ export interface CoachFeedbackStreamContext {
  */
 export async function* generateCoachFeedbackStream(
   context: CoachFeedbackStreamContext,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  promptOverride?: { systemPrompt: string; userPrompt: string }
 ): AsyncGenerator<LLMStreamEvent> {
   const { provider, model } = getModelForModule("coach", "realtime")
 
-  const systemPrompt = getSystemPrompt()
-  const userPrompt = getUserPrompt(context.data)
+  const systemPrompt = promptOverride?.systemPrompt ?? getSystemPrompt()
+  const userPrompt = promptOverride?.userPrompt ?? getUserPrompt(context.data)
 
   if (provider === "gemini") {
     yield* streamGemini(systemPrompt, userPrompt, model, signal)

@@ -656,6 +656,54 @@ export type Database = {
           },
         ]
       }
+      exercise_feedbacks: {
+        Row: {
+          created_at: string
+          exercise_reflection_id: number
+          feedback_text: string
+          id: number
+          langfuse_trace_id: string | null
+          prompt_hash: string | null
+          prompt_version: string
+          student_id: number
+        }
+        Insert: {
+          created_at?: string
+          exercise_reflection_id: number
+          feedback_text: string
+          id?: number
+          langfuse_trace_id?: string | null
+          prompt_hash?: string | null
+          prompt_version?: string
+          student_id: number
+        }
+        Update: {
+          created_at?: string
+          exercise_reflection_id?: number
+          feedback_text?: string
+          id?: number
+          langfuse_trace_id?: string | null
+          prompt_hash?: string | null
+          prompt_version?: string
+          student_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exercise_feedbacks_exercise_reflection_id_fkey"
+            columns: ["exercise_reflection_id"]
+            isOneToOne: false
+            referencedRelation: "exercise_reflections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exercise_feedbacks_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exercise_reflections: {
         Row: {
           answer_session_id: number
