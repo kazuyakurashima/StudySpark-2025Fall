@@ -140,6 +140,88 @@ export async function getExerciseMasterDetail(
   }
 }
 
+// ================================================================
+// 生徒提出セッション一覧型
+// ================================================================
+
+export interface StudentExerciseSession {
+  questionSetId: number
+  sessionNumber: number
+  title: string
+  totalScore: number | null
+  maxScore: number | null
+  accuracyRate: number | null
+}
+
+/**
+ * 対象生徒が提出済みの演習セッション一覧（指導者・保護者向け）
+ * checkStudentAccess() で認可
+ */
+export async function getStudentExerciseSessions(
+  studentId: number,
+  grade: number
+): Promise<{ data: StudentExerciseSession[]; error?: string }> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { data: [], error: '認証が必要です' }
+
+    const hasAccess = await checkStudentAccess(user.id, String(studentId))
+    if (!hasAccess) return { data: [], error: 'アクセス権限がありません' }
+
+    const admin = createAdminClient()
+
+    const { data: sessions, error } = await admin
+      .from('answer_sessions')
+      .select(`
+        question_set_id,
+        total_score,
+        max_score,
+        question_sets!inner (
+          id,
+          title,
+          session_id,
+          set_type,
+          grade,
+          study_sessions!inner (
+            session_number
+          )
+        )
+      `)
+      .eq('student_id', studentId)
+      .eq('is_latest', true)
+      .eq('status', 'graded')
+      .eq('question_sets.set_type', 'exercise_workbook')
+      .eq('question_sets.grade', grade)
+
+    if (error) {
+      console.error('[exercise-master] student sessions error:', error)
+      return { data: [], error: 'データの取得に失敗しました' }
+    }
+
+    if (!sessions) return { data: [] }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result: StudentExerciseSession[] = sessions.map((s: any) => ({
+      questionSetId: s.question_set_id,
+      sessionNumber: s.question_sets.study_sessions.session_number,
+      title: s.question_sets.title || `第${s.question_sets.study_sessions.session_number}回`,
+      totalScore: s.total_score,
+      maxScore: s.max_score,
+      accuracyRate: s.max_score && s.max_score > 0
+        ? Math.round((s.total_score / s.max_score) * 100) / 100
+        : null,
+    }))
+
+    result.sort((a, b) => a.sessionNumber - b.sessionNumber)
+
+    return { data: result }
+  } catch (err) {
+    console.error('[exercise-master] student sessions error:', err)
+    return { data: [], error: 'データの取得に失敗しました' }
+  }
+}
+
 /**
  * 生徒の演習振り返り+AIフィードバック閲覧（指導者・保護者向け）
  * createAdminClient() + checkStudentAccess() で認可

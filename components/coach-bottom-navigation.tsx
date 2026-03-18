@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation"
 import Link from "next/link"
-import { Home, Heart, ClipboardList, BarChart3 } from "lucide-react"
+import { Home, Heart, ClipboardList, BookOpen, BarChart3 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
 interface Tab {
@@ -14,10 +14,11 @@ interface Tab {
 }
 
 /**
- * コーチ用ボトムナビゲーション（4項目）
+ * コーチ用ボトムナビゲーション（5項目）
  * - ホーム: 生徒一覧 + アラート + 応援待ちサマリー
  * - 応援: 全生徒横断の応援待ちリスト（アクション実行の場）
  * - 算数: 算数マスタープリントの設問別 ○/× 一覧・正答率
+ * - 演習: 演習問題集の設問別正誤マトリクス・セクション別正答率
  * - 分析: 全体傾向・生徒間比較・週次レポート（俯瞰の場）
  *
  * 設定はアバターメニュー（UserProfileHeader）に統合
@@ -41,6 +42,13 @@ const tabs: Tab[] = [
     icon: ClipboardList,
     href: "/coach/math-master",
     linkHref: "/coach/math-master?grade=5",
+  },
+  {
+    id: "exercise-master",
+    label: "演習",
+    icon: BookOpen,
+    href: "/coach/exercise-master",
+    linkHref: "/coach/exercise-master?grade=5",
   },
   {
     id: "analysis",

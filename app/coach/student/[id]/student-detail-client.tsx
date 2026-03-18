@@ -42,6 +42,7 @@ import { EncouragementTab } from "./tabs/encouragement-tab"
 import { AssessmentHistory } from "@/app/student/reflect/assessment-history"
 import { AchievementTabContent } from "@/app/student/reflect/achievement-tab-content"
 import { EncouragementHistory } from "@/app/student/reflect/encouragement-history"
+import { ExerciseReflectionTab } from "./tabs/exercise-reflection-tab"
 
 // 相対時間を計算するヘルパー
 function getRelativeTime(dateStr: string): string {
@@ -249,7 +250,7 @@ export function StudentDetailClient({ studentId, initialData }: StudentDetailCli
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => setActiveTab("coaching")}>
                   <MessageSquare className="h-4 w-4 mr-2" />
-                  ふりかえり履歴
+                  演習・ふりかえり
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => setActiveTab("settings")}>
@@ -296,7 +297,7 @@ export function StudentDetailClient({ studentId, initialData }: StudentDetailCli
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setActiveTab("coaching")}>
                   <MessageSquare className="h-4 w-4 mr-2" />
-                  ふりかえり履歴
+                  演習・ふりかえり
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => setActiveTab("settings")}>
@@ -485,13 +486,12 @@ export function StudentDetailClient({ studentId, initialData }: StudentDetailCli
             />
           </TabsContent>
 
-          {/* ふりかえり履歴タブ */}
+          {/* 演習・ふりかえりタブ */}
           <TabsContent value="coaching" className="mt-4">
-            <div className="text-center py-12 text-slate-500">
-              <MessageSquare className="h-12 w-12 mx-auto mb-4 text-slate-400" />
-              <p className="text-lg font-medium">ふりかえり履歴</p>
-              <p className="text-sm mt-2">この機能は今後実装予定です</p>
-            </div>
+            <ExerciseReflectionTab
+              studentId={isNaN(Number(studentId)) ? 0 : Number(studentId)}
+              studentGrade={student.grade}
+            />
           </TabsContent>
 
           {/* 設定タブ */}
