@@ -13,6 +13,7 @@ import { AchievementTabContent } from "@/app/student/reflect/achievement-tab-con
 import { StudyHistory } from "@/app/student/reflect/study-history"
 import { EncouragementHistory } from "@/app/student/reflect/encouragement-history"
 import { AssessmentHistory } from "@/app/student/reflect/assessment-history"
+import { ParentExerciseSection } from "./exercise-section"
 import {
   getParentChildren,
   getChildReflections,
@@ -311,12 +312,20 @@ export default function ParentReflectPage() {
           {/* 達成マップタブ */}
           <TabsContent value="achievement" className="space-y-4">
             {selectedChild && (
-              <AchievementTabContent
-                studentGrade={selectedChild.grade}
-                studentCourse={selectedChild.course}
-                viewerRole="parent"
-                studentId={selectedChildId !== null ? selectedChildId : undefined}
-              />
+              <>
+                <AchievementTabContent
+                  studentGrade={selectedChild.grade}
+                  studentCourse={selectedChild.course}
+                  viewerRole="parent"
+                  studentId={selectedChildId !== null ? selectedChildId : undefined}
+                />
+                {selectedChildId !== null && (
+                  <ParentExerciseSection
+                    studentId={selectedChildId}
+                    studentGrade={selectedChild.grade}
+                  />
+                )}
+              </>
             )}
           </TabsContent>
 
