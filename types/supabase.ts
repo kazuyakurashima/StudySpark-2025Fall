@@ -2173,6 +2173,14 @@ export type Database = {
         Args: { p_question_set_id: number }
         Returns: Json
       }
+      get_exercise_master_detail: {
+        Args: { p_question_set_id: number }
+        Returns: Json
+      }
+      get_exercise_master_summary: {
+        Args: { p_grade: number }
+        Returns: Json
+      }
       get_math_master_summary: { Args: { p_grade: number }; Returns: Json }
       get_sender_profile: {
         Args: { sender_id: string }
