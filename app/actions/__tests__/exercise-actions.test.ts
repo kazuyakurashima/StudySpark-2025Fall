@@ -241,13 +241,16 @@ describe('gradeExerciseSection', () => {
           // isFinal時の全回答取得
           return makeQuestionsChain(opts.allAnswersForFinal)
         }
-        return {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const saChain: any = {
           upsert: vi.fn(() => Promise.resolve(opts.upsertResult ?? { error: null })),
-          // thenable for select queries
-          then: (resolve: (v: unknown) => void) => resolve({ data: opts.allAnswersForFinal || [], error: null }),
-          select: vi.fn(function(this: unknown) { return this }),
-          eq: vi.fn(function(this: unknown) { return this }),
+          then: (resolve: (v: unknown) => void) => resolve({ data: opts.allAnswersForFinal || [], error: null, count: (opts.allAnswersForFinal || []).length }),
         }
+        // select('*', { count, head }) チェーン対応
+        saChain.select = vi.fn(() => saChain)
+        saChain.eq = vi.fn(() => saChain)
+        saChain.not = vi.fn(() => saChain)
+        return saChain
       }
       return makeChain(null)
     })

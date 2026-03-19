@@ -597,8 +597,26 @@ export async function gradeExerciseSection(input: {
       }
     }
 
-    // 最終セクション → session を graded に確定
-    if (input.isFinal) {
+    // セッション完了判定: クライアントの isFinal に加え、
+    // サーバー側でも全問回答済みかを自動検出して graded に確定する
+    // （クライアントが isFinal を送り損ねた場合のフォールバック）
+    let shouldFinalize = input.isFinal
+
+    if (!shouldFinalize) {
+      // 全問回答済みかサーバー側で確認
+      const { count: answeredCount } = await admin
+        .from('student_answers')
+        .select('*', { count: 'exact', head: true })
+        .eq('answer_session_id', sessionId)
+        .not('is_correct', 'is', null)
+
+      const totalQuestionCount = questions.length
+      if (answeredCount !== null && answeredCount >= totalQuestionCount) {
+        shouldFinalize = true
+      }
+    }
+
+    if (shouldFinalize) {
       // 全回答を集計
       const { data: allAnswers } = await admin
         .from('student_answers')
