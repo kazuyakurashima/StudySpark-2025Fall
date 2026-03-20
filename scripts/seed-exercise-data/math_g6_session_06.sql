@@ -36,7 +36,7 @@ BEGIN
   VALUES (v_qs_id, '1(1)', 'ステップ①', 'numeric', '4.8', 'km（時速）', 'A', 1);
 
   INSERT INTO questions (question_set_id, question_number, section_name, answer_type, correct_answer, unit_label, min_course, display_order)
-  VALUES (v_qs_id, '1(2)', 'ステップ①', 'numeric', '125', 'm（秒速）', 'A', 2);
+  VALUES (v_qs_id, '1(2)', 'ステップ①', 'numeric', '12.5', 'm（秒速）', 'A', 2);
 
   -- 1(3) ア…3　イ…20
   INSERT INTO questions (question_set_id, question_number, section_name, answer_type, correct_answer, answer_config, min_course, display_order)
