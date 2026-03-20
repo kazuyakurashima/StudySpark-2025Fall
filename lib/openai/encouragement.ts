@@ -78,7 +78,12 @@ async function getCachedMessages(cacheKey: string): Promise<string[] | null> {
     })
     .eq("cache_key", cacheKey)
 
-  return JSON.parse(data.cached_content) as string[]
+  try {
+    return JSON.parse(data.cached_content) as string[]
+  } catch {
+    console.warn("[Encouragement] Cache parse failed, treating as miss")
+    return null
+  }
 }
 
 /**
@@ -125,7 +130,7 @@ export async function generateEncouragementMessages(
         model,
         config: {
           systemInstruction: systemPrompt,
-          maxOutputTokens: 1500,
+          maxOutputTokens: 3000,
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -149,7 +154,7 @@ export async function generateEncouragementMessages(
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        max_completion_tokens: 1500,
+        max_completion_tokens: 3000,
         response_format: { type: "json_object" },
       })
       responseText = completion.choices[0]?.message?.content || ""
@@ -165,8 +170,30 @@ export async function generateEncouragementMessages(
     try {
       response = JSON.parse(responseText)
     } catch (parseError) {
-      console.error("[Encouragement] JSON parse failed. Raw:", responseText.slice(0, 500))
-      throw new Error(`JSON解析エラー: ${parseError instanceof Error ? parseError.message : String(parseError)}`)
+      console.error("[Encouragement] JSON parse failed (attempt 1). Raw:", responseText.slice(0, 500))
+      // リトライ: トークン不足で切れた可能性があるため再生成
+      try {
+        const retryText = provider === "gemini"
+          ? await (async () => {
+              const client = getGeminiClient()
+              const r = await client.models.generateContent({
+                model,
+                config: { systemInstruction: systemPrompt, maxOutputTokens: 3000, responseMimeType: "application/json", responseSchema: { type: Type.OBJECT, properties: { messages: { type: Type.ARRAY, items: { type: Type.STRING } } }, required: ["messages"] } },
+                contents: [{ role: "user" as const, parts: [{ text: userPrompt }] }],
+              })
+              return r.text?.trim() || ""
+            })()
+          : await (async () => {
+              const openai = getOpenAIClient()
+              const c = await openai.chat.completions.create({ model, messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }], max_completion_tokens: 3000, response_format: { type: "json_object" } })
+              return c.choices[0]?.message?.content || ""
+            })()
+        console.log("[Encouragement] retry response:", retryText.slice(0, 300))
+        response = JSON.parse(retryText)
+      } catch (retryError) {
+        console.error("[Encouragement] Retry also failed:", retryError)
+        throw new Error(`JSON解析エラー: ${parseError instanceof Error ? parseError.message : String(parseError)}`)
+      }
     }
     const messages = response.messages as string[]
 
@@ -330,7 +357,7 @@ export async function generatePersonalizedEncouragementMessage(
         model,
         config: {
           systemInstruction: systemPrompt,
-          maxOutputTokens: 1000,
+          maxOutputTokens: 2000,
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -351,7 +378,7 @@ export async function generatePersonalizedEncouragementMessage(
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        max_completion_tokens: 1000,
+        max_completion_tokens: 2000,
         response_format: { type: "json_object" },
       })
       responseText = completion.choices[0]?.message?.content || ""
@@ -368,10 +395,32 @@ export async function generatePersonalizedEncouragementMessage(
     try {
       parsed = JSON.parse(responseText)
     } catch (parseError) {
-      console.error("[Encouragement v2] JSON parse failed. Raw:", responseText.slice(0, 500))
-      throw new Error(
-        `JSON解析エラー: ${parseError instanceof Error ? parseError.message : String(parseError)}`
-      )
+      console.error("[Encouragement v2] JSON parse failed (attempt 1). Raw:", responseText.slice(0, 500))
+      // リトライ: トークン不足で切れた可能性があるため再生成
+      try {
+        const retryText = provider === "gemini"
+          ? await (async () => {
+              const client = getGeminiClient()
+              const r = await client.models.generateContent({
+                model,
+                config: { systemInstruction: systemPrompt, maxOutputTokens: 2000, responseMimeType: "application/json", responseSchema: { type: Type.OBJECT, properties: { message: { type: Type.STRING } }, required: ["message"] } },
+                contents: [{ role: "user" as const, parts: [{ text: userPrompt }] }],
+              })
+              return r.text?.trim() || ""
+            })()
+          : await (async () => {
+              const openai = getOpenAIClient()
+              const c = await openai.chat.completions.create({ model, messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }], max_completion_tokens: 2000, response_format: { type: "json_object" } })
+              return c.choices[0]?.message?.content || ""
+            })()
+        console.log("[Encouragement v2] retry response:", retryText.slice(0, 300))
+        parsed = JSON.parse(retryText)
+      } catch (retryError) {
+        console.error("[Encouragement v2] Retry also failed:", retryError)
+        throw new Error(
+          `JSON解析エラー: ${parseError instanceof Error ? parseError.message : String(parseError)}`
+        )
+      }
     }
 
     const message = parsed.message as string
