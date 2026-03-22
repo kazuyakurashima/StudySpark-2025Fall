@@ -5,6 +5,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ArrowLeft, Loader2 } from "lucide-react"
 import { useExerciseMasterDetail } from "@/lib/hooks/use-exercise-master"
 import type { ExerciseMasterQuestion, ExerciseMasterSectionStat } from "@/app/actions/exercise-master"
+import { ExerciseRadarChart } from "./exercise-radar-chart"
+import { ExerciseDistributionChart } from "./exercise-distribution-chart"
 
 interface ExerciseDetailMatrixProps {
   questionSetId: number
@@ -55,9 +57,17 @@ export function ExerciseDetailMatrix({ questionSetId, onBack }: ExerciseDetailMa
         </div>
       </div>
 
-      {/* セクション別正答率 */}
+      {/* セクション別正答率バー */}
       {sectionStats.length > 0 && (
         <SectionRateBars sectionStats={sectionStats} />
+      )}
+
+      {/* グラフ（レーダー＋分布）*/}
+      {(sectionStats.length >= 2 || students.length > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <ExerciseRadarChart sectionStats={sectionStats} />
+          <ExerciseDistributionChart students={students} />
+        </div>
       )}
 
       {/* マトリクス */}

@@ -10,6 +10,9 @@ import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { useExerciseMasterSummary } from "@/lib/hooks/use-exercise-master"
 import { ExerciseSummaryTable } from "./components/exercise-summary-table"
 import { ExerciseDetailMatrix } from "./components/exercise-detail-matrix"
+import { ExerciseTrendChart } from "./components/exercise-trend-chart"
+import { ExerciseRadarChart } from "./components/exercise-radar-chart"
+import { ExerciseDistributionChart } from "./components/exercise-distribution-chart"
 
 type GradeTab = 5 | 6
 
@@ -99,11 +102,14 @@ export default function ExerciseMasterPage() {
               onBack={() => setSelectedSetId(null)}
             />
           ) : (
-            <ExerciseSummaryTable
-              sessions={sessions}
-              totalStudents={totalStudents}
-              onSelectSet={(id) => setSelectedSetId(id)}
-            />
+            <>
+              <ExerciseTrendChart sessions={sessions} />
+              <ExerciseSummaryTable
+                sessions={sessions}
+                totalStudents={totalStudents}
+                onSelectSet={(id) => setSelectedSetId(id)}
+              />
+            </>
           )
         )}
       </div>
