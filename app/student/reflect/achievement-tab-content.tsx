@@ -5,6 +5,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { BookOpen, ClipboardList } from 'lucide-react'
 import { AchievementMap } from './achievement-map'
 import { ExerciseAchievementMap } from './exercise-achievement-map'
+import dynamic from 'next/dynamic'
+
+const ParentExerciseSection = dynamic(
+  () => import('@/app/parent/reflect/exercise-section').then(m => ({ default: m.ParentExerciseSection })),
+  { ssr: false }
+)
 
 interface Props {
   studentGrade: number
@@ -34,13 +40,20 @@ export function AchievementTabContent({
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="exercise">
+      <TabsContent value="exercise" className="space-y-4">
         <ExerciseAchievementMap
           studentGrade={studentGrade}
           studentCourse={studentCourse}
           viewerRole={viewerRole}
           studentId={studentId}
         />
+        {/* 保護者のみ: 演習詳細（セクション正答率・振り返り・AIコメント）*/}
+        {viewerRole === 'parent' && studentId != null && (
+          <ParentExerciseSection
+            studentId={studentId}
+            studentGrade={studentGrade}
+          />
+        )}
       </TabsContent>
 
       <TabsContent value="textbook">
