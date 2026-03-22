@@ -6,6 +6,7 @@ import {
   Radar,
   PolarGrid,
   PolarAngleAxis,
+  PolarRadiusAxis,
   ResponsiveContainer,
   Tooltip,
 } from "recharts"
@@ -34,10 +35,8 @@ export function ExerciseRadarChart({ sectionStats }: ExerciseRadarChartProps) {
         <ResponsiveContainer width="100%" height={220}>
           <RadarChart data={data}>
             <PolarGrid stroke="#e2e8f0" />
-            <PolarAngleAxis
-              dataKey="section"
-              tick={{ fontSize: 11 }}
-            />
+            <PolarAngleAxis dataKey="section" tick={{ fontSize: 11 }} />
+            <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
             <Tooltip
               formatter={(value: number) => [`${value}%`, "平均正答率"]}
               contentStyle={{ fontSize: 12, borderRadius: 8 }}

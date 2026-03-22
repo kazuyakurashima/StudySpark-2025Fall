@@ -8,11 +8,14 @@ import { BookOpen, RefreshCw, Loader2 } from "lucide-react"
 import { CoachBottomNavigation } from "@/components/coach-bottom-navigation"
 import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { useExerciseMasterSummary } from "@/lib/hooks/use-exercise-master"
+import dynamic from "next/dynamic"
 import { ExerciseSummaryTable } from "./components/exercise-summary-table"
 import { ExerciseDetailMatrix } from "./components/exercise-detail-matrix"
-import { ExerciseTrendChart } from "./components/exercise-trend-chart"
-import { ExerciseRadarChart } from "./components/exercise-radar-chart"
-import { ExerciseDistributionChart } from "./components/exercise-distribution-chart"
+
+const ExerciseTrendChart = dynamic(
+  () => import("./components/exercise-trend-chart").then((m) => ({ default: m.ExerciseTrendChart })),
+  { ssr: false }
+)
 
 type GradeTab = 5 | 6
 

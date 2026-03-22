@@ -5,8 +5,16 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ArrowLeft, Loader2 } from "lucide-react"
 import { useExerciseMasterDetail } from "@/lib/hooks/use-exercise-master"
 import type { ExerciseMasterQuestion, ExerciseMasterSectionStat } from "@/app/actions/exercise-master"
-import { ExerciseRadarChart } from "./exercise-radar-chart"
-import { ExerciseDistributionChart } from "./exercise-distribution-chart"
+import dynamic from "next/dynamic"
+
+const ExerciseRadarChart = dynamic(
+  () => import("./exercise-radar-chart").then((m) => ({ default: m.ExerciseRadarChart })),
+  { ssr: false }
+)
+const ExerciseDistributionChart = dynamic(
+  () => import("./exercise-distribution-chart").then((m) => ({ default: m.ExerciseDistributionChart })),
+  { ssr: false }
+)
 
 interface ExerciseDetailMatrixProps {
   questionSetId: number
@@ -62,8 +70,8 @@ export function ExerciseDetailMatrix({ questionSetId, onBack }: ExerciseDetailMa
         <SectionRateBars sectionStats={sectionStats} />
       )}
 
-      {/* グラフ（レーダー＋分布）*/}
-      {(sectionStats.length >= 2 || students.length > 0) && (
+      {/* グラフ（レーダー＋分布）— 両方揃った時のみ2カラム表示 */}
+      {sectionStats.length >= 2 && students.some((s) => s.accuracy_rate != null) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <ExerciseRadarChart sectionStats={sectionStats} />
           <ExerciseDistributionChart students={students} />

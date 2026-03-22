@@ -32,7 +32,8 @@ export function ExerciseDistributionChart({ students }: ExerciseDistributionChar
   const data = BANDS.map((band) => ({
     label: band.label,
     count: submitted.filter((s) => {
-      const rate = (s.accuracy_rate ?? 0) * 100
+      // 小数誤差を排除するため整数丸め後にビン判定
+      const rate = Math.round((s.accuracy_rate ?? 0) * 100)
       return rate >= band.min && rate < band.max
     }).length,
     color: band.color,
