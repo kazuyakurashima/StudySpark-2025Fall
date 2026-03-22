@@ -19,6 +19,7 @@ export interface ExerciseAchievementQuestion {
 export interface ExerciseAchievementData {
   sessionNumber: number
   sessionId: number
+  questionSetId: number
   questions: ExerciseAchievementQuestion[]
 }
 
@@ -203,6 +204,7 @@ export async function getExerciseAchievementMapData(options?: {
       return {
         sessionNumber: sessionInfo.session_number,
         sessionId: qs.session_id,
+        questionSetId: qs.id,
         questions: mappedQuestions,
       }
     })

@@ -20,6 +20,8 @@ interface Props {
   studentCourse?: string
   viewerRole?: 'student' | 'parent' | 'coach'
   studentId?: number  // 指導者・保護者用（checkStudentAccessで認可済み）
+  selectedSessionNumber?: number | null  // 選択中のセッション番号（ハイライト用）
+  onSessionClick?: (questionSetId: number, sessionNumber: number) => void  // セッション行クリック時
 }
 
 // セクション列の定義
@@ -61,6 +63,8 @@ export function ExerciseAchievementMap({
   studentGrade,
   studentCourse = 'B',
   studentId,
+  selectedSessionNumber = null,
+  onSessionClick,
 }: Props) {
   const [isLoading, setIsLoading] = useState(true)
   const [data, setData] = useState<ExerciseAchievementData[]>([])
@@ -153,6 +157,9 @@ export function ExerciseAchievementMap({
     return <div className="text-center py-8 text-muted-foreground">まだデータがありません</div>
   }
 
+  // questionSetId を sessionNumber で引けるマップ
+  const questionSetIdMap = new Map(data.map(d => [d.sessionNumber, d.questionSetId]))
+
   const gridMap = new Map(gridData.map(g => [g.sessionNumber, g.sections]))
 
   return (
@@ -244,11 +251,27 @@ export function ExerciseAchievementMap({
               <tbody>
                 {allSessionNumbers.map(sessionNum => {
                   const sessionData = gridMap.get(sessionNum)
+                  const questionSetId = questionSetIdMap.get(sessionNum)
+                  const isClickable = !!onSessionClick && !!questionSetId
+                  const isSelected = selectedSessionNumber === sessionNum
 
                   return (
-                    <tr key={sessionNum}>
-                      <td className="sticky left-0 bg-white z-10 text-xs sm:text-sm font-medium p-1 sm:p-2 border-b whitespace-nowrap">
-                        第{sessionNum}回
+                    <tr
+                      key={sessionNum}
+                      onClick={() => isClickable && onSessionClick!(questionSetId!, sessionNum)}
+                      className={cn(
+                        isClickable && "cursor-pointer hover:bg-blue-50/50 transition-colors",
+                        isSelected && "bg-blue-50"
+                      )}
+                    >
+                      <td className={cn(
+                        "sticky left-0 z-10 text-xs sm:text-sm font-medium p-1 sm:p-2 border-b whitespace-nowrap",
+                        isSelected ? "bg-blue-50" : "bg-white"
+                      )}>
+                        <span className="flex items-center gap-1">
+                          第{sessionNum}回
+                          {isSelected && <span className="text-blue-600 text-[10px]">▼</span>}
+                        </span>
                       </td>
                       {activeSectionColumns.map(col => {
                         const sec = sessionData?.[col.key]
