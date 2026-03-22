@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { BookOpen, ClipboardList } from 'lucide-react'
+import { BookOpen, ClipboardList, ChevronDown, ChevronUp, Map } from 'lucide-react'
 import { AchievementMap } from './achievement-map'
 import { ExerciseAchievementMap } from './exercise-achievement-map'
 import dynamic from 'next/dynamic'
@@ -26,6 +26,8 @@ export function AchievementTabContent({
   studentId,
 }: Props) {
   const [subtab, setSubtab] = useState<string>('exercise')
+  // 保護者のみ: 到達マップは初期折りたたみ
+  const [mapOpen, setMapOpen] = useState(viewerRole !== 'parent')
 
   return (
     <Tabs value={subtab} onValueChange={setSubtab} className="w-full">
@@ -41,17 +43,45 @@ export function AchievementTabContent({
       </TabsList>
 
       <TabsContent value="exercise" className="space-y-4">
-        <ExerciseAchievementMap
-          studentGrade={studentGrade}
-          studentCourse={studentCourse}
-          viewerRole={viewerRole}
-          studentId={studentId}
-        />
-        {/* 保護者のみ: 演習詳細（セクション正答率・振り返り・AIコメント）*/}
+        {/* 保護者: 結果ファースト（主目的を先頭に） */}
         {viewerRole === 'parent' && studentId != null && (
           <ParentExerciseSection
             studentId={studentId}
             studentGrade={studentGrade}
+          />
+        )}
+
+        {/* 到達マップ: 保護者のみ折りたたみ制御 */}
+        {viewerRole === 'parent' ? (
+          <div className="space-y-0">
+            <button
+              onClick={() => setMapOpen(v => !v)}
+              className="w-full flex items-center justify-between px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 rounded-lg transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <Map className="h-4 w-4" />
+                到達マップを{mapOpen ? '閉じる' : '見る'}
+              </span>
+              {mapOpen
+                ? <ChevronUp className="h-4 w-4" />
+                : <ChevronDown className="h-4 w-4" />
+              }
+            </button>
+            {mapOpen && (
+              <ExerciseAchievementMap
+                studentGrade={studentGrade}
+                studentCourse={studentCourse}
+                viewerRole={viewerRole}
+                studentId={studentId}
+              />
+            )}
+          </div>
+        ) : (
+          <ExerciseAchievementMap
+            studentGrade={studentGrade}
+            studentCourse={studentCourse}
+            viewerRole={viewerRole}
+            studentId={studentId}
           />
         )}
       </TabsContent>
