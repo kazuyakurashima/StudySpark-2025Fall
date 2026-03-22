@@ -228,43 +228,115 @@ useExerciseMasterDetail(qsId)     // 詳細用
 
 ## 4. 実装フェーズ
 
-### Phase 1: バックエンド基盤（ブランチ: `feature/exercise-coach-view`）
+### Phase 1: バックエンド基盤 ✅ 完了（2026-03-18）
 
-| # | タスク | 工数目安 |
-|---|--------|---------|
-| 1-1 | `get_exercise_master_summary` RPC（マイグレーション） | 中 |
-| 1-2 | `get_exercise_master_detail` RPC（マイグレーション） | 中 |
-| 1-3 | Server Action 3関数（exercise-master.ts 新規） | 中 |
-| 1-4 | API Route 3エンドポイント | 小 |
-| 1-5 | テスト（RPC + Action） | 中 |
+**ブランチ**: `feature/exercise-coach-view` → main マージ済み
+**マイグレーション**: `20260318000001_create_exercise_master_rpcs.sql`（本番適用済み）
 
-### Phase 2: 指導者画面（同ブランチ続行 or `feature/exercise-coach-ui`）
+| # | タスク | 状態 | 実装ファイル |
+|---|--------|------|------------|
+| 1-1 | `get_exercise_master_summary` RPC | ✅ | `supabase/migrations/20260318000001_create_exercise_master_rpcs.sql` |
+| 1-2 | `get_exercise_master_detail` RPC | ✅ | 同上 |
+| 1-3 | Server Action 3関数 | ✅ | `app/actions/exercise-master.ts` |
+| 1-4 | API Route 3エンドポイント | ✅ | `app/api/coach/exercise-master/summary/`, `detail/`, `student/[id]/exercise-reflections/` |
+| 1-5 | テスト（RPC + Action） | ✅ | `app/actions/__tests__/exercise-master.test.ts`（13件） |
 
-| # | タスク | 工数目安 |
-|---|--------|---------|
-| 2-1 | 演習問題集一覧ページ（サマリー表） | 中 |
-| 2-2 | 正誤マトリクスコンポーネント | 中 |
-| 2-3 | セクション別正答率バー | 小 |
-| 2-4 | 生徒詳細「演習・ふりかえり」タブ | 中 |
-| 2-5 | 振り返り+AIフィードバック閲覧ビュー | 小 |
-| 2-6 | ナビゲーション更新 | 小 |
+**追加実装（Phase 3対応で追加）**:
+- `getStudentExerciseSessions()` — 対象生徒のgraded済みセッション一覧（指導者・保護者共用）
+- `getStudentExerciseReflections()` — 振り返り+AIフィードバック閲覧
+- `getParentExerciseDetail()` — 保護者向け1回分詳細（セクション正答率+振り返り、is_latest=trueで最新のみ取得）
 
-### Phase 3: 保護者画面（ブランチ: `feature/exercise-parent-view`）
+---
 
-| # | タスク | 工数目安 |
-|---|--------|---------|
-| 3-1 | 保護者向けServer Action（既存拡張） | 小 |
-| 3-2 | `app/parent/reflect/page.tsx` 演習タブ拡張 | 中 |
-| 3-3 | 振り返り+AIフィードバック閲覧（保護者版） | 小 |
-| 3-4 | クラス平均（同学年全体）との比較表示 | 小 |
+### Phase 2: 指導者画面 ✅ 完了（2026-03-18）
 
-### Phase 4: グラフ・可視化（ブランチ: `feature/exercise-charts`）
+**ブランチ**: `feature/exercise-coach-view` → main マージ済み
 
-| # | タスク | 工数目安 |
-|---|--------|---------|
-| 4-1 | セッション間正答率推移グラフ（Recharts） | 中 |
-| 4-2 | セクション別レーダーチャート（任意） | 中 |
-| 4-3 | クラス分布グラフ | 小 |
+| # | タスク | 状態 | 実装ファイル |
+|---|--------|------|------------|
+| 2-1 | 演習問題集一覧ページ（サマリー表） | ✅ | `app/coach/exercise-master/page.tsx` |
+| 2-2 | 正誤マトリクスコンポーネント | ✅ | `app/coach/exercise-master/components/exercise-detail-matrix.tsx` |
+| 2-3 | セクション別正答率バー | ✅ | 同上（インライン実装） |
+| 2-4 | 生徒詳細「演習・ふりかえり」タブ | ✅ | `app/coach/student/[id]/tabs/exercise-reflection-tab.tsx` |
+| 2-5 | 振り返り+AIフィードバック閲覧ビュー | ✅ | 同上（インライン実装） |
+| 2-6 | ナビゲーション更新 | ✅ | `components/coach-bottom-navigation.tsx`（5タブ化） |
+| 2-7 | SWR Hook | ✅ | `lib/hooks/use-exercise-master.ts` |
+
+---
+
+### Phase 3: 保護者画面 ✅ 完了（2026-03-22）
+
+**ブランチ**: `feature/exercise-parent-view`, `feature/exercise-parent-view-fix` → main マージ済み
+
+| # | タスク | 状態 | 実装ファイル |
+|---|--------|------|------------|
+| 3-1 | 保護者向けServer Action（`getParentExerciseDetail`） | ✅ | `app/actions/exercise-master.ts` |
+| 3-2 | 演習タブ拡張（サマリーカード+アコーディオン） | ✅ | `app/parent/reflect/exercise-section.tsx` |
+| 3-3 | セクション別正答率バー | ✅ | 同上（インライン実装） |
+| 3-4 | AIフィードバック閲覧（保護者版） | ✅ | 同上 |
+| 3-5 | 演習結果を演習タブ内のみに配置（バグ修正） | ✅ | `app/student/reflect/achievement-tab-content.tsx` |
+
+**クラス平均との比較**: 未実装（将来対応）
+
+**UX修正履歴**:
+- 初期: `ParentExerciseSection` が `AchievementTabContent` 外側に配置 → 両サブタブで表示されるバグ → 修正済み
+- 初期: 到達マップ → 結果の順序 → 結果ファースト（保護者のみ）に変更
+- 初期: 到達マップをデフォルト折りたたみに変更（「到達マップを見る ▼」トグル）
+- **現在の課題（未解決）**: 保護者にとって「到達マップ」と「演習結果一覧」の情報が分断されており、到達マップのセルをタップしても詳細に遷移できない。詳細は Phase 5 で対応予定。
+
+---
+
+### Phase 4: グラフ・可視化 ✅ 完了（2026-03-22）
+
+**ブランチ**: `feature/exercise-graph-visualization` → main マージ済み
+
+| # | タスク | 状態 | 実装ファイル |
+|---|--------|------|------------|
+| 4-1 | セッション間正答率推移グラフ（Recharts LineChart） | ✅ | `app/coach/exercise-master/components/exercise-trend-chart.tsx` |
+| 4-2 | セクション別レーダーチャート | ✅ | `app/coach/exercise-master/components/exercise-radar-chart.tsx` |
+| 4-3 | クラス分布グラフ（BarChart, 5帯域） | ✅ | `app/coach/exercise-master/components/exercise-distribution-chart.tsx` |
+
+**配置**: 推移グラフは一覧ページ上部、レーダー+分布グラフは詳細ページ内に2カラムで表示。
+**パフォーマンス**: 3グラフとも `next/dynamic` + `ssr: false` で遅延読み込み済み。
+
+---
+
+### Phase 5: 保護者向け到達マップ連携（未着手）
+
+**背景**: Phase 3完了後のUXレビューで、保護者の到達マップUIに以下の問題が確認された。
+
+**現在の課題**:
+1. 到達マップ（ヘックスグリッド）のセルをタップしても詳細に遷移できない
+2. 到達マップ（概観）と演習結果一覧（詳細）が分断されており、操作の一貫性がない
+3. 「到達マップを見る ▼」トグルが到達マップを補助情報として扱っているが、到達マップは本来主たるナビゲーションであるべき
+
+**設計方針**（確定済み）:
+- 到達マップをデフォルト展開（主役に戻す）
+- セッションセルをタップ → その下にセクション別正答率＋振り返り＋AIコメントが展開
+- 結果サマリーはマップ上部に小さく表示、または全体サマリーとしてマップと統合
+
+**想定UX**:
+```
+[演習問題集タブ]
+├── サマリーカード（提出数・平均正答率）
+└── 到達マップ（デフォルト展開）
+    └── セッションセル（第6回: 72% など）
+        └── タップ → 展開
+            ├── セクション別正答率バー（ステップ①②③）
+            ├── 振り返りテキスト
+            └── AIコーチコメント
+```
+
+**将来対応**:
+- 問題単位の○×表示（現在は指導者のみ）を保護者にも開放するか検討
+- 理科・社会の演習問題集追加時に、科目タブを追加
+
+| # | タスク | 状態 |
+|---|--------|------|
+| 5-1 | 到達マップをデフォルト展開に戻す（トグル廃止） | 未着手 |
+| 5-2 | セッションセルタップ → セクション詳細展開 | 未着手 |
+| 5-3 | `ExerciseAchievementMap` にクリックハンドラ追加 | 未着手 |
+| 5-4 | 詳細展開コンポーネント（セクションバー+振り返り）の統合 | 未着手 |
 
 ---
 
@@ -311,3 +383,9 @@ Phase 4（グラフ）    ← Phase 2, 3 完了後（独立でも可）
 |------|------|
 | 2026-03-18 | 初版作成 |
 | 2026-03-18 | レビュー指摘反映: RLS追加不要（既存ポリシー確認）、RPC引数をauth.uid()内部解決に修正、保護者画面をreflect/page.tsxに統合、参照先修正、クラス平均母集団を同学年全体に確定 |
+| 2026-03-18 | Phase 1（バックエンド）実装完了・本番マイグレーション適用 |
+| 2026-03-18 | Phase 2（指導者画面）実装完了・本番デプロイ |
+| 2026-03-22 | Phase 3（保護者画面）実装完了: `getParentExerciseDetail`、アコーディオンUI、セクション正答率バー |
+| 2026-03-22 | Phase 3 UXバグ修正: 演習結果が両サブタブで表示されるバグ修正、結果ファースト配置に変更 |
+| 2026-03-22 | Phase 4（グラフ・可視化）実装完了: 推移・レーダー・分布グラフをnext/dynamic遅延読み込みで追加 |
+| 2026-03-22 | Phase 5を追加: 保護者向け到達マップ連携（到達マップ→詳細ドリルダウン）を未着手フェーズとして計画 |
