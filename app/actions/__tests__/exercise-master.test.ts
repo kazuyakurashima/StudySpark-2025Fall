@@ -40,6 +40,7 @@ import {
   getExerciseMasterSummary,
   getExerciseMasterDetail,
   getStudentExerciseReflections,
+  getParentExerciseDetail,
 } from '@/app/actions/exercise-master'
 
 // ================================================================
@@ -213,6 +214,96 @@ describe('getStudentExerciseReflections', () => {
     const result = await getStudentExerciseReflections(1, 100)
 
     expect(result.data).toEqual([])
+    expect(result.error).toBeUndefined()
+  })
+})
+
+// ================================================================
+// getParentExerciseDetail
+// ================================================================
+
+describe('getParentExerciseDetail', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockAuthGetUser.mockResolvedValue({ data: { user: { id: 'parent-uuid' } } })
+  })
+
+  it('未認証の場合はエラーを返す', async () => {
+    mockAuthGetUser.mockResolvedValue({ data: { user: null } })
+
+    const result = await getParentExerciseDetail(1, 100)
+
+    expect(result.data).toBeNull()
+    expect(result.error).toBe('認証が必要です')
+  })
+
+  it('アクセス権限なしの場合はエラーを返す', async () => {
+    mockCheckStudentAccess.mockResolvedValue(false)
+
+    const result = await getParentExerciseDetail(1, 100)
+
+    expect(result.data).toBeNull()
+    expect(result.error).toBe('アクセス権限がありません')
+  })
+
+  it('最新セッション取得後にセクション正答率と振り返りを返す', async () => {
+    mockCheckStudentAccess.mockResolvedValue(true)
+
+    const sessionRow = [{ id: 10 }]
+    const answerRows = [
+      { is_correct: true, questions: { section_name: 'ステップ①' } },
+      { is_correct: false, questions: { section_name: 'ステップ①' } },
+      { is_correct: true, questions: { section_name: 'ステップ②' } },
+    ]
+    const reflectionRows = [
+      {
+        id: 1,
+        section_name: 'ステップ①',
+        reflection_text: '難しかった',
+        attempt_number: 1,
+        created_at: '2026-03-20T10:00:00Z',
+        exercise_feedbacks: [{ feedback_text: 'よく頑張りました！' }],
+      },
+    ]
+
+    mockAdminFrom.mockImplementation((table: string) => {
+      if (table === 'answer_sessions') {
+        const chain = makeChain(sessionRow)
+        chain.limit = vi.fn(() => Promise.resolve({ data: sessionRow, error: null }))
+        return chain
+      }
+      if (table === 'student_answers') return makeChain(answerRows)
+      if (table === 'exercise_reflections') return makeChain(reflectionRows)
+      return makeChain([])
+    })
+
+    const result = await getParentExerciseDetail(1, 100)
+
+    expect(result.error).toBeUndefined()
+    expect(result.data).not.toBeNull()
+    const step1 = result.data!.sectionStats.find(s => s.sectionName === 'ステップ①')
+    expect(step1?.correctCount).toBe(1)
+    expect(step1?.totalCount).toBe(2)
+    expect(step1?.accuracyRate).toBe(50)
+    expect(result.data!.reflections).toHaveLength(1)
+    expect(result.data!.reflections[0].feedbackText).toBe('よく頑張りました！')
+  })
+
+  it('採点済みセッションがない場合は空データを返す', async () => {
+    mockCheckStudentAccess.mockResolvedValue(true)
+
+    mockAdminFrom.mockImplementation((table: string) => {
+      if (table === 'answer_sessions') {
+        const chain = makeChain([])
+        chain.limit = vi.fn(() => Promise.resolve({ data: [], error: null }))
+        return chain
+      }
+      return makeChain([])
+    })
+
+    const result = await getParentExerciseDetail(1, 100)
+
+    expect(result.data).toEqual({ sectionStats: [], reflections: [] })
     expect(result.error).toBeUndefined()
   })
 })

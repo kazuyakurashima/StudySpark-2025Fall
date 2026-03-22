@@ -329,13 +329,15 @@ export async function getParentExerciseDetail(
 
     const admin = createAdminClient()
 
-    // 対象セッションを取得
+    // 最新セッションのみ取得（is_latest=true）— サマリーの正答率と一致させる
     const { data: sessions } = await admin
       .from('answer_sessions')
       .select('id')
       .eq('student_id', studentId)
       .eq('question_set_id', questionSetId)
       .eq('status', 'graded')
+      .eq('is_latest', true)
+      .limit(1)
 
     if (!sessions || sessions.length === 0) {
       return { data: { sectionStats: [], reflections: [] } }
@@ -370,6 +372,14 @@ export async function getParentExerciseDetail(
         .order('section_name')
         .order('attempt_number', { ascending: true }),
     ])
+
+    // エラーハンドリング: 致命的失敗はログ+空データで続行（非致命的扱い）
+    if (answersResult.error) {
+      console.error('[getParentExerciseDetail] answers error:', answersResult.error)
+    }
+    if (reflectionsResult.error) {
+      console.error('[getParentExerciseDetail] reflections error:', reflectionsResult.error)
+    }
 
     // セクション別正答率を集計
     const sectionMap = new Map<string, { correct: number; total: number }>()
