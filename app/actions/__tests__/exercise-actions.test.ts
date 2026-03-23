@@ -28,7 +28,7 @@ vi.mock('@/lib/math-answer-utils', () => ({
 }))
 
 // exercise.ts をトップレベルでimport（vi.mockより後に）
-import { saveAndGradeExerciseAnswers, gradeExerciseSection } from '@/app/actions/exercise'
+import { saveAndGradeExerciseAnswers, gradeExerciseSection, loadExerciseBundle } from '@/app/actions/exercise'
 
 // ================================================================
 // ヘルパー
@@ -406,5 +406,137 @@ describe('gradeExerciseSection', () => {
 
     expect(result.error).toBeUndefined()
     expect(result.attemptNumber).toBe(3) // サーバーのDBの値が返る
+  })
+})
+
+// ================================================================
+// loadExerciseBundle テスト
+// ================================================================
+
+describe('loadExerciseBundle', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  // .select().eq()...maybeSingle() → Promise チェーン
+  function makeMaybeSingleChain(data: unknown) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const chain: any = {}
+    for (const m of ['select', 'eq', 'is', 'neq', 'order', 'in']) chain[m] = vi.fn(() => chain)
+    chain.single = vi.fn(() => Promise.resolve({ data, error: null }))
+    chain.maybeSingle = vi.fn(() => Promise.resolve({ data, error: null }))
+    chain.then = (resolve: (v: unknown) => void) => resolve({ data: data ? [data] : [], error: null })
+    return chain
+  }
+
+  it('初回アクセス（history なし）: questionSet + questions のみ返却', async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'students') return makeChain({ id: 1, grade: 5, course: 'A' })
+      if (table === 'question_sets') return makeChain({
+        id: 100, title: '小5第1回 算数 演習問題集', study_sessions: { session_number: 1 },
+      })
+      if (table === 'questions') return makeQuestionsChain([
+        { id: 1, question_number: '1(1)', section_name: 'ステップ①', answer_type: 'numeric', unit_label: null, answer_config: null, points: 1, display_order: 1, min_course: 'A' },
+      ])
+      if (table === 'answer_sessions') return makeMaybeSingleChain(null) // 未着手
+      return makeMaybeSingleChain(null)
+    })
+
+    const result = await loadExerciseBundle(1, 1)
+
+    expect(result.error).toBeUndefined()
+    expect(result.questionSet).not.toBeNull()
+    expect(result.questionSet!.title).toContain('小5第1回')
+    expect(result.questions).toHaveLength(1)
+    expect(result.history).toBeNull()
+    expect(result.reflections).toEqual([])
+    expect(result.feedbacks).toEqual([])
+  })
+
+  it('採点済み復元: 全フィールドに値が返却される', async () => {
+    let answerSessionCallCount = 0
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'students') return makeChain({ id: 1, grade: 5, course: 'A' })
+      if (table === 'question_sets') return makeChain({
+        id: 100, title: '小5第1回 算数 演習問題集', study_sessions: { session_number: 1 },
+      })
+      if (table === 'questions') return makeQuestionsChain([
+        { id: 1, question_number: '1(1)', section_name: 'ステップ①', answer_type: 'numeric', unit_label: null, answer_config: null, points: 1, display_order: 1, min_course: 'A' },
+      ])
+      if (table === 'answer_sessions') {
+        answerSessionCallCount++
+        if (answerSessionCallCount === 1) {
+          // is_latest=true セッション取得
+          return makeMaybeSingleChain({ id: 50, attempt_number: 1, total_score: 1, max_score: 1 })
+        }
+        // allSessions取得
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const chain: any = {}
+        for (const m of ['select', 'eq', 'order']) chain[m] = vi.fn(() => chain)
+        chain.then = (resolve: (v: unknown) => void) => resolve({ data: [{ id: 50, attempt_number: 1 }], error: null })
+        return chain
+      }
+      if (table === 'student_answers') return makeQuestionsChain([
+        { question_id: 1, raw_input: '12', is_correct: true },
+      ])
+      if (table === 'exercise_reflections') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const chain: any = {}
+        for (const m of ['select', 'eq', 'order', 'in']) chain[m] = vi.fn(() => chain)
+        chain.then = (resolve: (v: unknown) => void) => resolve({ data: [
+          { id: 10, section_name: 'ステップ①', reflection_text: 'がんばった', attempt_number: 1, answer_session_id: 50 },
+        ], error: null })
+        return chain
+      }
+      if (table === 'exercise_feedbacks') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const chain: any = {}
+        for (const m of ['select', 'in']) chain[m] = vi.fn(() => chain)
+        chain.then = (resolve: (v: unknown) => void) => resolve({ data: [
+          { exercise_reflection_id: 10, feedback_text: 'よくがんばったね' },
+        ], error: null })
+        return chain
+      }
+      return makeMaybeSingleChain(null)
+    })
+
+    const result = await loadExerciseBundle(1, 1)
+
+    expect(result.error).toBeUndefined()
+    expect(result.questionSet).not.toBeNull()
+    expect(result.questions).toHaveLength(1)
+    expect(result.history).not.toBeNull()
+    expect(result.history!.answerSessionId).toBe(50)
+    expect(result.history!.totalScore).toBe(1)
+    expect(result.history!.answers).toHaveLength(1)
+    expect(result.reflections).toHaveLength(1)
+    expect(result.reflections[0].reflectionText).toBe('がんばった')
+    expect(result.feedbacks).toHaveLength(1)
+    expect(result.feedbacks[0].feedbackText).toBe('よくがんばったね')
+  })
+
+  it('questions取得失敗: errorフィールドにメッセージが返される', async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'students') return makeChain({ id: 1, grade: 5, course: 'A' })
+      if (table === 'question_sets') return makeChain({
+        id: 100, title: 'テスト', study_sessions: { session_number: 1 },
+      })
+      if (table === 'questions') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const chain: any = {}
+        for (const m of ['select', 'eq', 'order']) chain[m] = vi.fn(() => chain)
+        chain.then = (resolve: (v: unknown) => void) => resolve({ data: null, error: { message: 'DB connection lost' } })
+        return chain
+      }
+      if (table === 'answer_sessions') return makeMaybeSingleChain(null)
+      return makeMaybeSingleChain(null)
+    })
+
+    const result = await loadExerciseBundle(1, 1)
+
+    expect(result.error).toBe('問題データの取得に失敗しました')
+    expect(result.questions).toEqual([])
+    expect(result.history).toBeNull()
   })
 })
