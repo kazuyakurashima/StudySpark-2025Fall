@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, BookOpen, FileText, MessageSquare, Activity, Shield } from "lucide-react"
 import AdminBottomNavigation from "@/components/admin-bottom-navigation"
-import AdminLogoutButton from "./admin-logout-button"
+import { UserProfileHeader } from "@/components/common/user-profile-header"
 import { getSystemStats, getRecentAuditLogs } from "@/app/actions/admin"
 
 export default async function AdminDashboardPage() {
@@ -38,22 +38,7 @@ export default async function AdminDashboardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-24">
       {/* Header */}
-      <div className="bg-card/80 backdrop-blur-sm border-b border-border/50 p-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                <Shield className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">管理者ダッシュボード</h1>
-                <p className="text-sm text-muted-foreground">ようこそ、{admin.full_name}さん</p>
-              </div>
-            </div>
-            <AdminLogoutButton />
-          </div>
-        </div>
-      </div>
+      <UserProfileHeader />
 
       <div className="max-w-7xl mx-auto p-4 space-y-6">
         {/* システム統計 */}
