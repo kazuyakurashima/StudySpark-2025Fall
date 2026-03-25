@@ -65,6 +65,12 @@ interface DashboardData {
     details: Array<{ content: string; remaining: number }>
   }>
   sessionNumber: number | null
+  specialPeriod: {
+    type: string
+    label: string
+    message: string
+    description: string
+  } | null
   reflectionCompleted: boolean
   liveUpdates: Array<{
     subject: string
@@ -1659,6 +1665,7 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
   const calendarData = swrData?.calendar?.calendarData ?? initialData.calendarData
   const weeklyProgress = swrData?.weeklyProgress?.progress ?? initialData.weeklyProgress
   const sessionNumber = swrData?.weeklyProgress?.sessionNumber ?? initialData.sessionNumber
+  const specialPeriod = initialData.specialPeriod
   const reflectionCompleted = swrData?.reflection?.completed ?? initialData.reflectionCompleted
   const liveUpdates = swrData?.liveUpdates?.updates ?? initialData.liveUpdates
   const lastUpdateTime = swrData?.liveUpdates?.lastUpdateTime ?? initialData.lastUpdateTime
@@ -1743,6 +1750,21 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
         />
 
         <div className="max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+        {specialPeriod && (
+          <Card className="shadow-lg border-0 bg-gradient-to-r from-pink-50 via-orange-50 to-yellow-50 ring-1 ring-pink-200/50">
+            <CardContent className="py-5 px-6">
+              <div className="flex items-start gap-4">
+                <span className="text-3xl" role="img" aria-label={specialPeriod.label}>
+                  {specialPeriod.type === 'spring_break' ? '🌸' : '🌴'}
+                </span>
+                <div>
+                  <p className="font-bold text-lg text-pink-800">{specialPeriod.message}</p>
+                  <p className="text-sm text-pink-600 mt-1 leading-relaxed">{specialPeriod.description}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
         <div className="space-y-8 lg:space-y-0">
           {/* スマホでの表示順序 */}
           <div className="lg:hidden space-y-8">
@@ -1839,9 +1861,11 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
                     }
                   >
                     <p className="text-lg leading-relaxed text-slate-700 font-medium mb-6">
-                      {aiCoachMessage || "今日も一緒に頑張ろう！"}
+                      {specialPeriod
+                        ? `${specialPeriod.label}期間です。これまでの復習や、演習問題集に取り組んでみましょう！`
+                        : (aiCoachMessage || "今日も一緒に頑張ろう！")}
                     </p>
-                    {aiCoachMessageCreatedAt && (
+                    {!specialPeriod && aiCoachMessageCreatedAt && (
                       <div className="text-right">
                         <span className="text-xs text-gray-400">作成: {formatDateTime(aiCoachMessageCreatedAt)}</span>
                       </div>
@@ -1995,9 +2019,11 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
                       }
                     >
                       <p className="text-lg leading-relaxed text-slate-700 font-medium mb-6">
-                        {aiCoachMessage || "今日も一緒に頑張ろう！"}
+                        {specialPeriod
+                          ? `${specialPeriod.label}期間です。これまでの復習や、演習問題集に取り組んでみましょう！`
+                          : (aiCoachMessage || "今日も一緒に頑張ろう！")}
                       </p>
-                      {aiCoachMessageCreatedAt && (
+                      {!specialPeriod && aiCoachMessageCreatedAt && (
                         <div className="text-right">
                           <span className="text-xs text-gray-400">作成: {formatDateTime(aiCoachMessageCreatedAt)}</span>
                         </div>

@@ -1688,6 +1688,9 @@ function ParentDashboardInner({
   const [sessionNumber, setSessionNumber] = useState<number | null>(
     initialData && !isError(initialData.weeklyProgress) ? initialData.weeklyProgress.sessionNumber : null
   )
+  const [specialPeriod, setSpecialPeriod] = useState<{ type: string; label: string; message: string; description: string } | null>(
+    initialData && !isError(initialData.weeklyProgress) ? initialData.weeklyProgress.specialPeriod || null : null
+  )
   const [isLoading, setIsLoading] = useState(!initialData)
   const [isReflectCompleted, setIsReflectCompleted] = useState(
     initialData && !isError(initialData.reflectionStatus) ? initialData.reflectionStatus.completed : false
@@ -1768,6 +1771,7 @@ function ParentDashboardInner({
       if (!isError(initialData.weeklyProgress)) {
         setWeeklyProgress(initialData.weeklyProgress.progress)
         setSessionNumber(initialData.weeklyProgress.sessionNumber)
+        setSpecialPeriod(initialData.weeklyProgress.specialPeriod || null)
       }
 
       if (!isError(initialData.calendarData)) {
@@ -1829,6 +1833,7 @@ function ParentDashboardInner({
     if (!swrData.weeklyProgress.error) {
       setWeeklyProgress(swrData.weeklyProgress.progress)
       setSessionNumber(swrData.weeklyProgress.sessionNumber)
+      setSpecialPeriod(swrData.weeklyProgress.specialPeriod || null)
     }
 
     // カレンダー
@@ -1962,6 +1967,21 @@ function ParentDashboardInner({
         </div>
 
         <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+          {specialPeriod && (
+            <Card className="shadow-lg border-0 bg-gradient-to-r from-pink-50 via-orange-50 to-yellow-50 ring-1 ring-pink-200/50">
+              <CardContent className="py-5 px-6">
+                <div className="flex items-start gap-4">
+                  <span className="text-3xl" role="img" aria-label={specialPeriod.label}>
+                    {specialPeriod.type === 'spring_break' ? '🌸' : '🌴'}
+                  </span>
+                  <div>
+                    <p className="font-bold text-lg text-pink-800">{specialPeriod.message}</p>
+                    <p className="text-sm text-pink-600 mt-1 leading-relaxed">{specialPeriod.description}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
           <div className="space-y-8 lg:space-y-0">
             {/* スマホでの表示順序 */}
             <div className="lg:hidden space-y-8">
@@ -2058,9 +2078,11 @@ function ParentDashboardInner({
                       }
                     >
                       <p className="text-lg leading-relaxed text-slate-700 font-medium mb-6">
-                        {todayStatusMessage || `${selectedChild?.nickname || "お子さん"}さんの今日の様子を見守りましょう`}
+                        {specialPeriod
+                          ? `${specialPeriod.label}期間です。${selectedChild?.nickname || "お子さん"}さんの復習や演習問題集への取り組みを見守りましょう。`
+                          : (todayStatusMessage || `${selectedChild?.nickname || "お子さん"}さんの今日の様子を見守りましょう`)}
                       </p>
-                      {todayStatusMessageCreatedAt && (
+                      {!specialPeriod && todayStatusMessageCreatedAt && (
                         <div className="text-right">
                           <span className="text-xs text-gray-400">作成: {formatDateTime(todayStatusMessageCreatedAt)}</span>
                         </div>
@@ -2190,9 +2212,11 @@ function ParentDashboardInner({
                         }
                       >
                         <p className="text-lg leading-relaxed text-slate-700 font-medium">
-                          {todayStatusMessage || `${selectedChild?.nickname || "お子さん"}さんの今日の様子を見守りましょう`}
+                          {specialPeriod
+                          ? `${specialPeriod.label}期間です。${selectedChild?.nickname || "お子さん"}さんの復習や演習問題集への取り組みを見守りましょう。`
+                          : (todayStatusMessage || `${selectedChild?.nickname || "お子さん"}さんの今日の様子を見守りましょう`)}
                         </p>
-                        {todayStatusMessageCreatedAt && (
+                        {!specialPeriod && todayStatusMessageCreatedAt && (
                           <div className="text-right">
                             <span className="text-xs text-gray-400">作成: {formatDateTime(todayStatusMessageCreatedAt)}</span>
                           </div>

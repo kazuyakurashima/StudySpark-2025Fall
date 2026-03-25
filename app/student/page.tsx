@@ -82,6 +82,7 @@ export default async function StudentDashboard() {
     calendarData: calendar?.calendarData || {},
     weeklyProgress: Array.isArray(weeklySubject?.progress) ? weeklySubject.progress : [],
     sessionNumber: typeof weeklySubject?.sessionNumber === "number" ? weeklySubject.sessionNumber : null,
+    specialPeriod: weeklySubject?.specialPeriod || todayMission?.specialPeriod || null,
     reflectionCompleted: reflectionStatus?.reflectionCompleted || false,
     liveUpdates: liveUpdates?.updates || [],
     lastUpdateTime: liveUpdates?.lastUpdateTime || null,

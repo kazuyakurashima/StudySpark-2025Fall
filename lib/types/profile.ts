@@ -60,9 +60,9 @@ export interface ParentDashboardData {
   todayStatus: { message: string; createdAt?: string } | { error: string }
   streak: { streak: number; maxStreak: number; lastStudyDate: string | null; todayStudied: boolean; streakState: "active" | "grace" | "warning" | "reset" } | { error: string }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  todayMission: { todayProgress: any[] } | { error: string }
+  todayMission: { todayProgress: any[]; specialPeriod?: { type: string; label: string; message: string; description: string } | null } | { error: string }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  weeklyProgress: { progress: any[]; sessionNumber: number | null } | { error: string }
+  weeklyProgress: { progress: any[]; sessionNumber: number | null; specialPeriod?: { type: string; label: string; message: string; description: string } | null } | { error: string }
   calendarData: { calendarData: { [dateStr: string]: { subjectCount: number; accuracy80Count: number } } } | { error: string }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   recentLogs: { logs: any[] } | { error: string }

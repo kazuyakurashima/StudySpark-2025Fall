@@ -18,8 +18,9 @@ import {
   getExistingStudyLog,
   getContentTypesWithCounts,
   saveStudyLog,
-  getCurrentSession,
+  getLearningPeriod,
 } from "@/app/actions/study-log"
+import type { SpecialPeriod } from "@/lib/constants/special-periods"
 import {
   retryCoachFeedbackSave,
 } from "@/app/actions/coach-feedback"
@@ -129,6 +130,9 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
   // タブ切替: 予習シリーズ / 演習問題集
   const [sparkTab, setSparkTab] = useState<'textbook' | 'exercise'>('exercise')
 
+  // 特別期間（春期講習・GW等）
+  const [specialPeriod, setSpecialPeriod] = useState<SpecialPeriod | null>(null)
+
   // セッション・コンテンツデータ（DBから取得）
   const [dbSessions, setDbSessions] = useState<DBSession[]>([])
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null)
@@ -175,14 +179,23 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
         setDbSessions(sessionsResult.sessions)
       }
 
-      // 現在のセッションを取得
-      const session = await getCurrentSession(grade)
-      if (session) {
-        setCurrentSessionNumber(session.session_number)
-        setSelectedSessionId(session.id)
-      } else if (sessionsResult.sessions && sessionsResult.sessions.length > 0) {
+      // 現在の学習期間を判定
+      try {
+        const result = await getLearningPeriod(grade)
+        if (result.type === 'special') {
+          setSpecialPeriod(result.specialPeriod)
+          // 春期講習中は初期選択なし（プレースホルダー表示）
+          setSelectedSessionId(null)
+        } else {
+          setSpecialPeriod(null)
+          setCurrentSessionNumber(result.session.session_number)
+          setSelectedSessionId(result.session.id)
+        }
+      } catch {
         // フォールバック: 最初のセッションを選択
-        setSelectedSessionId(sessionsResult.sessions[0].id)
+        if (sessionsResult.sessions && sessionsResult.sessions.length > 0) {
+          setSelectedSessionId(sessionsResult.sessions[0].id)
+        }
       }
     }
 
@@ -551,6 +564,22 @@ function SparkClientInner({ initialData, preselectedSubject }: SparkClientProps)
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 pb-20 ">
 
       <div className="max-w-screen-xl mx-auto p-6 space-y-8">
+        {specialPeriod && (
+          <Card className="shadow-lg border-0 bg-gradient-to-r from-pink-50 via-orange-50 to-yellow-50 ring-1 ring-pink-200/50">
+            <CardContent className="py-5 px-6">
+              <div className="flex items-start gap-4">
+                <span className="text-3xl" role="img" aria-label={specialPeriod.label}>
+                  {specialPeriod.type === 'spring_break' ? '🌸' : '🌴'}
+                </span>
+                <div>
+                  <p className="font-bold text-lg text-pink-800">{specialPeriod.message}</p>
+                  <p className="text-sm text-pink-600 mt-1 leading-relaxed">{specialPeriod.description}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm ring-1 ring-slate-200/50">
           <CardHeader className="pb-4 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 rounded-t-lg">
             <CardTitle className="flex items-center gap-3 text-lg font-semibold text-slate-800">
