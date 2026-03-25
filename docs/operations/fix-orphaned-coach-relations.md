@@ -17,15 +17,18 @@
 
 ```sql
 -- _graduating_ids_* が優先度1（03_data_strategy.md Section 7.3）
--- _backup_graduated_* が優先度2
+-- private._backup_graduated_* が優先度2（private スキーマに格納）
 -- ⚠️ LIKE の _ はワイルドカードのためエスケープ必須
-SELECT tablename
-FROM pg_tables
+-- _graduating_ids_* は public スキーマ
+SELECT tablename FROM pg_tables
 WHERE schemaname = 'public'
-  AND (
-    tablename LIKE '\_graduating\_ids\_%' ESCAPE '\'
-    OR tablename LIKE '\_backup\_graduated\_%' ESCAPE '\'
-  )
+  AND tablename LIKE '\_graduating\_ids\_%' ESCAPE '\'
+ORDER BY tablename DESC;
+
+-- _backup_graduated_* は private スキーマ
+SELECT tablename FROM pg_tables
+WHERE schemaname = 'private'
+  AND tablename LIKE '\_backup\_graduated\_%' ESCAPE '\'
 ORDER BY tablename DESC;
 ```
 
@@ -151,7 +154,7 @@ ORDER BY check_type, full_name;
 
 | 優先度 | ソース | 方法 |
 |--------|--------|------|
-| 2 | `_backup_graduated_csr_*` / `_backup_graduated_pcr_*` | `SELECT DISTINCT student_id FROM _backup_graduated_csr_YYYYMMDD_HHMM UNION SELECT DISTINCT student_id FROM _backup_graduated_pcr_YYYYMMDD_HHMM` |
+| 2 | `private._backup_graduated_csr_*` / `private._backup_graduated_pcr_*` | `SELECT DISTINCT student_id FROM private._backup_graduated_csr_YYYYMMDD_HHMM UNION SELECT DISTINCT student_id FROM private._backup_graduated_pcr_YYYYMMDD_HHMM` |
 | 3 | `graduating_students_*.csv` | CSV を `_graduating_ids` テーブルに再投入 |
 | 4 | `auth.users.banned_until` | `SELECT s.id FROM students s JOIN auth.users au ON s.user_id = au.id WHERE au.banned_until IS NOT NULL` |
 

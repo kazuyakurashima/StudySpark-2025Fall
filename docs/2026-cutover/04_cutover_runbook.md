@@ -325,20 +325,24 @@
 
     BEGIN;
 
-    DROP TABLE IF EXISTS _backup_graduated_csr_20270201_0030;
-    CREATE TABLE _backup_graduated_csr_20270201_0030 AS
+    -- private スキーマにバックアップ（RLS 警告回避）
+    CREATE SCHEMA IF NOT EXISTS private;
+    REVOKE ALL ON SCHEMA private FROM anon, authenticated;
+
+    DROP TABLE IF EXISTS private._backup_graduated_csr_20270201_0030;
+    CREATE TABLE private._backup_graduated_csr_20270201_0030 AS
     SELECT * FROM coach_student_relations
     WHERE student_id IN (SELECT id FROM _graduating_ids_20270201_0030);
 
-    DROP TABLE IF EXISTS _backup_graduated_pcr_20270201_0030;
-    CREATE TABLE _backup_graduated_pcr_20270201_0030 AS
+    DROP TABLE IF EXISTS private._backup_graduated_pcr_20270201_0030;
+    CREATE TABLE private._backup_graduated_pcr_20270201_0030 AS
     SELECT * FROM parent_child_relations
     WHERE student_id IN (SELECT id FROM _graduating_ids_20270201_0030);
 
     -- バックアップ件数確認
-    SELECT 'csr' AS tbl, COUNT(*) AS cnt FROM _backup_graduated_csr_20270201_0030
+    SELECT 'csr' AS tbl, COUNT(*) AS cnt FROM private._backup_graduated_csr_20270201_0030
     UNION ALL
-    SELECT 'pcr', COUNT(*) FROM _backup_graduated_pcr_20270201_0030;
+    SELECT 'pcr', COUNT(*) FROM private._backup_graduated_pcr_20270201_0030;
 
     -- graduated_at 設定（アプリ層防御、再実行安全）
     UPDATE students SET graduated_at = COALESCE(graduated_at, NOW())
@@ -371,8 +375,8 @@
 
   # 復元手順（必要な場合のみ）:
   # UPDATE students SET graduated_at = NULL WHERE id IN (SELECT id FROM _graduating_ids_20270201_0030);
-  # INSERT INTO coach_student_relations SELECT * FROM _backup_graduated_csr_20270201_0030;
-  # INSERT INTO parent_child_relations SELECT * FROM _backup_graduated_pcr_20270201_0030;
+  # INSERT INTO coach_student_relations SELECT * FROM private._backup_graduated_csr_20270201_0030;
+  # INSERT INTO parent_child_relations SELECT * FROM private._backup_graduated_pcr_20270201_0030;
   # → BAN 解除は Supabase Dashboard (Auth > Users > Unban)
 
 □ 整合性チェック（SQLで即時確認）
@@ -388,7 +392,7 @@
 
   # 対象IDソースは CTE で統一。以下のいずれかを使用:
   # - _graduating_ids_YYYYMMDD_HHMM（常設テーブル、上記ステップ1で作成）
-  # - _backup_graduated_csr_YYYYMMDD_HHMM（バックアップテーブル）
+  # - private._backup_graduated_csr_YYYYMMDD_HHMM（バックアップテーブル、private スキーマ）
   # ⚠️ タイムスタンプ部分を実行時刻に置き換えること
 
   # relation 残存確認 + BAN 状態確認（1クエリで実行）

@@ -564,10 +564,12 @@ done < graduating_students_20260201.csv
 UPDATE students SET graduated_at = COALESCE(graduated_at, NOW())
 WHERE id IN (<対象IDs>);
 
--- 2. バックアップテーブル作成
-CREATE TABLE IF NOT EXISTS _backup_graduated_csr AS
+-- 2. バックアップテーブル作成（private スキーマに格納し RLS 警告を回避）
+CREATE SCHEMA IF NOT EXISTS private;
+REVOKE ALL ON SCHEMA private FROM anon, authenticated;
+CREATE TABLE IF NOT EXISTS private._backup_graduated_csr AS
 SELECT * FROM coach_student_relations WHERE student_id IN (<対象IDs>);
-CREATE TABLE IF NOT EXISTS _backup_graduated_pcr AS
+CREATE TABLE IF NOT EXISTS private._backup_graduated_pcr AS
 SELECT * FROM parent_child_relations WHERE student_id IN (<対象IDs>);
 
 -- 3. リレーション削除（指導者画面から非表示）
@@ -580,8 +582,8 @@ WHERE id IN (SELECT user_id FROM students WHERE id IN (<対象IDs>));
 
 -- 復元手順:
 -- UPDATE students SET graduated_at = NULL WHERE id IN (<対象IDs>);
--- INSERT INTO coach_student_relations SELECT * FROM _backup_graduated_csr;
--- INSERT INTO parent_child_relations SELECT * FROM _backup_graduated_pcr;
+-- INSERT INTO coach_student_relations SELECT * FROM private._backup_graduated_csr;
+-- INSERT INTO parent_child_relations SELECT * FROM private._backup_graduated_pcr;
 -- UPDATE auth.users SET banned_until = NULL WHERE ...;
 ```
 
@@ -669,7 +671,7 @@ banGraduatedUsers(process.argv[2])
 | 優先度 | ソース | 条件 | 説明 |
 |--------|--------|------|------|
 | 1 | `_graduating_ids_YYYYMMDD_HHMM` | ランブック実行時に作成 | CSV から `\copy` で投入した卒業対象ID（常設テーブル）。事後確認の CTE ソースとして使用 |
-| 2 | `_backup_graduated_csr_YYYYMMDD_HHMM` / `_backup_graduated_pcr_YYYYMMDD_HHMM` | ランブック実行時に作成 | relation のバックアップ。復元が必要な場合に使用 |
+| 2 | `private._backup_graduated_csr_YYYYMMDD_HHMM` / `private._backup_graduated_pcr_YYYYMMDD_HHMM` | ランブック実行時に作成 | relation のバックアップ（private スキーマ）。復元が必要な場合に使用 |
 | 3 | `graduating_students_*.csv` | 常に存在 | ランブックで出力する元データ。テーブルが消失した場合の最終ソース |
 | 4 | `auth.users.banned_until` | SQL Editor / service role 専用 | BAN 済みユーザー。アプリ層からは参照不可 |
 
