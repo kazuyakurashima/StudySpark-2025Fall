@@ -50,10 +50,10 @@ function transformSSRtoSWRData(
         },
     todayProgress: isError(ssrData.todayMission)
       ? { todayProgress: [], error: ssrData.todayMission.error }
-      : { todayProgress: ssrData.todayMission.todayProgress },
+      : { todayProgress: ssrData.todayMission.todayProgress, specialPeriod: ssrData.todayMission.specialPeriod },
     weeklyProgress: isError(ssrData.weeklyProgress)
       ? { progress: [], sessionNumber: null, error: ssrData.weeklyProgress.error }
-      : { progress: ssrData.weeklyProgress.progress, sessionNumber: ssrData.weeklyProgress.sessionNumber },
+      : { progress: ssrData.weeklyProgress.progress, sessionNumber: ssrData.weeklyProgress.sessionNumber, specialPeriod: ssrData.weeklyProgress.specialPeriod },
     calendar: isError(ssrData.calendarData)
       ? { calendarData: {}, error: ssrData.calendarData.error }
       : { calendarData: ssrData.calendarData.calendarData },
