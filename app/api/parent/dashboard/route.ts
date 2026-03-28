@@ -131,10 +131,10 @@ export async function GET(request: NextRequest) {
           },
       todayProgress: "error" in todayMission
         ? { todayProgress: [], error: todayMission.error }
-        : { todayProgress: todayMission.todayProgress },
+        : { todayProgress: todayMission.todayProgress, specialPeriod: todayMission.specialPeriod || null },
       weeklyProgress: "error" in weeklySubject
         ? { progress: [], sessionNumber: null, error: weeklySubject.error }
-        : { progress: weeklySubject.progress, sessionNumber: weeklySubject.sessionNumber },
+        : { progress: weeklySubject.progress, sessionNumber: weeklySubject.sessionNumber, specialPeriod: weeklySubject.specialPeriod || null },
       calendar: "error" in calendar
         ? { calendarData: {}, error: calendar.error }
         : { calendarData: calendar.calendarData },

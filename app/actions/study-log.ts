@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import crypto from "crypto"
 import { checkAndRecordStreakResume, determineStreakState, type StreakState } from "@/lib/utils/streak-helpers"
+import { getCurrentLearningPeriod, type LearningPeriodResult } from "@/lib/utils/learning-period"
 
 export type StudyLogInput = {
   session_id: number
@@ -68,6 +69,16 @@ export async function getCurrentSession(grade: number) {
     console.error("Error in getCurrentSession:", error)
     return null
   }
+}
+
+/**
+ * 現在の学習期間を判定する（Server Action）
+ * getCurrentLearningPeriod() のラッパー。スパーク・ダッシュボードから使用。
+ * getCurrentSession() は既存のまま残す（互換性維持）。
+ */
+export async function getLearningPeriod(grade: number): Promise<LearningPeriodResult> {
+  const supabase = await createClient()
+  return getCurrentLearningPeriod(grade, supabase)
 }
 
 /**
