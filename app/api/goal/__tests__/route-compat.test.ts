@@ -167,6 +167,19 @@ describe("Goal API スキーマ契約テスト", () => {
         targetCourse: "S" as const,
         targetClass: 10,
         conversationHistory: [],
+        currentStep: 3 as const,
+      }
+
+      const result = thoughtsSchema.safeParse(payload)
+      expect(result.success).toBe(false)
+    })
+
+    it("currentStep なしでスキーマが拒否する", () => {
+      const payload = {
+        testScheduleId: 42,
+        targetCourse: "S" as const,
+        targetClass: 10,
+        conversationHistory: [],
       }
 
       const result = thoughtsSchema.safeParse(payload)
@@ -219,6 +232,7 @@ describe("Goal API スキーマ契約テスト", () => {
           targetCourse: "A",
           targetClass: 40,
           conversationHistory: [],
+          currentStep: 3 as const,
         }).success
       ).toBe(true)
     })
@@ -267,6 +281,7 @@ describe("Goal API スキーマ契約テスト", () => {
           targetCourse: "A",
           targetClass: 41,
           conversationHistory: [],
+          currentStep: 3 as const,
         }).success
       ).toBe(false)
     })

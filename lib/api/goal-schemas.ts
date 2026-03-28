@@ -29,7 +29,6 @@ export const simpleNavigationSchema = z.object({
   targetClass: z.number().int().min(1).max(40),
   step: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   conversationHistory: conversationHistorySchema,
-  previousAnswer: z.string().optional(),
 })
 
 /**
@@ -81,7 +80,7 @@ export const thoughtsSchema = z.object({
       })
     )
     .max(20),
-  currentStep: z.literal(3).optional(),
+  currentStep: z.literal(3),
   requestId: z.string().max(64).optional(),
 })
 
