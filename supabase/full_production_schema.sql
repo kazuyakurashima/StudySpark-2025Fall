@@ -2812,14 +2812,9 @@ COMMENT ON COLUMN public.coaching_sessions.summary_text IS 'AI生成された週
 -- ============================================================================
 
 -- ============================================================================
--- 送信者プロフィール公開ビュー (display_name, avatar_url のみ)
+-- NOTE: public_sender_profiles ビューは削除済み（20260325000001_fix_security_advisor_issues.sql）
+-- アプリは get_sender_profiles() RPC を使用
 -- ============================================================================
-CREATE OR REPLACE VIEW public.public_sender_profiles AS
-SELECT
-  id,
-  display_name,
-  avatar_url
-FROM public.profiles;
 
 -- ============================================================================
 -- RPC: 応援メッセージの送信者プロフィールを取得

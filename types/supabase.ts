@@ -7,30 +7,10 @@ export type Json =
   | Json[]
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
@@ -62,13 +42,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: true
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "admins_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "public_sender_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -470,13 +443,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "coaches_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "public_sender_profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       coaching_messages: {
@@ -779,24 +745,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "invitation_codes_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "public_sender_profiles"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "invitation_codes_used_by_fkey"
             columns: ["used_by"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "invitation_codes_used_by_fkey"
-            columns: ["used_by"]
-            isOneToOne: false
-            referencedRelation: "public_sender_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1032,13 +984,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: true
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "parents_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "public_sender_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1505,13 +1450,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: true
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "students_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "public_sender_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2064,32 +2002,7 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "students_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "public_sender_profiles"
-            referencedColumns: ["id"]
-          },
         ]
-      }
-      public_sender_profiles: {
-        Row: {
-          avatar_url: string | null
-          display_name: string | null
-          id: string | null
-        }
-        Insert: {
-          avatar_url?: string | null
-          display_name?: string | null
-          id?: string | null
-        }
-        Update: {
-          avatar_url?: string | null
-          display_name?: string | null
-          id?: string | null
-        }
-        Relationships: []
       }
     }
     Functions: {
@@ -2151,6 +2064,11 @@ export type Database = {
       get_assigned_students_user_ids: { Args: never; Returns: string[] }
       get_children_student_ids: { Args: never; Returns: number[] }
       get_children_user_ids: { Args: never; Returns: string[] }
+      get_exercise_master_detail: {
+        Args: { p_question_set_id: number }
+        Returns: Json
+      }
+      get_exercise_master_summary: { Args: { p_grade: number }; Returns: Json }
       get_math_grading_history: {
         Args: { p_student_id: number }
         Returns: {
@@ -2171,14 +2089,6 @@ export type Database = {
       }
       get_math_master_detail: {
         Args: { p_question_set_id: number }
-        Returns: Json
-      }
-      get_exercise_master_detail: {
-        Args: { p_question_set_id: number }
-        Returns: Json
-      }
-      get_exercise_master_summary: {
-        Args: { p_grade: number }
         Returns: Json
       }
       get_math_master_summary: { Args: { p_grade: number }; Returns: Json }
@@ -2461,9 +2371,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       assessment_status: ["completed", "absent", "not_submitted"],

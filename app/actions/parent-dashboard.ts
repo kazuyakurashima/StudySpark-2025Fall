@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { ChildProfile } from "@/lib/types/profile"
+import { getCurrentLearningPeriod } from "@/lib/utils/learning-period"
 
 /**
  * 保護者に紐づく子供のリストを取得
@@ -872,23 +873,16 @@ export async function getStudentTodayMissionData(studentId: number) {
       return { error: "生徒情報が見つかりません" }
     }
 
-    // Get today's date
+    // 今週の学習期間を判定
     const { getTodayJST } = await import("@/lib/utils/date-jst")
     const todayDateStr = getTodayJST()
 
-    // Find this week's study session
-    const { data: currentSession, error: sessionError } = await supabase
-      .from("study_sessions")
-      .select("id")
-      .eq("grade", student.grade)
-      .lte("start_date", todayDateStr)
-      .gte("end_date", todayDateStr)
-      .single()
-
-    if (sessionError || !currentSession) {
-      console.error("No current session found for parent today mission:", sessionError)
-      return { todayProgress: [] }
+    const period = await getCurrentLearningPeriod(student.grade, supabase)
+    if (period.type === 'special') {
+      return { todayProgress: [], specialPeriod: period.specialPeriod }
     }
+
+    const currentSession = period.session
 
     // Get today's logs for this week's session only
     const { data: todayLogs, error: logsError } = await supabase
@@ -1010,7 +1004,7 @@ export async function getStudentWeeklyProgress(studentId: number) {
       return { error: "生徒情報が見つかりません" }
     }
 
-    // Get current date in Tokyo timezone (YYYY-MM-DD format)
+    // 今週の学習期間を判定
     const now = new Date()
     const formatter = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Asia/Tokyo',
@@ -1020,22 +1014,17 @@ export async function getStudentWeeklyProgress(studentId: number) {
     })
     const todayStr = formatter.format(now)
 
-    // Find this week's study session
-    const { data: currentSession, error: sessionError } = await supabase
-      .from("study_sessions")
-      .select("id, session_number, start_date, end_date")
-      .eq("grade", student.grade)
-      .lte("start_date", todayStr)
-      .gte("end_date", todayStr)
-      .single()
+    const period = await getCurrentLearningPeriod(student.grade, supabase)
+    const specialPeriod = period.type === 'special' ? period.specialPeriod : null
+    const currentSession = period.type === 'regular' ? period.session : null
 
     let logs
     let logsError
     let sessionNumber = null
     let useFallback = false
 
-    if (sessionError || !currentSession) {
-      console.warn("⚠️ [SERVER] No current session found, using fallback (last 7 days):", sessionError)
+    if (period.type === 'special') {
+      console.warn("⚠️ [SERVER] Special period (spring/GW), using fallback (last 7 days)")
       useFallback = true
 
       // フォールバック: 直近7日間のログから集計
@@ -1066,7 +1055,7 @@ export async function getStudentWeeklyProgress(studentId: number) {
       logsError = result.error
       sessionNumber = null
     } else {
-      // 通常: セッションベースで取得
+      // 通常: セッションベースで取得（period.type === 'regular' なので currentSession は非null）
       const result = await supabase
         .from("study_logs")
         .select(
@@ -1082,12 +1071,12 @@ export async function getStudentWeeklyProgress(studentId: number) {
         `
         )
         .eq("student_id", studentId)
-        .eq("session_id", currentSession.id)
+        .eq("session_id", currentSession!.id)
         .order("logged_at", { ascending: false })
 
       logs = result.data
       logsError = result.error
-      sessionNumber = currentSession.session_number
+      sessionNumber = currentSession!.session_number
     }
 
     if (logsError) {
@@ -1096,7 +1085,7 @@ export async function getStudentWeeklyProgress(studentId: number) {
     }
 
     if (!logs || logs.length === 0) {
-      return { progress: [], sessionNumber }
+      return { progress: [], sessionNumber, specialPeriod }
     }
 
     // Get problem counts for this session (スキップ if フォールバック)
@@ -1207,7 +1196,7 @@ export async function getStudentWeeklyProgress(studentId: number) {
       }))
     }))
 
-    return { progress, sessionNumber: currentSession!.session_number }
+    return { progress, sessionNumber: currentSession?.session_number ?? sessionNumber, specialPeriod }
   } catch (error) {
     console.error("🔍 [SERVER] Weekly progress - Unexpected error:", error)
     return { error: "予期しないエラーが発生しました" }

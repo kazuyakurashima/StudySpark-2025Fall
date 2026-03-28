@@ -1,6 +1,8 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { getCurrentLearningPeriod } from "@/lib/utils/learning-period"
+import type { SpecialPeriod } from "@/lib/constants/special-periods"
 
 function isMissingTable(error: { code?: string; message?: string } | null | undefined, tableName: string) {
   if (!error) return false
@@ -359,8 +361,6 @@ async function getRecentStudyLogsForCoach(studentId: string, days: number = 3) {
  */
 async function getWeeklyCumulativeProgress(studentId: number) {
   const supabase = await createClient()
-  const { getTodayJST } = await import("@/lib/utils/date-jst")
-  const todayStr = getTodayJST()
 
   try {
     // student.idから直接gradeを取得
@@ -375,19 +375,13 @@ async function getWeeklyCumulativeProgress(studentId: number) {
       return { progress: [] }
     }
 
-    // 今週のstudy_sessionを取得
-    const { data: currentSession, error: sessionError } = await supabase
-      .from("study_sessions")
-      .select("id, session_number, start_date, end_date")
-      .eq("grade", student.grade)
-      .lte("start_date", todayStr)
-      .gte("end_date", todayStr)
-      .single()
-
-    if (sessionError || !currentSession) {
-      console.error("🔍 [Coach Weekly] No current session found:", sessionError)
-      return { progress: [] }
+    // 今週の学習期間を判定
+    const period = await getCurrentLearningPeriod(student.grade, supabase)
+    if (period.type === 'special') {
+      return { progress: [], specialPeriod: period.specialPeriod }
     }
+
+    const currentSession = period.session
 
     // 今週の全ログを取得（logged_at降順で取得）
     const { data: logs, error: logsError } = await supabase
@@ -807,30 +801,13 @@ export async function getWeeklySubjectProgress() {
       return { error: "生徒情報が見つかりません" }
     }
 
-    // Get current date in Tokyo timezone (YYYY-MM-DD format)
-    const now = new Date()
-    // Use Intl.DateTimeFormat to get date parts in Tokyo timezone
-    const formatter = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Asia/Tokyo',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    })
-    const todayStr = formatter.format(now) // Returns YYYY-MM-DD
-
-    // Find this week's study session
-    const { data: currentSession, error: sessionError } = await supabase
-      .from("study_sessions")
-      .select("id, session_number, start_date, end_date")
-      .eq("grade", student.grade)
-      .lte("start_date", todayStr)
-      .gte("end_date", todayStr)
-      .single()
-
-    if (sessionError || !currentSession) {
-      console.error("No current session found:", sessionError)
-      return { progress: [] }
+    // 今週の学習期間を判定
+    const period = await getCurrentLearningPeriod(student.grade, supabase)
+    if (period.type === 'special') {
+      return { progress: [], sessionNumber: null, specialPeriod: period.specialPeriod }
     }
+
+    const currentSession = period.session
 
     // Get all logs for this student in this session
     const { data: logs, error: logsError } = await supabase
@@ -1064,23 +1041,16 @@ export async function getTodayMissionData() {
       return { error: "生徒情報が見つかりません" }
     }
 
-    // Get today's date and current session
+    // 今週の学習期間を判定
     const { getTodayJST } = await import("@/lib/utils/date-jst")
     const todayDateStr = getTodayJST()
 
-    // Find this week's study session
-    const { data: currentSession, error: sessionError } = await supabase
-      .from("study_sessions")
-      .select("id")
-      .eq("grade", student.grade)
-      .lte("start_date", todayDateStr)
-      .gte("end_date", todayDateStr)
-      .single()
-
-    if (sessionError || !currentSession) {
-      console.error("No current session found for today's mission:", sessionError)
-      return { todayProgress: [] }
+    const period = await getCurrentLearningPeriod(student.grade, supabase)
+    if (period.type === 'special') {
+      return { todayProgress: [], specialPeriod: period.specialPeriod }
     }
+
+    const currentSession = period.session
 
     // Get today's logs for this week's session only
     const { data: todayLogs, error: logsError } = await supabase

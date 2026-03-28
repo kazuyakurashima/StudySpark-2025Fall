@@ -26,11 +26,13 @@ export interface ParentDashboardData {
       totalProblems: number
       logs: any[]
     }>
+    specialPeriod?: { type: string; label: string; message: string; description: string } | null
     error?: string
   }
   weeklyProgress: {
     progress: any[]
     sessionNumber: number | null
+    specialPeriod?: { type: string; label: string; message: string; description: string } | null
     error?: string
   }
   calendar: {
