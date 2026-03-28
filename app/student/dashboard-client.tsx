@@ -1751,15 +1751,19 @@ function StudentDashboardClientInner({ initialData }: { initialData: DashboardDa
 
         <div className="max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         {specialPeriod && (
-          <Card className="shadow-lg border-0 bg-gradient-to-r from-pink-50 via-orange-50 to-yellow-50 ring-1 ring-pink-200/50">
+          <Card className={`shadow-lg border-0 ring-1 ${
+            specialPeriod.type === 'spring_break'
+              ? 'bg-gradient-to-r from-pink-50 via-orange-50 to-yellow-50 ring-pink-200/50'
+              : 'bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 ring-emerald-200/50'
+          }`}>
             <CardContent className="py-5 px-6">
               <div className="flex items-start gap-4">
                 <span className="text-3xl" role="img" aria-label={specialPeriod.label}>
-                  {specialPeriod.type === 'spring_break' ? '🌸' : '🌴'}
+                  {specialPeriod.type === 'spring_break' ? '🌸' : '🎏'}
                 </span>
                 <div>
-                  <p className="font-bold text-lg text-pink-800">{specialPeriod.message}</p>
-                  <p className="text-sm text-pink-600 mt-1 leading-relaxed">{specialPeriod.description}</p>
+                  <p className={`font-bold text-lg ${specialPeriod.type === 'spring_break' ? 'text-pink-800' : 'text-emerald-800'}`}>{specialPeriod.message}</p>
+                  <p className={`text-sm mt-1 leading-relaxed ${specialPeriod.type === 'spring_break' ? 'text-pink-600' : 'text-emerald-600'}`}>{specialPeriod.description}</p>
                 </div>
               </div>
             </CardContent>
