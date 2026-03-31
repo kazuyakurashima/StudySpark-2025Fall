@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useTransition, useMemo, useEffect, useRef } from 'react'
+import { useState, useCallback, useTransition, useMemo, useEffect } from 'react'
 import { NumericInput } from '@/components/math/numeric-input'
 import { FractionInput } from '@/components/math/fraction-input'
 import { MultiPartInput } from '@/components/math/multi-part-input'
@@ -86,8 +86,6 @@ export function ExerciseInput({ sessionId }: Props) {
 
   const [isPending, startTransition] = useTransition()
   const [isLoading, setIsLoading] = useState(false)
-  // 音声タイピング中のベーステキスト（録音開始時点の各セクションのテキスト）
-  const voiceBaseTexts = useRef<Record<number, string>>({})
 
   const [questionSet, setQuestionSet] = useState<ExerciseQuestionSet | null>(null)
   const [questions, setQuestions] = useState<ExerciseQuestion[]>([])
@@ -483,20 +481,9 @@ export function ExerciseInput({ sessionId }: Props) {
                                 />
                                 <VoiceInputButton
                                   onTranscribed={(text) => {
-                                    // タイピング完了 or アニメーション無効時: 確定テキスト
-                                    const base = voiceBaseTexts.current[idx] ?? section.reflectionText
-                                    const separator = base && !base.endsWith(' ') ? ' ' : ''
-                                    handleReflectionChange(idx, `${base}${separator}${text}`.slice(0, 200))
-                                    delete voiceBaseTexts.current[idx]
-                                  }}
-                                  onTypingProgress={(partialText) => {
-                                    // 初回呼び出し時にベーステキストを記録
-                                    if (!(idx in voiceBaseTexts.current)) {
-                                      voiceBaseTexts.current[idx] = section.reflectionText
-                                    }
-                                    const base = voiceBaseTexts.current[idx]
-                                    const separator = base && !base.endsWith(' ') ? ' ' : ''
-                                    handleReflectionChange(idx, `${base}${separator}${partialText}`.slice(0, 200))
+                                    const current = section.reflectionText
+                                    const newText = current ? `${current} ${text}` : text
+                                    handleReflectionChange(idx, newText.slice(0, 200))
                                   }}
                                   disabled={isPending}
                                   className="absolute right-2 bottom-2"
