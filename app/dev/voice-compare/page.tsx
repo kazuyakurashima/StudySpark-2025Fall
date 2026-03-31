@@ -179,9 +179,10 @@ export default function VoiceComparePage() {
   return (
     <div className="min-h-screen bg-slate-50 p-6">
       <div className="max-w-3xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">音声認識 比較検証</h1>
-          <p className="text-sm text-slate-500 mt-1">同一音声を Groq と OpenAI に同時送信して結果を比較します（dev-only）</p>
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <h1 className="text-2xl font-bold text-amber-900">DEV: 音声認識 比較検証</h1>
+          <p className="text-sm text-amber-700 mt-1">同一音声を Groq と OpenAI に同時送信して結果を比較します</p>
+          <p className="text-xs text-amber-500 mt-1 font-mono">/dev/voice-compare</p>
         </div>
 
         {/* 録音コントロール */}
@@ -235,7 +236,7 @@ export default function VoiceComparePage() {
 
         {/* 結果比較 */}
         {result && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             {/* Groq */}
             <ResultCard
               title="Groq"
