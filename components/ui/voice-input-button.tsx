@@ -25,12 +25,21 @@ function getSupportedMimeType(): string | undefined {
   return candidates.find((type) => MediaRecorder.isTypeSupported(type))
 }
 
-/** mimeType からファイル拡張子を決定 */
-function getExtFromMime(mime: string | undefined): string {
-  if (!mime) return "webm"
-  const base = mime.split(";")[0].trim()
-  if (base === "audio/mp4") return "mp4"
-  return "webm"
+/** サーバー側と一致する許可 MIME → 拡張子マップ */
+const ALLOWED_MIME_MAP: Record<string, string> = {
+  "audio/webm": "webm",
+  "audio/mp4": "mp4",
+  "audio/m4a": "m4a",
+  "audio/ogg": "ogg",
+  "audio/wav": "wav",
+  "audio/mpeg": "mp3",
+  "audio/flac": "flac",
+}
+
+/** blob.type から拡張子を決定。未知の型は null を返す */
+function getExtFromBlobType(blobType: string): string | null {
+  const base = blobType.split(";")[0].trim()
+  return ALLOWED_MIME_MAP[base] ?? null
 }
 
 const MAX_RECORDING_SEC = 60
@@ -81,10 +90,9 @@ export function VoiceInputButton({
   }, [cleanup])
 
   const sendAudio = useCallback(
-    async (blob: Blob, mimeType: string | undefined) => {
+    async (blob: Blob, ext: string) => {
       setState("processing")
       try {
-        const ext = getExtFromMime(mimeType)
         const formData = new FormData()
         formData.append("file", blob, `recording.${ext}`)
 
@@ -142,16 +150,29 @@ export function VoiceInputButton({
       }
 
       recorder.onstop = () => {
-        const actualMime = recorder.mimeType || mimeType
+        const actualMime = recorder.mimeType || mimeType || ""
         const blob = new Blob(chunksRef.current, {
-          type: actualMime || "audio/webm",
+          type: actualMime,
         })
         cleanup()
-        if (blob.size > 0) {
-          sendAudio(blob, actualMime)
-        } else {
+
+        if (blob.size === 0) {
           setState("idle")
+          return
         }
+
+        // blob.type から拡張子を決定。未知の型は送信しない
+        const ext = getExtFromBlobType(blob.type)
+        if (!ext) {
+          toast({
+            title: "この端末の音声形式に対応していません",
+            variant: "destructive",
+          })
+          setState("idle")
+          return
+        }
+
+        sendAudio(blob, ext)
       }
 
       recorder.start()
