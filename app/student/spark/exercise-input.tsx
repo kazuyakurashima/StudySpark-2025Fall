@@ -8,6 +8,7 @@ import { SelectionInput } from '@/components/math/selection-input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
+import { VoiceInputButton } from '@/components/ui/voice-input-button'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { BookOpen, Check, X, Loader2, RotateCcw, RefreshCw, Trophy, ChevronDown, ChevronRight, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -469,14 +470,25 @@ export function ExerciseInput({ sessionId }: Props) {
                               </div>
                             </div>
                             <div className="bg-gradient-to-br from-blue-50/80 to-white p-4 space-y-3">
-                              <Textarea
-                                value={section.reflectionText}
-                                onChange={(e) => handleReflectionChange(idx, e.target.value)}
-                                placeholder="例：倍数の問題は解けたけど、公約数の応用がまだ不安..."
-                                className="min-h-[80px] text-sm border-2 border-blue-200 bg-white focus:border-blue-400 focus:ring-blue-400/20 focus:ring-[3px] resize-none rounded-xl placeholder:text-gray-400"
-                                maxLength={200}
-                                autoFocus
-                              />
+                              <div className="relative">
+                                <Textarea
+                                  value={section.reflectionText}
+                                  onChange={(e) => handleReflectionChange(idx, e.target.value)}
+                                  placeholder="例：倍数の問題は解けたけど、公約数の応用がまだ不安..."
+                                  className="min-h-[80px] text-sm border-2 border-blue-200 bg-white focus:border-blue-400 focus:ring-blue-400/20 focus:ring-[3px] resize-none rounded-xl placeholder:text-gray-400 pr-12"
+                                  maxLength={200}
+                                  autoFocus
+                                />
+                                <VoiceInputButton
+                                  onTranscribed={(text) => {
+                                    const current = section.reflectionText
+                                    const newText = current ? `${current} ${text}` : text
+                                    handleReflectionChange(idx, newText.slice(0, 200))
+                                  }}
+                                  disabled={isPending}
+                                  className="absolute right-2 bottom-2"
+                                />
+                              </div>
                               <div className="flex items-center justify-between">
                                 <span className="text-[10px] text-gray-400">{section.reflectionText.length}/200文字</span>
                                 {section.reflectionText.trim() ? (
