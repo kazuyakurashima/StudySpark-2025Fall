@@ -9,7 +9,7 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024
 /** upstream タイムアウト: 30秒 */
 const UPSTREAM_TIMEOUT_MS = 30_000
 
-/** 許可する MIME type → Groq に送るファイル拡張子 */
+/** 許可する MIME type → ファイル拡張子 */
 const ALLOWED_MIME: Record<string, string> = {
   "audio/webm": "webm",
   "audio/mp4": "mp4",
@@ -20,15 +20,39 @@ const ALLOWED_MIME: Record<string, string> = {
   "audio/flac": "flac",
 }
 
+type VoiceProvider = "groq" | "openai"
+
+/** Provider ごとの設定 */
+function getProviderConfig(provider: VoiceProvider) {
+  if (provider === "openai") {
+    const model = process.env.VOICE_OPENAI_MODEL || "gpt-4o-mini-transcribe"
+    return {
+      apiKey: process.env.OPENAI_API_KEY,
+      endpoint: "https://api.openai.com/v1/audio/transcriptions",
+      model,
+      label: `OpenAI ${model}`,
+    }
+  }
+  return {
+    apiKey: process.env.GROQ_API_KEY,
+    endpoint: "https://api.groq.com/openai/v1/audio/transcriptions",
+    model: "whisper-large-v3-turbo",
+    label: "Groq whisper-large-v3-turbo",
+  }
+}
+
 export async function POST(request: NextRequest) {
   // 1. 認証
   const auth = await requireAuth(["student", "parent", "coach"])
   if ("error" in auth) return auth.error
 
-  // 2. APIキー確認
-  const apiKey = process.env.GROQ_API_KEY
-  if (!apiKey) {
-    console.error("[voice/transcribe] GROQ_API_KEY is not configured")
+  // 2. Provider 判定
+  const provider = (process.env.VOICE_PROVIDER || "groq") as VoiceProvider
+  const config = getProviderConfig(provider)
+
+  // 3. APIキー確認
+  if (!config.apiKey) {
+    console.error(`[voice/transcribe] API key not configured for ${config.label}`)
     return NextResponse.json(
       { error: "音声認識サービスが設定されていません" },
       { status: 503 }
@@ -36,7 +60,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // 3. リクエストからファイルを取得
+    // 4. リクエストからファイルを取得
     const formData = await request.formData()
     const file = formData.get("file")
 
@@ -47,7 +71,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 4. ファイルサイズチェック
+    // 5. ファイルサイズチェック
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
         { error: "ファイルサイズが上限（5MB）を超えています" },
@@ -55,7 +79,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 5. MIME type チェック
+    // 6. MIME type チェック
     const baseMime = file.type.split(";")[0].trim()
     const ext = ALLOWED_MIME[baseMime]
     if (!ext) {
@@ -65,30 +89,33 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 6. Whisper API に転送（タイムアウト付き）
-    const whisperFormData = new FormData()
-    whisperFormData.append("file", file, `audio.${ext}`)
-    whisperFormData.append("model", "whisper-large-v3-turbo")
-    whisperFormData.append("language", "ja")
-    whisperFormData.append("response_format", "verbose_json")
+    // 7. 転送用 FormData 構築
+    const upstreamFormData = new FormData()
+    upstreamFormData.append("file", file, `audio.${ext}`)
+    upstreamFormData.append("model", config.model)
+    upstreamFormData.append("language", "ja")
+    // Groq は verbose_json 対応、OpenAI transcribe モデルは json を使用
+    upstreamFormData.append(
+      "response_format",
+      provider === "groq" ? "verbose_json" : "json"
+    )
 
+    // 8. API に転送（タイムアウト付き）
+    const startMs = Date.now()
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS)
 
-    let whisperRes: Response
+    let apiRes: Response
     try {
-      whisperRes = await fetch(
-        "https://api.groq.com/openai/v1/audio/transcriptions",
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${apiKey}` },
-          body: whisperFormData,
-          signal: controller.signal,
-        }
-      )
+      apiRes = await fetch(config.endpoint, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${config.apiKey}` },
+        body: upstreamFormData,
+        signal: controller.signal,
+      })
     } catch (fetchError) {
       if (fetchError instanceof DOMException && fetchError.name === "AbortError") {
-        console.error("[voice/transcribe] Groq API timeout")
+        console.error(`[voice/transcribe] ${config.label} timeout`)
         return NextResponse.json(
           { error: "音声の変換がタイムアウトしました" },
           { status: 504 }
@@ -99,19 +126,21 @@ export async function POST(request: NextRequest) {
       clearTimeout(timeout)
     }
 
-    // 7. Rate limit
-    if (whisperRes.status === 429) {
+    const latencyMs = Date.now() - startMs
+
+    // 9. Rate limit
+    if (apiRes.status === 429) {
       return NextResponse.json(
         { error: "しばらく待ってからお試しください" },
         { status: 429 }
       )
     }
 
-    // 8. API エラー
-    if (!whisperRes.ok) {
-      const errorBody = await whisperRes.text().catch(() => "unknown")
+    // 10. API エラー
+    if (!apiRes.ok) {
+      const errorBody = await apiRes.text().catch(() => "unknown")
       console.error(
-        `[voice/transcribe] Groq API error: ${whisperRes.status}`,
+        `[voice/transcribe] ${config.label} error: ${apiRes.status}`,
         errorBody
       )
       return NextResponse.json(
@@ -120,15 +149,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const whisperData = await whisperRes.json()
-    const text = whisperData.text?.trim() || ""
+    const data = await apiRes.json()
+    const text = data.text?.trim() || ""
 
-    // 9. 空テキスト（無音）
+    // 11. 開発ログ（比較用）
+    console.log(
+      `[voice/transcribe] provider=${provider} model=${config.model} latency=${latencyMs}ms chars=${text.length}`
+    )
+
+    // 12. 空テキスト（無音）
     if (!text) {
-      return NextResponse.json({ text: "" })
+      return NextResponse.json({ text: "", provider, latencyMs })
     }
 
-    return NextResponse.json({ text })
+    return NextResponse.json({ text, provider, latencyMs })
   } catch (error) {
     console.error("[voice/transcribe] Unexpected error:", error)
     return NextResponse.json(
