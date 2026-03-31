@@ -6,12 +6,17 @@ import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 
-type VoiceState = "idle" | "recording" | "processing"
+type VoiceState = "idle" | "recording" | "processing" | "typing"
 
 interface VoiceInputButtonProps {
+  /** 確定テキストのコールバック（タイピング完了時に1回呼ばれる） */
   onTranscribed: (text: string) => void
+  /** タイピング中の部分テキスト更新コールバック（省略時は onTranscribed に最終テキストのみ） */
+  onTypingProgress?: (partialText: string) => void
   disabled?: boolean
   className?: string
+  /** タイピングアニメーションの1文字あたりの間隔(ms)。0で無効。デフォルト30 */
+  typingInterval?: number
 }
 
 /** MediaRecorder が対応する mimeType を検出する */
@@ -46,8 +51,10 @@ const MAX_RECORDING_SEC = 60
 
 export function VoiceInputButton({
   onTranscribed,
+  onTypingProgress,
   disabled = false,
   className,
+  typingInterval = 30,
 }: VoiceInputButtonProps) {
   const [state, setState] = useState<VoiceState>("idle")
   const [elapsed, setElapsed] = useState(0)
@@ -56,6 +63,7 @@ export function VoiceInputButton({
   const chunksRef = useRef<Blob[]>([])
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const { toast } = useToast()
 
   // MediaRecorder 非対応ブラウザ検出（hooks の後で実行）
@@ -69,6 +77,10 @@ export function VoiceInputButton({
     if (timerRef.current) {
       clearInterval(timerRef.current)
       timerRef.current = null
+    }
+    if (typingTimerRef.current) {
+      clearTimeout(typingTimerRef.current)
+      typingTimerRef.current = null
     }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop())
@@ -120,14 +132,36 @@ export function VoiceInputButton({
 
         const { text } = await res.json()
         if (text && text.trim()) {
-          onTranscribed(text.trim())
+          const fullText = text.trim()
+          if (typingInterval <= 0 || !onTypingProgress) {
+            // アニメーション無効 or onTypingProgress 未指定
+            onTranscribed(fullText)
+            setState("idle")
+          } else {
+            // タイピングアニメーション
+            setState("typing")
+            let i = 0
+            const tick = () => {
+              i++
+              onTypingProgress(fullText.slice(0, i))
+              if (i < fullText.length) {
+                typingTimerRef.current = setTimeout(tick, typingInterval)
+              } else {
+                typingTimerRef.current = null
+                onTranscribed(fullText)
+                setState("idle")
+              }
+            }
+            tick()
+          }
+        } else {
+          setState("idle")
         }
       } catch {
         toast({
           title: "音声の変換に失敗しました",
           variant: "destructive",
         })
-      } finally {
         setState("idle")
       }
     },
@@ -248,24 +282,26 @@ export function VoiceInputButton({
         variant="ghost"
         size="icon"
         onClick={handleClick}
-        disabled={disabled || state === "processing"}
+        disabled={disabled || state === "processing" || state === "typing"}
         className={cn(
           "h-8 w-8 rounded-full transition-all",
           state === "idle" && "text-slate-400 hover:text-slate-600 hover:bg-slate-100",
           state === "recording" && "text-white bg-red-500 hover:bg-red-600 animate-pulse shadow-md",
-          state === "processing" && "text-slate-400"
+          (state === "processing" || state === "typing") && "text-slate-400"
         )}
         title={
           state === "idle"
             ? "音声入力"
             : state === "recording"
               ? "録音を停止"
-              : "変換中..."
+              : state === "typing"
+                ? "入力中..."
+                : "変換中..."
         }
       >
         {state === "idle" && <Mic className="h-4 w-4" />}
         {state === "recording" && <Square className="h-3.5 w-3.5 fill-current" />}
-        {state === "processing" && <Loader2 className="h-4 w-4 animate-spin" />}
+        {(state === "processing" || state === "typing") && <Loader2 className="h-4 w-4 animate-spin" />}
       </Button>
     </div>
   )
