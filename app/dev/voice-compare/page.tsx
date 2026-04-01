@@ -64,10 +64,47 @@ export default function VoiceComparePage() {
   }, [])
 
   const cleanupRealtime = useCallback(() => {
-    if (dcRef.current) { dcRef.current.close(); dcRef.current = null }
-    if (pcRef.current) { pcRef.current.close(); pcRef.current = null }
+    console.log("[voice-compare] cleanupRealtime start")
+    try {
+      if (dcRef.current) { dcRef.current.close(); dcRef.current = null }
+    } catch (e) { console.warn("[voice-compare] dc.close error:", e) }
+    try {
+      if (pcRef.current) { pcRef.current.close(); pcRef.current = null }
+    } catch (e) { console.warn("[voice-compare] pc.close error:", e) }
     setRealtimeConnected(false)
+    console.log("[voice-compare] cleanupRealtime done")
   }, [])
+
+  /** 録音停止の共通処理（手動停止・自動停止で共用） */
+  const performStopRef = useRef<() => void>(() => {})
+  performStopRef.current = () => {
+    console.log("[voice-compare] performStop called, current state:", state)
+    if (state !== "recording") {
+      console.log("[voice-compare] performStop skipped: not recording")
+      return
+    }
+    setState("processing")
+    console.log("[voice-compare] state → processing")
+
+    // 1. MediaRecorder 停止
+    if (mediaRecorderRef.current?.state === "recording") {
+      mediaRecorderRef.current.stop()
+    }
+    // 2. タイマー停止
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
+    // 3. マイクトラック停止（Realtime VAD が発話終了を検出 → completed）
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop())
+      streamRef.current = null
+    }
+    // 4. 3秒猶予後に Realtime 切断
+    setTimeout(() => {
+      console.log("[voice-compare] post-stop timeout: cleaning up realtime")
+      try { cleanupRealtime() } catch { /* ignore */ }
+      setState("idle")
+      console.log("[voice-compare] state → idle")
+    }, 3000)
+  }
 
   useEffect(() => {
     return () => {
@@ -227,6 +264,7 @@ export default function VoiceComparePage() {
 
   // ── 録音開始 ──
   const startRecording = useCallback(async () => {
+    console.log("[voice-compare] startRecording called, current state:", state)
     try {
       setError(null)
       setGroqText(null); setGroqLatency(null); setGroqError(null)
@@ -259,27 +297,14 @@ export default function VoiceComparePage() {
 
       recorder.start()
       setState("recording")
+      console.log("[voice-compare] state → recording")
       setElapsed(0)
 
       timerRef.current = setInterval(() => {
         setElapsed((prev) => {
           const next = prev + 1
           if (next >= MAX_RECORDING_SEC) {
-            // ref 経由で停止（循環参照回避）
-            if (mediaRecorderRef.current?.state === "recording") {
-              mediaRecorderRef.current.stop()
-            }
-            if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
-            if (streamRef.current) {
-              streamRef.current.getTracks().forEach((t) => t.stop())
-              streamRef.current = null
-            }
-            setState("processing")
-            setTimeout(() => {
-              if (dcRef.current) { dcRef.current.close(); dcRef.current = null }
-              if (pcRef.current) { pcRef.current.close(); pcRef.current = null }
-              setState("idle")
-            }, 3000)
+            performStopRef.current()
           }
           return next
         })
@@ -292,31 +317,10 @@ export default function VoiceComparePage() {
     }
   }, [cleanup, cleanupRealtime, sendGroqBatch, startRealtime])
 
-  // ── 録音停止（安全な順序: マイク停止 → completed 待ち → 接続 close） ──
+  // ── 録音停止（performStopRef を呼ぶだけ） ──
   const stopRecording = useCallback(() => {
-    if (state !== "recording") return
-    setState("processing")
-
-    // 1. MediaRecorder 停止 → blob 生成 → Groq 送信
-    if (mediaRecorderRef.current?.state === "recording") {
-      mediaRecorderRef.current.stop()
-    }
-
-    // 2. タイマー停止
-    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
-
-    // 3. マイクトラック停止（Realtime 側に無音→VAD が発話終了を検出→completed）
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop())
-      streamRef.current = null
-    }
-
-    // 4. 少し待ってから Realtime 切断（completed を受ける猶予）
-    setTimeout(() => {
-      try { cleanupRealtime() } catch { /* ignore */ }
-      setState("idle")
-    }, 3000)
-  }, [state, cleanupRealtime])
+    performStopRef.current()
+  }, [])
 
   const formatTime = (sec: number) => {
     const m = Math.floor(sec / 60)
