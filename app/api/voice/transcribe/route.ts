@@ -46,8 +46,9 @@ export async function POST(request: NextRequest) {
   const auth = await requireAuth(["student", "parent", "coach"])
   if ("error" in auth) return auth.error
 
-  // 2. Provider 判定
-  const provider = (process.env.VOICE_PROVIDER || "groq") as VoiceProvider
+  // 2. Provider 判定（クエリパラメータで上書き可能、dev 比較用）
+  const urlProvider = request.nextUrl.searchParams.get("provider") as VoiceProvider | null
+  const provider = urlProvider || (process.env.VOICE_PROVIDER || "groq") as VoiceProvider
   const config = getProviderConfig(provider)
 
   // 3. APIキー確認

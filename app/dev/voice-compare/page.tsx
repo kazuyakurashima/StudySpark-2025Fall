@@ -41,6 +41,7 @@ export default function VoiceComparePage() {
   const [realtimeFinalMs, setRealtimeFinalMs] = useState<number | null>(null)
   const [realtimeError, setRealtimeError] = useState<string | null>(null)
   const [realtimeConnected, setRealtimeConnected] = useState(false)
+  const [realtimeDisconnectReason, setRealtimeDisconnectReason] = useState<string | null>(null)
 
   // Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
@@ -91,7 +92,8 @@ export default function VoiceComparePage() {
       const formData = new FormData()
       formData.append("file", blob, `recording.${ext}`)
 
-      const res = await fetch("/api/voice/transcribe", { method: "POST", body: formData })
+      // Groq 固定（VOICE_PROVIDER env に依存しない）
+      const res = await fetch("/api/voice/transcribe?provider=groq", { method: "POST", body: formData })
       const latency = Date.now() - startMs
       setGroqLatency(latency)
 
@@ -117,6 +119,7 @@ export default function VoiceComparePage() {
     setRealtimeFirstDelta(null)
     setRealtimeFinalMs(null)
     setRealtimeError(null)
+    setRealtimeDisconnectReason(null)
     firstDeltaReceivedRef.current = false
     transcriptsRef.current.clear()
 
@@ -146,6 +149,14 @@ export default function VoiceComparePage() {
       const audioTrack = stream.getAudioTracks()[0]
       if (audioTrack) pc.addTrack(audioTrack, stream)
 
+      // 接続状態変化の監視
+      pc.addEventListener("connectionstatechange", () => {
+        if (pc.connectionState === "disconnected" || pc.connectionState === "failed" || pc.connectionState === "closed") {
+          setRealtimeDisconnectReason(pc.connectionState)
+          setRealtimeConnected(false)
+        }
+      })
+
       // Data channel でイベント受信
       const dc = pc.createDataChannel("oai-events")
       dcRef.current = dc
@@ -163,7 +174,8 @@ export default function VoiceComparePage() {
             const prev = transcriptsRef.current.get(itemId) || ""
             const updated = prev + (event.delta || "")
             transcriptsRef.current.set(itemId, updated)
-            setRealtimePartial(updated)
+            // 全 item のテキストを結合して表示（複数発話対応）
+            setRealtimePartial(Array.from(transcriptsRef.current.values()).join(" "))
 
             if (!firstDeltaReceivedRef.current) {
               firstDeltaReceivedRef.current = true
@@ -172,8 +184,11 @@ export default function VoiceComparePage() {
           }
 
           if (event.type === "conversation.item.input_audio_transcription.completed") {
+            const itemId = event.item_id || "default"
             const transcript = event.transcript || ""
-            setRealtimeFinal(transcript)
+            // completed のテキストで item を上書き（delta の蓄積より正確）
+            transcriptsRef.current.set(itemId, transcript)
+            setRealtimeFinal(Array.from(transcriptsRef.current.values()).join(" "))
             setRealtimeFinalMs(Date.now() - recordingStartRef.current)
           }
         } catch { /* ignore parse errors */ }
@@ -418,6 +433,9 @@ export default function VoiceComparePage() {
               </strong></p>
               <p>chars: <strong className="text-slate-700">
                 {realtimeFinal !== null ? realtimeFinal.length : realtimePartial.length || "—"}
+              </strong></p>
+              <p>disconnect: <strong className="text-slate-700">
+                {realtimeDisconnectReason || "—"}
               </strong></p>
             </div>
 
