@@ -264,7 +264,23 @@ export default function VoiceComparePage() {
       timerRef.current = setInterval(() => {
         setElapsed((prev) => {
           const next = prev + 1
-          if (next >= MAX_RECORDING_SEC) stopRecording()
+          if (next >= MAX_RECORDING_SEC) {
+            // ref 経由で停止（循環参照回避）
+            if (mediaRecorderRef.current?.state === "recording") {
+              mediaRecorderRef.current.stop()
+            }
+            if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
+            if (streamRef.current) {
+              streamRef.current.getTracks().forEach((t) => t.stop())
+              streamRef.current = null
+            }
+            setState("processing")
+            setTimeout(() => {
+              if (dcRef.current) { dcRef.current.close(); dcRef.current = null }
+              if (pcRef.current) { pcRef.current.close(); pcRef.current = null }
+              setState("idle")
+            }, 3000)
+          }
           return next
         })
       }, 1000)
@@ -297,7 +313,7 @@ export default function VoiceComparePage() {
 
     // 4. 少し待ってから Realtime 切断（completed を受ける猶予）
     setTimeout(() => {
-      cleanupRealtime()
+      try { cleanupRealtime() } catch { /* ignore */ }
       setState("idle")
     }, 3000)
   }, [state, cleanupRealtime])
