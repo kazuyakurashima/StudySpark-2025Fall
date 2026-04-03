@@ -28,11 +28,12 @@ Whisper の生テキストをそのまま返す。最小構成で音声入力の
 
 ### Phase 1.5: Llama 校正（オプション）
 
-Phase 1 の UX 確認後、必要に応じて Llama 3.1 8B Instant による後処理を追加。
+Phase 1 の UX 確認後、必要に応じて Llama 4 Scout による後処理を追加。
 句読点補完・フィラー除去を行う。**意味を変える校正は行わない**（生徒の表現をそのまま尊重）。
 
-- モデル: `llama-3.1-8b-instant`（$0.05/100万入力トークン）
-- feature flag または環境変数で ON/OFF 切替
+- モデル: `meta-llama/llama-4-scout-17b-16e-instruct`（Groq で利用可能）
+- feature flag で ON/OFF 切替（`VOICE_CORRECTION_ENABLED=true`）
+- **意味を変える校正は行わない**（生徒の表現をそのまま尊重）
 - Whisper 生テキストと校正テキストの両方を返し、UI側で選択可能にする案も検討
 
 ### Phase 2: 全テキスト入力への展開
@@ -74,8 +75,21 @@ GROQ_API_KEY=your-groq-api-key-here
 ```typescript
 // POST: 音声ファイルを受け取り、Whisper で認識してテキストを返す
 // - Content-Type: multipart/form-data
-// - リクエスト: file（audio blob）
-// - レスポンス: { text: string }
+// - リクエスト: file（audio blob）+ クエリパラメータ:
+//     ?provider=groq|openai  （デフォルト: VOICE_PROVIDER env or "groq"）
+//     ?postprocess=none|llama|openai  （デフォルト: none）
+//     ?polishModel=<model>  （postprocess モデルの上書き）
+// - レスポンス（成功）:
+//   {
+//     text: string,                  // 最終テキスト（postprocess後 or rawText）
+//     rawText: string,               // Whisper 生テキスト
+//     provider: "groq" | "openai",
+//     latencyMs: number,             // 総所要時間（ms）
+//     transcriptionLatencyMs: number,// Whisper のみの所要時間（ms）
+//     postprocessModel: string | null,
+//     postprocessLatencyMs: number | null,
+//     postprocessError: string | null // Llama 失敗時のエラー（text は rawText にフォールバック済み）
+//   }
 // - 認証: Supabase Auth（ログインユーザーのみ）
 // - エラー: 413（ファイルサイズ上限 5MB）、401（未認証）、502（API障害）、429（Rate limit）
 //
@@ -271,12 +285,23 @@ idle（マイクアイコン）
 | `app/layout.tsx` | Toaster マウント追加（未マウントの場合） |
 | `.env.local` | `GROQ_API_KEY` 追加 |
 
-### Phase 1.5（Llama 校正追加、feature flag 制御）
+### Phase 1.5（Llama 4 Scout 校正追加）
 
 | ファイル | 変更内容 |
 |---------|---------|
-| `app/api/voice/transcribe/route.ts` | Llama 3.1 8B による後処理を追加（flag で ON/OFF） |
-| `.env.local` | `VOICE_CORRECTION_ENABLED=true` 追加 |
+| `app/api/voice/transcribe/route.ts` | Llama 4 Scout による後処理を追加（実装済み） |
+
+**校正処理の詳細**:
+- モデル: `meta-llama/llama-4-scout-17b-16e-instruct`（Groq API 経由）
+- 呼び出し方: `POST /api/voice/transcribe?postprocess=llama`（クエリパラメータで制御）
+  - `postprocess` 未指定 or `none` → Whisper 生テキストをそのまま返す
+  - `postprocess=llama` → Llama 4 Scout で後処理してから返す
+  - `postprocess=openai` → OpenAI モデルで後処理（OpenAI provider 時）
+- Whisper の生テキストを入力として、句読点補完・フィラー除去を行う
+- **意味を変える修正は行わない**（プロンプトで明示制御）
+- Llama 失敗時は Whisper 生テキストにフォールバック（校正失敗でも入力は成功）
+- レスポンスに `rawText`（生）と `text`（校正後 or 生）の両方を含める
+- 校正モデルは `?polishModel=<model>` で上書き可能（dev 比較用）
 
 ### Phase 2（全画面展開）
 

@@ -21,11 +21,15 @@ const ALLOWED_MIME: Record<string, string> = {
 }
 
 type VoiceProvider = "groq" | "openai"
+type VoicePostprocess = "none" | "llama" | "openai"
+
+const GROQ_POLISH_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+const OPENAI_POLISH_MODEL = process.env.VOICE_OPENAI_POLISH_MODEL || "gpt-4o-mini"
 
 /** Provider ごとの設定 */
-function getProviderConfig(provider: VoiceProvider) {
+function getProviderConfig(provider: VoiceProvider, modelOverride?: string | null) {
   if (provider === "openai") {
-    const model = process.env.VOICE_OPENAI_MODEL || "gpt-4o-mini-transcribe"
+    const model = modelOverride || process.env.VOICE_OPENAI_MODEL || "gpt-4o-mini-transcribe"
     return {
       apiKey: process.env.OPENAI_API_KEY,
       endpoint: "https://api.openai.com/v1/audio/transcriptions",
@@ -41,6 +45,124 @@ function getProviderConfig(provider: VoiceProvider) {
   }
 }
 
+async function polishWithGroqLlama(text: string, apiKey: string, model: string) {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS)
+  const startMs = Date.now()
+
+  try {
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You lightly polish Japanese speech-to-text output. Preserve meaning and wording. Only add natural punctuation, remove filler words when obvious, and fix minor spacing. Return only the polished Japanese text.",
+          },
+          {
+            role: "user",
+            content: text,
+          },
+        ],
+      }),
+      signal: controller.signal,
+    })
+
+    const latencyMs = Date.now() - startMs
+
+    if (!res.ok) {
+      const errorBody = await res.text().catch(() => "unknown")
+      return {
+        text,
+        latencyMs,
+        error: `Postprocess error ${res.status}: ${errorBody.slice(0, 200)}`,
+      }
+    }
+
+    const data = await res.json()
+    const polishedText = data.choices?.[0]?.message?.content?.trim() || text
+    return { text: polishedText, latencyMs }
+  } catch (error) {
+    const latencyMs = Date.now() - startMs
+    if (error instanceof DOMException && error.name === "AbortError") {
+      return { text, latencyMs, error: "Postprocess timeout" }
+    }
+    return {
+      text,
+      latencyMs,
+      error: error instanceof Error ? error.message : "Postprocess failed",
+    }
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+async function polishWithOpenAI(text: string, apiKey: string) {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS)
+  const startMs = Date.now()
+
+  try {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: OPENAI_POLISH_MODEL,
+        temperature: 0,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You lightly polish Japanese speech-to-text output. Preserve meaning and wording. Only add natural punctuation, remove filler words when obvious, and fix minor spacing. Return only the polished Japanese text.",
+          },
+          {
+            role: "user",
+            content: text,
+          },
+        ],
+      }),
+      signal: controller.signal,
+    })
+
+    const latencyMs = Date.now() - startMs
+
+    if (!res.ok) {
+      const errorBody = await res.text().catch(() => "unknown")
+      return {
+        text,
+        latencyMs,
+        error: `Postprocess error ${res.status}: ${errorBody.slice(0, 200)}`,
+      }
+    }
+
+    const data = await res.json()
+    const polishedText = data.choices?.[0]?.message?.content?.trim() || text
+    return { text: polishedText, latencyMs }
+  } catch (error) {
+    const latencyMs = Date.now() - startMs
+    if (error instanceof DOMException && error.name === "AbortError") {
+      return { text, latencyMs, error: "Postprocess timeout" }
+    }
+    return {
+      text,
+      latencyMs,
+      error: error instanceof Error ? error.message : "Postprocess failed",
+    }
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
 export async function POST(request: NextRequest) {
   // 1. 認証
   const auth = await requireAuth(["student", "parent", "coach"])
@@ -48,8 +170,11 @@ export async function POST(request: NextRequest) {
 
   // 2. Provider 判定（クエリパラメータで上書き可能、dev 比較用）
   const urlProvider = request.nextUrl.searchParams.get("provider") as VoiceProvider | null
+  const modelOverride = request.nextUrl.searchParams.get("model")
+  const postprocess = request.nextUrl.searchParams.get("postprocess") as VoicePostprocess | null
+  const polishModelOverride = request.nextUrl.searchParams.get("polishModel")
   const provider = urlProvider || (process.env.VOICE_PROVIDER || "groq") as VoiceProvider
-  const config = getProviderConfig(provider)
+  const config = getProviderConfig(provider, modelOverride)
 
   // 3. APIキー確認
   if (!config.apiKey) {
@@ -151,19 +276,52 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await apiRes.json()
-    const text = data.text?.trim() || ""
+    const rawText = data.text?.trim() || ""
+    let text = rawText
+    let postprocessModel: string | null = null
+    let postprocessLatencyMs: number | null = null
+    let postprocessError: string | null = null
 
-    // 11. 開発ログ（比較用）
-    console.log(
-      `[voice/transcribe] provider=${provider} model=${config.model} latency=${latencyMs}ms chars=${text.length}`
-    )
-
-    // 12. 空テキスト（無音）
-    if (!text) {
-      return NextResponse.json({ text: "", provider, latencyMs })
+    if (rawText && provider === "groq" && postprocess === "llama") {
+      postprocessModel = polishModelOverride || GROQ_POLISH_MODEL
+      const polished = await polishWithGroqLlama(rawText, config.apiKey, postprocessModel)
+      text = polished.text
+      postprocessLatencyMs = polished.latencyMs
+      postprocessError = polished.error || null
+    } else if (rawText && provider === "openai" && postprocess === "openai") {
+      postprocessModel = OPENAI_POLISH_MODEL
+      const polished = await polishWithOpenAI(rawText, config.apiKey)
+      text = polished.text
+      postprocessLatencyMs = polished.latencyMs
+      postprocessError = polished.error || null
     }
 
-    return NextResponse.json({ text, provider, latencyMs })
+    const totalLatencyMs = Date.now() - startMs
+
+    // 11. 空テキスト（無音）
+    if (!text) {
+      return NextResponse.json({
+        text: "",
+        rawText,
+        provider,
+        latencyMs: totalLatencyMs,
+        transcriptionLatencyMs: latencyMs,
+        postprocessModel,
+        postprocessLatencyMs,
+        postprocessError,
+      })
+    }
+
+    return NextResponse.json({
+      text,
+      rawText,
+      provider,
+      latencyMs: totalLatencyMs,
+      transcriptionLatencyMs: latencyMs,
+      postprocessModel,
+      postprocessLatencyMs,
+      postprocessError,
+    })
   } catch (error) {
     console.error("[voice/transcribe] Unexpected error:", error)
     return NextResponse.json(
