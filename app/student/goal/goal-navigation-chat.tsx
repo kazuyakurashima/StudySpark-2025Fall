@@ -51,11 +51,21 @@ export function GoalNavigationChat({
   const [isComplete, setIsComplete] = useState(false)
   const [finalThoughts, setFinalThoughts] = useState("")
   const [thoughtsFailCount, setThoughtsFailCount] = useState(0)
+  const [voiceDebug, setVoiceDebug] = useState<{
+    mediaRecorderDefined: boolean
+    getUserMediaDefined: boolean
+    supportedMimeType: string | null
+  }>({
+    mediaRecorderDefined: false,
+    getUserMediaDefined: false,
+    supportedMimeType: null,
+  })
   const abortRef = useRef<AbortController | null>(null)
   const typingCancelRef = useRef<(() => void) | null>(null)
   const msgIdRef = useRef(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
+  const shouldShowVoiceInput = currentStep <= 2 && !isLoading && !isComplete
 
   // 条件付き自動スクロール（最下部付近にいるときのみ）
   useEffect(() => {
@@ -72,6 +82,31 @@ export function GoalNavigationChat({
       abortRef.current?.abort()
       typingCancelRef.current?.()
     }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const mediaRecorderDefined = typeof MediaRecorder !== "undefined"
+    const getUserMediaDefined = typeof navigator !== "undefined" &&
+      typeof navigator.mediaDevices?.getUserMedia === "function"
+
+    let supportedMimeType: string | null = null
+    if (mediaRecorderDefined) {
+      const candidates = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/mp4",
+      ]
+      supportedMimeType =
+        candidates.find((type) => MediaRecorder.isTypeSupported(type)) ?? null
+    }
+
+    setVoiceDebug({
+      mediaRecorderDefined,
+      getUserMediaDefined,
+      supportedMimeType,
+    })
   }, [])
 
 
@@ -386,7 +421,20 @@ export function GoalNavigationChat({
           <div ref={messagesEndRef} />
         </div>
 
-        {currentStep <= 2 && !isLoading && !isComplete && (
+        {process.env.NODE_ENV !== "production" && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 space-y-1">
+            <div className="font-semibold">DEBUG: Voice Input</div>
+            <div>showInput: {String(shouldShowVoiceInput)}</div>
+            <div>currentStep: {currentStep}</div>
+            <div>isLoading: {String(isLoading)}</div>
+            <div>isComplete: {String(isComplete)}</div>
+            <div>mediaRecorderDefined: {String(voiceDebug.mediaRecorderDefined)}</div>
+            <div>getUserMediaDefined: {String(voiceDebug.getUserMediaDefined)}</div>
+            <div>supportedMimeType: {voiceDebug.supportedMimeType ?? "none"}</div>
+          </div>
+        )}
+
+        {shouldShowVoiceInput && (
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Textarea
