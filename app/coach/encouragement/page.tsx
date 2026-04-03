@@ -26,6 +26,7 @@ import {
 import { groupLogsByBatch, calculateSummary, calculateAccuracy, getRepresentativeLog } from "@/lib/utils/batch-grouping"
 import type { StudyLogWithBatch } from "@/lib/types/batch-grouping"
 import { useMemo } from "react"
+import { VoiceInputButton } from "@/components/ui/voice-input-button"
 
 // 指導者応援用学習ログ型
 interface CoachEncouragementLog extends StudyLogWithBatch {
@@ -605,7 +606,16 @@ export default function CoachEncouragementPage() {
                     <MessageSquare className="h-4 w-4 text-purple-600" />
                     生成されたメッセージ（編集できます）
                   </label>
-                  <Textarea value={editingMessage} onChange={(e) => setEditingMessage(e.target.value)} rows={4} maxLength={200} className="resize-none w-full p-4 rounded-xl border-2 border-slate-200 focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all duration-200" />
+                  <div className="relative">
+                    <Textarea value={editingMessage} onChange={(e) => setEditingMessage(e.target.value)} rows={4} maxLength={200} className="resize-none w-full p-4 pr-12 rounded-xl border-2 border-slate-200 focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all duration-200" />
+                    <VoiceInputButton
+                      onTranscribed={(text) => {
+                        const newText = editingMessage ? `${editingMessage} ${text}` : text
+                        setEditingMessage(newText.slice(0, 200))
+                      }}
+                      className="absolute right-2 bottom-2"
+                    />
+                  </div>
                   <div className="flex justify-between items-center mt-3">
                     <span className="text-xs text-slate-500">{editingMessage.length}/200文字</span>
                   </div>
@@ -650,7 +660,16 @@ export default function CoachEncouragementPage() {
           <Card className="w-full max-w-lg">
             <CardHeader><CardTitle>カスタム応援メッセージ</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <Textarea value={customMessage} onChange={(e) => setCustomMessage(e.target.value)} placeholder="生徒への応援メッセージを入力してください" rows={6} maxLength={200} className="resize-none" />
+              <div className="relative">
+                <Textarea value={customMessage} onChange={(e) => setCustomMessage(e.target.value)} placeholder="生徒への応援メッセージを入力してください" rows={6} maxLength={200} className="resize-none pr-12" />
+                <VoiceInputButton
+                  onTranscribed={(text) => {
+                    const newText = customMessage ? `${customMessage} ${text}` : text
+                    setCustomMessage(newText.slice(0, 200))
+                  }}
+                  className="absolute right-2 bottom-2"
+                />
+              </div>
               <p className="text-xs text-slate-500 text-right">{customMessage.length} / 200文字</p>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => { setCustomDialogOpen(null); setCustomMessage("") }} className="flex-1">キャンセル</Button>

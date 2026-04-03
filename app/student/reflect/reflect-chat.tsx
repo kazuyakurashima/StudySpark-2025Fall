@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import Image from "next/image"
 import { Send, Sparkles, CheckCircle } from "lucide-react"
+import { VoiceInputButton } from "@/components/ui/voice-input-button"
 import { saveCoachingMessage, completeCoachingSession } from "@/app/actions/reflect"
 import { useRouter } from "next/navigation"
 
@@ -568,13 +569,20 @@ export function ReflectChat({
               </summary>
               <div className="mt-4 space-y-2">
                 <div className="flex gap-2">
-                  <Textarea
-                    value={userInput}
-                    onChange={(e) => setUserInput(e.target.value)}
-                    placeholder="続けて話したいことがあれば..."
-                    className="flex-1 min-h-[60px] resize-none"
-                    disabled={isLoading || isStreaming}
-                  />
+                  <div className="relative flex-1">
+                    <Textarea
+                      value={userInput}
+                      onChange={(e) => setUserInput(e.target.value)}
+                      placeholder="続けて話したいことがあれば..."
+                      className="min-h-[60px] resize-none pr-12"
+                      disabled={isLoading || isStreaming}
+                    />
+                    <VoiceInputButton
+                      onTranscribed={(text) => setUserInput((prev) => prev ? `${prev} ${text}` : text)}
+                      disabled={isLoading || isStreaming}
+                      className="absolute right-2 bottom-2"
+                    />
+                  </div>
                   <Button
                     onClick={sendMessage}
                     disabled={!userInput.trim() || isLoading || isStreaming}
@@ -593,13 +601,20 @@ export function ReflectChat({
         {!isCompleted && !isSessionEnded && !canEndSession && turnNumber <= MAX_TURNS && (
           <div className="space-y-2">
             <div className="flex gap-2">
-              <Textarea
-                value={userInput}
-                onChange={(e) => setUserInput(e.target.value)}
-                placeholder="あなたの気持ちを教えてね...（Enterで改行、送信ボタンで送信）"
-                className="flex-1 min-h-[60px] resize-none"
-                disabled={isLoading || isCompleted || isStreaming}
-              />
+              <div className="relative flex-1">
+                <Textarea
+                  value={userInput}
+                  onChange={(e) => setUserInput(e.target.value)}
+                  placeholder="あなたの気持ちを教えてね...（Enterで改行、送信ボタンで送信）"
+                  className="min-h-[60px] resize-none pr-12"
+                  disabled={isLoading || isCompleted || isStreaming}
+                />
+                <VoiceInputButton
+                  onTranscribed={(text) => setUserInput((prev) => prev ? `${prev} ${text}` : text)}
+                  disabled={isLoading || isCompleted || isStreaming}
+                  className="absolute right-2 bottom-2"
+                />
+              </div>
               <Button
                 onClick={sendMessage}
                 disabled={!userInput.trim() || isLoading || isCompleted || isStreaming}

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Bot, Send, Sparkles, User } from "lucide-react"
+import { VoiceInputButton } from "@/components/ui/voice-input-button"
 import { fetchSSE } from "@/lib/sse/client"
 import { simulateTyping } from "@/lib/sse/typing-effect"
 
@@ -387,13 +388,20 @@ export function GoalNavigationChat({
 
         {currentStep <= 2 && !isLoading && !isComplete && (
           <div className="flex gap-2">
-            <Textarea
-              value={userInput}
-              onChange={(e) => setUserInput(e.target.value)}
-              placeholder="あなたの気持ちを教えてね...（Enterで改行、送信ボタンで送信）"
-              className="flex-1 min-h-[60px] resize-none"
-              disabled={isLoading}
-            />
+            <div className="relative flex-1">
+              <Textarea
+                value={userInput}
+                onChange={(e) => setUserInput(e.target.value)}
+                placeholder="あなたの気持ちを教えてね...（Enterで改行、送信ボタンで送信）"
+                className="min-h-[60px] resize-none pr-12"
+                disabled={isLoading}
+              />
+              <VoiceInputButton
+                onTranscribed={(text) => setUserInput((prev) => prev ? `${prev} ${text}` : text)}
+                disabled={isLoading}
+                className="absolute right-2 bottom-2"
+              />
+            </div>
             <Button
               onClick={sendMessage}
               disabled={!userInput.trim() || isLoading}

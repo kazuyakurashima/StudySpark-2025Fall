@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Bot, Send, Sparkles, User, ArrowLeft } from "lucide-react"
+import { VoiceInputButton } from "@/components/ui/voice-input-button"
 import { fetchSSE } from "@/lib/sse/client"
 import { simulateTyping } from "@/lib/sse/typing-effect"
 
@@ -425,14 +426,25 @@ export function GoalSimpleChat({
         {currentStep >= 2 && currentStep < 4 && (
           <div className="p-4 border-t bg-background">
             <div className="space-y-2">
-              <Textarea
-                placeholder="あなたの気持ちを自由に書いてね...（Enterで改行、送信ボタンで送信）"
-                value={userInput}
-                onChange={(e) => setUserInput(e.target.value)}
-                className="min-h-[80px] resize-none"
-                maxLength={getMaxLength()}
-                disabled={isLoading}
-              />
+              <div className="relative">
+                <Textarea
+                  placeholder="あなたの気持ちを自由に書いてね...（Enterで改行、送信ボタンで送信）"
+                  value={userInput}
+                  onChange={(e) => setUserInput(e.target.value)}
+                  className="min-h-[80px] resize-none pr-12"
+                  maxLength={getMaxLength()}
+                  disabled={isLoading}
+                />
+                <VoiceInputButton
+                  onTranscribed={(text) => {
+                    const max = getMaxLength()
+                    const newText = userInput ? `${userInput} ${text}` : text
+                    setUserInput(newText.slice(0, max))
+                  }}
+                  disabled={isLoading}
+                  className="absolute right-2 bottom-2"
+                />
+              </div>
               <div className="flex justify-between items-center">
                 <span className="text-xs text-muted-foreground">
                   {userInput.length}/{getMaxLength()}文字

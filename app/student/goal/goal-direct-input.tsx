@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Edit3, ArrowLeft, Save, Lightbulb } from "lucide-react"
+import { VoiceInputButton } from "@/components/ui/voice-input-button"
 
 interface GoalDirectInputProps {
   onComplete: (goalThoughts: string) => void
@@ -50,13 +51,22 @@ export function GoalDirectInput({ onComplete, onBack, isSaving = false }: GoalDi
 
         {/* テキストエリア */}
         <div className="space-y-2">
-          <Textarea
-            placeholder="目標に向けて、今の気持ちを自由に書こう"
-            value={thoughts}
-            onChange={(e) => setThoughts(e.target.value)}
-            className="min-h-[300px] resize-none text-base leading-relaxed"
-            maxLength={300}
-          />
+          <div className="relative">
+            <Textarea
+              placeholder="目標に向けて、今の気持ちを自由に書こう"
+              value={thoughts}
+              onChange={(e) => setThoughts(e.target.value)}
+              className="min-h-[300px] resize-none text-base leading-relaxed pr-12"
+              maxLength={300}
+            />
+            <VoiceInputButton
+              onTranscribed={(text) => {
+                const newText = thoughts ? `${thoughts} ${text}` : text
+                setThoughts(newText.slice(0, 300))
+              }}
+              className="absolute right-2 bottom-2"
+            />
+          </div>
           <div className="flex justify-between items-center">
             <span className="text-xs text-muted-foreground">
               あなたの素直な気持ちを書いてね
