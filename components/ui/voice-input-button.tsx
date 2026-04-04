@@ -96,7 +96,13 @@ export function VoiceInputButton({
         const formData = new FormData()
         formData.append("file", blob, `recording.${ext}`)
 
-        const res = await fetch("/api/voice/transcribe", {
+        const correctionEnabled =
+          process.env.NEXT_PUBLIC_VOICE_CORRECTION_ENABLED === "true"
+        const url = correctionEnabled
+          ? "/api/voice/transcribe?postprocess=llama"
+          : "/api/voice/transcribe"
+
+        const res = await fetch(url, {
           method: "POST",
           body: formData,
         })
