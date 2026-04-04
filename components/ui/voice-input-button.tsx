@@ -121,10 +121,11 @@ export function VoiceInputButton({
         const data = await res.json()
         const { text, postprocessError } = data
         if (postprocessError) {
+          // 生エラー文言は出さない（upstream の詳細がユーザーに見えるのを避ける）
+          console.warn("[VoiceInputButton] postprocessError:", postprocessError)
           toast({
-            title: "テキスト校正に失敗しました（音声認識結果を使用）",
-            description: postprocessError,
-            variant: "destructive",
+            title: "テキストの整形ができませんでした",
+            description: "音声認識の結果をそのまま使用しています",
           })
         }
         if (text && text.trim()) {

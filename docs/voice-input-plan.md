@@ -293,13 +293,17 @@ idle（マイクアイコン）
 
 **校正処理の詳細**:
 - モデル: `meta-llama/llama-4-scout-17b-16e-instruct`（Groq API 経由）
-- 呼び出し方: `POST /api/voice/transcribe?postprocess=llama`（クエリパラメータで制御）
-  - `postprocess` 未指定 or `none` → Whisper 生テキストをそのまま返す
-  - `postprocess=llama` → Llama 4 Scout で後処理してから返す
-  - `postprocess=openai` → OpenAI モデルで後処理（OpenAI provider 時）
+- **有効化方法（推奨）**: サーバー env に `VOICE_CORRECTION_ENABLED=true` を設定
+  - これにより `VoiceInputButton` の通常音声入力が全て Llama 校正付きになる
+  - `NEXT_PUBLIC_*` は使わない（Next.js のビルド時埋め込みによる反映遅れを避けるため）
+- **クエリパラメータによる個別制御**（dev 比較・テスト用）:
+  - `?postprocess=none` → env が `true` でも強制スキップ
+  - `?postprocess=llama` → env が `false` でも強制実行
+  - `?postprocess=openai` → OpenAI モデルで後処理（OpenAI provider 時）
 - Whisper の生テキストを入力として、句読点補完・フィラー除去を行う
 - **意味を変える修正は行わない**（プロンプトで明示制御）
 - Llama 失敗時は Whisper 生テキストにフォールバック（校正失敗でも入力は成功）
+- クライアントには `postprocessError` が返る（ユーザーには簡略メッセージ、詳細はブラウザコンソール）
 - レスポンスに `rawText`（生）と `text`（校正後 or 生）の両方を含める
 - 校正モデルは `?polishModel=<model>` で上書き可能（dev 比較用）
 
