@@ -77,7 +77,9 @@ GROQ_API_KEY=your-groq-api-key-here
 // - Content-Type: multipart/form-data
 // - リクエスト: file（audio blob）+ クエリパラメータ:
 //     ?provider=groq|openai  （デフォルト: VOICE_PROVIDER env or "groq"）
-//     ?postprocess=none|llama|openai  （デフォルト: none）
+//     ?postprocess=none|llama|openai  （デフォルト: none。ただしサーバー env の
+//                                      VOICE_CORRECTION_ENABLED=true が設定されている場合、
+//                                      Groq provider ではクエリ未指定でも Llama 校正を自動実行）
 //     ?polishModel=<model>  （postprocess モデルの上書き）
 // - レスポンス（成功）:
 //   {
