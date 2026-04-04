@@ -282,12 +282,24 @@ export async function POST(request: NextRequest) {
     let postprocessLatencyMs: number | null = null
     let postprocessError: string | null = null
 
-    if (rawText && provider === "groq" && postprocess === "llama") {
+    // postprocess=llama を明示指定、または VOICE_CORRECTION_ENABLED=true の時に Llama 校正を実行
+    const correctionByEnv =
+      process.env.VOICE_CORRECTION_ENABLED === "true" && provider === "groq" && postprocess !== "none"
+    const runLlama =
+      rawText && provider === "groq" && (postprocess === "llama" || correctionByEnv)
+
+    if (runLlama) {
       postprocessModel = polishModelOverride || GROQ_POLISH_MODEL
+      console.log(`[voice/transcribe] Llama postprocess: model=${postprocessModel}, textLen=${rawText.length}`)
       const polished = await polishWithGroqLlama(rawText, config.apiKey, postprocessModel)
       text = polished.text
       postprocessLatencyMs = polished.latencyMs
       postprocessError = polished.error || null
+      if (postprocessError) {
+        console.error(`[voice/transcribe] Llama postprocess error: ${postprocessError}`)
+      } else {
+        console.log(`[voice/transcribe] Llama postprocess ok: ${postprocessLatencyMs}ms`)
+      }
     } else if (rawText && provider === "openai" && postprocess === "openai") {
       postprocessModel = OPENAI_POLISH_MODEL
       const polished = await polishWithOpenAI(rawText, config.apiKey)

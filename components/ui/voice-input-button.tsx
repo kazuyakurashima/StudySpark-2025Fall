@@ -96,13 +96,7 @@ export function VoiceInputButton({
         const formData = new FormData()
         formData.append("file", blob, `recording.${ext}`)
 
-        const correctionEnabled =
-          process.env.NEXT_PUBLIC_VOICE_CORRECTION_ENABLED === "true"
-        const url = correctionEnabled
-          ? "/api/voice/transcribe?postprocess=llama"
-          : "/api/voice/transcribe"
-
-        const res = await fetch(url, {
+        const res = await fetch("/api/voice/transcribe", {
           method: "POST",
           body: formData,
         })
@@ -124,7 +118,15 @@ export function VoiceInputButton({
           return
         }
 
-        const { text } = await res.json()
+        const data = await res.json()
+        const { text, postprocessError } = data
+        if (postprocessError) {
+          toast({
+            title: "テキスト校正に失敗しました（音声認識結果を使用）",
+            description: postprocessError,
+            variant: "destructive",
+          })
+        }
         if (text && text.trim()) {
           onTranscribed(text.trim())
         }
