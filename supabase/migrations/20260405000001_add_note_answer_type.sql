@@ -4,14 +4,21 @@
 -- 目的: 解説参照問題（入力なし・採点なし）をDBに保存できるようにする
 -- 影響: questions テーブルの CHECK 制約 2 本を修正
 -- 既存データ: なし（新制約は既存値をすべて受け入れる）
--- ロールバック: 逆順で DROP / ADD を再実行
+-- 冪等性: IF NOT EXISTS / IF EXISTS で何度実行しても安全
+-- ロールバック: questions_answer_type_check を元の4値に戻し、
+--              questions_answer_integrity_check を元の2条件に戻す
 -- ============================================================================
 
--- 1. answer_type 列レベル CHECK の名前を動的に取得して削除
+BEGIN;
+
+-- 1. answer_type 列レベル CHECK を削除（旧名・新名どちらでも DROP）
+--    初回: 自動生成名（questions_answer_type_check1 など）を動的取得して削除
+--    再実行: 固定名 questions_answer_type_check を IF EXISTS で削除
 DO $$
 DECLARE
   v_conname TEXT;
 BEGIN
+  -- 既存の answer_type IN (...) 制約を名前問わず削除
   SELECT conname INTO v_conname
   FROM pg_constraint
   WHERE conrelid = 'public.questions'::regclass
@@ -22,7 +29,7 @@ BEGIN
   END IF;
 END $$;
 
--- 2. 整合性 CHECK（correct_answer / answer_config 必須）の名前を動的に取得して削除
+-- 2. 整合性 CHECK（correct_answer / answer_config 必須）を削除
 DO $$
 DECLARE
   v_conname TEXT;
@@ -37,18 +44,38 @@ BEGIN
   END IF;
 END $$;
 
--- 3. answer_type 制約を再追加（'note' を含む）
-ALTER TABLE public.questions
-  ADD CONSTRAINT questions_answer_type_check
-  CHECK (answer_type IN ('numeric', 'fraction', 'multi_part', 'selection', 'note'));
+-- 3. answer_type 制約を再追加（'note' を含む、IF NOT EXISTS で冪等）
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'public.questions'::regclass
+      AND conname = 'questions_answer_type_check'
+  ) THEN
+    ALTER TABLE public.questions
+      ADD CONSTRAINT questions_answer_type_check
+      CHECK (answer_type IN ('numeric', 'fraction', 'multi_part', 'selection', 'note'));
+  END IF;
+END $$;
 
--- 4. 整合性制約を再追加（'note' は correct_answer も answer_config も不要）
-ALTER TABLE public.questions
-  ADD CONSTRAINT questions_answer_integrity_check
-  CHECK (
-    (answer_type IN ('numeric', 'fraction') AND correct_answer IS NOT NULL)
-    OR
-    (answer_type IN ('multi_part', 'selection') AND answer_config IS NOT NULL)
-    OR
-    (answer_type = 'note')
-  );
+-- 4. 整合性制約を再追加（'note' は correct_answer も answer_config も不要、IF NOT EXISTS で冪等）
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'public.questions'::regclass
+      AND conname = 'questions_answer_integrity_check'
+  ) THEN
+    ALTER TABLE public.questions
+      ADD CONSTRAINT questions_answer_integrity_check
+      CHECK (
+        (answer_type IN ('numeric', 'fraction') AND correct_answer IS NOT NULL)
+        OR
+        (answer_type IN ('multi_part', 'selection') AND answer_config IS NOT NULL)
+        OR
+        (answer_type = 'note')
+      );
+  END IF;
+END $$;
+
+COMMIT;

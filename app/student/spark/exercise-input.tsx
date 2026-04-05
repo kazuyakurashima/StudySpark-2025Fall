@@ -298,7 +298,8 @@ export function ExerciseInput({ sessionId }: Props) {
 
   const computedTotal = useMemo(() => {
     const score = sections.reduce((s, sec) => s + sec.score, 0)
-    const max = sections.reduce((s, sec) => s + sec.questions.reduce((sum, q) => sum + q.points, 0), 0)
+    // note（解説参照）は採点対象外なので分母から除く
+    const max = sections.reduce((s, sec) => s + sec.questions.filter(q => q.answerType !== 'note').reduce((sum, q) => sum + q.points, 0), 0)
     return { score, max }
   }, [sections])
 
