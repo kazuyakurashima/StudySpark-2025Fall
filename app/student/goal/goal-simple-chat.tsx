@@ -343,8 +343,8 @@ export function GoalSimpleChat({
   }
 
   return (
-    <Card className="card-elevated shadow-xl">
-      <CardHeader className="border-b bg-gradient-to-r from-primary/5 to-accent/5">
+    <Card className="card-elevated shadow-xl flex flex-col h-[calc(100dvh-200px)]">
+      <CardHeader className="shrink-0 border-b bg-gradient-to-r from-primary/5 to-accent/5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Bot className="h-5 w-5 text-primary" />
@@ -359,9 +359,9 @@ export function GoalSimpleChat({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="p-0">
+      <CardContent className="flex-1 flex flex-col p-0 min-h-0 overflow-hidden">
         {/* メッセージエリア */}
-        <div ref={messagesContainerRef} className="min-h-[60dvh] max-h-[70dvh] overflow-y-auto p-4 space-y-4 bg-accent/5">
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-accent/5">
           {messages.map((message) => (
             <div
               key={message.id}
@@ -424,7 +424,10 @@ export function GoalSimpleChat({
 
         {/* 入力エリア（Step2とStep3のみ） */}
         {currentStep >= 2 && currentStep < 4 && (
-          <div className="p-4 border-t bg-background">
+          <div
+            className="shrink-0 border-t bg-background p-4"
+            style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+          >
             <div className="space-y-2">
               <div className="relative">
                 <Textarea
@@ -464,7 +467,10 @@ export function GoalSimpleChat({
 
         {/* 完了ボタン */}
         {currentStep === 4 && (
-          <div className="p-4 border-t bg-background">
+          <div
+            className="shrink-0 border-t bg-background p-4"
+            style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+          >
             <Button
               onClick={handleComplete}
               className="w-full h-12 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white font-bold shadow-lg"
