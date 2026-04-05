@@ -63,6 +63,7 @@ export function MultiPartInput({
             }
 
             const slot = slots.find(s => s.label === part.label)
+            const slotUnit = slot?.unit
             return (
               <span key={i} className="inline-flex items-center gap-0.5">
                 <input
@@ -80,9 +81,9 @@ export function MultiPartInput({
                   placeholder={getSlotPlaceholder(template, part.label, vertexEntries.length > 0)}
                   aria-label={part.label}
                 />
-                {shouldRenderSlotUnit(template, part.label, slot?.unit) && (
+                {shouldRenderSlotUnit(template, part.label, slotUnit) && (
                   <span className="text-sm text-muted-foreground whitespace-nowrap">
-                    {slot.unit}
+                    {slotUnit}
                   </span>
                 )}
               </span>
