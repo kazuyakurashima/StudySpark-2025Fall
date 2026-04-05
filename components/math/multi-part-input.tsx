@@ -11,6 +11,8 @@ interface MultiPartInputProps {
   onChange: (label: string, value: string) => void
   disabled?: boolean
   className?: string
+  /** 頂点番号対応表。存在する場合、入力欄の上に「1=A / 2=B / 3=C」形式で表示 */
+  vertex_map?: Record<string, string>
 }
 
 export function MultiPartInput({
@@ -21,6 +23,7 @@ export function MultiPartInput({
   onChange,
   disabled = false,
   className,
+  vertex_map,
 }: MultiPartInputProps) {
   // テンプレートを {label} で分割してUI要素に変換
   const parts = parseTemplate(template, slots)
@@ -30,6 +33,14 @@ export function MultiPartInput({
       <span className="text-sm font-bold text-blue-700 min-w-[2.5rem] mt-3">
         {questionNumber}
       </span>
+      <div className="flex flex-col gap-1">
+        {vertex_map && (
+          <div className="inline-flex flex-wrap gap-x-2 rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-xs text-amber-800 font-mono">
+            {Object.entries(vertex_map).map(([num, letter]) => (
+              <span key={num}>{num}＝{letter}</span>
+            ))}
+          </div>
+        )}
       <div className="flex flex-wrap items-center gap-1">
         {parts.map((part, i) => {
           if (part.type === 'text') {
@@ -66,6 +77,7 @@ export function MultiPartInput({
             </span>
           )
         })}
+      </div>
       </div>
     </div>
   )
