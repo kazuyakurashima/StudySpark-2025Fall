@@ -18,6 +18,20 @@
 
 BEGIN;
 
+-- 安全ガード: 生徒回答が存在する場合は即中断（未着手前提の確認）
+DO $$
+DECLARE v_count INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO v_count
+  FROM answer_sessions ans
+  JOIN question_sets qs ON ans.question_set_id = qs.id
+  WHERE qs.session_id = 8 AND qs.subject_id = 1 AND qs.grade = 5
+    AND qs.set_type = 'exercise_workbook' AND qs.edition IS NULL;
+  IF v_count > 0 THEN
+    RAISE EXCEPTION '生徒回答が % 件存在します。削除前に手動確認してください (session_id=8)', v_count;
+  END IF;
+END $$;
+
 DELETE FROM exercise_reflections WHERE answer_session_id IN (SELECT ans.id FROM answer_sessions ans JOIN question_sets qs ON ans.question_set_id = qs.id WHERE qs.session_id = 8 AND qs.subject_id = 1 AND qs.grade = 5 AND qs.set_type = 'exercise_workbook' AND qs.edition IS NULL);
 DELETE FROM student_answers WHERE answer_session_id IN (SELECT ans.id FROM answer_sessions ans JOIN question_sets qs ON ans.question_set_id = qs.id WHERE qs.session_id = 8 AND qs.subject_id = 1 AND qs.grade = 5 AND qs.set_type = 'exercise_workbook' AND qs.edition IS NULL);
 DELETE FROM answer_sessions WHERE question_set_id IN (SELECT id FROM question_sets WHERE session_id = 8 AND subject_id = 1 AND grade = 5 AND set_type = 'exercise_workbook' AND edition IS NULL);
