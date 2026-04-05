@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import Image from "next/image"
 import { Send, Sparkles, CheckCircle } from "lucide-react"
+import { VoiceInputButton } from "@/components/ui/voice-input-button"
 import { saveCoachingMessage, completeCoachingSession } from "@/app/actions/reflect"
 import { useRouter } from "next/navigation"
 
@@ -485,15 +486,15 @@ export function ReflectChat({
   // ---------- レンダリング ----------
 
   return (
-    <Card className="card-elevated">
-      <CardHeader>
+    <Card className="card-elevated flex flex-col h-[calc(100dvh-200px)]">
+      <CardHeader className="shrink-0 pb-3">
         <CardTitle className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-primary" />
           AIコーチと週次振り返り（{turnNumber}/{MAX_TURNS}ターン目）
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div ref={messagesContainerRef} className="bg-accent/5 rounded-lg p-4 min-h-[60dvh] max-h-[70dvh] overflow-y-auto space-y-4">
+      <CardContent className="flex-1 flex flex-col p-0 min-h-0 overflow-hidden">
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto bg-accent/5 mx-4 rounded-lg p-4 space-y-4">
           {messages.map((message) => (
             <div
               key={message.id}
@@ -547,59 +548,78 @@ export function ReflectChat({
           <div ref={messagesEndRef} />
         </div>
 
-        {/* 終了ボタン + 折り畳み入力欄 */}
-        {canEndSession && !isSessionEnded && (
-          <div className="space-y-4 py-4">
-            <div className="flex justify-center">
-              <Button
-                onClick={handleEndSession}
-                disabled={isLoading}
-                size="lg"
-                className="gap-2"
-              >
-                <CheckCircle className="h-5 w-5" />
-                この内容で完了する
-              </Button>
-            </div>
+        {/* ボトムパネル — 常に画面内に表示 */}
+        <div
+          className="shrink-0 border-t bg-background px-4 pt-3 rounded-b-xl"
+          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
+        >
 
-            <details className="text-center">
-              <summary className="text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors inline-block">
-                もっと話したい場合はこちら
-              </summary>
-              <div className="mt-4 space-y-2">
-                <div className="flex gap-2">
-                  <Textarea
-                    value={userInput}
-                    onChange={(e) => setUserInput(e.target.value)}
-                    placeholder="続けて話したいことがあれば..."
-                    className="flex-1 min-h-[60px] resize-none"
-                    disabled={isLoading || isStreaming}
-                  />
-                  <Button
-                    onClick={sendMessage}
-                    disabled={!userInput.trim() || isLoading || isStreaming}
-                    size="icon"
-                    className="h-[60px] w-[60px]"
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
+          {/* 終了ボタン + 折り畳み入力欄 */}
+          {canEndSession && !isSessionEnded && (
+            <div className="space-y-3">
+              <div className="flex justify-center">
+                <Button
+                  onClick={handleEndSession}
+                  disabled={isLoading}
+                  size="lg"
+                  className="gap-2"
+                >
+                  <CheckCircle className="h-5 w-5" />
+                  この内容で完了する
+                </Button>
               </div>
-            </details>
-          </div>
-        )}
 
-        {/* 入力欄（通常時） */}
-        {!isCompleted && !isSessionEnded && !canEndSession && turnNumber <= MAX_TURNS && (
-          <div className="space-y-2">
+              <details className="text-center">
+                <summary className="text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors inline-block">
+                  もっと話したい場合はこちら
+                </summary>
+                <div className="mt-3 space-y-2">
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Textarea
+                        value={userInput}
+                        onChange={(e) => setUserInput(e.target.value)}
+                        placeholder="続けて話したいことがあれば..."
+                        className="min-h-[60px] resize-none pr-12"
+                        disabled={isLoading || isStreaming}
+                      />
+                      <VoiceInputButton
+                        onTranscribed={(text) => setUserInput((prev) => prev ? `${prev} ${text}` : text)}
+                        disabled={isLoading || isStreaming}
+                        className="absolute right-2 bottom-2"
+                      />
+                    </div>
+                    <Button
+                      onClick={sendMessage}
+                      disabled={!userInput.trim() || isLoading || isStreaming}
+                      size="icon"
+                      className="h-[60px] w-[60px]"
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </details>
+            </div>
+          )}
+
+          {/* 入力欄（通常時） */}
+          {!isCompleted && !isSessionEnded && !canEndSession && turnNumber <= MAX_TURNS && (
             <div className="flex gap-2">
-              <Textarea
-                value={userInput}
-                onChange={(e) => setUserInput(e.target.value)}
-                placeholder="あなたの気持ちを教えてね...（Enterで改行、送信ボタンで送信）"
-                className="flex-1 min-h-[60px] resize-none"
-                disabled={isLoading || isCompleted || isStreaming}
-              />
+              <div className="relative flex-1">
+                <Textarea
+                  value={userInput}
+                  onChange={(e) => setUserInput(e.target.value)}
+                  placeholder="あなたの気持ちを教えてね..."
+                  className="min-h-[60px] resize-none pr-12"
+                  disabled={isLoading || isCompleted || isStreaming}
+                />
+                <VoiceInputButton
+                  onTranscribed={(text) => setUserInput((prev) => prev ? `${prev} ${text}` : text)}
+                  disabled={isLoading || isCompleted || isStreaming}
+                  className="absolute right-2 bottom-2"
+                />
+              </div>
               <Button
                 onClick={sendMessage}
                 disabled={!userInput.trim() || isLoading || isCompleted || isStreaming}
@@ -609,31 +629,32 @@ export function ReflectChat({
                 <Send className="h-4 w-4" />
               </Button>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* 完了画面 */}
-        {isSessionEnded && (
-          <div className="text-center space-y-4 py-6">
-            <CheckCircle className="w-12 h-12 text-green-500 mx-auto" />
-            <div>
-              <p className="font-medium text-lg mb-2">振り返りが完了しました！</p>
-              <p className="text-sm text-muted-foreground">
-                お疲れ様でした。来週も頑張りましょう！
-              </p>
+          {/* 完了画面 */}
+          {isSessionEnded && (
+            <div className="text-center space-y-3 py-2">
+              <div className="flex items-center justify-center gap-3">
+                <CheckCircle className="w-8 h-8 text-green-500 shrink-0" />
+                <div className="text-left">
+                  <p className="font-medium">振り返りが完了しました！</p>
+                  <p className="text-sm text-muted-foreground">お疲れ様でした。来週も頑張りましょう！</p>
+                </div>
+              </div>
+              <Button onClick={() => router.push("/student")} className="w-full">
+                ダッシュボードに戻る
+              </Button>
             </div>
-            <Button onClick={() => router.push("/student")}>
-              ダッシュボードに戻る
-            </Button>
-          </div>
-        )}
+          )}
 
-        {/* 自動完了メッセージ */}
-        {isCompleted && !isSessionEnded && (
-          <div className="text-center text-sm text-muted-foreground py-4">
-            振り返りが完了しました。お疲れさまでした！✨
-          </div>
-        )}
+          {/* 自動完了メッセージ */}
+          {isCompleted && !isSessionEnded && (
+            <div className="text-center text-sm text-muted-foreground py-2">
+              振り返りが完了しました。お疲れさまでした！✨
+            </div>
+          )}
+
+        </div>
       </CardContent>
     </Card>
   )

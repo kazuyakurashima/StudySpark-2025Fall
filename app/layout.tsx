@@ -1,6 +1,7 @@
 import type React from "react"
 import type { Metadata } from "next"
 import localFont from "next/font/local"
+import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
 
 const notoSansJP = localFont({
@@ -48,6 +49,7 @@ export default function RootLayout({
     <html lang="ja" className={notoSansJP.variable}>
       <body className="font-sans antialiased">
         {children}
+        <Toaster />
       </body>
     </html>
   )

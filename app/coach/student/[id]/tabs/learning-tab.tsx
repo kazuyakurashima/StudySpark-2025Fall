@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { useCoachStudentDetail, type StudyLog } from "@/lib/hooks/use-coach-student-detail"
 import { sendEncouragementToStudent } from "@/app/actions/coach"
+import { VoiceInputButton } from "@/components/ui/voice-input-button"
 import {
   groupLogsByBatch,
   getRepresentativeLog,
@@ -320,12 +321,18 @@ export function LearningTab({ studentId }: LearningTabProps) {
 
                 <div className="border-t pt-4">
                   <h4 className="font-medium mb-2">カスタムメッセージ：</h4>
-                  <Textarea
-                    placeholder="独自の応援メッセージを入力..."
-                    value={customMessage}
-                    onChange={(e) => setCustomMessage(e.target.value)}
-                    className="mb-2"
-                  />
+                  <div className="relative mb-2">
+                    <Textarea
+                      placeholder="独自の応援メッセージを入力..."
+                      value={customMessage}
+                      onChange={(e) => setCustomMessage(e.target.value)}
+                      className="pr-12"
+                    />
+                    <VoiceInputButton
+                      onTranscribed={(text) => setCustomMessage((prev) => prev ? `${prev} ${text}` : text)}
+                      className="absolute right-2 bottom-2"
+                    />
+                  </div>
                   <div className="flex justify-between">
                     <Button
                       variant="outline"

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Bot, Send, Sparkles, User, ArrowLeft } from "lucide-react"
+import { VoiceInputButton } from "@/components/ui/voice-input-button"
 import { fetchSSE } from "@/lib/sse/client"
 import { simulateTyping } from "@/lib/sse/typing-effect"
 
@@ -342,8 +343,8 @@ export function GoalSimpleChat({
   }
 
   return (
-    <Card className="card-elevated shadow-xl">
-      <CardHeader className="border-b bg-gradient-to-r from-primary/5 to-accent/5">
+    <Card className="card-elevated shadow-xl flex flex-col h-[calc(100dvh-200px)]">
+      <CardHeader className="shrink-0 border-b bg-gradient-to-r from-primary/5 to-accent/5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Bot className="h-5 w-5 text-primary" />
@@ -358,9 +359,9 @@ export function GoalSimpleChat({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="p-0">
+      <CardContent className="flex-1 flex flex-col p-0 min-h-0 overflow-hidden">
         {/* メッセージエリア */}
-        <div ref={messagesContainerRef} className="min-h-[60dvh] max-h-[70dvh] overflow-y-auto p-4 space-y-4 bg-accent/5">
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-accent/5">
           {messages.map((message) => (
             <div
               key={message.id}
@@ -423,16 +424,30 @@ export function GoalSimpleChat({
 
         {/* 入力エリア（Step2とStep3のみ） */}
         {currentStep >= 2 && currentStep < 4 && (
-          <div className="p-4 border-t bg-background">
+          <div
+            className="shrink-0 border-t bg-background p-4"
+            style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+          >
             <div className="space-y-2">
-              <Textarea
-                placeholder="あなたの気持ちを自由に書いてね...（Enterで改行、送信ボタンで送信）"
-                value={userInput}
-                onChange={(e) => setUserInput(e.target.value)}
-                className="min-h-[80px] resize-none"
-                maxLength={getMaxLength()}
-                disabled={isLoading}
-              />
+              <div className="relative">
+                <Textarea
+                  placeholder="あなたの気持ちを自由に書いてね...（Enterで改行、送信ボタンで送信）"
+                  value={userInput}
+                  onChange={(e) => setUserInput(e.target.value)}
+                  className="min-h-[80px] resize-none pr-12"
+                  maxLength={getMaxLength()}
+                  disabled={isLoading}
+                />
+                <VoiceInputButton
+                  onTranscribed={(text) => {
+                    const max = getMaxLength()
+                    const newText = userInput ? `${userInput} ${text}` : text
+                    setUserInput(newText.slice(0, max))
+                  }}
+                  disabled={isLoading}
+                  className="absolute right-2 bottom-2"
+                />
+              </div>
               <div className="flex justify-between items-center">
                 <span className="text-xs text-muted-foreground">
                   {userInput.length}/{getMaxLength()}文字
@@ -452,7 +467,10 @@ export function GoalSimpleChat({
 
         {/* 完了ボタン */}
         {currentStep === 4 && (
-          <div className="p-4 border-t bg-background">
+          <div
+            className="shrink-0 border-t bg-background p-4"
+            style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+          >
             <Button
               onClick={handleComplete}
               className="w-full h-12 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white font-bold shadow-lg"

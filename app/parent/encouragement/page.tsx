@@ -22,6 +22,7 @@ import type { QuickEncouragementType } from "@/lib/openai/prompts"
 import { useUserProfile } from "@/lib/hooks/use-user-profile"
 import { groupLogsByBatch, calculateSummary, calculateAccuracy, getRepresentativeLog } from "@/lib/utils/batch-grouping"
 import type { GroupedLogEntry, StudyLogWithBatch } from "@/lib/types/batch-grouping"
+import { VoiceInputButton } from "@/components/ui/voice-input-button"
 
 // 応援用学習ログ型
 interface EncouragementLog extends StudyLogWithBatch {
@@ -666,13 +667,22 @@ export default function ParentEncouragementPage() {
                     <MessageSquare className="h-4 w-4 text-purple-600" />
                     生成されたメッセージ（編集できます）
                   </label>
-                  <textarea
-                    value={editingMessage}
-                    onChange={(e) => setEditingMessage(e.target.value)}
-                    className="w-full p-4 rounded-xl border-2 border-slate-200 focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all duration-200 text-sm sm:text-base resize-none"
-                    rows={4}
-                    maxLength={200}
-                  />
+                  <div className="relative">
+                    <textarea
+                      value={editingMessage}
+                      onChange={(e) => setEditingMessage(e.target.value)}
+                      className="w-full p-4 pr-12 rounded-xl border-2 border-slate-200 focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all duration-200 text-sm sm:text-base resize-none"
+                      rows={4}
+                      maxLength={200}
+                    />
+                    <VoiceInputButton
+                      onTranscribed={(text) => {
+                        const newText = editingMessage ? `${editingMessage} ${text}` : text
+                        setEditingMessage(newText.slice(0, 200))
+                      }}
+                      className="absolute right-2 bottom-2"
+                    />
+                  </div>
                   <div className="flex justify-between items-center mt-3">
                     <span className="text-xs text-slate-500">{editingMessage.length}/200文字</span>
                   </div>

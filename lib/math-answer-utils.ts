@@ -9,6 +9,8 @@ import { shuffleWithSeed } from '@/lib/math-grading'
 export interface MultiPartConfig {
   template: string
   slots: { label: string; unit?: string }[]
+  /** 頂点番号対応表（任意）。例: {"1":"A","2":"B","3":"C"} */
+  vertex_map?: Record<string, string>
 }
 
 export interface SelectionConfig {
@@ -29,9 +31,15 @@ export function sanitizeAnswerConfig(
 
   try {
     if (answerType === 'multi_part') {
-      const { slots, template } = config as { slots: { label: string; unit: string }[]; template: string }
+      const { slots, template, vertex_map } = config as {
+        slots: { label: string; unit: string }[]
+        template: string
+        vertex_map?: Record<string, string>
+      }
       if (!Array.isArray(slots) || typeof template !== 'string') return null
-      return { template, slots }
+      const result: MultiPartConfig = { template, slots }
+      if (vertex_map && typeof vertex_map === 'object') result.vertex_map = vertex_map
+      return result
     }
 
     if (answerType === 'selection') {

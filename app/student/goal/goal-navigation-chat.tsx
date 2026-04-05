@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Bot, Send, Sparkles, User } from "lucide-react"
+import { VoiceInputButton } from "@/components/ui/voice-input-button"
 import { fetchSSE } from "@/lib/sse/client"
 import { simulateTyping } from "@/lib/sse/typing-effect"
 
@@ -50,11 +51,21 @@ export function GoalNavigationChat({
   const [isComplete, setIsComplete] = useState(false)
   const [finalThoughts, setFinalThoughts] = useState("")
   const [thoughtsFailCount, setThoughtsFailCount] = useState(0)
+  const [voiceDebug, setVoiceDebug] = useState<{
+    mediaRecorderDefined: boolean
+    getUserMediaDefined: boolean
+    supportedMimeType: string | null
+  }>({
+    mediaRecorderDefined: false,
+    getUserMediaDefined: false,
+    supportedMimeType: null,
+  })
   const abortRef = useRef<AbortController | null>(null)
   const typingCancelRef = useRef<(() => void) | null>(null)
   const msgIdRef = useRef(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
+  const shouldShowVoiceInput = currentStep <= 2 && !isLoading && !isComplete
 
   // 条件付き自動スクロール（最下部付近にいるときのみ）
   useEffect(() => {
@@ -71,6 +82,31 @@ export function GoalNavigationChat({
       abortRef.current?.abort()
       typingCancelRef.current?.()
     }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const mediaRecorderDefined = typeof MediaRecorder !== "undefined"
+    const getUserMediaDefined = typeof navigator !== "undefined" &&
+      typeof navigator.mediaDevices?.getUserMedia === "function"
+
+    let supportedMimeType: string | null = null
+    if (mediaRecorderDefined) {
+      const candidates = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/mp4",
+      ]
+      supportedMimeType =
+        candidates.find((type) => MediaRecorder.isTypeSupported(type)) ?? null
+    }
+
+    setVoiceDebug({
+      mediaRecorderDefined,
+      getUserMediaDefined,
+      supportedMimeType,
+    })
   }, [])
 
 
@@ -327,15 +363,15 @@ export function GoalNavigationChat({
   }
 
   return (
-    <Card className="card-elevated">
-      <CardHeader>
+    <Card className="card-elevated flex flex-col h-[calc(100dvh-200px)]">
+      <CardHeader className="shrink-0">
         <CardTitle className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-primary" />
           AIコーチと対話中（ステップ {currentStep}/2）
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div ref={messagesContainerRef} className="bg-accent/5 rounded-lg p-4 min-h-[60dvh] max-h-[70dvh] overflow-y-auto space-y-4">
+      <CardContent className="flex-1 flex flex-col p-0 min-h-0 overflow-hidden">
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto bg-accent/5 mx-4 mt-4 rounded-lg p-4 space-y-4">
           {messages.map((message) => (
             <div
               key={message.id}
@@ -385,52 +421,78 @@ export function GoalNavigationChat({
           <div ref={messagesEndRef} />
         </div>
 
-        {currentStep <= 2 && !isLoading && !isComplete && (
-          <div className="flex gap-2">
-            <Textarea
-              value={userInput}
-              onChange={(e) => setUserInput(e.target.value)}
-              placeholder="あなたの気持ちを教えてね...（Enterで改行、送信ボタンで送信）"
-              className="flex-1 min-h-[60px] resize-none"
-              disabled={isLoading}
-            />
-            <Button
-              onClick={sendMessage}
-              disabled={!userInput.trim() || isLoading}
-              size="icon"
-              className="h-[60px] w-[60px]"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
+        {/* ボトムパネル — 常に画面内に表示 */}
+        <div
+          className="shrink-0 border-t bg-background px-4 pt-3 rounded-b-xl"
+          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
+        >
+          {process.env.NODE_ENV !== "production" && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 space-y-1 mb-3">
+              <div className="font-semibold">DEBUG: Voice Input</div>
+              <div>showInput: {String(shouldShowVoiceInput)}</div>
+              <div>currentStep: {currentStep}</div>
+              <div>isLoading: {String(isLoading)}</div>
+              <div>isComplete: {String(isComplete)}</div>
+              <div>mediaRecorderDefined: {String(voiceDebug.mediaRecorderDefined)}</div>
+              <div>getUserMediaDefined: {String(voiceDebug.getUserMediaDefined)}</div>
+              <div>supportedMimeType: {voiceDebug.supportedMimeType ?? "none"}</div>
+            </div>
+          )}
 
-        {thoughtsFailCount >= 2 && !isComplete && !isLoading && (
-          <div className="text-center space-y-2 py-2">
-            <p className="text-sm text-muted-foreground">
-              AI によるまとめ生成がうまくいかないようです。
-            </p>
-            <Button
-              variant="outline"
-              onClick={onFallbackToDirect}
-              className="w-full"
-            >
-              自分で入力する
-            </Button>
-          </div>
-        )}
+          {shouldShowVoiceInput && (
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Textarea
+                  value={userInput}
+                  onChange={(e) => setUserInput(e.target.value)}
+                  placeholder="あなたの気持ちを教えてね...（Enterで改行、送信ボタンで送信）"
+                  className="min-h-[60px] resize-none pr-12"
+                  disabled={isLoading}
+                />
+                <VoiceInputButton
+                  onTranscribed={(text) => setUserInput((prev) => prev ? `${prev} ${text}` : text)}
+                  disabled={isLoading}
+                  className="absolute right-2 bottom-2"
+                />
+              </div>
+              <Button
+                onClick={sendMessage}
+                disabled={!userInput.trim() || isLoading}
+                size="icon"
+                className="h-[60px] w-[60px]"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
 
-        {isComplete && (
-          <div className="pt-2">
-            <Button
-              onClick={() => onComplete(finalThoughts)}
-              className="w-full h-12 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white font-bold shadow-lg"
-            >
-              <Sparkles className="h-5 w-5 mr-2" />
-              この内容で目標を確定
-            </Button>
-          </div>
-        )}
+          {thoughtsFailCount >= 2 && !isComplete && !isLoading && (
+            <div className="text-center space-y-2 py-2">
+              <p className="text-sm text-muted-foreground">
+                AI によるまとめ生成がうまくいかないようです。
+              </p>
+              <Button
+                variant="outline"
+                onClick={onFallbackToDirect}
+                className="w-full"
+              >
+                自分で入力する
+              </Button>
+            </div>
+          )}
+
+          {isComplete && (
+            <div className="pt-2">
+              <Button
+                onClick={() => onComplete(finalThoughts)}
+                className="w-full h-12 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white font-bold shadow-lg"
+              >
+                <Sparkles className="h-5 w-5 mr-2" />
+                この内容で目標を確定
+              </Button>
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   )

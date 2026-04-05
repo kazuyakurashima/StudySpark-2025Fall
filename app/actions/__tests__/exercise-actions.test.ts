@@ -407,6 +407,62 @@ describe('gradeExerciseSection', () => {
     expect(result.error).toBeUndefined()
     expect(result.attemptNumber).toBe(3) // サーバーのDBの値が返る
   })
+
+  // ================================================================
+  // note（解説参照）の非採点テスト
+  // ================================================================
+
+  it('note 問題は sectionMaxScore に含まれない', async () => {
+    setupSectionMocks({
+      questions: [
+        { id: 1, answer_type: 'numeric', correct_answer: '10', answer_config: null, points: 1, min_course: 'A' },
+        { id: 2, answer_type: 'note',    correct_answer: null,  answer_config: null, points: 1, min_course: 'A' },
+        { id: 3, answer_type: 'numeric', correct_answer: '20', answer_config: null, points: 1, min_course: 'A' },
+      ],
+      existingSession: { id: 500 },
+    })
+
+    const result = await gradeExerciseSection({
+      questionSetId: 100,
+      sectionQuestionIds: [1, 2, 3],
+      answers: [
+        { questionId: 1, rawInput: '10' },
+        { questionId: 3, rawInput: '20' },
+      ],
+      isFinal: false,
+    })
+
+    // note (id=2) はスコア対象外 → maxScore=2、採点結果にも含まれない
+    expect(result.sectionMaxScore).toBe(2)
+    expect(result.sectionScore).toBe(2)
+    expect(result.results.find(r => r.questionId === 2)).toBeUndefined()
+  })
+
+  it('note 問題に回答が混入してもサーバー側で無視される', async () => {
+    setupSectionMocks({
+      questions: [
+        { id: 1, answer_type: 'numeric', correct_answer: '10', answer_config: null, points: 1, min_course: 'A' },
+        { id: 2, answer_type: 'note',    correct_answer: null,  answer_config: null, points: 1, min_course: 'A' },
+      ],
+      existingSession: { id: 500 },
+    })
+
+    // クライアントが誤って note を answers に含めて送信してきた場合
+    const result = await gradeExerciseSection({
+      questionSetId: 100,
+      sectionQuestionIds: [1, 2],
+      answers: [
+        { questionId: 1, rawInput: '10' },
+        { questionId: 2, rawInput: 'anything' }, // note への不正回答
+      ],
+      isFinal: false,
+    })
+
+    // note (id=2) はサーバー側で採点対象外
+    expect(result.sectionMaxScore).toBe(1)
+    expect(result.sectionScore).toBe(1)
+    expect(result.results.find(r => r.questionId === 2)).toBeUndefined()
+  })
 })
 
 // ================================================================

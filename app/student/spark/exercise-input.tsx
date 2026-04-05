@@ -8,6 +8,7 @@ import { SelectionInput } from '@/components/math/selection-input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
+import { VoiceInputButton } from '@/components/ui/voice-input-button'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { BookOpen, Check, X, Loader2, RotateCcw, RefreshCw, Trophy, ChevronDown, ChevronRight, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -199,8 +200,8 @@ export function ExerciseInput({ sessionId }: Props) {
   const handleGradeSection = useCallback((idx: number) => {
     if (!questionSet) return
     const section = sections[idx]
-    const answers = section.questions.filter(q => !section.lockedQuestionIds.has(q.id)).map(q => ({ questionId: q.id, rawInput: buildRawInput(q) })).filter((a): a is { questionId: number; rawInput: string } => a.rawInput !== null)
-    const sectionQuestionIds = section.questions.filter(q => !section.lockedQuestionIds.has(q.id)).map(q => q.id)
+    const answers = section.questions.filter(q => !section.lockedQuestionIds.has(q.id) && q.answerType !== 'note').map(q => ({ questionId: q.id, rawInput: buildRawInput(q) })).filter((a): a is { questionId: number; rawInput: string } => a.rawInput !== null)
+    const sectionQuestionIds = section.questions.filter(q => !section.lockedQuestionIds.has(q.id) && q.answerType !== 'note').map(q => q.id)
     const isFinal = sections.filter((s, i) => i !== idx && !s.isGraded).length === 0
 
     startTransition(async () => {
@@ -297,7 +298,8 @@ export function ExerciseInput({ sessionId }: Props) {
 
   const computedTotal = useMemo(() => {
     const score = sections.reduce((s, sec) => s + sec.score, 0)
-    const max = sections.reduce((s, sec) => s + sec.questions.reduce((sum, q) => sum + q.points, 0), 0)
+    // note（解説参照）は採点対象外なので分母から除く
+    const max = sections.reduce((s, sec) => s + sec.questions.filter(q => q.answerType !== 'note').reduce((sum, q) => sum + q.points, 0), 0)
     return { score, max }
   }, [sections])
 
@@ -343,7 +345,7 @@ export function ExerciseInput({ sessionId }: Props) {
       {/* ===== セクション一覧 ===== */}
       {sections.map((section, idx) => {
         const badgeText = SECTION_LABELS[section.name] || ''
-        const editableQs = section.questions.filter(q => !section.lockedQuestionIds.has(q.id))
+        const editableQs = section.questions.filter(q => !section.lockedQuestionIds.has(q.id) && q.answerType !== 'note')
         const sectionAnswered = editableQs.filter(q => buildRawInput(q) !== null).length
         const sectionIncorrect = Array.from(section.results.values()).filter(r => !r.isCorrect).length
         const sectionPct = section.maxScore > 0 ? Math.round((section.score / section.maxScore) * 100) : 0
@@ -469,14 +471,25 @@ export function ExerciseInput({ sessionId }: Props) {
                               </div>
                             </div>
                             <div className="bg-gradient-to-br from-blue-50/80 to-white p-4 space-y-3">
-                              <Textarea
-                                value={section.reflectionText}
-                                onChange={(e) => handleReflectionChange(idx, e.target.value)}
-                                placeholder="例：倍数の問題は解けたけど、公約数の応用がまだ不安..."
-                                className="min-h-[80px] text-sm border-2 border-blue-200 bg-white focus:border-blue-400 focus:ring-blue-400/20 focus:ring-[3px] resize-none rounded-xl placeholder:text-gray-400"
-                                maxLength={200}
-                                autoFocus
-                              />
+                              <div className="relative">
+                                <Textarea
+                                  value={section.reflectionText}
+                                  onChange={(e) => handleReflectionChange(idx, e.target.value)}
+                                  placeholder="例：倍数の問題は解けたけど、公約数の応用がまだ不安..."
+                                  className="min-h-[80px] text-sm border-2 border-blue-200 bg-white focus:border-blue-400 focus:ring-blue-400/20 focus:ring-[3px] resize-none rounded-xl placeholder:text-gray-400 pr-12"
+                                  maxLength={200}
+                                  autoFocus
+                                />
+                                <VoiceInputButton
+                                  onTranscribed={(text) => {
+                                    const current = section.reflectionText
+                                    const newText = current ? `${current} ${text}` : text
+                                    handleReflectionChange(idx, newText.slice(0, 200))
+                                  }}
+                                  disabled={isPending}
+                                  className="absolute right-2 bottom-2"
+                                />
+                              </div>
                               <div className="flex items-center justify-between">
                                 <span className="text-[10px] text-gray-400">{section.reflectionText.length}/200文字</span>
                                 {section.reflectionText.trim() ? (
@@ -525,8 +538,14 @@ export function ExerciseInput({ sessionId }: Props) {
                           <div className={cn(disabled && "pointer-events-none", locked && "opacity-60")}>
                             {question.answerType === 'numeric' && <NumericInput questionNumber={question.questionNumber} value={numericAnswers[question.id] || ''} onChange={v => setNumericAnswers(p => ({ ...p, [question.id]: v }))} unitLabel={question.unitLabel ?? undefined} disabled={disabled} />}
                             {question.answerType === 'fraction' && <FractionInput questionNumber={question.questionNumber} numerator={fractionAnswers[question.id]?.numerator || ''} denominator={fractionAnswers[question.id]?.denominator || ''} onNumeratorChange={v => setFractionAnswers(p => ({ ...p, [question.id]: { ...p[question.id], numerator: v } }))} onDenominatorChange={v => setFractionAnswers(p => ({ ...p, [question.id]: { ...p[question.id], denominator: v } }))} disabled={disabled} />}
-                            {question.answerType === 'multi_part' && mpConfig && <MultiPartInput questionNumber={question.questionNumber} template={mpConfig.template} slots={mpConfig.slots} values={multiPartAnswers[question.id] || {}} onChange={(l, v) => setMultiPartAnswers(p => ({ ...p, [question.id]: { ...(p[question.id] || {}), [l]: v } }))} disabled={disabled} />}
+                            {question.answerType === 'multi_part' && mpConfig && <MultiPartInput questionNumber={question.questionNumber} template={mpConfig.template} slots={mpConfig.slots} values={multiPartAnswers[question.id] || {}} onChange={(l, v) => setMultiPartAnswers(p => ({ ...p, [question.id]: { ...(p[question.id] || {}), [l]: v } }))} disabled={disabled} vertex_map={mpConfig.vertex_map} />}
                             {question.answerType === 'selection' && selConfig && <SelectionInput questionNumber={question.questionNumber} options={selConfig.options} selectedValues={selectionAnswers[question.id] || []} unitLabel={selConfig.unit ?? undefined} onToggle={v => setSelectionAnswers(p => { const c = p[question.id] || []; return { ...p, [question.id]: c.includes(v) ? c.filter(x => x !== v) : [...c, v] } })} disabled={disabled} />}
+                            {question.answerType === 'note' && (
+                              <div className="flex items-center gap-2 py-1">
+                                <span className="text-sm font-bold text-blue-700 min-w-[2.5rem]">{question.questionNumber}</span>
+                                <span className="text-xs text-gray-400 italic">解説参照</span>
+                              </div>
+                            )}
                           </div>
                           {section.isGraded && result && !result.isCorrect && result.correctAnswer && (
                             <div className="mt-2.5 px-3 py-2 bg-red-100 rounded-lg border border-red-200">

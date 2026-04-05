@@ -12,7 +12,7 @@ export interface ExerciseQuestion {
   id: number
   questionNumber: string
   sectionName: string
-  answerType: 'numeric' | 'fraction' | 'multi_part' | 'selection'
+  answerType: 'numeric' | 'fraction' | 'multi_part' | 'selection' | 'note'
   unitLabel: string | null
   answerConfig: MultiPartConfig | SelectionConfig | null
   points: number
@@ -497,9 +497,10 @@ export async function gradeExerciseSection(input: {
     // このセクションの採点
     // sectionMaxScore はセクション内の全問題のpoints合計（回答有無に関係なく）
     let sectionScore = 0
+    // note（解説参照）は採点対象外 — クライアントが除外済みでも、サーバー側でも明示的に弾く
     const sectionQuestionsInScope = input.sectionQuestionIds
       .map(id => questionMap.get(id))
-      .filter((q): q is NonNullable<typeof q> => q !== undefined)
+      .filter((q): q is NonNullable<typeof q> => q !== undefined && q.answer_type !== 'note')
     const sectionMaxScore = sectionQuestionsInScope.reduce((sum, q) => sum + q.points, 0)
 
     const results: ExerciseGradeResult[] = []
@@ -513,8 +514,8 @@ export async function gradeExerciseSection(input: {
       answered_at: string
     }[] = []
 
-    // 回答済みの問題IDセット（セクション外の回答を拒否）
-    const sectionQIdSet = new Set(input.sectionQuestionIds)
+    // 回答済みの問題IDセット（セクション外・note の回答を拒否）
+    const sectionQIdSet = new Set(sectionQuestionsInScope.map(q => q.id))
     const validAnswers = input.answers.filter(a => sectionQIdSet.has(a.questionId))
     const answeredIds = new Set(validAnswers.map(a => a.questionId))
 

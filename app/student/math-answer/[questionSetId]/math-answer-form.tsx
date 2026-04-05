@@ -350,7 +350,7 @@ function MathAnswerFormInner({ questionSetId, questionSetTitle, questions, draft
                             )}
 
                             {q.answerType === 'multi_part' && (() => {
-                              const config = q.answerConfig as { template: string; slots: { label: string; unit: string }[] } | null
+                              const config = q.answerConfig as { template: string; slots: { label: string; unit: string }[]; vertex_map?: Record<string, string> } | null
                               if (!config) return null
                               return (
                                 <MultiPartInput
@@ -364,6 +364,7 @@ function MathAnswerFormInner({ questionSetId, questionSetTitle, questions, draft
                                       [q.id]: { ...prev[q.id], [label]: value },
                                     }))
                                   }
+                                  vertex_map={config.vertex_map}
                                 />
                               )
                             })()}

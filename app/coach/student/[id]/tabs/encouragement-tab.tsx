@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Heart, Loader2, Send, Bot, Users } from "lucide-react"
+import { VoiceInputButton } from "@/components/ui/voice-input-button"
 import { useCoachStudentDetail } from "@/lib/hooks/use-coach-student-detail"
 import { sendEncouragementToStudent } from "@/app/actions/coach"
 
@@ -89,12 +90,20 @@ export function EncouragementTab({ studentId, studentName }: EncouragementTabPro
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Textarea
-            placeholder={`${studentName}さんへの応援メッセージを入力...`}
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            rows={3}
-          />
+          <div className="relative">
+            <Textarea
+              placeholder={`${studentName}さんへの応援メッセージを入力...`}
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              rows={3}
+              className="pr-12"
+            />
+            <VoiceInputButton
+              onTranscribed={(text) => setNewMessage((prev) => prev ? `${prev} ${text}` : text)}
+              disabled={isSending}
+              className="absolute right-2 bottom-2"
+            />
+          </div>
           <div className="flex justify-end">
             <Button
               onClick={handleSendMessage}
