@@ -35,10 +35,13 @@ export function MultiPartInput({
       </span>
       <div className="flex flex-col gap-1">
         {vertex_map && (
-          <div className="inline-flex flex-wrap gap-x-2 rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-xs text-amber-800 font-mono">
-            {Object.entries(vertex_map).map(([num, letter]) => (
-              <span key={num}>{num}＝{letter}</span>
-            ))}
+          <div className="rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+            <p className="font-bold mb-1">入力の手引き</p>
+            <ul className="space-y-0.5">
+              {Object.entries(vertex_map).map(([num, letter]) => (
+                <li key={num}>頂点{letter}は数字「{num}」を入力</li>
+              ))}
+            </ul>
           </div>
         )}
       <div className="flex flex-wrap items-center gap-1">
